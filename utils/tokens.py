@@ -7,8 +7,8 @@ from schemas.token import Token
 
 
 async def create_token_pair_and_build_response(user: User) -> JSONResponse:
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    access_token_expires = timedelta(minutes=settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
 
     access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     refresh_token = create_refresh_token(data={"sub": user.email}, expires_delta=refresh_token_expires)

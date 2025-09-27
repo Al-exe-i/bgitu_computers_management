@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from core.config import settings
 
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    settings.db.url,
     echo=settings.DEBUG,  # Логирование SQL запросов в debug режиме
 )
 
