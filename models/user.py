@@ -1,18 +1,16 @@
+from sqlalchemy.orm import Mapped, mapped_column
 from models.base import Base
-from sqlalchemy import Column, Integer, String, Boolean, VARCHAR, DateTime
+from sqlalchemy import String, DateTime
 from datetime import datetime
 
 
 class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(64))
-    surname = Column(String(64))
-    email = Column(String(50), unique=True)
-    telegram_id = Column(VARCHAR(16))
-    telegram_id_confirmed = Column(Boolean, default=False)
-    password = Column(String(500), nullable=False)
-    reg_date = Column(DateTime, default=datetime.now)
-    is_superuser = Column(Boolean, default=False)
-    photo = Column(String(500))
+    name: Mapped[str] = mapped_column(String(64))
+    surname: Mapped[str] = mapped_column(String(64))
+    email: Mapped[str] = mapped_column(String(50), unique=True)
+    telegram_id: Mapped[str | None] = mapped_column(String(16))
+    telegram_id_confirmed: Mapped[bool] = mapped_column(default=False)
+    password: Mapped[str] = mapped_column(String(500))
+    reg_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    is_superuser: Mapped[bool] = mapped_column(default=False)
+    photo: Mapped[str | None] = mapped_column(String(500))

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
-from .endpoints import users, auth, auditoriums
+from .endpoints import users, audiences, auth
 
 api_router = APIRouter()
 api_router.include_router(users.router, prefix="/users", tags=["users"])
-api_router.include_router(auditoriums.router, prefix="/auditoriums", tags=["auditoriums"])
+api_router.include_router(audiences.router, prefix="/audiences", tags=["audiences"])
 api_router.include_router(auth.router, tags=["auth"])

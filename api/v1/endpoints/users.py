@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def create_user(
+async def _create_user(
         db: session_dep,
         user_in: UserCreate,
         current_user: User = Depends(get_current_superuser)
@@ -41,7 +41,7 @@ async def read_user(db: session_dep, user_id: int, current_user: User = Depends(
 
 
 @router.delete("/{user_id}")
-async def delete_user(db: session_dep, user_id: int,
+async def _delete_user(db: session_dep, user_id: int,
                       current_user: User = Depends(get_current_superuser)
                       ):
     user = await delete_user(db, user_id=user_id)
@@ -50,8 +50,8 @@ async def delete_user(db: session_dep, user_id: int,
     return {"msg": "User deleted successfully"}
 
 
-@router.put("/{user_id}", response_model=UserOut)
-async def update_user(
+@router.patch("/{user_id}", response_model=UserOut)
+async def _update_user(
         db: session_dep,
         user_id: int,
         user_in: UserUpdate,
