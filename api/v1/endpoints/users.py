@@ -20,7 +20,7 @@ async def _create_user(
     existing_user = await get_user_by_email(db, email=user_in.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = await create_user(db, obj_in=user_in)
+    user = await create_user(db, schema=user_in)
     return user
 
 
@@ -64,7 +64,7 @@ async def _update_user(
     user = await get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    updated_user = await update_user(db, db_obj=user, obj_in=user_in)
+    updated_user = await update_user(db, orm_model=user, schema=user_in)
     return updated_user
 
 

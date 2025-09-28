@@ -5,16 +5,16 @@ from schemas.user import UserCreate, UserUpdate
 from core.security import get_password_hash
 
 
-async def update_user(db: AsyncSession, db_obj: User, obj_in: UserUpdate):
-    update_data = obj_in.model_dump(exclude_unset=True)
+async def update_user(db: AsyncSession, orm_model: User, schema: UserUpdate):
+    update_data = schema.model_dump(exclude_unset=True)
     if "password" in update_data:
         update_data["password"] = get_password_hash(update_data["password"])
     for field, value in update_data.items():
-        setattr(db_obj, field, value)
-    db.add(db_obj)
+        setattr(orm_model, field, value)
+    db.add(orm_model)
     await db.commit()
-    await db.refresh(db_obj)
-    return db_obj
+    await db.refresh(orm_model)
+    return orm_model
 
 
 async def get_user(db: AsyncSession, user_id: int):
@@ -22,21 +22,21 @@ async def get_user(db: AsyncSession, user_id: int):
     return result.scalars().first()
 
 
-async def create_user(db: AsyncSession, obj_in: UserCreate):
-    db_obj = User(
-        name=obj_in.name,
-        surname=obj_in.surname,
-        email=obj_in.email,
-        telegram_id=obj_in.telegram_id,
-        telegram_id_confirmed=obj_in.telegram_id_confirmed,
-        password=get_password_hash(obj_in.password),
-        photo=obj_in.photo,
+async def create_user(db: AsyncSession, schema: UserCreate):
+    user = User(
+        name=schema.name,
+        surname=schema.surname,
+        email=schema.email,
+        telegram_id=schema.telegram_id,
+        telegram_id_confirmed=schema.telegram_id_confirmed,
+        password=get_password_hash(schema.password),
+        photo=schema.photo,
         is_superuser=False,
     )
-    db.add(db_obj)
+    db.add(user)
     await db.commit()
-    await db.refresh(db_obj)
-    return db_obj
+    await db.refresh(user)
+    return user
 
 
 async def get_user_by_email(db: AsyncSession, email: str):
