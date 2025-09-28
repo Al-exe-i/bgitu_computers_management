@@ -1,9 +1,10 @@
 from fastapi import FastAPI
+from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from api.__init__ import api_router
 from core.config import settings
 
-app = FastAPI(debug=settings.DEBUG,)
+app = FastAPI(debug=settings.DEBUG, default_response_class=ORJSONResponse)
 
 app.add_middleware(
     CORSMiddleware,
