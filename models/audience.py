@@ -1,5 +1,5 @@
 from typing import Dict, List, Any
-from sqlalchemy import Column, Integer, JSON, Enum
+from sqlalchemy import JSON, Enum
 from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 from models.base import Base
 import enum
