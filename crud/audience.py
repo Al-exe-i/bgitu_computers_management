@@ -6,7 +6,8 @@ from models.audience import Audience
 
 
 async def get_all(db: AsyncSession) -> Sequence[Audience]:
-    result = await db.execute(select(Audience))
+    result = await db.execute(select(Audience).join(Audience.rows))
+    print(result.scalars().all())
     return result.scalars().all()
 
 
