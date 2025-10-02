@@ -1,17 +1,20 @@
-from typing import Sequence, Any, Coroutine
+from typing import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-
-from models import Audience
 from models.audience import Audience, Row, Computer
 from schemas.audience import AudienceCreateRequest
 
 
 async def get_all(db: AsyncSession) -> Sequence[Audience]:
-    result = await db.execute(select(Audience)
-                              .options(selectinload(Audience.rows).selectinload(Row.computers)))
+    result = await db.execute(
+        select(Audience)
+        .options(
+            selectinload(Audience.rows).selectinload(Row.computers),
+            selectinload(Audience.additional_hardware)
+        )
+    )
     return result.scalars().all()
 
 
@@ -20,7 +23,8 @@ async def get_by_id(db: AsyncSession, aud_id: int) -> Audience | None:
         select(Audience)
         .where(Audience.id == aud_id)
         .options(
-            selectinload(Audience.rows).selectinload(Row.computers)
+            selectinload(Audience.rows).selectinload(Row.computers),
+            selectinload(Audience.additional_hardware)
         )
     )
     return result.scalars().first()
@@ -30,9 +34,8 @@ async def create_audience(db: AsyncSession, audience_data: AudienceCreateRequest
     try:
         db_audience = Audience(
             id=audience_data.id,
-            type=audience_data.type,
-            additional_hardware=None
-        )
+            type=audience_data.type
+                    )
         db.add(db_audience)
         await db.flush()
 

@@ -1,8 +1,11 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
 from starlette import status
+
+from crud.additional_hardware import create_hardware
 from crud.audience import get_all, get_by_id, create_audience, delete_audience
 from db.session import session_dep
+from schemas.additional_hardware import AdditionalHardwareCreate, AdditionalHardware
 from schemas.audience import Audience, AudienceCreateRequest
 
 router = APIRouter()
@@ -12,6 +15,18 @@ router = APIRouter()
 async def get_auditoriums_endpoint(db: session_dep):
     auditoriums = await get_all(db)
     return auditoriums
+
+
+@router.post("/{aud_id}/hardware", response_model=AdditionalHardware)
+async def add_hardware_to_audience(
+        aud_id: int,
+        hardware_data: AdditionalHardwareCreate,
+        db: session_dep
+):
+    hardware_data.audience_id = aud_id
+
+    hardware = await create_hardware(db, hardware_data)
+    return hardware
 
 
 @router.get("/{aud_id}", response_model=Audience)
@@ -34,8 +49,8 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
     """
 
     try:
-        audience = await create_audience(db, audience_data)
-        created = await get_by_id(db, audience.id)
+        await create_audience(db, audience_data)
+        created = await get_by_id(db, audience_data.id)
         return created
     except Exception as e:
         raise HTTPException(
@@ -45,7 +60,7 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
 
 
 @router.delete("/{aud_id}")
-async def _delete_audience(db: session_dep, aud_id: int):
+async def delete_audience_endpoint(db: session_dep, aud_id: int):
     success = await delete_audience(db, aud_id)
     if not success:
         raise HTTPException(status_code=404, detail="Audience not found")

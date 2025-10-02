@@ -1,12 +1,12 @@
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 from models.audience import AudienceType
+from schemas.additional_hardware import AdditionalHardware
 from schemas.row import Row, RowCreateRequest
 
 
 class AudienceBase(BaseModel):
     type: AudienceType = AudienceType.row
-    additional_hardware: Dict[str, Any] | None = None
 
 
 class AudienceCreate(AudienceBase):
@@ -15,12 +15,12 @@ class AudienceCreate(AudienceBase):
 
 class AudienceUpdate(BaseModel):
     type: AudienceType | None = None
-    additional_hardware: Dict[str, Any] | None = None
 
 
 class Audience(AudienceBase):
     id: int
     rows: List[Row] = []
+    additional_hardware: List[AdditionalHardware] = []
 
 
 class AudienceCreateRequest(BaseModel):
