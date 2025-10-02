@@ -1,7 +1,21 @@
 from pydantic import BaseModel
 
 
-class Computer(BaseModel):
-    id: int
+class ComputerBase(BaseModel):
     name: str
-    state: bool
+    state: bool = True
+
+
+class ComputerCreate(ComputerBase):
+    row_id: int
+
+
+class ComputerUpdate(BaseModel):
+    name: str | None = None
+    row_id: int | None = None
+    state: bool | None = None
+
+
+class Computer(ComputerBase):
+    id: int
+    row_id: int
