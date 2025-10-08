@@ -53,3 +53,19 @@ async def delete_hardware(db: session_dep, hardware_id: int) -> bool:
     await db.delete(hardware)
     await db.commit()
     return True
+
+
+async def delete_all_hardware(db: session_dep, audience_id: int) -> bool:
+    result = await db.execute(
+        select(AdditionalHardware).where(AdditionalHardware.audience_id == audience_id)
+    )
+    hardware = result.scalars().all()
+
+    if not hardware:
+        return False
+
+    for h_ware in hardware:
+        await db.delete(h_ware)
+
+    await db.commit()
+    return True

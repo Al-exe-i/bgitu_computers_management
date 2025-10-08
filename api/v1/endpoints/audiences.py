@@ -1,11 +1,8 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
 from starlette import status
-
-from crud.additional_hardware import create_hardware
 from crud.audience import get_all, get_by_id, create_audience, delete_audience
 from db.session import session_dep
-from schemas.additional_hardware import AdditionalHardwareCreate, AdditionalHardware
 from schemas.audience import Audience, AudienceCreateRequest
 
 router = APIRouter()
@@ -15,18 +12,6 @@ router = APIRouter()
 async def get_auditoriums_endpoint(db: session_dep):
     auditoriums = await get_all(db)
     return auditoriums
-
-
-@router.post("/{aud_id}/hardware", response_model=AdditionalHardware)
-async def add_hardware_to_audience(
-        aud_id: int,
-        hardware_data: AdditionalHardwareCreate,
-        db: session_dep
-):
-    hardware_data.audience_id = aud_id
-
-    hardware = await create_hardware(db, hardware_data)
-    return hardware
 
 
 @router.get("/{aud_id}", response_model=Audience)
