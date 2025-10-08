@@ -2,8 +2,13 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# class ApiV1Prefix(BaseModel):
-#     prefix: str = "/v1"
+class ApiV1Prefix(BaseModel):
+    prefix: str = "/v1"
+
+
+class ApiPrefix(BaseModel):
+    prefix: str = "/api"
+    v1: ApiV1Prefix = ApiV1Prefix()
 
 
 class DatabaseConfig(BaseModel):
@@ -32,6 +37,7 @@ class JWTConfig(BaseModel):
 class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
+    api: ApiPrefix = ApiPrefix()
     DEBUG: bool = False
 
     model_config = SettingsConfigDict(
