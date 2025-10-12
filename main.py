@@ -3,6 +3,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from api import api_router
 from core.config import settings
+import os
 
 app = FastAPI(debug=settings.DEBUG, default_response_class=ORJSONResponse)
 
@@ -15,6 +16,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api.prefix)
+
+os.makedirs(settings.static.upload_dir, exist_ok=True)
 
 @app.get("/")
 def root():

@@ -1,5 +1,8 @@
-# app/api/v1/endpoints/users.py
+# api/v1/endpoints/users.py
 from fastapi import APIRouter, Depends, HTTPException, status, Cookie
+from fastapi.responses import StreamingResponse
+import mimetypes
+from core.config import settings
 from db.session import session_dep
 from models.user import User
 from schemas.token import Token
@@ -7,6 +10,7 @@ from schemas.user import UserCreate, UserOut, UserUpdate
 from crud.user import get_user_by_email, create_user, get_user, delete_user, update_user
 from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep
 from utils.tokens import create_token_pair_and_build_response
+import os
 
 router = APIRouter()
 
@@ -30,14 +34,40 @@ async def read_current_user(current_user: user_dep):
 
 
 @router.get("/{user_id}", response_model=UserOut)
-async def read_user(db: session_dep, user_id: int, current_user: user_dep
-                    ):
+async def read_user(db: session_dep, user_id: int, current_user: user_dep):
     if current_user.id != user_id and not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Can't get this user")
     user = await get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+@router.get("/me/photo")
+async def get_user_photo(db: session_dep, user: user_dep):
+    if not user.photo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Photo not found for this user"
+        )
+
+    file_path = os.path.join(settings.static.upload_dir, user.photo)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Photo file not found on server"
+        )
+
+    media_type, _ = mimetypes.guess_type(file_path)
+    if media_type is None:
+        media_type = "image/*"
+
+    def file_iterator(path):
+        with open(path, mode="rb") as file_like:
+            yield from file_like
+
+    return StreamingResponse(file_iterator(file_path), media_type=media_type)
 
 
 @router.delete("/{user_id}")

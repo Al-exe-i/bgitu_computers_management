@@ -1,3 +1,5 @@
+import os.path
+
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +12,10 @@ class ApiPrefix(BaseModel):
     prefix: str = "/api"
     v1: ApiV1Prefix = ApiV1Prefix()
 
+
+class StaticFiles(BaseModel):
+    root: str = "static"
+    upload_dir: str = os.path.join(root, "uploads")
 
 class DatabaseConfig(BaseModel):
     url: str
@@ -38,6 +44,7 @@ class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
     api: ApiPrefix = ApiPrefix()
+    static: StaticFiles = StaticFiles()
     DEBUG: bool = False
 
     model_config = SettingsConfigDict(
