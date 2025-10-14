@@ -1,0 +1,291 @@
+<script>
+export default {
+  name: "floorSection",
+  props: {
+    number: {
+      type: Number,
+      required: true
+    },
+    audiences: {
+      type: Array,
+      required: true,
+    },
+  },
+  data() {
+    return {
+
+    }
+  }
+}
+</script>
+
+<template>
+  <div class="floor-section">
+    <div class="floor-header">
+      <div class="floor-number">{{ this.number }}</div>
+      <h2 class="floor-title">{{ this.number }} этаж</h2>
+      <div class="collapse-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="classrooms-content">
+
+      <div class="classrooms-grid">
+
+        <div v-for="audience in audiences" class="classroom-card">
+          <div class="classroom-number">{{ audience.number }}</div>
+          <div class="classroom-info">
+            <div class="info-item">
+              <div class="info-label">Компьютеры</div>
+              <div class="info-value computers-count">{{ audience.computersCount }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Статус</div>
+              <div class="info-value">
+                <span class="status-indicator" :class="audience.statusClass"></span>
+                3 неисправны
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</template>
+
+<style scoped>
+.floor-section
+{
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border: 2px solid #dbeafe;
+  overflow: hidden;
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.floor-section:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.floor-section:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.floor-section:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.floor-header {
+  display: flex;
+  align-items: center;
+  padding: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.floor-header:hover {
+  background: #f8fafc;
+}
+
+.floor-number {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  margin-right: 20px;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
+}
+
+.floor-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1e3a8a;
+  flex: 1;
+}
+
+.collapse-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f1f5f9;
+  transition: all 0.3s ease;
+}
+
+.collapse-icon svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+}
+
+.floor-section.collapsed .collapse-icon svg {
+  transform: rotate(-90deg);
+}
+
+.classrooms-content {
+  max-height: 2000px;
+  overflow: hidden;
+  transition: max-height 0.5s ease, padding 0.5s ease, opacity 0.3s ease;
+  padding: 0 30px 30px;
+  opacity: 1;
+}
+
+.floor-section.collapsed .classrooms-content {
+  max-height: 0;
+  padding: 0 30px;
+  opacity: 0;
+}
+
+.classrooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  padding-top: 1rem;
+}
+
+.classroom-card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 3px solid #93c5fd;
+  position: relative;
+  overflow: hidden;
+}
+
+.classroom-card.hidden {
+  display: none;
+}
+
+.classroom-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+  border-color: #3b82f6;
+}
+
+.classroom-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+.classroom-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 15px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.classroom-info {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.info-item {
+  text-align: center;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.computers-count.working {
+  color: #059669;
+}
+
+.computers-count.broken {
+  color: #dc2626;
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-working {
+  background: #10b981;
+}
+
+.status-broken {
+  background: #ef4444;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .classrooms-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .floor-header {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .classroom-card {
+    padding: 20px;
+  }
+
+  .classroom-number {
+    font-size: 28px;
+  }
+
+  .info-value {
+    font-size: 16px;
+  }
+}
+
+/* Animation for initial load */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+</style>

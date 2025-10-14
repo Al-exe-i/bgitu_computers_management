@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', {
             {
                 const userResponse = await api.get(`/users/me`);
                 this.user = userResponse.data;
-                this.user.photo = null; // Установим значение по умолчанию
+                this.user.photo = null;
 
                 try
                 {
@@ -117,7 +117,7 @@ export const useAuthStore = defineStore('auth', {
         clearAccessTokenAndFreeUser()
         {
             this.accessToken = null
-            if (this.user.photo)
+            if (this.user && this.user.photo)
             {
                 URL.revokeObjectURL(this.user.photo)
             }
@@ -130,19 +130,20 @@ export const useAuthStore = defineStore('auth', {
         {
             try
             {
-                await api.post('/logout', {}, {
-                    headers: { Authorization: `Bearer ${localStorage.getItem(`accessToken`)}` }
-                })
-                this.clearAccessTokenAndFreeUser()
+                await api.post('/logout')
             }
             catch (e)
             {
                 console.log(`Can't logout`)
             }
-
+            finally
+            {
+                this.clearAccessTokenAndFreeUser()
+            }
         },
 
-        async initialize() {
+        async initialize()
+        {
             const token = localStorage.getItem('accessToken')
             if (token)
             {

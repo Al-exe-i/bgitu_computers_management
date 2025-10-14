@@ -3,6 +3,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import mainDashboard from "@/components/mainDashboard.vue";
+import floor from "@/components/floor.vue";
 
 const routes = [
     {
@@ -10,6 +11,11 @@ const routes = [
         name: 'Home',
         component: mainDashboard,
         meta: {title: "BGITU Computers management"}
+    },
+    {
+        path: '/floor',
+        name: 'Floor',
+        component: floor
     }
     // {
     //     path: '/login',
