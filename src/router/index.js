@@ -3,7 +3,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import mainDashboard from "@/components/mainDashboard.vue";
-import floor from "@/components/floor.vue";
+import office from "@/components/office.vue";
 
 const routes = [
     {
@@ -13,9 +13,11 @@ const routes = [
         meta: {title: "BGITU Computers management"}
     },
     {
-        path: '/floor',
-        name: 'Floor',
-        component: floor
+        path: '/Office/:officeNumber',
+        name: 'Office',
+        component: office,
+        props: true,
+        meta: {title: (route) => `${route.params.officeNumber} корпус`},
     }
     // {
     //     path: '/login',
@@ -37,7 +39,9 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-    const { title } = to.meta;
+    const title = typeof to.meta.title === 'function'
+        ? to.meta.title(to)
+        : to.meta.title
     const defaultTitle = 'BGITU Computers management';
     document.title = title || defaultTitle
 

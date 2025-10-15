@@ -4,6 +4,7 @@ import FloorSection from "@/components/floor/floorSection.vue";
 export default {
   name: "floor",
   components: {FloorSection},
+  props: ["officeNumber"],
   data() {
     return {
       testFirstFloorAuds: [
@@ -12,6 +13,9 @@ export default {
         {number: 106, computersCount: 16, statusClass: "status-working"},
       ]
     }
+  },
+  computed: {
+
   }
 }
 </script>

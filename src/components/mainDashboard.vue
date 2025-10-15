@@ -1,6 +1,24 @@
 <script>
+import router from "@/router/index.js";
+
 export default {
-  name: "mainDashboard"
+  name: "mainDashboard",
+  data()
+  {
+    return {
+
+    }
+  },
+
+  methods: {
+    handleOfficeClick(n)
+    {
+      router.push({
+        name: "Office",
+        params: { officeNumber: n }}
+      )
+    }
+  }
 }
 </script>
 
@@ -10,28 +28,28 @@ export default {
 
     <div class="stats-container">
 
-      <div class="floor-stats">
-        <div class="floor-title">
-          <div class="floor-icon">
-            <span class="floor-number">1</span>
+      <div class="office-stats">
+        <div class="office-title">
+          <div class="office-icon">
+            <span class="office-number">1</span>
           </div>
-          <span>Первый этаж</span>
+          <span>Первый корпус</span>
         </div>
         <div class="breakdowns-title">Количество поломок</div>
-        <div id="floor1Breakdowns" class="breakdowns-count">0</div>
-        <button id="viewFloor1Btn" class="view-details-btn">Просмотреть детали</button>
+        <div class="breakdowns-count">0</div>
+        <button @click="handleOfficeClick(1)" class="view-details-btn">Просмотреть детали</button>
       </div>
 
-      <div class="floor-stats">
-        <div class="floor-title">
-          <div class="floor-icon">
-            <span class="floor-number">2</span>
+      <div class="office-stats">
+        <div class="office-title">
+          <div class="office-icon">
+            <span class="office-number">2</span>
           </div>
-          <span>Второй этаж</span>
+          <span>Второй корпус</span>
         </div>
         <div class="breakdowns-title">Количество поломок</div>
-        <div id="floor1Breakdowns" class="breakdowns-count">0</div>
-        <button id="viewFloor1Btn" class="view-details-btn">Просмотреть детали</button>
+        <div class="breakdowns-count">0</div>
+        <button @click="handleOfficeClick(2)" class="view-details-btn">Просмотреть детали</button>
       </div>
 
     </div>
@@ -63,7 +81,7 @@ export default {
   max-width: 800px;
 }
 
-.floor-stats
+.office-stats
 {
   background: white;
   border-radius: 16px;
@@ -77,12 +95,12 @@ export default {
   align-items: center;
 }
 
-.floor-stats:hover {
+.office-stats:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 35px rgba(0,0,0,0.15);
 }
 
-.floor-title {
+.office-title {
   font-size: 24px;
   font-weight: 600;
   color: #1f2937;
@@ -92,7 +110,7 @@ export default {
   justify-content: center;
 }
 
-.floor-icon {
+.office-icon {
   width: 40px;
   height: 40px;
   background: #3b82f6;
@@ -104,7 +122,7 @@ export default {
   margin-right: 10px;
 }
 
-.floor-number {
+.office-number {
   font-size: 24px;
   font-weight: 700;
 }
@@ -147,7 +165,7 @@ export default {
 
 @media (max-width: 768px)
 {
-  .floor-stats
+  .office-stats
   {
     min-width: 250px;
   }

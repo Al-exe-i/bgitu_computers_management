@@ -1,5 +1,6 @@
 <script>
 import { useAuthStore } from '@/stores/auth'
+import router from "@/router/index.js";
 
 export default {
   name: 'appHeader',
@@ -8,25 +9,31 @@ export default {
       isDropdownOpen: false
     }
   },
+
   computed: {
-    authStore() {
+    authStore()
+    {
       return useAuthStore()
     },
     // Данные пользователя
-    userName() {
+    userName()
+    {
       const user = this.authStore.user
       if (!user) return 'Гость'
       return user.name || user.email.split('@')[0] || 'Пользователь'
     },
-    userFullName() {
+    userFullName()
+    {
       const user = this.authStore.user
       if (!user) return ''
       return `${user.name || ''} ${user.surname || ''}`.trim() || user.email
     },
-    userEmail() {
+    userEmail()
+    {
       return this.authStore.user?.email || ''
     },
-    userAvatar() {
+    userAvatar()
+    {
       // Если есть фото — используем его, иначе placeholder
       return this.authStore.user?.photo || 'https://placehold.co/40x40'
     },
@@ -34,26 +41,40 @@ export default {
       return this.authStore.user?.photo || 'https://placehold.co/120x120'
     }
   },
+
   methods: {
-    openLoginModal() {
+    openLoginModal()
+    {
       this.$emit('open-login') // или вызови метод, который открывает твою модалку
     },
     handleLogout()
     {
       this.authStore.logout()
       this.isDropdownOpen = false
-      // Опционально: редирект
-      this.$router.push('/')
+      router.push('/')
     },
     toggleDropdown()
     {
       this.isDropdownOpen = !this.isDropdownOpen
     },
     // Закрываем дропдаун при клике вне его
-    handleClickOutside(event) {
-      if (!event.target.closest('.profile-dropdown')) {
+    handleClickOutside(event)
+    {
+      if (!event.target.closest('.profile-dropdown'))
+      {
         this.isDropdownOpen = false
       }
+    },
+    handleHomeClick()
+    {
+      router.push('/')
+    },
+    handleOfficeClick(officeNumber)
+    {
+      router.push({
+        name: 'Office',
+        params: { officeNumber: officeNumber }
+      })
     }
   },
   mounted() {
@@ -69,7 +90,7 @@ export default {
   <header>
     <div class="header-container">
       <!-- Логотип -->
-      <div class="logo-container">
+      <div @click="handleHomeClick" class="logo-container">
         <div class="logo">
           <img src="../assets/logo_IT.png">
         </div>
@@ -78,9 +99,9 @@ export default {
 
       <!-- Переключение между этажами -->
       <div class="floor-switch">
-      <!-- Добавить класс active, чтобы был выбран этвж-->
-        <button id="floor1Btn" class="floor-btn">1 этаж</button>
-        <button id="floor2Btn" class="floor-btn">2 этаж</button>
+      <!-- Добавить класс active, чтобы был выбран корпус-->
+        <button @click="handleOfficeClick(1)" id="floor1Btn" class="floor-btn">1 корпус</button>
+        <button @click="handleOfficeClick(2)" id="floor2Btn" class="floor-btn">2 корпус</button>
       </div>
 
       <!-- Профиль или кнопка авторизации -->
@@ -148,6 +169,11 @@ header {
   display: flex;
   align-items: center;
   flex: 1;
+}
+
+.logo-container:hover
+{
+  cursor: pointer;
 }
 
 .logo {
