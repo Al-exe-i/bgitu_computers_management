@@ -37,6 +37,7 @@ class Row(IntIdPkMixin, Base):
 
 class Audience(IntIdPkMixin, Base):
     type: Mapped[AudienceType] = mapped_column(Enum(AudienceType), default=AudienceType.row)
+    description: Mapped[str] = mapped_column(VARCHAR(200), nullable=True)
 
     rows: Mapped[List["Row"]] = relationship(
         "Row",
