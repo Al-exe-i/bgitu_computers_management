@@ -53,7 +53,7 @@ async def create_audience(db: AsyncSession, audience_data: AudienceCreateRequest
                 computer = Computer(
                     name=f"PC{row_data.name.replace('row_', '')}_{i:02d}",
                     row_id=db_row.id,
-                    state=True
+                    state=False if i in row_data.broken_ids else True,
                 )
                 db.add(computer)
 
