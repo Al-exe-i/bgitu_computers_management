@@ -13,23 +13,45 @@ export default {
   },
   data() {
     return {
-
+      collapsed: false,
+    }
+  },
+  methods: {
+    numberToLiteral(number)
+    {
+      number = Number(number);
+      switch (number) {
+        case 1:
+          return "Первый"
+        case 2:
+          return "Второй"
+        case 3:
+          return "Третий"
+        case 4:
+          return "Четвёртый"
+      }
     }
   }
 }
 </script>
 
 <template>
-  <div class="floor-section">
+  <div class="floor-section" :class="{collapsed: this.collapsed}">
     <div class="floor-header">
       <div class="floor-number">{{ this.number }}</div>
-      <h2 class="floor-title">{{ this.number }} этаж</h2>
-      <div class="collapse-icon">
+      <h2 class="floor-title">{{ this.numberToLiteral(this.number) }} этаж</h2>
+      <div @click="this.collapsed = !this.collapsed" class="collapse-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M6 9l6 6 6-6"/>
         </svg>
       </div>
     </div>
+    <button class="add-classroom-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12h14"></path>
+      </svg>
+      Добавить аудиторию
+    </button>
 
     <div class="classrooms-content">
 
@@ -135,6 +157,33 @@ export default {
   transition: transform 0.3s ease;
 }
 
+.add-classroom-btn {
+  margin: 0 30px 20px;
+  padding: 15px 30px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.add-classroom-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+}
+
+.add-classroom-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .floor-section.collapsed .collapse-icon svg {
   transform: rotate(-90deg);
 }
@@ -151,6 +200,11 @@ export default {
   max-height: 0;
   padding: 0 30px;
   opacity: 0;
+}
+
+.floor-section.collapsed .add-classroom-btn
+{
+  display: none;
 }
 
 .classrooms-grid {

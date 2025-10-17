@@ -6,7 +6,9 @@ export default {
   name: 'appHeader',
   data() {
     return {
-      isDropdownOpen: false
+      isDropdownOpen: false,
+      officeOneActive: false,
+      officeTwoActive: false,
     }
   },
 
@@ -45,7 +47,7 @@ export default {
   methods: {
     openLoginModal()
     {
-      this.$emit('open-login') // или вызови метод, который открывает твою модалку
+      this.$emit('open-login')
     },
     handleLogout()
     {
@@ -75,6 +77,33 @@ export default {
         name: 'Office',
         params: { officeNumber: officeNumber }
       })
+    },
+    handleOfficeActive(officeNumber)
+    {
+      if(officeNumber)
+      {
+        if(officeNumber === 1)
+        {
+          this.officeOneActive = true
+          this.officeTwoActive = false
+        }
+        if(officeNumber === 2)
+        {
+          this.officeOneActive = false
+          this.officeTwoActive = true
+        }
+      }
+    }
+  },
+  watch: {
+    '$route' (to, from)
+    {
+      let officeNumber = Number(to?.params?.officeNumber)
+      this.handleOfficeActive(officeNumber)
+      if(to.name !== 'Office')
+      {
+        this.officeOneActive = this.officeTwoActive = false
+      }
     }
   },
   mounted() {
@@ -100,8 +129,8 @@ export default {
       <!-- Переключение между этажами -->
       <div class="floor-switch">
       <!-- Добавить класс active, чтобы был выбран корпус-->
-        <button @click="handleOfficeClick(1)" id="floor1Btn" class="floor-btn">1 корпус</button>
-        <button @click="handleOfficeClick(2)" id="floor2Btn" class="floor-btn">2 корпус</button>
+        <button @click="handleOfficeClick(1)" class="floor-btn" :class="{active: this.officeOneActive}">1 корпус</button>
+        <button @click="handleOfficeClick(2)" class="floor-btn" :class="{active: this.officeTwoActive}">2 корпус</button>
       </div>
 
       <!-- Профиль или кнопка авторизации -->
@@ -184,6 +213,14 @@ header {
   align-items: center;
   justify-content: center;
   margin-right: 12px;
+  -webkit-transition: -webkit-transform .8s ease-in-out;
+  transition: transform .8s ease-in-out;
+}
+
+.logo:hover
+{
+  -webkit-transform: rotate(360deg);
+  transform: rotate(360deg);
 }
 
 .logo img

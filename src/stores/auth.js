@@ -46,7 +46,7 @@ export const useAuthStore = defineStore('auth', {
             }
             catch (err)
             {
-                this.error = err.response?.data?.detail || 'Login failed'
+                this.error = err.response?.data?.detail || 'Проверьте интернет-соединение'
                 this.clearAccessTokenAndFreeUser()
                 throw err
             }
