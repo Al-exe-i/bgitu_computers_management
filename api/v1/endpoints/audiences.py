@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette import status
 from crud.audience import get_all, get_by_id, create_audience, delete_audience
 from db.session import session_dep
+from dependencies.auth import user_dep
 from schemas.audience import Audience, AudienceCreateRequest
 
 router = APIRouter()
@@ -30,7 +31,7 @@ async def get_auditorium_by_id_endpoint(db: session_dep, aud_id: int):
 
 
 @router.post("/", response_model=Audience, status_code=status.HTTP_201_CREATED)
-async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: session_dep):
+async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: session_dep, user: user_dep):
     """
     Создать новую аудиторию с рядами и компьютерами
     - **id**: номер аудитории
@@ -58,7 +59,7 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
 
 
 @router.delete("/{aud_id}")
-async def delete_audience_endpoint(db: session_dep, aud_id: int):
+async def delete_audience_endpoint(db: session_dep, aud_id: int, user: user_dep):
     """
     Удаляет аудиторию и все её ряды и компьютеры каскадно
     """
