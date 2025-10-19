@@ -8,18 +8,20 @@ from schemas.audience import AudienceCreateRequest
 
 
 async def get_all(db: AsyncSession) -> Sequence[Audience]:
-    result = await db.execute(
-        select(Audience)
-        .options(
+    stmt = (
+        select(Audience).
+        options
+            (
             selectinload(Audience.rows).selectinload(Row.computers),
             selectinload(Audience.additional_hardware)
         )
     )
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
 async def get_by_id(db: AsyncSession, aud_id: int) -> Audience | None:
-    result = await db.execute(
+    stmt = (
         select(Audience)
         .where(Audience.id == aud_id)
         .options(
@@ -27,42 +29,41 @@ async def get_by_id(db: AsyncSession, aud_id: int) -> Audience | None:
             selectinload(Audience.additional_hardware)
         )
     )
+    result = await db.execute(stmt)
     return result.scalars().first()
 
 
 async def create_audience(db: AsyncSession, audience_data: AudienceCreateRequest) -> Audience | None:
-    try:
-        db_audience = Audience(
-            id=audience_data.id,
-            type=audience_data.type
-                    )
-        db.add(db_audience)
+    db_audience = Audience(
+        id=audience_data.id,
+        type=audience_data.type,
+        office_id=audience_data.office_id,
+    )
+    db.add(db_audience)
+    await db.flush()
+
+    # Создаем ряды и компьютеры
+    for row_data in audience_data.rows:
+        db_row = Row(
+            name=row_data.name,
+            audience_id=db_audience.id
+        )
+        db.add(db_row)
         await db.flush()
 
-        # Создаем ряды и компьютеры
-        for row_data in audience_data.rows:
-            db_row = Row(
-                name=row_data.name,
-                audience_id=db_audience.id
+        # Создаем компьютеры для ряда
+        for i in range(1, row_data.computers_count + 1):
+            computer = Computer(
+                name=f"PC{row_data.name.replace('row_', '')}_{i:02d}",
+                row_id=db_row.id,
+                state=False if i in row_data.broken_ids else True,
             )
-            db.add(db_row)
-            await db.flush()
+            db.add(computer)
 
-            # Создаем компьютеры для ряда
-            for i in range(1, row_data.computers_count + 1):
-                computer = Computer(
-                    name=f"PC{row_data.name.replace('row_', '')}_{i:02d}",
-                    row_id=db_row.id,
-                    state=False if i in row_data.broken_ids else True,
-                )
-                db.add(computer)
+    await db.commit()
+    await db.refresh(db_audience)
+    return db_audience
 
-        await db.commit()
-        await db.refresh(db_audience)
-        return db_audience
-
-    except Exception as e:
-        await db.rollback()
 
 
 async def delete_audience(db: AsyncSession, audience_id: int) -> bool:

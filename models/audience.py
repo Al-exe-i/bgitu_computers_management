@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import Enum, VARCHAR, ForeignKey
+from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.additional_hardware import AdditionalHardware
 from models.base import Base
@@ -13,7 +13,7 @@ class AudienceType(enum.Enum):
 
 
 class Computer(IntIdPkMixin, Base):
-    name: Mapped[str] = mapped_column(VARCHAR(32))
+    name: Mapped[str] = mapped_column(String(32))
     row_id: Mapped[int] = mapped_column(ForeignKey('rows.id', ondelete='CASCADE'))
     state: Mapped[bool] = mapped_column(default=True)
 
@@ -24,7 +24,7 @@ class Computer(IntIdPkMixin, Base):
 
 
 class Row(IntIdPkMixin, Base):
-    name: Mapped[str] = mapped_column(VARCHAR(6)) # row_xx - max row_10
+    name: Mapped[str] = mapped_column(String(6)) # row_xx - max row_10
     audience_id: Mapped[int] = mapped_column(ForeignKey('audiences.id', ondelete='CASCADE'))
 
     audience: Mapped["Audience"] = relationship("Audience", back_populates="rows")
@@ -37,7 +37,8 @@ class Row(IntIdPkMixin, Base):
 
 class Audience(IntIdPkMixin, Base):
     type: Mapped[AudienceType] = mapped_column(Enum(AudienceType), default=AudienceType.row)
-    description: Mapped[str] = mapped_column(VARCHAR(200), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(200))
+    office_id: Mapped[int] = mapped_column(ForeignKey('offices.id', ondelete='CASCADE'))
 
     rows: Mapped[List["Row"]] = relationship(
         "Row",
@@ -51,4 +52,9 @@ class Audience(IntIdPkMixin, Base):
         back_populates="audience",
         cascade="all, delete-orphan",
         passive_deletes=True
+    )
+
+    office: Mapped["Office"] = relationship(
+        "Office",
+        back_populates="audiences"
     )

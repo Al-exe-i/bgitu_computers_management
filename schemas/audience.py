@@ -27,6 +27,7 @@ class AudienceCreateRequest(BaseModel):
     id: int
     type: AudienceType = AudienceType.row
     rows: List['RowCreateRequest'] = Field(min_length=1)
+    office_id: int
 
     @field_validator('rows')
     @classmethod

@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 from starlette import status
 from crud.audience import get_all, get_by_id, create_audience, delete_audience
 from db.session import session_dep
@@ -10,12 +11,18 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Audience])
 async def get_auditoriums_endpoint(db: session_dep):
+    """
+    Получить все аудитории
+    """
     auditoriums = await get_all(db)
     return auditoriums
 
 
 @router.get("/{aud_id}", response_model=Audience)
 async def get_auditorium_by_id_endpoint(db: session_dep, aud_id: int):
+    """
+    Получить аудиторию по её номеру
+    """
     auditorium = await get_by_id(db, aud_id)
     if not auditorium:
         raise HTTPException(status_code=404, detail="Auditorium not found")
@@ -34,12 +41,15 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
         - **broken_ids**: id неисправных компьютеров в данном ряду, итерация идёт с 1.
         Если сломан первый, третий и пятый, то так и пишите [1, 3, 5].
         Если сломанных нет, то оставьте список пустым
+    - **office_id**: Номер корпуса (1 или 2)
     """
 
     try:
         await create_audience(db, audience_data)
         created = await get_by_id(db, audience_data.id)
         return created
+    except IntegrityError as e:
+        raise HTTPException(status_code=409, detail=str(e.statement))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -49,6 +59,9 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
 
 @router.delete("/{aud_id}")
 async def delete_audience_endpoint(db: session_dep, aud_id: int):
+    """
+    Удаляет аудиторию и все её ряды и компьютеры каскадно
+    """
     success = await delete_audience(db, aud_id)
     if not success:
         raise HTTPException(status_code=404, detail="Audience not found")
