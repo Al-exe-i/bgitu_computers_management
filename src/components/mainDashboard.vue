@@ -28,7 +28,7 @@ export default {
 
     <div class="stats-container">
 
-      <div class="office-stats">
+      <div class="office-stats left-animated">
         <div class="office-title">
           <div class="office-icon">
             <span class="office-number">1</span>
@@ -40,7 +40,7 @@ export default {
         <button @click="handleOfficeClick(1)" class="view-details-btn">Просмотреть детали</button>
       </div>
 
-      <div class="office-stats">
+      <div class="office-stats right-animated">
         <div class="office-title">
           <div class="office-icon">
             <span class="office-number">2</span>
@@ -71,6 +71,20 @@ export default {
   color: #1f2937;
   text-align: center;
   margin-bottom: 40px;
+  animation: upToDownAppear 1.2s ease-in-out;
+}
+
+@keyframes upToDownAppear {
+  0%
+  {
+    opacity: 0;
+    transform: translateY(-10vh);
+  }
+  100%
+  {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .stats-container {
@@ -93,11 +107,49 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  animation-duration: 1.2s;
+  animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  animation-fill-mode: forwards;
 }
 
 .office-stats:hover {
-  transform: translateY(-5px);
+  transform: translateY(-5px) !important;
   box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+
+.left-animated
+{
+  animation-name: slideFromLeft;
+}
+
+.right-animated
+{
+  animation-name: slideFromRight;
+}
+
+@keyframes slideFromLeft {
+  0% {
+    transform: translateX(-20vw) scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideFromRight {
+  0% {
+    transform: translateX(20vw) scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .office-title {

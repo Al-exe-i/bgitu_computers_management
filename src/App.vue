@@ -26,9 +26,6 @@ export default {
 <style>
   :root {
     --login-primary: #6366F1;
-    --login-secondary: #A855F7;
-    --login-accent: #EC4899;
-    --login-background: #F3F4F6;
     --login-text: #1F2937;
     --login-error: #EF4444;
   }

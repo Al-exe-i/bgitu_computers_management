@@ -1,5 +1,6 @@
 <script>
 import FloorSection from "@/components/floor/floorSection.vue";
+import api from "@/services/api.js";
 
 export default {
   name: "floor",
@@ -7,6 +8,9 @@ export default {
   props: ["officeNumber"],
   data() {
     return {
+      totalComputers: 0,
+      faultyComputers: 0,
+      office: null,
       testFirstFloorAuds: [
         {number: 104, computersCount: 12, statusClass: "status-working"},
         {number: 105, computersCount: 15, statusClass: "status-broken"},
@@ -21,6 +25,42 @@ export default {
   },
   computed: {
 
+  },
+  methods: {
+    async getOffice(officeNumber)
+    {
+      let response = await api.get(`/offices/${officeNumber}`).then();
+      this.office = response.data
+      this.countTotalComputers(this.office.audiences)
+    },
+    countTotalComputers(audiences)
+    {
+      this.totalComputers = this.faultyComputers = 0
+      audiences.forEach((audience) =>
+      {
+        audience.rows.forEach((row) =>
+        {
+          row.computers.forEach((computer) =>
+          {
+            if(!computer.state)
+            {
+              this.faultyComputers++
+            }
+          })
+          this.totalComputers += row.computers.length;
+        })
+      })
+    }
+  },
+  mounted()
+  {
+    this.getOffice(this.officeNumber)
+  },
+  watch: {
+    officeNumber(newOfficeNumber, oldOfficeNumber)
+    {
+      this.getOffice(newOfficeNumber)
+    }
   }
 }
 </script>
@@ -30,24 +70,24 @@ export default {
 
   <div class="building-container">
     <div class="building-info">
-      <h2 class="building-title">Учебный корпус А</h2>
-      <p class="building-description">В корпусе расположены компьютерные классы и лаборатории для практических занятий. Аудитории оборудованы современной техникой и мультимедийным оборудованием.</p>
+      <h2 class="building-title" v-if="office">Учебный корпус №{{ office.id }}</h2>
+      <p v-if="office" class="building-description">Расположен по адресу: {{ office.address }}</p>
 
       <div class="stats-container">
         <div class="stat-card">
-          <div class="stat-value" id="totalClassrooms">12</div>
+          <div v-if="office" class="stat-value" id="totalClassrooms">{{ office.audiences.length }}</div>
           <div class="stat-label">Всего аудиторий</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="totalComputers">153</div>
+          <div v-if="office" class="stat-value" id="totalComputers">{{ totalComputers }}</div>
           <div class="stat-label">Всего компьютеров</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="workingComputers">143</div>
+          <div v-if="office" class="stat-value" id="workingComputers">{{ totalComputers - faultyComputers }}</div>
           <div class="stat-label">Исправных</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="brokenComputers">10</div>
+          <div v-if="office" class="stat-value" id="brokenComputers">{{ this.faultyComputers }}</div>
           <div class="stat-label">Неисправных</div>
         </div>
       </div>
@@ -64,8 +104,8 @@ export default {
       </div>
     </div>
 
-    <floor-section :audiences="testFirstFloorAuds" number="1"></floor-section>
-    <floor-section :audiences="testSecondFloorAuds" number="2"></floor-section>
+    <floor-section :audiences="testFirstFloorAuds" :number="1"></floor-section>
+    <floor-section :audiences="testSecondFloorAuds" :number="2"></floor-section>
 
 
   </div>

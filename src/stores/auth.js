@@ -93,7 +93,7 @@ export const useAuthStore = defineStore('auth', {
 
             try
             {
-                const response = await api.post('/refresh', {}, {
+                const response = await api.post('/users/refresh', {}, {
                     headers: { Authorization: `Bearer ${this.refreshToken}` }
                 })
 

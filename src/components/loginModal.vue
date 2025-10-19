@@ -77,6 +77,7 @@ export default {
       this.email = ''
       this.password = ''
       this.hidden = true
+      this.serverError = this.errors.email = this.errors.password = null
       setTimeout(()=>{this.$emit('close'); this.hidden = null}, 700)
     }
   }
@@ -240,6 +241,11 @@ export default {
   height: 3rem;
   margin: 0 auto 1.5rem;
   display: block;
+  transition: transform .8s ease-in-out;
+}
+
+.login-logo:hover{
+  transform: rotate(360deg);
 }
 
 .login-logo path {
@@ -252,6 +258,14 @@ export default {
   color: var(--login-text);
   text-align: center;
   margin-bottom: 0.5rem;
+  transition: .4s hover ease;
+}
+
+.login-title:hover
+{
+  color: #1e40af;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  cursor: default;
 }
 
 
@@ -279,7 +293,7 @@ export default {
 
 .login-input {
   padding: 0.75rem 1rem;
-  border: 1px solid #D1D5DB;
+  border: 2px solid #e5e7eb;
   border-radius: 0.5rem;
   font-size: 1rem;
   transition: all 0.3s ease;
@@ -289,8 +303,8 @@ export default {
 
 .login-input:focus {
   outline: none;
-  border-color: var(--login-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 .login-error-message
@@ -327,40 +341,44 @@ export default {
     width: 1rem;
     height: 1rem;
     margin-right: 0.5rem;
+    cursor: pointer;
+  }
+
+  label
+  {
+    cursor: pointer;
   }
 }
 
 .login-show-password input {
   width: 1rem;
   height: 1rem;
-  accent-color: var(--login-primary);
+  accent-color: #2563eb;
+  cursor: pointer;
 }
 
-.login-forgot-password a {
-  color: var(--login-primary);
-  text-decoration: none;
+.login-show-password label
+{
+  cursor: pointer;
 }
 
-.login-forgot-password a:hover {
-  color: #4F46E5;
-}
-
-.login-button {
-  background-color: var(--login-primary);
-  color: white;
-  padding: 0.75rem;
+.login-button
+{
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
   border: none;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .login-button:hover {
-  background-color: #4F46E5;
   transform: translateY(-2px);
-  box-shadow: 0 5px 10px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
 
 .login-signup-link {

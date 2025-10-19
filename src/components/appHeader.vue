@@ -37,10 +37,10 @@ export default {
     userAvatar()
     {
       // Если есть фото — используем его, иначе placeholder
-      return this.authStore.user?.photo || 'https://placehold.co/40x40'
+      return this.authStore.user?.photo || `src/assets/User_no_icon.svg`
     },
     userAvatarLarge() {
-      return this.authStore.user?.photo || 'https://placehold.co/120x120'
+      return this.authStore.user?.photo || `src/assets/User_no_icon.svg`
     }
   },
 
@@ -108,6 +108,10 @@ export default {
   },
   mounted() {
     document.addEventListener('click', this.handleClickOutside)
+    if(this.$route.name === 'Office')
+    {
+      this.handleOfficeActive(Number(this.$route?.params.officeNumber))
+    }
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
@@ -156,7 +160,7 @@ export default {
               <p class="profile-email" id="userEmail">{{ userEmail }}</p>
             </div>
             <div class="border-t pt-3">
-              <button @click="handleLogout" id="logoutBtn" class="logout-btn">
+              <button @click="handleLogout" class="logout-btn">
                 Выйти
               </button>
             </div>
@@ -167,7 +171,6 @@ export default {
         <button
             v-else
             @click="openLoginModal"
-            id="loginBtn"
             class="login-btn"
         >
           Войти
@@ -236,35 +239,33 @@ header {
 }
 
 .floor-btn {
-  padding: 8px 16px;
+  padding: 10px 24px;
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
   border: none;
   transition: all 0.3s ease;
+  color: #4b5563;
+  background: transparent;
 }
 
 .floor-btn.active {
-  background: #3b82f6;
-  color: white;
-}
-
-.floor-btn:not(.active) {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: white;
+  color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .floor-btn:not(.active):hover {
-  background: #e5e7eb;
+  color: #1f2937;
 }
 
-.floor-switch
-{
+.floor-switch {
   display: flex;
   gap: 8px;
-  justify-content: center;
-  flex: 1;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 10px;
 }
 
 .auth-container {
@@ -274,19 +275,22 @@ header {
 }
 
 .login-btn {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-weight: 500;
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
   border: none;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   margin-left: auto;
 }
 
 .login-btn:hover {
-  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
 .profile-dropdown
@@ -318,14 +322,14 @@ header {
 {
   position: absolute;
   right: 0;
-  top: 60px;
+  top: 65px;
   background: white;
-  min-width: 200px;
+  min-width: 280px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 15px;
   z-index: 100;
-  animation: fadeIn 0.3s;
+  animation: fadeIn 0.5s linear;
 }
 
 .profile-dropdown-content-inner
@@ -370,7 +374,7 @@ header {
   color: white;
   padding: 8px 16px;
   border-radius: 8px;
-  font-weight: 500;
+  font-weight: 600;
   border: none;
   cursor: pointer;
   transition: background 0.3s ease;
@@ -378,6 +382,7 @@ header {
 
 .logout-btn:hover {
   background: #dc2626;
+  transform: translateY(-2px);
 }
 
 @media (max-width: 768px)
