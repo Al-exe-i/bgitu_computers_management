@@ -11,6 +11,7 @@ export default {
       totalComputers: 0,
       faultyComputers: 0,
       office: null,
+      floors: null,
       testFirstFloorAuds: [
         {number: 104, computersCount: 12, statusClass: "status-working"},
         {number: 105, computersCount: 15, statusClass: "status-broken"},
@@ -32,12 +33,27 @@ export default {
       let response = await api.get(`/offices/${officeNumber}`).then();
       this.office = response.data
       this.countTotalComputers(this.office.audiences)
+      this.arrangeFloors(this.office.audiences)
+    },
+    arrangeFloors(audiences)
+    {
+      this.floors = {}
+      audiences.forEach((item) => {
+        let audFloor = Math.floor(item.id / 100)
+        if(this.floors[audFloor] === undefined)
+        {
+          this.floors[audFloor] = {number: audFloor, audiences: []}
+        }
+        this.floors[audFloor].audiences.push(item)
+      })
     },
     countTotalComputers(audiences)
     {
       this.totalComputers = this.faultyComputers = 0
       audiences.forEach((audience) =>
       {
+        let currentTotal = 0;
+        let currentFaulty = 0;
         audience.rows.forEach((row) =>
         {
           row.computers.forEach((computer) =>
@@ -45,10 +61,14 @@ export default {
             if(!computer.state)
             {
               this.faultyComputers++
+              currentFaulty++;
             }
           })
           this.totalComputers += row.computers.length;
+          currentTotal += row.computers.length;
         })
+        audience.computersCount = currentTotal;
+        audience.faultyComputers = currentFaulty;
       })
     }
   },
@@ -57,7 +77,7 @@ export default {
     this.getOffice(this.officeNumber)
   },
   watch: {
-    officeNumber(newOfficeNumber, oldOfficeNumber)
+    officeNumber(newOfficeNumber)
     {
       this.getOffice(newOfficeNumber)
     }
@@ -69,25 +89,25 @@ export default {
   <h1 class="page-title">Схема расположения аудиторий</h1>
 
   <div class="building-container">
-    <div class="building-info">
-      <h2 class="building-title" v-if="office">Учебный корпус №{{ office.id }}</h2>
-      <p v-if="office" class="building-description">Расположен по адресу: {{ office.address }}</p>
+    <div v-if="office" class="building-info">
+      <h2 class="building-title">Учебный корпус №{{ office.id }}</h2>
+      <p class="building-description">Расположен по адресу: {{ office.address }}</p>
 
       <div class="stats-container">
         <div class="stat-card">
-          <div v-if="office" class="stat-value" id="totalClassrooms">{{ office.audiences.length }}</div>
+          <div class="stat-value" id="totalClassrooms">{{ office.audiences.length }}</div>
           <div class="stat-label">Всего аудиторий</div>
         </div>
         <div class="stat-card">
-          <div v-if="office" class="stat-value" id="totalComputers">{{ totalComputers }}</div>
+          <div class="stat-value" id="totalComputers">{{ totalComputers }}</div>
           <div class="stat-label">Всего компьютеров</div>
         </div>
         <div class="stat-card">
-          <div v-if="office" class="stat-value" id="workingComputers">{{ totalComputers - faultyComputers }}</div>
+          <div class="stat-value" id="workingComputers">{{ totalComputers - faultyComputers }}</div>
           <div class="stat-label">Исправных</div>
         </div>
         <div class="stat-card">
-          <div v-if="office" class="stat-value" id="brokenComputers">{{ this.faultyComputers }}</div>
+          <div class="stat-value" id="brokenComputers">{{ this.faultyComputers }}</div>
           <div class="stat-label">Неисправных</div>
         </div>
       </div>
@@ -104,8 +124,8 @@ export default {
       </div>
     </div>
 
-    <floor-section :audiences="testFirstFloorAuds" :number="1"></floor-section>
-    <floor-section :audiences="testSecondFloorAuds" :number="2"></floor-section>
+    <floor-section v-for="floor in floors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+
 
 
   </div>
@@ -255,124 +275,9 @@ body {
   border-color: #1d4ed8;
 }
 
-.classrooms-content {
-  max-height: 2000px;
-  overflow: hidden;
-  transition: max-height 0.5s ease, padding 0.5s ease, opacity 0.3s ease;
-  padding: 0 30px 30px;
-  opacity: 1;
-}
-
-.floor-section.collapsed .classrooms-content {
-  max-height: 0;
-  padding: 0 30px;
-  opacity: 0;
-}
-
-.classrooms-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 25px;
-  padding-top: 1rem;
-}
-
-.classroom-card {
-  background: white;
-  border-radius: 16px;
-  padding: 25px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 3px solid #93c5fd;
-  position: relative;
-  overflow: hidden;
-}
-
-.classroom-card.hidden {
-  display: none;
-}
-
-.classroom-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-  border-color: #3b82f6;
-}
-
-.classroom-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-}
-
-.classroom-number {
-  font-size: 36px;
-  font-weight: 700;
-  color: #1e40af;
-  margin-bottom: 15px;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-}
-
-.classroom-info {
-  display: flex;
-  justify-content: space-around;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.info-item {
-  text-align: center;
-}
-
-.info-label {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-  margin-bottom: 5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.info-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e40af;
-}
-
-.computers-count.working {
-  color: #059669;
-}
-
-.computers-count.broken {
-  color: #dc2626;
-}
-
-.status-indicator {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-right: 8px;
-}
-
-.status-working {
-  background: #10b981;
-}
-
-.status-broken {
-  background: #ef4444;
-}
 
 /* Responsive design */
 @media (max-width: 768px) {
-  .classrooms-grid {
-    grid-template-columns: 1fr;
-  }
-
   .page-title {
     font-size: 28px;
   }
@@ -398,18 +303,6 @@ body {
 @media (max-width: 480px) {
   body {
     padding: 15px;
-  }
-
-  .classroom-card {
-    padding: 20px;
-  }
-
-  .classroom-number {
-    font-size: 28px;
-  }
-
-  .info-value {
-    font-size: 16px;
   }
 
   .stats-container {

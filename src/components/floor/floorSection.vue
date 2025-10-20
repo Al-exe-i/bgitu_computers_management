@@ -30,7 +30,7 @@ export default {
         case 4:
           return "Четвёртый"
       }
-    }
+    },
   }
 }
 </script>
@@ -58,7 +58,7 @@ export default {
       <div class="classrooms-grid">
 
         <div v-for="audience in audiences" class="classroom-card">
-          <div class="classroom-number">{{ audience.number }}</div>
+          <div class="classroom-number">{{ audience.id }}</div>
           <div class="classroom-info">
             <div class="info-item">
               <div class="info-label">Компьютеры</div>
@@ -67,8 +67,8 @@ export default {
             <div class="info-item">
               <div class="info-label">Статус</div>
               <div class="info-value">
-                <span class="status-indicator" :class="audience.statusClass"></span>
-                3 неисправны
+                <span class="status-indicator" :class="{'status-broken': audience.faultyComputers > 0, 'status-working': audience.faultyComputers === 0}"></span>
+                {{ audience.faultyComputers === 0 ? "Все исправны" :  `${audience.faultyComputers} неисправны`}}
               </div>
             </div>
           </div>
