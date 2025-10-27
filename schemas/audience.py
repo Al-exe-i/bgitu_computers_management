@@ -8,19 +8,15 @@ from schemas.row import Row, RowCreateRequest
 class AudienceBase(BaseModel):
     type: AudienceType = AudienceType.row
 
-
-class AudienceCreate(AudienceBase):
-    pass
-
-
 class AudienceUpdate(BaseModel):
-    type: AudienceType | None = None
+    description: str | None = None
 
 
 class Audience(AudienceBase):
     id: int
     rows: List[Row] = []
     additional_hardware: List[AdditionalHardware] = []
+    description: str | None = None
 
 
 class AudienceCreateRequest(BaseModel):
