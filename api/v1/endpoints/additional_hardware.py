@@ -1,5 +1,7 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
+
 from crud.additional_hardware import create_hardware, get_hardware_by_audience, update_hardware, delete_hardware, \
     delete_all_hardware
 from db.session import session_dep
@@ -9,17 +11,19 @@ from schemas.additional_hardware import AdditionalHardware, AdditionalHardwareCr
 router = APIRouter()
 
 
-@router.post("/{aud_id}", response_model=AdditionalHardware)
+@router.post("/", response_model=AdditionalHardware)
 async def add_hardware_to_audience(
-        aud_id: int,
         hardware_data: AdditionalHardwareCreate,
         db: session_dep,
         user: user_dep
 ):
-    hardware_data.audience_id = aud_id
-
-    hardware = await create_hardware(db, hardware_data)
-    return hardware
+    try:
+        hardware = await create_hardware(db, hardware_data)
+        return hardware
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="This audience doesn't exist")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{aud_id}", response_model=List[AdditionalHardware])
