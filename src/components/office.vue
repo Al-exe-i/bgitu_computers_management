@@ -1,6 +1,7 @@
 <script>
 import FloorSection from "@/components/floor/floorSection.vue";
 import api from "@/services/api.js";
+import router from "@/router/index.js";
 
 export default {
   name: "floor",
@@ -12,16 +13,7 @@ export default {
       faultyComputers: 0,
       office: null,
       floors: null,
-      testFirstFloorAuds: [
-        {number: 104, computersCount: 12, statusClass: "status-working"},
-        {number: 105, computersCount: 15, statusClass: "status-broken"},
-        {number: 106, computersCount: 16, statusClass: "status-working"},
-      ],
-      testSecondFloorAuds: [
-        {number: 204, computersCount: 11, statusClass: "status-working"},
-        {number: 205, computersCount: 9, statusClass: "status-working"},
-        {number: 206, computersCount: 10, statusClass: "status-working"},
-      ]
+      loading: true,
     }
   },
   computed: {
@@ -30,16 +22,23 @@ export default {
   methods: {
     async getOffice(officeNumber)
     {
-      let response = await api.get(`/offices/${officeNumber}`).then();
-      this.office = response.data
-      this.countTotalComputers(this.office.audiences)
-      this.arrangeFloors(this.office.audiences)
+      await api.get(`/offices/${officeNumber}`).then((response) => {
+        this.office = response.data;
+        this.countTotalComputers(this.office.audiences)
+        this.arrangeFloors(this.office.audiences)
+        this.loading = false
+      }).catch(error => {
+        router.push({ path: `/` })
+        //Показать всплывающее сообщений
+      })
     },
     arrangeFloors(audiences)
     {
       this.floors = {}
       audiences.forEach((item) => {
         let audFloor = Math.floor(item.id / 100)
+        if(item.id === 257)
+          audFloor = 1//Исключение, так как 257 аудитория на первом этаже
         if(this.floors[audFloor] === undefined)
         {
           this.floors[audFloor] = {number: audFloor, audiences: []}
@@ -88,8 +87,13 @@ export default {
 <template>
   <h1 class="page-title">Схема расположения аудиторий</h1>
 
+  <div v-if="loading" class="loading">
+    <div class="loading-spinner"></div>
+    <div>Загрузка данных...</div>
+  </div>
+
   <div class="building-container">
-    <div v-if="office" class="building-info">
+    <div v-if="!loading" class="building-info">
       <h2 class="building-title">Учебный корпус №{{ office.id }}</h2>
       <p class="building-description">Расположен по адресу: {{ office.address }}</p>
 
@@ -152,6 +156,28 @@ body {
   color: #1e40af;
   margin-bottom: 40px;
   text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 24px;
+  color: #64748b;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  border: 5px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .building-container {

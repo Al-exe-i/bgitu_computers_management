@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import mainDashboard from "@/components/mainDashboard.vue";
 import office from "@/components/office.vue";
+import audience from "@/components/audience.vue";
 
 const routes = [
     {
@@ -18,6 +19,13 @@ const routes = [
         component: office,
         props: true,
         meta: {title: (route) => `${route.params.officeNumber} корпус`},
+    },
+    {
+        path: `/audience/:audienceId`,
+        name: 'Audience',
+        component: audience,
+        props: true,
+        meta: {title: (route) => `Аудитория №${route.params.audienceId}`},
     }
     // {
     //     path: '/login',

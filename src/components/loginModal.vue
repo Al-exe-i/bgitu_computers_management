@@ -25,7 +25,8 @@ export default {
     }
   },
   computed: {
-    authStore() {
+    authStore()
+    {
       return useAuthStore()
     }
   },
@@ -63,7 +64,7 @@ export default {
       {
         await this.authStore.login(this.email, this.password)
         await this.authStore.fetchUser()
-        this.closeModal() // Закрываем модалку после успешного входа
+        this.closeModal()
       }
       catch (err)
       {

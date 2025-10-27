@@ -1,4 +1,7 @@
 <script>
+import {useAuthStore} from "@/stores/auth.js";
+import router from "@/router/index.js";
+
 export default {
   name: "floorSection",
   props: {
@@ -31,6 +34,19 @@ export default {
           return "Четвёртый"
       }
     },
+    handleAudienceClick(audienceId)
+    {
+      router.push({
+        name: "Audience",
+        params: {"audienceId": audienceId},
+      })
+    }
+  },
+  computed: {
+    authStore()
+    {
+      return useAuthStore()
+    }
   }
 }
 </script>
@@ -46,7 +62,7 @@ export default {
         </svg>
       </div>
     </div>
-    <button class="add-classroom-btn">
+    <button v-if="authStore.isAuthenticated" class="add-classroom-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 5v14M5 12h14"></path>
       </svg>
@@ -57,7 +73,7 @@ export default {
 
       <div class="classrooms-grid">
 
-        <div v-for="audience in audiences" class="classroom-card">
+        <div v-for="audience in audiences" class="classroom-card" @click="handleAudienceClick(audience.id)">
           <div class="classroom-number">{{ audience.id }}</div>
           <div class="classroom-info">
             <div class="info-item">

@@ -1,12 +1,14 @@
 <script>
 import router from "@/router/index.js";
+import api from "@/services/api.js";
 
 export default {
   name: "mainDashboard",
   data()
   {
     return {
-
+      faultyOfficeOne: 0,
+      faultyOfficeTwo: 0,
     }
   },
 
@@ -17,7 +19,17 @@ export default {
         name: "Office",
         params: { officeNumber: n }}
       )
+    },
+    async fetchFaulty()
+    {
+      let response = await api.get('/offices/faulty_computers/1')
+      this.faultyOfficeOne = response.data.count
+      response = await api.get(`/offices/faulty_computers/2`)
+      this.faultyOfficeTwo = response.data.count
     }
+  },
+  mounted() {
+    this.fetchFaulty()
   }
 }
 </script>
@@ -36,7 +48,7 @@ export default {
           <span>Первый корпус</span>
         </div>
         <div class="breakdowns-title">Количество поломок</div>
-        <div class="breakdowns-count">0</div>
+        <div class="breakdowns-count" :class="{red: faultyOfficeOne > 0}">{{ faultyOfficeOne }}</div>
         <button @click="handleOfficeClick(1)" class="view-details-btn">Просмотреть детали</button>
       </div>
 
@@ -48,7 +60,7 @@ export default {
           <span>Второй корпус</span>
         </div>
         <div class="breakdowns-title">Количество поломок</div>
-        <div class="breakdowns-count">0</div>
+        <div class="breakdowns-count" :class="{red: faultyOfficeTwo > 0}">{{ faultyOfficeTwo }}</div>
         <button @click="handleOfficeClick(2)" class="view-details-btn">Просмотреть детали</button>
       </div>
 
