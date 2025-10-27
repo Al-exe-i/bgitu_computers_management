@@ -2,10 +2,10 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import IntegrityError
 from starlette import status
-from crud.audience import get_all, get_by_id, create_audience, delete_audience
+from crud.audience import get_all, get_by_id, create_audience, delete_audience, update_audience
 from db.session import session_dep
 from dependencies.auth import user_dep
-from schemas.audience import Audience, AudienceCreateRequest
+from schemas.audience import Audience, AudienceCreateRequest, AudienceUpdate
 
 router = APIRouter()
 
@@ -56,6 +56,12 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create audience: {str(e)}"
         )
+
+
+@router.patch("/update/{aud_id}", response_model=Audience)
+async def update_audience_endpoint(aud_id: int, audience_data: AudienceUpdate, db: session_dep, user: user_dep):
+    updated = await update_audience(db, aud_id, audience_data)
+    return updated
 
 
 @router.delete("/{aud_id}")

@@ -1,10 +1,11 @@
 from typing import Sequence
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from models.audience import Audience, Row, Computer
-from schemas.audience import AudienceCreateRequest
+from schemas.audience import AudienceCreateRequest, AudienceUpdate
 
 
 async def get_all(db: AsyncSession) -> Sequence[Audience]:
@@ -64,6 +65,21 @@ async def create_audience(db: AsyncSession, audience_data: AudienceCreateRequest
     await db.refresh(db_audience)
     return db_audience
 
+
+async def update_audience(db: AsyncSession, audience_id: int, update_schema: AudienceUpdate) -> Audience | None:
+    audience = await get_by_id(db, audience_id)
+
+    if audience is None:
+        raise HTTPException(status_code=404, detail="Audience not found")
+
+    update_data = update_schema.model_dump(exclude_unset=True)
+    for(key, value) in update_data.items():
+        setattr(audience, key, value)
+
+    await db.commit()
+    await db.refresh(audience)
+
+    return audience
 
 
 async def delete_audience(db: AsyncSession, audience_id: int) -> bool:
