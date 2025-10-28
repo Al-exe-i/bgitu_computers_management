@@ -31,7 +31,8 @@ class Row(IntIdPkMixin, Base):
     computers: Mapped[List["Computer"]] = relationship(
         "Computer",
         back_populates="row",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        order_by="Computer.id"
     )
 
 

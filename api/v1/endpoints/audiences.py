@@ -60,6 +60,9 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
 
 @router.patch("/update/{aud_id}", response_model=Audience)
 async def update_audience_endpoint(aud_id: int, audience_data: AudienceUpdate, db: session_dep, user: user_dep):
+    """
+     Обновляет некоторые параметры аудитории. Параметры описаны моделью
+    """
     updated = await update_audience(db, aud_id, audience_data)
     return updated
 
