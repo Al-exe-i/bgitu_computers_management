@@ -330,6 +330,12 @@ export default {
   .floor-header {
     flex-wrap: wrap;
   }
+
+  .add-classroom-btn
+  {
+    margin: 0 auto;
+    padding: 10px 3rem;
+  }
 }
 
 @media (max-width: 480px) {

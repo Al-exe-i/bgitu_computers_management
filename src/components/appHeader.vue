@@ -140,14 +140,14 @@ export default {
       <!-- Профиль или кнопка авторизации -->
       <div class="auth-container">
         <!-- Если авторизованы -->
-        <div v-if="authStore.isAuthenticated" class="profile-dropdown" id="profileSection">
+        <div v-if="authStore.isAuthenticated" class="profile-dropdown">
           <div class="profile-trigger" @click="toggleDropdown">
             <img
                 :src="userAvatar"
                 alt="Профиль"
                 class="profile-img"
             >
-            <span class="profile-name" id="userName">{{ userName }}</span>
+            <span class="profile-name">{{ userName }}</span>
           </div>
           <div v-show="isDropdownOpen" class="profile-dropdown-content">
             <div class="profile-dropdown-content-inner">
@@ -156,8 +156,8 @@ export default {
                   alt="Профиль"
                   class="profile-avatar-large"
               >
-              <h3 class="profile-fullname" id="userFullName">{{ userFullName }}</h3>
-              <p class="profile-email" id="userEmail">{{ userEmail }}</p>
+              <h3 class="profile-fullname">{{ userFullName }}</h3>
+              <p class="profile-email">{{ userEmail }}</p>
             </div>
             <div class="border-t pt-3">
               <button @click="handleLogout" class="logout-btn">
@@ -395,6 +395,17 @@ header {
   .floor-switch
   {
     margin-right: 0;
+  }
+
+  .floor-btn
+  {
+    font-size: 14px;
+    padding: 9px 9px;
+  }
+
+  .profile-name
+  {
+    display: none;
   }
 }
 </style>
