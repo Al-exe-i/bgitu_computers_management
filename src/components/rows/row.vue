@@ -1,6 +1,9 @@
 <script>
+import {toRaw} from "vue";
+
 export default {
   name: "row",
+  emits: ['openComputerModal',],
   props: {
     row: {
       type: Object,
@@ -10,6 +13,16 @@ export default {
   data() {
     return {
       rowNumber: null,
+      collapsed: false,
+    }
+  },
+  methods: {
+    toggleCollapsed() {
+      this.collapsed = !this.collapsed;
+    },
+    openComputerModal(computer) {
+      const currentComputer = toRaw(computer);
+      this.$emit('openComputerModal', currentComputer);
     }
   },
   mounted() {
@@ -19,14 +32,19 @@ export default {
 </script>
 
 <template>
-  <div class="row-container">
+  <div class="row-container" :class="{collapsed: collapsed}">
     <div class="row-header">
       <div class="row-number">{{ rowNumber }}</div>
       <h2 class="row-title">Ряд {{ rowNumber }}</h2>
+      <div class="collapse-icon" @click="toggleCollapsed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path data-v-6feae890="" d="M6 9l6 6 6-6"></path>
+        </svg>
+      </div>
     </div>
 
     <div class="computers-grid">
-      <div v-for="computer in row.computers" class="computer-card" :class="{broken: !computer.state}">
+      <div v-if="row" v-for="computer in row.computers" class="computer-card" :class="{broken: !computer.state}" @click="openComputerModal(computer)">
         <div class="computer-icon" :class="{broken: !computer.state}">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -91,6 +109,21 @@ export default {
   }
 }
 
+.row-container.collapsed .row-header
+{
+  margin-bottom: 0;
+}
+
+.row-container.collapsed .computers-grid
+{
+  display: none;
+}
+
+.row-container.collapsed .collapse-icon svg
+{
+  transform: rotate(-90deg);
+}
+
 .row-header {
   display: flex;
   align-items: center;
@@ -116,6 +149,25 @@ export default {
   font-size: 26px;
   font-weight: 700;
   color: #1f2937;
+  flex: 1;
+}
+
+.collapse-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f1f5f9;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.collapse-icon svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
 }
 
 .computers-grid {

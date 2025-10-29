@@ -15,6 +15,11 @@ export default {
       descriptionEditModalShow: false,
       description: "",
       showStats: false,
+      totalComputers: 0,
+      faultyComputers: 0,
+      selectedComputer: null,
+      computerModalShow: false,
+      floorNumber: null,
     }
   },
   methods: {
@@ -23,6 +28,8 @@ export default {
       await api.get(`/audiences/${this.audienceId}`).then((response) => {
         this.audience = response.data;
         this.description = response.data.description;
+        this.floorNumber = this.extractFloor(this.audience.id);
+        this.getStats()
       }).catch((error) => {
         //show notification error
         router.push(`/`)
@@ -37,6 +44,19 @@ export default {
         })
       }
     },
+    getStats()
+    {
+      if(this.audience)
+      {
+        this.audience.rows.forEach((row) => {
+          this.totalComputers += row.computers.length;
+          row.computers.forEach((computer) => {
+            if(!computer.state)
+              this.faultyComputers++
+          })
+        })
+      }
+    },
     showHideDescription()
     {
       this.descriptionShown = !this.descriptionShown;
@@ -44,6 +64,39 @@ export default {
     showHideDescriptionEditModal(shown)
     {
       this.descriptionEditModalShow = shown;
+    },
+    openComputerModal(computer)
+    {
+      if(this.authStore.isAuthenticated)
+      {
+        this.selectedComputer = {...computer};
+        this.computerModalShow = true;
+      }
+
+    },
+    extractComputerNumber(computerObj)
+    {
+      if(computerObj)
+        return Number(computerObj.name.split("_")[1])
+      else
+        return '';
+    },
+    extractComputerRow(computerObj)
+    {
+      if(computerObj)
+        return Number(computerObj.name.split("_")[0].slice(2));
+      else
+        return '';
+    },
+    extractFloor()
+    {
+      if (this.audience)
+      {
+        if(this.audience.id === 257)
+          return 1
+        else
+          return Math.floor(this.audience.id / 100)
+      }
     }
   },
   mounted()
@@ -75,21 +128,21 @@ export default {
       </div>
 
       <!-- Statistics -->
-      <div class="stats-grid" v-show="showStats">
+      <div class="stats-grid" v-show="showStats" v-if="audience">
 
         <div class="stat-card">
           <div class="stat-label">Всего компьютеров</div>
-          <div class="stat-value">24</div>
+          <div class="stat-value">{{ totalComputers }}</div>
         </div>
 
         <div class="stat-card working">
           <div class="stat-label">Исправных</div>
-          <div class="stat-value">21</div>
+          <div class="stat-value">{{ totalComputers - faultyComputers }}</div>
         </div>
 
         <div class="stat-card broken">
           <div class="stat-label">Неисправных</div>
-          <div class="stat-value">3</div>
+          <div class="stat-value">{{ faultyComputers }}</div>
         </div>
 
       </div>
@@ -117,8 +170,8 @@ export default {
       </div>
 
       <!-- Компьютеры -->
-      <div id="computerRows" class="computer-rows">
-        <Row v-for="row in audience.rows" :row="row"></Row>
+      <div v-if="audience" id="computerRows" class="computer-rows">
+        <Row @open-computer-modal="openComputerModal" v-for="row in audience.rows" :row="row"></Row>
       </div>
 
       <div v-if="authStore.user" :class="{active: descriptionEditModalShow}" class="modal">
@@ -134,7 +187,29 @@ export default {
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
+  <div v-if="selectedComputer" class="modal" :class="{active: computerModalShow}">
+    <div class="modal-content">
+      <h2 class="modal-title">Компьютер №{{ extractComputerNumber(selectedComputer) }} (Ряд {{ extractComputerRow(selectedComputer) }}, Этаж {{ floorNumber }})</h2>
+      <div id="currentStatus">
+        <div
+            class="status-badge"
+            :class="{working: selectedComputer.state, broken: !selectedComputer.state}"
+            v-if="selectedComputer">
+            Текущий статус: {{ selectedComputer.state ? 'исправен' : 'неисправен' }}
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="comment" class="form-label">Комментарий</label>
+        <textarea :disabled="!selectedComputer.state" class="form-textarea" placeholder="Опишите проблему или состояние компьютера..."></textarea>
+      </div>
+      <div class="action-btns">
+        <button :disabled="selectedComputer.state" class="action-btn fix-btn">Исправен</button>
+        <button :disabled="!selectedComputer.state" class="action-btn break-btn">Неисправен</button>
+      </div>
+      <button @click="computerModalShow = false; selectedComputer = null" class="close-btn">Закрыть</button>
     </div>
   </div>
 </template>
@@ -162,7 +237,7 @@ export default {
   0%
   {
     opacity: 0;
-    transform: translateX(-50vw);
+    transform: translateX(-10vw);
   }
   100%
   {
@@ -190,7 +265,7 @@ export default {
   0%
   {
     opacity: 0;
-    transform: translateX(50vw);
+    transform: translateX(10vw);
   }
   100%
   {
@@ -212,6 +287,7 @@ export default {
   padding: 24px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
   transition: all 0.3s ease;
+  animation: fadeIn .6s ease-in-out;
 }
 
 .stat-card:hover {
@@ -484,22 +560,30 @@ export default {
 }
 
 .status-badge {
-  display: inline-block;
-  padding: 10px 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 28px;
   border-radius: 100px;
   font-weight: 700;
-  font-size: 15px;
-  margin-bottom: 20px;
+  font-size: 16px;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .status-badge.working {
-  background: #dcfce7;
-  color: #16a34a;
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  color: #065f46;
+  border: 2px solid #6ee7b7;
 }
 
 .status-badge.broken {
-  background: #fee2e2;
-  color: #dc2626;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  color: #991b1b;
+  border: 2px solid #fca5a5;
 }
 
 .action-btns {
@@ -510,19 +594,23 @@ export default {
 
 .action-btn {
   flex: 1;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 700;
+  padding: 18px;
+  border-radius: 16px;
+  font-weight: 800;
   font-size: 16px;
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .fix-btn {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
 }
 
 .fix-btn:hover:not(:disabled) {
@@ -531,9 +619,9 @@ export default {
 }
 
 .fix-btn:disabled {
-  background: #d1d5db;
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.6;
   transform: none;
   box-shadow: none;
 }
@@ -541,18 +629,18 @@ export default {
 .break-btn {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
 }
 
 .break-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.5);
 }
 
 .break-btn:disabled {
-  background: #d1d5db;
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.6;
   transform: none;
   box-shadow: none;
 }

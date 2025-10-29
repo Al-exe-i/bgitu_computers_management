@@ -37,10 +37,10 @@ export default {
     userAvatar()
     {
       // Если есть фото — используем его, иначе placeholder
-      return this.authStore.user?.photo || `src/assets/User_no_icon.svg`
+      return this.authStore.user?.photo || `/src/assets/User_no_icon.svg`
     },
     userAvatarLarge() {
-      return this.authStore.user?.photo || `src/assets/User_no_icon.svg`
+      return this.authStore.user?.photo || `/src/assets/User_no_icon.svg`
     }
   },
 
