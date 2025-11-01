@@ -44,7 +44,6 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
         Если сломанных нет, то оставьте список пустым
     - **office_id**: Номер корпуса (1 или 2)
     """
-
     try:
         await create_audience(db, audience_data)
         created = await get_by_id(db, audience_data.id)
@@ -58,7 +57,7 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, db: ses
         )
 
 
-@router.patch("/update/{aud_id}", response_model=Audience)
+@router.patch("/update/{aud_id}", response_model=Audience, response_model_exclude={"rows", "additional_hardware"})
 async def update_audience_endpoint(aud_id: int, audience_data: AudienceUpdate, db: session_dep, user: user_dep):
     """
      Обновляет некоторые параметры аудитории. Параметры описаны моделью
