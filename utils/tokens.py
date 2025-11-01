@@ -1,14 +1,14 @@
 from starlette.responses import JSONResponse
 from core.config import settings
-from core.security import create_access_token, create_refresh_token
+from core.security import generate_token
 from models.user import User
 from schemas.token import Token
 
 
 async def create_token_pair_and_build_response(user: User) -> JSONResponse:
     payload = {"sub": str(user.id), "email": user.email}
-    access_token = create_access_token(data=payload)
-    refresh_token = create_refresh_token(data=payload)
+    access_token = generate_token(data=payload, token_type="access")
+    refresh_token = generate_token(data=payload, token_type="refresh")
 
     token_data = Token(access_token=access_token, token_type="bearer").model_dump()
 
