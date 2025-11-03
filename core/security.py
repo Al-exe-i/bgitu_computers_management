@@ -1,10 +1,9 @@
 from datetime import timedelta, datetime, timezone
-from typing import Optional, Literal
+from typing import Literal
 from argon2.exceptions import VerifyMismatchError, InvalidHashError
 from jose import jwt, JWTError
 from argon2 import PasswordHasher
 from core.config import settings
-from utils.decorators import validate_literal_parameters
 
 _password_hasher = PasswordHasher()
 
@@ -19,8 +18,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-@validate_literal_parameters
 def generate_token(data: dict, token_type: Literal["access", "refresh"]) -> str:
+    if token_type not in ("access", "refresh"):
+        raise ValueError("Invalid token type")
+
     to_encode = data.copy()
     now = datetime.now(timezone.utc)
     if token_type == "access":
