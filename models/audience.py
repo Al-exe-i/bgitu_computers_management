@@ -16,6 +16,7 @@ class Computer(IntIdPkMixin, Base):
     name: Mapped[str] = mapped_column(String(32))
     row_id: Mapped[int] = mapped_column(ForeignKey('rows.id', ondelete='CASCADE'))
     state: Mapped[bool] = mapped_column(default=True)
+    description: Mapped[str | None] = mapped_column(String(255))
 
     row: Mapped["Row"] = relationship(
         "Row",

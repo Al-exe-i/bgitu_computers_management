@@ -11,11 +11,11 @@ class ComputerCreate(ComputerBase):
 
 
 class ComputerUpdate(BaseModel):
-    name: str | None = None
-    row_id: int | None = None
+    description: str | None = None
     state: bool | None = None
 
 
 class Computer(ComputerBase):
     id: int
     row_id: int
+    description: str | None = None
