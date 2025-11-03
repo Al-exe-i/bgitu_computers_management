@@ -40,6 +40,17 @@ export default {
         name: "Audience",
         params: {"audienceId": audienceId},
       })
+    },
+    audienceStatus(faultyCnt)
+    {
+      if(faultyCnt === 0)
+        return `Все исправны`
+      else if(faultyCnt === 11)
+        return `${faultyCnt} неисправны`
+      else if(faultyCnt % 10 === 1)
+        return `${faultyCnt} неисправен`
+      else
+        return `${faultyCnt} неисправны`
     }
   },
   computed: {
@@ -84,7 +95,7 @@ export default {
               <div class="info-label">Статус</div>
               <div class="info-value">
                 <span class="status-indicator" :class="{'status-broken': audience.faultyComputers > 0, 'status-working': audience.faultyComputers === 0}"></span>
-                {{ audience.faultyComputers === 0 ? "Все исправны" :  `${audience.faultyComputers} неисправны`}}
+                {{ audienceStatus(audience.faultyComputers) }}
               </div>
             </div>
           </div>

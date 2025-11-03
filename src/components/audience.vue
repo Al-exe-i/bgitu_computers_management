@@ -72,7 +72,6 @@ export default {
         this.selectedComputer = {...computer};
         this.computerModalShow = true;
       }
-
     },
     extractComputerNumber(computerObj)
     {
@@ -96,6 +95,25 @@ export default {
           return 1
         else
           return Math.floor(this.audience.id / 100)
+      }
+    },
+    async setComputerState(state)
+    {
+      if(this.selectedComputer)
+      {
+        let description = state === true ? null : this.selectedComputer.description
+        await api.patch(
+            `/computers/${this.selectedComputer.id}`, {"state": state, "description": description}).then((response) => {
+          this.selectedComputer.state = state;
+          let targetRow = this.audience.rows.find(row => row.id === this.selectedComputer.row_id)
+          let targetComputer = targetRow.computers.find(computer => computer.id === this.selectedComputer.id)
+          targetComputer.state = state
+          targetComputer.description = description
+          if(state === true)
+            this.selectedComputer.description = null
+        }).catch((error) => {
+          //show error popup
+        })
       }
     }
   },
@@ -190,9 +208,10 @@ export default {
     </div>
   </div>
 
+  <!-- Модальное окно для управления компьютером -->
   <div v-if="selectedComputer" class="modal" :class="{active: computerModalShow}">
     <div class="modal-content">
-      <h2 class="modal-title">Компьютер №{{ extractComputerNumber(selectedComputer) }} (Ряд {{ extractComputerRow(selectedComputer) }}, Этаж {{ floorNumber }})</h2>
+      <h2 class="modal-title">Компьютер №{{ extractComputerNumber(selectedComputer) }} (Ряд {{ extractComputerRow(selectedComputer) }})</h2>
       <div id="currentStatus">
         <div
             class="status-badge"
@@ -203,11 +222,11 @@ export default {
       </div>
       <div class="form-group">
         <label for="comment" class="form-label">Комментарий</label>
-        <textarea :disabled="!selectedComputer.state" class="form-textarea" placeholder="Опишите проблему или состояние компьютера..."></textarea>
+        <textarea v-model="selectedComputer.description" :disabled="!selectedComputer.state" class="form-textarea" placeholder="Опишите проблему или состояние компьютера..."></textarea>
       </div>
       <div class="action-btns">
-        <button :disabled="selectedComputer.state" class="action-btn fix-btn">Исправен</button>
-        <button :disabled="!selectedComputer.state" class="action-btn break-btn">Неисправен</button>
+        <button :disabled="selectedComputer.state" @click="setComputerState(true)" class="action-btn fix-btn">Исправен</button>
+        <button :disabled="!selectedComputer.state" @click="setComputerState(false)" class="action-btn break-btn">Неисправен</button>
       </div>
       <button @click="computerModalShow = false; selectedComputer = null" class="close-btn">Закрыть</button>
     </div>
@@ -501,7 +520,7 @@ export default {
   letter-spacing: 0.5px;
 }
 
-.form-input, .form-textarea {
+.form-textarea {
   width: 100%;
   padding: 14px 16px;
   border: 2px solid #e5e7eb;
@@ -511,7 +530,7 @@ export default {
   font-family: inherit;
 }
 
-.form-input:focus, .form-textarea:focus {
+.form-textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
