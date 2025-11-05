@@ -1,7 +1,7 @@
 <script>
 
-import AppHeader from "@/components/appHeader.vue";
-import LoginModal from "@/components/loginModal.vue";
+import AppHeader from "@/components/Layout/AppHeader.vue";
+import LoginModal from "@/components/Layout/LoginModal.vue";
 
 export default {
   name: "AppView",

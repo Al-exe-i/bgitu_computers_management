@@ -1,5 +1,5 @@
 <script>
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth.js'
 
 export default {
   name: 'LoginModal',
@@ -98,7 +98,7 @@ export default {
           </button>
         </div>
         <div class="login-container-inner">
-          <img class="login-logo" src="@/assets/logo_IT.png" alt="Logo">
+          <img class="login-logo" src="../../assets/logo_IT.png" alt="Logo">
           <h2 class="login-title">Войти в аккаунт</h2>
           <form @submit.prevent="handleLogin" class="login-form">
             <div class="login-form-group">

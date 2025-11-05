@@ -3,7 +3,7 @@ import router from "@/router/index.js";
 import api from "@/services/api.js";
 
 export default {
-  name: "mainDashboard",
+  name: "HomeView",
   data()
   {
     return {

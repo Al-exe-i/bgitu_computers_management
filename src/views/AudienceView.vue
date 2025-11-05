@@ -1,13 +1,14 @@
 <script>
 import api from "@/services/api.js";
 import {useAuthStore} from "@/stores/auth.js";
-import Row from "@/components/rows/row.vue";
+import RowSection from "@/components/Common/RowSection.vue";
 import router from "@/router/index.js";
+import {useAudienceContext} from "@/stores/officeCtx.js";
 
 export default {
-  name: "audience",
-  components: {Row},
-  props: ["audienceId"],
+  name: "AudienceView",
+  components: {Row: RowSection},
+  props: ["audienceId", "officeId"],
   data() {
     return {
       audience: null,
@@ -27,6 +28,7 @@ export default {
     {
       await api.get(`/audiences/${this.audienceId}`).then((response) => {
         this.audience = response.data;
+        this.audienceContext.setOffice(this.audience.office_id)
         this.description = response.data.description;
         this.floorNumber = this.extractFloor(this.audience.id);
         this.getStats()
@@ -125,7 +127,14 @@ export default {
     authStore()
     {
       return useAuthStore()
+    },
+    audienceContext()
+    {
+      return useAudienceContext()
     }
+  },
+  beforeUnmount() {
+    this.audienceContext.clear()
   }
 }
 </script>

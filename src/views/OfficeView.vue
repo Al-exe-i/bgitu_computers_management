@@ -1,5 +1,5 @@
 <script>
-import FloorSection from "@/components/floor/floorSection.vue";
+import FloorSection from "@/components/Common/FloorSection.vue";
 import api from "@/services/api.js";
 import router from "@/router/index.js";
 

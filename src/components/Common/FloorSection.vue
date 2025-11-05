@@ -1,6 +1,7 @@
 <script>
 import {useAuthStore} from "@/stores/auth.js";
 import router from "@/router/index.js";
+import {useAudienceContext} from "@/stores/officeCtx.js";
 
 export default {
   name: "floorSection",
@@ -34,12 +35,13 @@ export default {
           return "Четвёртый"
       }
     },
-    handleAudienceClick(audienceId)
+    handleAudienceClick(audienceId, officeId)
     {
       router.push({
         name: "Audience",
-        params: {"audienceId": audienceId},
+        params: {audienceId: audienceId},
       })
+      this.audienceContext.setOffice(officeId)
     },
     audienceStatus(faultyCnt)
     {
@@ -57,6 +59,10 @@ export default {
     authStore()
     {
       return useAuthStore()
+    },
+    audienceContext()
+    {
+      return useAudienceContext()
     }
   }
 }
@@ -84,7 +90,7 @@ export default {
 
       <div class="classrooms-grid">
 
-        <div v-for="audience in audiences" class="classroom-card" @click="handleAudienceClick(audience.id)">
+        <div v-for="audience in audiences" class="classroom-card" @click="handleAudienceClick(audience.id, audience.office_id)">
           <div class="classroom-number">{{ audience.id }}</div>
           <div class="classroom-info">
             <div class="info-item">

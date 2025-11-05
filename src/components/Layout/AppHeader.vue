@@ -1,6 +1,7 @@
 <script>
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth.js'
 import router from "@/router/index.js";
+import {useAudienceContext} from "@/stores/officeCtx.js";
 
 export default {
   name: 'appHeader',
@@ -16,6 +17,10 @@ export default {
     authStore()
     {
       return useAuthStore()
+    },
+    audienceContext()
+    {
+      return useAudienceContext()
     },
     // Данные пользователя
     userName()
@@ -100,17 +105,25 @@ export default {
     {
       let officeNumber = Number(to?.params?.officeNumber)
       this.handleOfficeActive(officeNumber)
-      if(to.name !== 'Office')
+      if(to.name !== 'Office' && to.name !== 'Audience')
       {
         this.officeOneActive = this.officeTwoActive = false
+      }
+    },
+    'audienceContext.officeId' (newId, oldId)
+    {
+      if (newId)
+      {
+        this.handleOfficeActive(newId)
       }
     }
   },
   mounted() {
     document.addEventListener('click', this.handleClickOutside)
-    if(this.$route.name === 'Office')
+    let officeNumber = Number(this.$route?.params.officeNumber) | this.audienceContext.officeId
+    if(this.$route.name === 'Office' || this.$route.name === 'Audience')
     {
-      this.handleOfficeActive(Number(this.$route?.params.officeNumber))
+      this.handleOfficeActive(officeNumber)
     }
   },
   beforeUnmount() {
@@ -125,7 +138,7 @@ export default {
       <!-- Логотип -->
       <div @click="handleHomeClick" class="logo-container">
         <div class="logo">
-          <img src="../assets/logo_IT.png">
+          <img src="../../assets/logo_IT.png">
         </div>
         <h1 class="app-title">Computers management</h1>
       </div>

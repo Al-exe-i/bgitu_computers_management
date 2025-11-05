@@ -2,28 +2,28 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import mainDashboard from "@/components/mainDashboard.vue";
-import office from "@/components/office.vue";
-import audience from "@/components/audience.vue";
+import OfficeView from "@/views/OfficeView.vue";
+import AudienceView from "@/views/AudienceView.vue";
+import HomeView from "@/views/HomeView.vue";
 
 const routes = [
     {
         path: '/',
         name: 'Home',
-        component: mainDashboard,
+        component: HomeView,
         meta: {title: "BGITU Computers management"}
     },
     {
         path: '/Office/:officeNumber',
         name: 'Office',
-        component: office,
+        component: OfficeView,
         props: true,
         meta: {title: (route) => `${route.params.officeNumber} корпус`},
     },
     {
         path: `/audience/:audienceId`,
         name: 'Audience',
-        component: audience,
+        component: AudienceView,
         props: true,
         meta: {title: (route) => `Аудитория №${route.params.audienceId}`},
     }
