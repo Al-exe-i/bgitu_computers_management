@@ -17,7 +17,7 @@ class Audience(AudienceBase):
     rows: List[Row] = []
     additional_hardware: List[AdditionalHardware] = []
     description: str | None = None
-
+    office_id: int
 
 class AudienceCreateRequest(BaseModel):
     id: int
