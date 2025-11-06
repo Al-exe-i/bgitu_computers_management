@@ -163,7 +163,21 @@ export default {
   font-weight: 700;
   margin-right: 20px;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-  flex-shrink: 0;
+  position: relative;
+}
+
+.floor-number::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, #275fe2, #3f85f6);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.3;
 }
 
 .floor-title {

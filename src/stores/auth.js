@@ -2,6 +2,7 @@
 
 import {defineStore} from 'pinia'
 import api from '@/services/api'
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -128,13 +129,15 @@ export const useAuthStore = defineStore('auth', {
 
         async logout()
         {
+            const notify = useNotificationsStore()
             try
             {
                 await api.post('/logout')
+                notify.info("Вы вышли из аккаунта", 2700)
             }
             catch (e)
             {
-                console.log(`Can't logout`)
+                notify.error("Не удалось выйти. Попробуйте снова")
             }
             finally
             {

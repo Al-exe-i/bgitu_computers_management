@@ -1,6 +1,7 @@
 <script>
 import router from "@/router/index.js";
 import api from "@/services/api.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: "HomeView",
@@ -22,14 +23,27 @@ export default {
     },
     async fetchFaulty()
     {
-      let response = await api.get('/offices/faulty_computers/1')
-      this.faultyOfficeOne = response.data.count
-      response = await api.get(`/offices/faulty_computers/2`)
-      this.faultyOfficeTwo = response.data.count
+      Promise.all([
+        api.get('/offices/faulty_computers/1'),
+        api.get('/offices/faulty_computers/2')
+      ])
+          .then(([response1, response2]) => {
+            this.faultyOfficeOne = response1.data.count;
+            this.faultyOfficeTwo = response2.data.count;
+          })
+          .catch(err => {
+            this.notify.error("Не удалось загрузить данные");
+          });
     }
   },
   mounted() {
     this.fetchFaulty()
+  },
+  computed: {
+    notify()
+    {
+      return useNotificationsStore()
+    }
   }
 }
 </script>

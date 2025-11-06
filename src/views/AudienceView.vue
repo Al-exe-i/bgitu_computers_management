@@ -4,6 +4,7 @@ import {useAuthStore} from "@/stores/auth.js";
 import RowSection from "@/components/Common/RowSection.vue";
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: "AudienceView",
@@ -33,7 +34,7 @@ export default {
         this.floorNumber = this.extractFloor(this.audience.id);
         this.getStats()
       }).catch((error) => {
-        //show notification error
+        this.notify.error("Не удалось получить аудиторию!")
         router.push(`/`)
       })
     },
@@ -43,6 +44,9 @@ export default {
       {
         await api.patch(`/audiences/update/${this.audienceId}`, {"description": this.description}).then((response) => {
           this.descriptionEditModalShow = false;
+          this.notify.success("Описание обновлено", 3000)
+        }).catch((error) => {
+          this.notify.error("Не удалось обновить описание")
         })
       }
     },
@@ -114,7 +118,7 @@ export default {
           if(state === true)
             this.selectedComputer.description = null
         }).catch((error) => {
-          //show error popup
+          this.notify.error("Не удалось изменить состояние компьютера. Сервер не отвечает");
         })
       }
     }
@@ -131,6 +135,10 @@ export default {
     audienceContext()
     {
       return useAudienceContext()
+    },
+    notify()
+    {
+      return useNotificationsStore()
     }
   },
   beforeUnmount() {

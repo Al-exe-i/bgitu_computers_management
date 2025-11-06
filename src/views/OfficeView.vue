@@ -2,6 +2,7 @@
 import FloorSection from "@/components/Common/FloorSection.vue";
 import api from "@/services/api.js";
 import router from "@/router/index.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: "floor",
@@ -17,7 +18,10 @@ export default {
     }
   },
   computed: {
-
+    notify()
+    {
+      return useNotificationsStore()
+    }
   },
   methods: {
     async getOffice(officeNumber)
@@ -29,7 +33,7 @@ export default {
         this.loading = false
       }).catch(error => {
         router.push({ path: `/` })
-        //Показать всплывающее сообщений
+        this.notify.error("Не удалось загрузить данные")
       })
     },
     arrangeFloors(audiences)

@@ -1,5 +1,6 @@
 <script>
 import { useAuthStore } from '@/stores/auth.js'
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: 'LoginModal',
@@ -28,6 +29,10 @@ export default {
     authStore()
     {
       return useAuthStore()
+    },
+    notify()
+    {
+      return useNotificationsStore()
     }
   },
   methods: {
@@ -37,7 +42,8 @@ export default {
       this.errors.email = null
       this.errors.password = null
 
-      if (!this.email) {
+      if (!this.email)
+      {
         this.errors.email = 'Введите email'
         valid = false
       }
@@ -46,7 +52,8 @@ export default {
       //   valid = false
       // }
 
-      if (!this.password) {
+      if (!this.password)
+      {
         this.errors.password = 'Введите пароль'
         valid = false
       }
@@ -65,9 +72,12 @@ export default {
         await this.authStore.login(this.email, this.password)
         await this.authStore.fetchUser()
         this.closeModal()
+        this.notify.success(`Вы успешно вошли в систему!`, 3500)
       }
       catch (err)
       {
+        let errMsg = this.authStore.error === `Invalid credentials` ? `Неверный логин или пароль!` : `Ошибка входа`
+        this.notify.error(errMsg)
         this.password = ''
         this.serverError = this.authStore.error || 'Ошибка входа'
       }
@@ -150,9 +160,6 @@ export default {
               {{ authStore.loading ? 'Входим...' : 'Войти' }}
             </button>
 
-            <div v-if="serverError" class="login-error-message">
-              {{ serverError }}
-            </div>
           </form>
           <div class="login-signup-link">
             Нет аккаунта? <a href="mailto:mail@gmail.com?subject=Создание аккаунта&body=Здравствуйте, мне нужно создать аккаунт">Напишите нам</a>
