@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api import api_router
 from core.config import settings
 import os
+from websocket.routes import router as ws_router
 
 app = FastAPI(debug=settings.DEBUG, default_response_class=ORJSONResponse)
 
@@ -16,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api.prefix)
+app.include_router(ws_router)
 
 os.makedirs(settings.static.upload_dir, exist_ok=True)
 

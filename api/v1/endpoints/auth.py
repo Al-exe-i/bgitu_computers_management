@@ -21,7 +21,7 @@ async def login_for_access_token(
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль!",
+            detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return await create_token_pair_and_build_response(user=user)

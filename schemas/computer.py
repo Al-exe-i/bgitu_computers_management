@@ -11,6 +11,7 @@ class ComputerCreate(ComputerBase):
 
 
 class ComputerUpdate(BaseModel):
+    audience_id: int # Для WebSocket
     description: str | None = None
     state: bool | None = None
 
