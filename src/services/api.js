@@ -2,9 +2,10 @@
 
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import {getApiUrl} from "@/config/api.js";
 
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api/v1',
+    baseURL: getApiUrl(),
     timeout: 10000,
     withCredentials: true
 })

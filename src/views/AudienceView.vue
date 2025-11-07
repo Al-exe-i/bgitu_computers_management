@@ -5,6 +5,7 @@ import RowSection from "@/components/Common/RowSection.vue";
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import {getWsUrl} from "@/config/api.js";
 
 export default {
   name: "AudienceView",
@@ -22,6 +23,12 @@ export default {
       selectedComputer: null,
       computerModalShow: false,
       floorNumber: null,
+      ws: null,
+      wsConnected: false,
+      wsError: false,
+      wsReconnectAttempts: 0,
+      maxReconnectAttempts: 3,
+      reconnectDelay: 3000,
     }
   },
   methods: {
@@ -54,6 +61,7 @@ export default {
     {
       if(this.audience)
       {
+        this.totalComputers = this.faultyComputers = 0
         this.audience.rows.forEach((row) => {
           this.totalComputers += row.computers.length;
           row.computers.forEach((computer) => {
@@ -108,24 +116,89 @@ export default {
       if(this.selectedComputer)
       {
         let description = state === true ? null : this.selectedComputer.description
+        const dataToSend = {"state": state, "description": description, audience_id: this.audience.id}
+        this.closeWebSocket()
         await api.patch(
-            `/computers/${this.selectedComputer.id}`, {"state": state, "description": description}).then((response) => {
+            `/computers/${this.selectedComputer.id}`, dataToSend).then((response) => {
           this.selectedComputer.state = state;
           let targetRow = this.audience.rows.find(row => row.id === this.selectedComputer.row_id)
           let targetComputer = targetRow.computers.find(computer => computer.id === this.selectedComputer.id)
           targetComputer.state = state
           targetComputer.description = description
           if(state === true)
+          {
             this.selectedComputer.description = null
+            this.faultyComputers--
+          }
+          else
+          {
+            this.faultyComputers++
+          }
         }).catch((error) => {
           this.notify.error("Не удалось изменить состояние компьютера. Сервер не отвечает");
+        }).finally(()=>{
+          this.connectWebSocket()
         })
       }
+    },
+    connectWebSocket()
+    {
+      if (this.ws)
+      {
+        this.ws.onclose = null;
+        this.ws.close();
+      }
+
+      this.ws = new WebSocket(getWsUrl())
+
+      this.ws.onopen = () => {
+        this.wsConnected = true;
+        this.wsError = false;
+        this.wsReconnectAttempts = 0;
+        this.reconnectDelay = 1000;
+      };
+
+      this.ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg?.audience_updated === this.audience.id)
+        {
+          this.getAudience()
+        }
+      };
+
+      this.ws.onclose = (event) => {
+        this.wsConnected = false;
+
+        // Попытка переподключения
+        if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
+          this.wsReconnectAttempts++;
+          const delay = this.reconnectDelay * this.wsReconnectAttempts; // экспоненциально
+
+          this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
+
+          setTimeout(() => {
+            this.connectWebSocket();
+          }, delay);
+        }
+        else
+        {
+          // Не удалось восстановить
+          this.wsError = true;
+          this.notify.error("Не удалось восстановить соединение с сервером")
+        }
+      };
+    },
+    closeWebSocket()
+    {
+      this.ws.onclose = null;
+      this.wsConnected = false;
+      this.ws.close()
     }
   },
   mounted()
   {
     this.getAudience();
+    this.connectWebSocket();
   },
   computed: {
     authStore()
@@ -142,6 +215,7 @@ export default {
     }
   },
   beforeUnmount() {
+    this.closeWebSocket()
     this.audienceContext.clear()
   }
 }
