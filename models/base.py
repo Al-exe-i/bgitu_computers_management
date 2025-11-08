@@ -1,6 +1,6 @@
 # models/base.py
 from sqlalchemy import MetaData
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, declared_attr
+from sqlalchemy.orm import DeclarativeBase, declared_attr
 import inflection
 
 from core.config import settings

@@ -3,7 +3,7 @@ from .user import User
 from .office import Office
 from .additional_hardware import AdditionalHardware
 
-__ALL__ = (
+__all__ = (
     Audience,
     Row,
     Computer,
