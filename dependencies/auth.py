@@ -1,43 +1,40 @@
 # app/dependencies/auth.py
-from typing import Annotated
+from typing import Annotated, Literal
 from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from core.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import verify_token
 from crud.user import get_user
 from db.session import session_dep
-from schemas.token import TokenData
 from models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token")
 
 
-async def get_current_user(
-        db: session_dep,
-        token: str = Depends(oauth2_scheme)
-) -> User:
+async def _validate_token_and_get_user(db: AsyncSession, token: str, token_type: Literal["access", "refresh"]) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = verify_token(token, token_type="access")
+    payload = verify_token(token, token_type)
 
     if payload is None:
         raise credentials_exception
 
     sub: int = int(payload.get("sub"))
-    email: str = payload.get("email")
-    if email is None:
-        raise credentials_exception
-
-    token_data = TokenData(id=sub, email=email)
-
-    user = await get_user(db, user_id=int(token_data.id))
+    user = await get_user(db, user_id=sub)
     if user is None:
         raise credentials_exception
+    return user
+
+
+async def get_current_user(
+        db: session_dep,
+        token: str = Depends(oauth2_scheme)
+) -> User:
+    user = await _validate_token_and_get_user(db, token, "access")
     return user
 
 
@@ -46,24 +43,9 @@ async def get_current_refresh_user(
         refresh_token: str | None = Cookie(None, alias="refresh_token")
 ) -> User:
     if refresh_token is None:
-        raise HTTPException(401, "Could not find a refresh token")
+        raise HTTPException(401, "Could not find a refresh token", {"WWW-Authenticate": "Bearer"})
 
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate refresh token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    payload = verify_token(refresh_token, token_type="refresh")
-    if payload is None:
-        raise credentials_exception
-
-    sub: int = int(payload.get("sub"))
-
-    user = await get_user(db, user_id=sub)
-    if user is None:
-        raise credentials_exception
-
+    user = await _validate_token_and_get_user(db, refresh_token, "refresh")
     return user
 
 

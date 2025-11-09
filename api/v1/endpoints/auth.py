@@ -6,7 +6,6 @@ from starlette.responses import JSONResponse
 from core.security import verify_password
 from db.session import session_dep
 from crud.user import get_user_by_email
-from dependencies.auth import user_dep
 from utils.tokens import create_token_pair_and_build_response
 
 router = APIRouter()
@@ -28,7 +27,7 @@ async def login_for_access_token(
 
 
 @router.post("/logout")
-async def logout_user(current_user: user_dep):
+async def logout_user():
     response = JSONResponse(content={"message": "Successfully logged out"}, status_code=status.HTTP_200_OK)
     response.delete_cookie(key="refresh_token")
     return response

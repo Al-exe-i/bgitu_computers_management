@@ -6,7 +6,7 @@ from schemas.token import Token
 
 
 async def create_token_pair_and_build_response(user: User) -> JSONResponse:
-    payload = {"sub": str(user.id), "email": user.email}
+    payload = {"sub": str(user.id)}
     access_token = generate_token(data=payload, token_type="access")
     refresh_token = generate_token(data=payload, token_type="refresh")
 
