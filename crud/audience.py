@@ -31,7 +31,7 @@ async def get_by_id(db: AsyncSession, aud_id: int) -> Audience | None:
         )
     )
     result = await db.execute(stmt)
-    return result.scalars().first()
+    return result.scalar_one_or_none()
 
 
 async def create_audience(db: AsyncSession, audience_data: AudienceCreateRequest) -> Audience | None:

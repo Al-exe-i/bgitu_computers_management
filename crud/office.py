@@ -1,8 +1,8 @@
-from sqlalchemy import text
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from models import Audience, Row
+from models import Audience, Row, Computer
 from models.office import Office
 from schemas.office import OfficeUpdate
 
@@ -32,12 +32,16 @@ async def update_office(db: AsyncSession, schema: OfficeUpdate, orm_model: Offic
 
 
 async def count_faulty_computers(db: AsyncSession, office_id: int) -> int:
-    query = text(
-        "select count(computers.id) from computers "
-        "where row_id IN"
-        "(SELECT id from public.rows WHERE audience_id IN (select id from audiences where office_id = :office_id)) "
-        "and state = false"
+    stmt = (
+        select(func.count(Computer.id))
+        .join(Row)
+        .join(Audience)
+        .join(Office)
+        .where(
+            Office.id == office_id,
+            Computer.state == False
         )
-    result = await db.execute(query, {"office_id": office_id})
+    )
+    result = await db.execute(stmt)
     return result.scalar_one()
 
