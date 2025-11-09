@@ -122,7 +122,6 @@ export default {
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   border: 2px solid #dbeafe;
   overflow: hidden;
-  animation: fadeInUp 0.6s ease forwards;
 }
 
 .floor-section:nth-child(2) {
@@ -383,16 +382,5 @@ export default {
   }
 }
 
-/* Animation for initial load */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 </style>

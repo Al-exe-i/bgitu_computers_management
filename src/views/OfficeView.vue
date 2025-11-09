@@ -3,6 +3,7 @@ import FloorSection from "@/components/Common/FloorSection.vue";
 import api from "@/services/api.js";
 import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import {toRaw} from "vue";
 
 export default {
   name: "floor",
@@ -15,6 +16,9 @@ export default {
       office: null,
       floors: null,
       loading: true,
+      filterMode: "all",
+      filtered: false,
+      proxyFloors: null,
     }
   },
   computed: {
@@ -31,6 +35,8 @@ export default {
         this.countTotalComputers(this.office.audiences)
         this.arrangeFloors(this.office.audiences)
         this.loading = false
+        this.filtered = false
+        this.filterMode = "all"
       }).catch(error => {
         router.push({ path: `/` })
         this.notify.error("Не удалось загрузить данные")
@@ -73,6 +79,47 @@ export default {
         audience.computersCount = currentTotal;
         audience.faultyComputers = currentFaulty;
       })
+    },
+    filterAudiencesByComputerState(data, targetState)
+    {
+      const result = {};
+
+      Object.keys(structuredClone(toRaw(data))).forEach(floorKey => {
+        const office = data[floorKey];
+
+        const validAudiences = office.audiences.filter(audience => {
+          // Если ищем исправные (true) все ПК должны быть true
+          if (targetState === true)
+          {
+            return audience.rows.every(row =>
+                row.computers.every(pc => pc.state === true)
+            );
+          }
+          // Если ищем неисправные (false) хотя бы один ПК должен быть false
+          else if (targetState === false)
+          {
+            return audience.rows.some(row =>
+                row.computers.some(pc => pc.state === false)
+            );
+          }
+          return false;
+        });
+
+        // Сохраняем этаж, только если остались подходящие аудитории
+        if (validAudiences.length > 0)
+        {
+          result[floorKey] = {
+            ...office,
+            audiences: validAudiences
+          };
+        }
+      });
+
+      return result;
+    },
+    setFilterMode(filterMode)
+    {
+      this.filterMode = filterMode;
     }
   },
   mounted()
@@ -83,6 +130,25 @@ export default {
     officeNumber(newOfficeNumber)
     {
       this.getOffice(newOfficeNumber)
+    },
+    filterMode(newFilterMode)
+    {
+      if(newFilterMode === "all")
+      {
+        this.filtered = false;
+      }
+      else if(this.filterMode === "working" || this.filterMode === "broken")
+      {
+        this.filtered = true;
+        if(this.filterMode === "working")
+        {
+          this.proxyFloors = this.filterAudiencesByComputerState(this.floors, true)
+        }
+        else
+        {
+          this.proxyFloors = this.filterAudiencesByComputerState(this.floors, false)
+        }
+      }
     }
   }
 }
@@ -126,13 +192,14 @@ export default {
         <input type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
       </div>
       <div class="filter-buttons">
-        <button class="filter-btn active" data-filter="all">Все аудитории</button>
-        <button class="filter-btn" data-filter="working">Исправные</button>
-        <button class="filter-btn" data-filter="broken">С неисправностями</button>
+        <button class="filter-btn" @click="setFilterMode(`all`)" :class="{active: this.filterMode === `all`}">Все аудитории</button>
+        <button class="filter-btn" @click="setFilterMode(`working`)" :class="{active: this.filterMode === `working`}">Исправные</button>
+        <button class="filter-btn" @click="setFilterMode(`broken`)" :class="{active: this.filterMode === `broken`}">С неисправностями</button>
       </div>
     </div>
 
-    <floor-section v-for="floor in floors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+    <floor-section v-if="!filtered" v-for="floor in floors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+    <floor-section v-if="filtered" v-for="floor in proxyFloors" :audiences="floor.audiences" :number="floor.number"></floor-section>
 
 
 

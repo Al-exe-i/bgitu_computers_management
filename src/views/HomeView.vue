@@ -2,14 +2,19 @@
 import router from "@/router/index.js";
 import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import ErrorContainer from "@/components/Common/ErrorContainer.vue";
 
 export default {
   name: "HomeView",
+  components: {ErrorContainer},
   data()
   {
     return {
       faultyOfficeOne: 0,
       faultyOfficeTwo: 0,
+      loading: true,
+      error: false,
+      errorMsg: "",
     }
   },
 
@@ -30,8 +35,12 @@ export default {
           .then(([response1, response2]) => {
             this.faultyOfficeOne = response1.data.count;
             this.faultyOfficeTwo = response2.data.count;
+            this.loading = false;
           })
           .catch(err => {
+            this.loading = false;
+            this.error = true
+            this.errorMsg = `${err.code}: ${err.message}`;
             this.notify.error("Не удалось загрузить данные");
           });
     }
@@ -50,9 +59,14 @@ export default {
 
 <template>
   <div class="dashboard-container">
-    <h1 class="dashboard-title">Статистика неисправностей</h1>
+    <h1 v-if="!loading && !error" class="dashboard-title">Статистика неисправностей</h1>
 
-    <div class="stats-container">
+    <div v-if="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <div>Загрузка данных...</div>
+    </div>
+
+    <div v-if="!loading && !error" class="stats-container">
 
       <div class="office-stats left-animated">
         <div class="office-title">
@@ -77,8 +91,13 @@ export default {
         <div class="breakdowns-count" :class="{red: faultyOfficeTwo > 0}">{{ faultyOfficeTwo }}</div>
         <button @click="handleOfficeClick(2)" class="view-details-btn">Просмотреть детали</button>
       </div>
-
     </div>
+    <ErrorContainer
+        v-if="error"
+        container-title="Не удалось загрузить данные"
+        error-title="Произошла ошибка при попытке загрузить статистику неисправностей. Проверьте подключение к интернету и повторите попытку."
+        :error-text="errorMsg"
+    />
   </div>
 </template>
 
@@ -89,6 +108,28 @@ export default {
   flex-direction: column;
   align-items: center;
   min-height: calc(100vh - 120px);
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 24px;
+  color: #64748b;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  border: 5px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .dashboard-title {
