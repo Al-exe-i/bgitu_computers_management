@@ -186,9 +186,6 @@ body {
   word-break: break-all;
 }
 
-
-
-
 @media (max-width: 640px)
 {
   .error-container
@@ -204,6 +201,7 @@ body {
   .error-message
   {
     font-size: 14px;
+    width: 100%;
   }
 }
 </style>

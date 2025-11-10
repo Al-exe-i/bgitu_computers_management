@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import OfficeView from "@/views/OfficeView.vue";
 import AudienceView from "@/views/AudienceView.vue";
 import HomeView from "@/views/HomeView.vue";
+import NotFoundView from "@/views/NotFoundView.vue";
 
 const routes = [
     {
@@ -26,6 +27,11 @@ const routes = [
         component: AudienceView,
         props: true,
         meta: {title: (route) => `Аудитория №${route.params.audienceId}`},
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: NotFoundView
     }
     // {
     //     path: '/login',

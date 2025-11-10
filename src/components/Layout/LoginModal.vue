@@ -16,7 +16,6 @@ export default {
       email: '',
       password: '',
       showPassword: false,
-      rememberMe: false,
       serverError: null,
       errors: {
         email: null,
@@ -119,7 +118,6 @@ export default {
                   id="login-email"
                   name="login"
                   required
-                  placeholder="admin"
                   class="login-input"
                   :class="{ 'error': serverError }"
               >
@@ -136,7 +134,6 @@ export default {
                   id="login-password"
                   name="password"
                   required
-                  placeholder="••••••••"
                   class="login-input"
                   :class="{ 'error': serverError }"
               >
@@ -146,13 +143,6 @@ export default {
               <div class="login-show-password">
                 <input type="checkbox" id="login-showPassword" v-model="showPassword">
                 <label class="checkbox-label" for="login-showPassword">Показать пароль</label>
-              </div>
-            </div>
-
-            <div class="login-remember">
-              <div class="login-remember-inner">
-                <input type="checkbox" id="login-remember" v-model="rememberMe">
-                <label class="checkbox-label" for="login-remember">Запомнить меня</label>
               </div>
             </div>
 
@@ -330,32 +320,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.login-remember
-{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.login-remember-inner
-{
-  display: flex;
-  align-items: center;
-
-  input
-  {
-    width: 1rem;
-    height: 1rem;
-    margin-right: 0.5rem;
-    cursor: pointer;
-  }
-
-  label
-  {
-    cursor: pointer;
-  }
 }
 
 .login-show-password input {

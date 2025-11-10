@@ -3,10 +3,11 @@ import router from "@/router/index.js";
 import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import ErrorContainer from "@/components/Common/ErrorContainer.vue";
+import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 
 export default {
   name: "HomeView",
-  components: {ErrorContainer},
+  components: {LoaderContainer, ErrorContainer},
   data()
   {
     return {
@@ -61,10 +62,7 @@ export default {
   <div class="dashboard-container">
     <h1 v-if="!loading && !error" class="dashboard-title">Статистика неисправностей</h1>
 
-    <div v-if="loading" class="loading">
-      <div class="loading-spinner"></div>
-      <div>Загрузка данных...</div>
-    </div>
+    <LoaderContainer v-if="loading"/>
 
     <div v-if="!loading && !error" class="stats-container">
 
@@ -108,28 +106,6 @@ export default {
   flex-direction: column;
   align-items: center;
   min-height: calc(100vh - 120px);
-}
-
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  font-size: 24px;
-  color: #64748b;
-}
-
-.loading-spinner {
-  display: inline-block;
-  width: 50px;
-  height: 50px;
-  border: 5px solid #e2e8f0;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .dashboard-title {

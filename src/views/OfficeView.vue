@@ -4,10 +4,11 @@ import api from "@/services/api.js";
 import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import {toRaw} from "vue";
+import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 
 export default {
   name: "floor",
-  components: {FloorSection},
+  components: {LoaderContainer, FloorSection},
   props: ["officeNumber"],
   data() {
     return {
@@ -39,7 +40,10 @@ export default {
         this.filterMode = "all"
       }).catch(error => {
         router.push({ path: `/` })
-        this.notify.error("Не удалось загрузить данные")
+        if (error.response.status === 404)
+          this.notify.warning("Вы пытаетесь открыть несуществующий корпус")
+        else
+          this.notify.error("Не удалось загрузить данные")
       })
     },
     arrangeFloors(audiences)
@@ -48,11 +52,9 @@ export default {
       audiences.forEach((item) => {
         let audFloor = Math.floor(item.id / 100)
         if(item.id === 257)
-          audFloor = 1//Исключение, так как 257 аудитория на первом этаже
+          audFloor = 1 //Исключение, так как 257 аудитория на первом этаже
         if(this.floors[audFloor] === undefined)
-        {
           this.floors[audFloor] = {number: audFloor, audiences: []}
-        }
         this.floors[audFloor].audiences.push(item)
       })
     },
@@ -155,12 +157,9 @@ export default {
 </script>
 
 <template>
-  <h1 class="page-title">Схема расположения аудиторий</h1>
+  <h1 class="page-title">Расположение аудиторий</h1>
 
-  <div v-if="loading" class="loading">
-    <div class="loading-spinner"></div>
-    <div>Загрузка данных...</div>
-  </div>
+  <LoaderContainer v-if="loading"/>
 
   <div class="building-container">
     <div v-if="!loading" class="building-info">
@@ -187,7 +186,7 @@ export default {
       </div>
     </div>
 
-    <div class="controls-panel">
+    <div v-if="!loading" class="controls-panel">
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
       </div>
@@ -227,28 +226,6 @@ body {
   color: #1e40af;
   margin-bottom: 40px;
   text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
-}
-
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  font-size: 24px;
-  color: #64748b;
-}
-
-.loading-spinner {
-  display: inline-block;
-  width: 50px;
-  height: 50px;
-  border: 5px solid #e2e8f0;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .building-container {
@@ -373,7 +350,6 @@ body {
 }
 
 
-/* Responsive design */
 @media (max-width: 768px) {
   .page-title {
     font-size: 28px;
@@ -398,16 +374,13 @@ body {
 }
 
 @media (max-width: 480px) {
-  body {
+  body
+  {
     padding: 15px;
   }
 
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
 }
 
-/* Animation for initial load */
 @keyframes fadeInUp {
   from {
     opacity: 0;
