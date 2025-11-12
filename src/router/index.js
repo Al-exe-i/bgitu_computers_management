@@ -6,6 +6,7 @@ import OfficeView from "@/views/OfficeView.vue";
 import AudienceView from "@/views/AudienceView.vue";
 import HomeView from "@/views/HomeView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
+import CreateInlineAudience from "@/components/Layout/CreateInlineAudience.vue";
 
 const routes = [
     {
@@ -27,6 +28,11 @@ const routes = [
         component: AudienceView,
         props: true,
         meta: {title: (route) => `Аудитория №${route.params.audienceId}`},
+    },
+    {
+        path: '/new-audience',
+        name: 'New Audience',
+        component: CreateInlineAudience
     },
     {
         path: '/:pathMatch(.*)*',
