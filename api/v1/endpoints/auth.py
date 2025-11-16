@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse
 from core.logger import setup_logger
 from core.security import verify_password
 from db.session import session_dep
-from crud.user import get_user_by_email
+from repositories.user import get_user_by_email
 from utils.tokens import create_token_pair_and_build_response
 
 router = APIRouter()

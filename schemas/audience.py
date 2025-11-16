@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 from models.audience import AudienceType
-from schemas.additional_hardware import AdditionalHardware
+from schemas.additional_hardware import AdditionalHardwareRead
 from schemas.row import Row, RowCreateRequest
 
 
@@ -15,7 +15,7 @@ class AudienceUpdate(BaseModel):
 class Audience(AudienceBase):
     id: int
     rows: List[Row] = []
-    additional_hardware: List[AdditionalHardware] = []
+    additional_hardware: List[AdditionalHardwareRead] = []
     description: str | None = None
     office_id: int
 

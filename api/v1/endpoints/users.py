@@ -7,7 +7,7 @@ from db.session import session_dep
 from models.user import User
 from schemas.token import Token
 from schemas.user import UserCreate, UserOut, UserUpdate
-from crud.user import get_user_by_email, create_user, get_user, delete_user, update_user
+from repositories.user import get_user_by_email, create_user, get_user, delete_user, update_user
 from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep
 from utils.tokens import create_token_pair_and_build_response
 import os

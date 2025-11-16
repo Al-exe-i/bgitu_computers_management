@@ -1,4 +1,4 @@
-import os.path
+from pathlib import Path
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,8 +18,8 @@ class ApiPrefix(BaseModel):
 
 
 class StaticFiles(BaseModel):
-    root: str = "static"
-    upload_dir: str = os.path.join(root, "uploads")
+    root: Path = Path("static")
+    upload_dir: Path = root / "uploads"
 
 class DatabaseConfig(BaseModel):
     url: str

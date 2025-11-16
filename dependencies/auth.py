@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import verify_token
-from crud.user import get_user
+from repositories.user import get_user
 from db.session import session_dep
 from models.user import User
 

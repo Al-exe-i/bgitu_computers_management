@@ -1,45 +1,34 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
-from sqlalchemy.exc import IntegrityError
-
-from crud.additional_hardware import create_hardware, get_hardware_by_audience, update_hardware, delete_hardware, \
-    delete_all_hardware
-from db.session import session_dep
+from dependencies.additional_hardware import hardware_service_dep
 from dependencies.auth import user_dep
-from schemas.additional_hardware import AdditionalHardware, AdditionalHardwareCreate, AdditionalHardwareUpdate
+from schemas.additional_hardware import AdditionalHardwareRead, AdditionalHardwareCreate, AdditionalHardwareUpdate
 
 router = APIRouter()
 
 
-@router.post("/", response_model=AdditionalHardware)
+@router.post("/", response_model=AdditionalHardwareRead)
 async def add_hardware_to_audience(
-        hardware_data: AdditionalHardwareCreate,
-        db: session_dep,
-        user: user_dep
+        data: AdditionalHardwareCreate,
+        user: user_dep,
+        service: hardware_service_dep
 ):
-    try:
-        hardware = await create_hardware(db, hardware_data)
-        return hardware
-    except IntegrityError:
-        raise HTTPException(status_code=400, detail="This audience doesn't exist")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return await service.create_hardware(data)
 
 
-@router.get("/{aud_id}", response_model=List[AdditionalHardware])
-async def get_audience_hardware(aud_id: int, db: session_dep):
-    hardware_list = await get_hardware_by_audience(db, aud_id)
-    return hardware_list
+@router.get("/{aud_id}", response_model=List[AdditionalHardwareRead])
+async def get_audience_hardware(aud_id: int, service: hardware_service_dep):
+    return await service.get_hardware_by_audience(aud_id)
 
 
-@router.patch("/{hardware_id}", response_model=AdditionalHardware)
+@router.patch("/{hardware_id}", response_model=AdditionalHardwareRead)
 async def update_hardware_endpoint(
         hardware_id: int,
         hardware_data: AdditionalHardwareUpdate,
-        db: session_dep,
+        service: hardware_service_dep,
         user: user_dep
 ):
-    hardware = await update_hardware(db, hardware_id, hardware_data)
+    hardware = await service.update_hardware(hardware_id, hardware_data)
 
     if not hardware:
         raise HTTPException(status_code=404, detail="Hardware not found")
@@ -50,10 +39,10 @@ async def update_hardware_endpoint(
 @router.delete("/{hardware_id}")
 async def delete_hardware_endpoint(
         hardware_id: int,
-        db: session_dep,
+        service: hardware_service_dep,
         user: user_dep
 ):
-    success = await delete_hardware(db, hardware_id)
+    success = await service.delete_hardware(hardware_id)
 
     if not success:
         raise HTTPException(status_code=404, detail="Hardware not found")
@@ -64,10 +53,10 @@ async def delete_hardware_endpoint(
 @router.delete("/delete_all/{aud_id}")
 async def delete_all_hardware_endpoint(
         aud_id: int,
-        db: session_dep,
+        service: hardware_service_dep,
         user: user_dep
 ):
-    success = await delete_all_hardware(db, aud_id)
+    success = await service.delete_all_hardware(aud_id)
 
     if not success:
         raise HTTPException(status_code=404, detail="Hardware not found")

@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import IntegrityError
 from starlette import status
-from crud.audience import get_all, get_by_id, create_audience, delete_audience, update_audience
+from repositories.audience import get_all, get_by_id, create_audience, delete_audience, update_audience
 from db.session import session_dep
 from dependencies.auth import user_dep
 from schemas.audience import Audience, AudienceCreateRequest, AudienceUpdate

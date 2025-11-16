@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from crud.office import get_office, update_office, count_faulty_computers
+from repositories.office import get_office, update_office, count_faulty_computers
 from db.session import session_dep
 from dependencies.auth import user_dep
 from schemas.office import Office, OfficeUpdate

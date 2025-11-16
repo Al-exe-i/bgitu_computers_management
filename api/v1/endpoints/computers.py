@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from crud.computer import update_computer
+from repositories.computer import update_computer
 from db.session import session_dep
 from dependencies.auth import user_dep
 from schemas.computer import Computer, ComputerUpdate

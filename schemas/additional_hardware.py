@@ -20,8 +20,8 @@ class AdditionalHardwareUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     is_functional: bool | None = None
-    specifications: Dict[str, Any] = None
+    specifications: Dict[str, Any] | None = None
 
-class AdditionalHardware(AdditionalHardwareBase):
+class AdditionalHardwareRead(AdditionalHardwareBase):
     id: int
     audience_id: int
