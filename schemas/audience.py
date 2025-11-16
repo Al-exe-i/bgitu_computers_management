@@ -12,7 +12,7 @@ class AudienceUpdate(BaseModel):
     description: str | None = None
 
 
-class Audience(AudienceBase):
+class AudienceRead(AudienceBase):
     id: int
     rows: List[Row] = []
     additional_hardware: List[AdditionalHardwareRead] = []
