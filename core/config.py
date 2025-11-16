@@ -3,6 +3,11 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class LoggingConfig(BaseSettings):
+    level: str = "INFO"
+    format: str = "%(asctime)s | %(levelname)-8s | %(name)-12s | %(lineno)4d | %(message)s"
+
+
 class ApiV1Prefix(BaseModel):
     prefix: str = "/v1"
 
@@ -33,7 +38,8 @@ class DatabaseConfig(BaseModel):
 
 
 class JWTConfig(BaseModel):
-    SECRET_KEY: str
+    ACCESS_SECRET_KEY: str
+    REFRESH_SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -45,6 +51,7 @@ class Settings(BaseSettings):
     api: ApiPrefix = ApiPrefix()
     static: StaticFiles = StaticFiles()
     DEBUG: bool = False
+    logger: LoggingConfig
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

@@ -23,4 +23,4 @@ os.makedirs(settings.static.upload_dir, exist_ok=True)
 
 @app.get("/")
 def root():
-    return {"message": "Hello, FastAPI with JWT Auth!"}
+    return {"message": "success"}

@@ -22,7 +22,7 @@ class Audience(AudienceBase):
 class AudienceCreateRequest(BaseModel):
     id: int
     type: AudienceType = AudienceType.row
-    rows: List['RowCreateRequest'] = Field(min_length=1)
+    rows: List['RowCreateRequest'] = Field(min_length=1, max_length=10)
     office_id: int
 
     @field_validator('rows')

@@ -21,7 +21,7 @@ async def create_token_pair_and_build_response(user: User) -> JSONResponse:
         secure=not settings.DEBUG,
         samesite="lax",
         max_age=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        path="/"
+        path="/api/v1/users/refresh"
     )
 
     return response

@@ -15,8 +15,7 @@ session_factory = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
-    autoflush=False,
-    autocommit=False
+    autoflush=False
 )
 
 setup_listeners()

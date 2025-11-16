@@ -24,18 +24,20 @@ def generate_token(data: dict, token_type: Literal["access", "refresh"]) -> str:
 
     to_encode = data.copy()
     now = datetime.now(timezone.utc)
+    key = settings.jwt.ACCESS_SECRET_KEY if token_type == "access" else settings.jwt.REFRESH_SECRET_KEY
     if token_type == "access":
         expire = now + timedelta(minutes=settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES)
     else:
         expire = now + timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": token_type})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt.SECRET_KEY, algorithm=settings.jwt.ALGORITHM)
+    to_encode.update({"exp": expire, "iat": now, "nbf": now, "type": token_type})
+    encoded_jwt = jwt.encode(to_encode, key, algorithm=settings.jwt.ALGORITHM)
     return encoded_jwt
 
 
 def verify_token(token: str, token_type: Literal["access", "refresh"]) -> dict | None:
     try:
-        payload = jwt.decode(token, settings.jwt.SECRET_KEY, algorithms=[settings.jwt.ALGORITHM])
+        key = settings.jwt.ACCESS_SECRET_KEY if token_type == "access" else settings.jwt.REFRESH_SECRET_KEY
+        payload = jwt.decode(token, key, algorithms=[settings.jwt.ALGORITHM])
         if payload.get("type") != token_type:
             return None
         return payload

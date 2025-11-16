@@ -22,26 +22,19 @@ async def get_user(db: AsyncSession, user_id: int):
     return result.scalars().first()
 
 
+async def get_user_by_email(db: AsyncSession, email: str):
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalars().first()
+
+
 async def create_user(db: AsyncSession, schema: UserCreate):
-    user = User(
-        name=schema.name,
-        surname=schema.surname,
-        email=schema.email,
-        telegram_id=schema.telegram_id,
-        telegram_id_confirmed=schema.telegram_id_confirmed,
-        password=get_password_hash(schema.password),
-        photo=schema.photo,
-        is_superuser=False,
-    )
+    schema.password = get_password_hash(schema.password)
+    user_data = schema.model_dump(exclude_unset=True)
+    user = User(**user_data)
     db.add(user)
     await db.commit()
     await db.refresh(user)
     return user
-
-
-async def get_user_by_email(db: AsyncSession, email: str):
-    result = await db.execute(select(User).where(User.email == email))
-    return result.scalars().first()
 
 
 async def delete_user(db: AsyncSession, user_id: int):
