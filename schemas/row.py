@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel, Field, field_validator
 
-from schemas.computer import Computer
+from schemas.computer import ComputerRead
 
 
 class RowBase(BaseModel):
@@ -21,7 +21,7 @@ class RowUpdate(BaseModel):
 class Row(RowBase):
     id: int
     audience_id: int
-    computers: List[Computer] = []
+    computers: List[ComputerRead] = []
 
 
 class RowCreateRequest(BaseModel):

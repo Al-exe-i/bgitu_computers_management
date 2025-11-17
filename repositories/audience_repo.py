@@ -54,13 +54,15 @@ class AudienceRepository:
             await self.db.flush()
 
             # Создаем компьютеры для ряда
-            for i in range(1, row_data.computers_count + 1):
-                computer = Computer(
+            computers = [
+                Computer(
                     name=f"PC{row_data.name.replace('row_', '')}_{i:02d}",
                     row_id=db_row.id,
                     state=False if i in row_data.broken_ids else True,
                 )
-                self.db.add(computer)
+                for i in range(1, row_data.computers_count + 1)
+            ]
+            self.db.add_all(computers)
 
         await self.db.commit()
         await self.db.refresh(db_audience)

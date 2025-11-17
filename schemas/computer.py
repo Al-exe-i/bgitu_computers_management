@@ -16,7 +16,7 @@ class ComputerUpdate(BaseModel):
     state: bool | None = None
 
 
-class Computer(ComputerBase):
+class ComputerRead(ComputerBase):
     id: int
     row_id: int
     description: str | None = None

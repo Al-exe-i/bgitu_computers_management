@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 from repositories.additional_hardware_repo import AdditionalHardwareRepository
 from schemas.additional_hardware import AdditionalHardwareCreate, AdditionalHardwareUpdate, AdditionalHardwareRead
 
@@ -22,7 +21,7 @@ class AdditionalHardwareService:
     async def update_hardware(self, hardware_id: int, data: AdditionalHardwareUpdate) -> AdditionalHardwareRead | None:
         hardware = await self.repo.get(hardware_id)
         if not hardware:
-            raise HTTPException(status_code=404, detail="Hardware not found")
+            return None
 
         orm_model = await self.repo.update(hardware, data)
 

@@ -43,8 +43,8 @@ async def create_audience_endpoint(audience_data: AudienceCreateRequest, service
         await service.create(audience_data)
         created = await service.get_by_id(audience_data.id)
         return created
-    except IntegrityError as e:
-        raise HTTPException(status_code=409, detail=str(e.statement))
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Audience already exists")
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -58,6 +58,8 @@ async def update_audience_endpoint(aud_id: int, audience_data: AudienceUpdate, s
      Обновляет некоторые параметры аудитории. Параметры описаны моделью
     """
     updated = await service.update(aud_id, audience_data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Audience not found")
     return updated
 
 
