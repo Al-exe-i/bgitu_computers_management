@@ -19,7 +19,7 @@ async def get_office(db: AsyncSession, office_id: int) -> Office | None:
         )
     )
     result = await db.execute(stmt)
-    return result.scalars().first()
+    return result.scalar_one_or_none()
 
 
 async def update_office(db: AsyncSession, schema: OfficeUpdate, orm_model: Office) -> Office:

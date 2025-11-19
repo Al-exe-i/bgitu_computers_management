@@ -6,22 +6,23 @@ from schemas.row import Row, RowCreateRequest
 
 
 class AudienceBase(BaseModel):
+    id: int
     type: AudienceType = AudienceType.row
+
 
 class AudienceUpdate(BaseModel):
     description: str | None = None
 
 
 class AudienceRead(AudienceBase):
-    id: int
+
     rows: List[Row] = []
     additional_hardware: List[AdditionalHardwareRead] = []
     description: str | None = None
     office_id: int
 
-class AudienceCreateRequest(BaseModel):
-    id: int
-    type: AudienceType = AudienceType.row
+
+class AudienceCreateRequest(AudienceBase):
     rows: List['RowCreateRequest'] = Field(min_length=1, max_length=10)
     office_id: int
 

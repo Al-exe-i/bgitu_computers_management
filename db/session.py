@@ -25,5 +25,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# Зависимость для получения сессии БД
 session_dep = Annotated[AsyncSession, Depends(get_db)]
