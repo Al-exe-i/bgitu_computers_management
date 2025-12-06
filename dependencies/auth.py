@@ -2,21 +2,22 @@
 from typing import Annotated, Literal
 from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.exceptions import HTTP403, HTTP401
 from core.security import verify_token
-from repositories.user import get_user
-from db.session import session_dep
-from models.user import User
+from dependencies.user import user_service_dep
+from models.user import User, UserRole
+from schemas.user import UserOut
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token")
 
 
-async def _validate_token_and_get_user(db: AsyncSession, token: str, token_type: Literal["access", "refresh"]) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+async def _validate_token_and_get_user(
+        token: str,
+        token_type: Literal["access", "refresh"],
+        service: user_service_dep
+) -> UserOut:
+    credentials_exception = HTTP401("Couldn't validate credentials")
 
     payload = verify_token(token, token_type)
 
@@ -24,39 +25,50 @@ async def _validate_token_and_get_user(db: AsyncSession, token: str, token_type:
         raise credentials_exception
 
     sub: int = int(payload.get("sub"))
-    user = await get_user(db, user_id=sub)
+    user = await service.get(sub)
     if user is None:
         raise credentials_exception
     return user
 
 
 async def get_current_user(
-        db: session_dep,
+        service: user_service_dep,
         token: str = Depends(oauth2_scheme)
-) -> User:
-    user = await _validate_token_and_get_user(db, token, "access")
+) -> UserOut:
+    user = await _validate_token_and_get_user(token, "access", service)
     return user
 
 
 async def get_current_refresh_user(
-        db: session_dep,
+        service: user_service_dep,
         refresh_token: str | None = Cookie(None, alias="refresh_token")
-) -> User:
+) -> UserOut:
     if refresh_token is None:
-        raise HTTPException(401, "Could not find a refresh token", {"WWW-Authenticate": "Bearer"})
+        raise HTTP401("Couldn't find a refresh token")
 
-    user = await _validate_token_and_get_user(db, refresh_token, "refresh")
+    user = await _validate_token_and_get_user(refresh_token, "refresh", service)
     return user
 
 
 async def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        raise HTTP403("Not enough permissions")
+    return current_user
+
+
+async def get_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role > UserRole.admin:
+        raise HTTP403("Not enough permissions")
+    return current_user
+
+
+async def get_technician(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role > UserRole.technician:
+        raise HTTP403("Not enough permissions")
     return current_user
 
 
 user_dep = Annotated[User, Depends(get_current_user)]
 superuser_dep = Annotated[User, Depends(get_current_superuser)]
+admin_dep = Annotated[User, Depends(get_admin)]
+technician_dep = Annotated[User, Depends(get_technician)]

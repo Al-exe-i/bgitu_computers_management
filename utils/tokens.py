@@ -1,7 +1,7 @@
 from starlette.responses import JSONResponse
 from core.config import settings
 from core.security import generate_token
-from models.user import User
+from models import User
 from schemas.token import Token
 
 

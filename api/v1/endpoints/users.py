@@ -1,13 +1,13 @@
 # api/v1/endpoints/users.py
-from fastapi import APIRouter, Depends, HTTPException, status, Cookie
+from fastapi import APIRouter, Depends, status, Cookie
 from fastapi.responses import StreamingResponse
 import mimetypes
 from core.config import settings
-from db.session import session_dep
+from core.exceptions import HTTP403, HTTP401, HTTP404, HTTP400
+from dependencies.user import user_service_dep
 from models.user import User
 from schemas.token import Token
 from schemas.user import UserCreate, UserOut, UserUpdate
-from repositories.user import get_user_by_email, create_user, get_user, delete_user, update_user
 from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep
 from utils.tokens import create_token_pair_and_build_response
 import os
@@ -16,15 +16,15 @@ router = APIRouter()
 
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def _create_user(
-        db: session_dep,
+async def create_user(
+        service: user_service_dep,
         user_in: UserCreate,
         current_user: superuser_dep
 ):
-    existing_user = await get_user_by_email(db, email=user_in.email)
+    existing_user = await service.get_by_email(user_in.email)
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    user = await create_user(db, schema=user_in)
+        raise HTTP400("User already exists")
+    user = await service.create(user_in)
     return user
 
 
@@ -34,30 +34,24 @@ async def read_current_user(current_user: user_dep):
 
 
 @router.get("/{user_id}", response_model=UserOut)
-async def read_user(db: session_dep, user_id: int, current_user: user_dep):
+async def read_user(service: user_service_dep, user_id: int, current_user: user_dep):
     if current_user.id != user_id and not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Can't get this user")
-    user = await get_user(db, user_id=user_id)
+        raise HTTP403("Not enough permissions")
+    user = await service.get(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTP404("User not found")
     return user
 
 
 @router.get("/me/photo")
-async def get_user_photo(db: session_dep, user: user_dep):
+async def get_user_photo(user: user_dep):
     if not user.photo:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Photo not found for this user"
-        )
+        raise HTTP404("Photo not found")
 
     file_path = os.path.join(settings.static.upload_dir, user.photo)
 
     if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Photo file not found on server"
-        )
+        raise HTTP404("Photo not found")
 
     media_type, _ = mimetypes.guess_type(file_path)
     if media_type is None:
@@ -71,30 +65,30 @@ async def get_user_photo(db: session_dep, user: user_dep):
 
 
 @router.delete("/{user_id}")
-async def _delete_user(db: session_dep, user_id: int,
+async def delete_user(service: user_service_dep, user_id: int,
                       current_user: superuser_dep
                       ):
-    user = await delete_user(db, user_id=user_id)
+    user = await service.delete(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTP404("User not found")
     return {"msg": "User deleted successfully"}
 
 
 @router.patch("/{user_id}", response_model=UserOut)
-async def _update_user(
-        db: session_dep,
+async def update_user(
+        service: user_service_dep,
         user_id: int,
         user_in: UserUpdate,
         current_user: user_dep
 ):
     # Разрешить редактировать только себя, если не SU
     if not current_user.is_superuser and current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Not allowed to edit this user")
+        raise HTTP403("Not enough permissions")
 
-    user = await get_user(db, user_id=user_id)
+    user = await service.get(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    updated_user = await update_user(db, orm_model=user, schema=user_in)
+        raise HTTP404("User not found")
+    updated_user = await service.update(user_id, user_in)
     return updated_user
 
 
@@ -104,5 +98,5 @@ async def refresh_access_token(
         refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token not found")
+        raise HTTP401("No refresh token provided")
     return await create_token_pair_and_build_response(user=current_user)

@@ -4,8 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from api import api_router
 from core.config import settings
 import os
+from core.logger import setup_logging
 from websocket.routes import router as ws_router
-
+setup_logging()
 app = FastAPI(debug=settings.DEBUG, default_response_class=ORJSONResponse)
 
 app.add_middleware(

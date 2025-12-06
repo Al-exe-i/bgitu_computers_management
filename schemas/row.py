@@ -25,8 +25,8 @@ class Row(RowBase):
 
 
 class RowCreateRequest(BaseModel):
-    name: str = Field(..., pattern=r'^row_\d{1,2}$', max_length=6)
-    computers_count: int = Field(..., ge=1, le=10)
+    name: str = Field(pattern=r'^row_\d{1,2}$', max_length=6)
+    computers_count: int = Field(ge=1, le=10)
     broken_ids: List[int] = []
 
     @field_validator('name')

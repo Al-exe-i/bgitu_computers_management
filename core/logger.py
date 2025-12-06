@@ -1,39 +1,78 @@
+# core/logger.py
 import logging
 import sys
+from loguru import logger
 
-from core.config import settings
+# Настройка формата логов
+# <green>{time:YYYY-MM-DD HH:mm:ss}</green> - время
+# <level>{level: <8}</level> - уровень лога (INFO, ERROR...) с выравниванием
+# <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - модуль:функция:строка
+# <level>{message}</level> - само сообщение
+LOG_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+    "<level>{level: <8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+    "<level>{message}</level>"
+)
 
 
-def setup_logger(name: str = "app") -> logging.Logger:
-    """
-    Настраивает и возвращает логгер.
+class InterceptHandler(logging.Handler):
+    def emit(self, record):
+        # Получаем соответствующий уровень лога Loguru
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
 
-    Args:
-        name: Имя логгера (по умолчанию "app")
-        log_file: Путь к файлу логов
-        log_level: Уровень логирования (DEBUG, INFO и т.д.)
-        json_format: Использовать JSON-формат для файловых логов
+        # Находим глубину стека, чтобы лог указывал на правильное место вызова
+        frame, depth = logging.currentframe(), 2
+        while frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
 
-    Returns:
-        logging.Logger
-    """
-    logger = logging.getLogger(name)
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
 
-    # Избегаем дублирования хендлеров при повторных вызовах
-    if logger.handlers:
-        return logger
 
-    log_level = settings.logger.level
-    logger.setLevel(log_level)
+def setup_logging():
+    # Удаляем стандартный обработчик Loguru (чтобы не дублировать)
+    logger.remove()
 
-    # --- Консольный вывод (всегда читаемый) ---
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_formatter = logging.Formatter(
-        settings.logger.format,
-        datefmt="%H:%M:%S",
+    # Добавляем вывод в консоль (sys.stderr) с цветами
+    logger.add(
+        sys.stderr,
+        format=LOG_FORMAT,
+        level="INFO",
+        colorize=True
     )
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(log_level)
-    logger.addHandler(console_handler)
+
+    # Добавляем вывод в файл (с ротацией и архивацией)
+    # rotation="10 MB" - новый файл каждые 10 МБ
+    # retention="10 days" - хранить логи 10 дней
+    # compression="zip" - сжимать старые логи
+    logger.add(
+        "logs/app.log",
+        rotation="10 MB",
+        retention="10 days",
+        compression="zip",
+        level="DEBUG",  # В файл пишем всё, включая отладку
+        format=LOG_FORMAT
+    )
+
+    logging.basicConfig(handlers=[InterceptHandler()], level=0)
+
+    loggers_to_intercept = [
+        "uvicorn",
+        "uvicorn.error",
+        "fastapi",
+        "sqlalchemy.engine",
+    ]
+
+    for _log in loggers_to_intercept:
+        _logger = logging.getLogger(_log)
+        _logger.handlers = [InterceptHandler()]
+        _logger.propagate = False
+        _logger.setLevel("INFO")
 
     return logger
