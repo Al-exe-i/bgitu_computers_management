@@ -29,20 +29,30 @@ export default {
       if (!user) return 'Гость'
       return user.name || user.email.split('@')[0] || 'Пользователь'
     },
-    userFullName()
-    {
-      const user = this.authStore.user
-      if (!user) return ''
-      return `${user.name || ''} ${user.surname || ''}`.trim() || user.email
-    },
     userEmail()
     {
       return this.authStore.user?.email || ''
     },
+    userRole()
+    {
+      switch (this.authStore.user?.role)
+      {
+        case 1:
+          return `Админ`
+        case 2:
+          return `Сотрудник ОИ`
+        case 3:
+          return `Преподаватель`
+      }
+    },
+    userRoleNum()
+    {
+      return this.authStore.user?.role
+    },
     userAvatar()
     {
       // Если есть фото — используем его, иначе placeholder
-      return this.authStore.user?.photo || `/src/assets/User_no_icon.svg`
+      return this.authStore.user?.photo || null
     },
     userAvatarLarge() {
       return this.authStore.user?.photo || `/src/assets/User_no_icon.svg`
@@ -156,10 +166,12 @@ export default {
         <div v-if="authStore.isAuthenticated" class="profile-dropdown">
           <div class="profile-trigger" @click="toggleDropdown">
             <img
+                v-if="userAvatar"
                 :src="userAvatar"
                 alt="Профиль"
                 class="profile-img"
             >
+            <div class="profile-no-icon" v-else>{{ userName[0].toUpperCase() }}</div>
             <span class="profile-name">{{ userName }}</span>
           </div>
           <div v-show="isDropdownOpen" class="profile-dropdown-content">
@@ -169,8 +181,11 @@ export default {
                   alt="Профиль"
                   class="profile-avatar-large"
               >
-              <h3 class="profile-fullname">{{ userFullName }}</h3>
-              <p class="profile-email">{{ userEmail }}</p>
+              <h3 class="profile-fullname">{{ userEmail }}</h3>
+              <div class="role-badge">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M33.07 19.51L28 23.2l2 5.93a.57.57 0 0 1-.87.63L24 26.15l-5.08 3.7a.56.56 0 0 1-.79-.15a.62.62 0 0 1-.08-.48L20 23.3l-5.07-3.7a.55.55 0 0 1 .32-1h6.27l1.95-5.93a.55.55 0 0 1 1.06-.09l1.95 5.92h6.27a.56.56 0 0 1 .55.57a.53.53 0 0 1-.23.44"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M24 4.5s-11.26 2-15.25 2v20a11.2 11.2 0 0 0 .8 4.1a15 15 0 0 0 2 3.61a22 22 0 0 0 2.81 3.07a35 35 0 0 0 3 2.48a34 34 0 0 0 2.89 1.86c1 .59 1.71 1 2.13 1.19l1 .49a1.44 1.44 0 0 0 1.24 0l1-.49c.42-.2 1.13-.6 2.13-1.19a34 34 0 0 0 2.89-1.86a35 35 0 0 0 3-2.48a22 22 0 0 0 2.81-3.07a15 15 0 0 0 2-3.61a11.2 11.2 0 0 0 .8-4.1v-20c-3.99.03-15.25-2-15.25-2"/></svg>
+                <span>{{ userRole }}</span>
+              </div>
             </div>
             <div class="border-t pt-3">
               <button @click="handleLogout" class="logout-btn">
@@ -252,33 +267,37 @@ header {
 }
 
 .floor-btn {
-  padding: 10px 24px;
-  border-radius: 8px;
+  padding: 12px 28px;
+  border-radius: 10px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   border: none;
   transition: all 0.3s ease;
-  color: #4b5563;
+  color: #64748b;
   background: transparent;
 }
 
 .floor-btn.active {
-  background: white;
-  color: #3b82f6;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  color: white;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .floor-btn:not(.active):hover {
-  color: #1f2937;
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .floor-switch {
   display: flex;
   gap: 8px;
-  background: #f3f4f6;
-  padding: 4px;
-  border-radius: 10px;
+  background: rgba(241, 245, 249, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 6px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .auth-container {
@@ -315,7 +334,13 @@ header {
 .profile-trigger {
   display: flex;
   align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 50px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
 }
 
 .profile-img {
@@ -325,9 +350,20 @@ header {
   border: 2px solid #dbeafe;
 }
 
+.profile-no-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #667eea 0%, #3b82f6 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+}
+
 .profile-name {
-  margin-left: 8px;
-  font-weight: 500;
+  font-weight: 600;
   color: #1f2937;
 }
 
@@ -339,8 +375,8 @@ header {
   background: white;
   min-width: 280px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-  border-radius: 12px;
-  padding: 15px;
+  border-radius: 20px;
+  padding: 30px 25px;
   z-index: 100;
   animation: fadeIn 0.5s linear;
 }
@@ -366,19 +402,28 @@ header {
   margin-bottom: 12px;
 }
 
-.profile-fullname {
-  font-size: 18px;
-  font-weight: 600;
+.profile-fullname
+{
+  font-size: 20px;
+  font-weight: 700;
   color: #1f2937;
   text-align: center;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
-.profile-email {
-  font-size: 14px;
-  color: #6b7280;
-  text-align: center;
-  margin-bottom: 16px;
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border: 1px solid #667eea30;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .logout-btn {
@@ -448,6 +493,11 @@ header {
   .profile-name
   {
     display: none;
+  }
+
+  .profile-trigger
+  {
+    padding: 0;
   }
 }
 </style>

@@ -42,7 +42,7 @@ export default {
 
   body
   {
-    background: linear-gradient(135deg, #e0f7fa, #bbdefb);
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
     min-height: 100vh;
     padding: 0;
   }

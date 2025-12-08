@@ -1,4 +1,9 @@
 <script>
+import router from "@/router/index.js";
+import api from "@/services/api.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
+import {toRaw} from "vue";
+
 export default {
   name: "CreateInlineAudience",
   data() {
@@ -11,9 +16,14 @@ export default {
       ],
       makeAllRowsSamePressed: false,
       audienceID: null,
+      availableForCreationNumbers: null,
+      selectedOffice: 1
     }
   },
   methods: {
+    router() {
+      return router
+    },
     makeAllRowsSame(n)
     {
       if(this.makeAllRowsSamePressed)
@@ -27,15 +37,67 @@ export default {
         this.makeAllRowsSamePressed = false
       }, 1500)
     },
-    manageComputerState(rowN, compN)
+    changeComputerState(rowN, compN)
     {
       if(this.rowValues[rowN].brokenIDs.has(compN))
         this.rowValues[rowN].brokenIDs.delete(compN)
       else
         this.rowValues[rowN].brokenIDs.add(compN)
+    },
+    resetParams()
+    {
+      this.rowsCount = 3
+      this.rowValues.forEach(row => {
+        if(row.brokenIDs.size > 0)
+          row.brokenIDs.clear()
+      })
+    },
+    onOfficeChange()
+    {
+      this.audienceID = this.availableForCreationNumbers[this.selectedOffice][0]
+    },
+    async sendData()
+    {
+      let data = {}
+      data.id = this.audienceID
+      data.type = 0
+      data.rows = []
+      data.office_id = Number(this.selectedOffice)
+      for (let i = 0; i < this.rowValues.length; i++)
+      {
+        const row_name = `row_${i + 1}`
+        data.rows.push(
+            {
+              name: row_name,
+              computers_count: this.rowValues[i].count,
+              broken_ids: this.rowValues[i].brokenIDs.size > 0 ? [...toRaw(this.rowValues[i].brokenIDs)] : [],
+            }
+        )
+      }
+      await api.post(`/audiences/`, data).then(response => {
+        router.push({
+          name: "Audience",
+          params: {audienceId: data.id}
+        })
+        this.notify.success("Аудитория создана!")
+      }).catch(error => {
+        this.notify.error("Не удалось создать аудиторию!")
+      })
     }
   },
+  async mounted() {
+    await api.get(`/audiences/get_available_for_creation/`).then(response => {
+      this.availableForCreationNumbers = response.data;
+      this.audienceID = this.availableForCreationNumbers[this.selectedOffice][0]
+    }).catch(error => {
+      this.notify.error(`Не удалось получить доступные для создания аудитории`)
+    })
+  },
   computed: {
+    notify()
+    {
+      return useNotificationsStore()
+    },
     generatedPCs()
     {
       return this.rowValues
@@ -91,7 +153,7 @@ export default {
 <template>
   <div class="container">
     <div class="header">
-      <button class="back-btn">
+      <button @click="router().go(-1)" class="back-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
@@ -108,8 +170,24 @@ export default {
 
         <div class="form-group">
           <label class="form-label">Номер аудитории</label>
-          <input v-model="audienceID" type="text" class="form-input" placeholder="Например: 105" required>
-          <p class="help-text">Введите уникальный номер аудитории</p>
+          <select
+              v-if="availableForCreationNumbers"
+              class="form-select"
+              v-model="audienceID"
+              required
+          >
+            <option v-for="(n, i) in availableForCreationNumbers[selectedOffice]" :value="n" :key="i">
+              {{ n }}
+            </option>
+          </select>
+          <p class="help-text">Выберите номер аудитории</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Корпус</label>
+          <select v-if="availableForCreationNumbers" @change="onOfficeChange" class="form-select" v-model="selectedOffice">
+            <option v-for="n in Object.keys(availableForCreationNumbers)" :value="n">{{ n }}</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -155,8 +233,8 @@ export default {
         </div>
 
         <div class="action-buttons">
-          <button class="btn btn-secondary">Сбросить</button>
-          <button class="btn btn-primary">Сохранить</button>
+          <button @click="resetParams" class="btn btn-secondary">Сбросить</button>
+          <button @click="sendData" class="btn btn-primary">Сохранить</button>
         </div>
       </div>
 
@@ -168,7 +246,7 @@ export default {
         <div class="classroom-preview">
           <div v-for="rowN in rowsCount" class="classroom-row">
             <div
-                @click="manageComputerState(rowN - 1, compN)"
+                @click="changeComputerState(rowN - 1, compN)"
                 v-for="compN in generatedPCs[rowN - 1]"
                 class="computer-item"
                 :class="{broken: rowValues[rowN - 1]?.brokenIDs?.has(compN)}">
@@ -300,6 +378,45 @@ export default {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-select {
+  width: 100%;
+  border: 2px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  background-color: white;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+  padding: 14px 45px 14px 18px;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-select:hover {
+  border-color: #9ca3af;
+}
+
+.form-select option {
+  padding: 10px;
+  font-size: 16px;
+  background-color: white;
+  color: #111827;
+}
+
+.form-select option:hover,
+.form-select option:checked {
+  background-color: #eff6ff;
+  color: #3b82f6;
 }
 
 .rows-container {

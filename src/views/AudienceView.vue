@@ -16,6 +16,7 @@ export default {
       audience: null,
       descriptionShown: false,
       descriptionEditModalShow: false,
+      dropAudienceModalShow: false,
       description: "",
       showStats: false,
       totalComputers: 0,
@@ -233,7 +234,20 @@ export default {
           </label>
           <p class="floor-subtitle">Показывать статистику аудитории</p>
         </div>
-
+        <div v-if="authStore.user" class="office-actions">
+          <button class="office-action-btn equipment-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+            </svg>
+            Доп. оборудование
+          </button>
+          <button @click="dropAudienceModalShow = true" v-if="authStore?.user.role < 3" class="office-action-btn delete-floor-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Удалить аудиторию
+          </button>
+        </div>
       </div>
 
       <!-- Statistics -->
@@ -261,7 +275,7 @@ export default {
         <div class="collapsible-header">
           <h3 class="collapsible-title">Ориентиры расположения рядов</h3>
           <div class="collapsible-actions">
-            <button v-if="authStore.user" class="edit-btn">
+            <button v-if="authStore.user && authStore?.user.role < 3" class="edit-btn">
               <svg @click="showHideDescriptionEditModal(true)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
               </svg>
@@ -320,6 +334,20 @@ export default {
         <button :disabled="!selectedComputer.state" @click="setComputerState(false)" class="action-btn break-btn">Неисправен</button>
       </div>
       <button @click="computerModalShow = false; selectedComputer = null" class="close-btn">Закрыть</button>
+    </div>
+  </div>
+
+  <div v-if="audience" class="modal" :class="{active: dropAudienceModalShow}">
+    <div class="modal-content">
+      <h2 class="modal-title">Удаление аудитории</h2>
+      <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">
+        Вы уверены, что хотите удалить <strong>аудиторию №{{ audienceId }}</strong>?
+        Все ряды и компьютеры данной аудитории будут удалены безвозвратно.
+      </p>
+      <div class="modal-buttons">
+        <button class="modal-btn delete-btn">Удалить</button>
+        <button @click="dropAudienceModalShow = false" class="modal-btn cancel-btn">Отмена</button>
+      </div>
     </div>
   </div>
 </template>
@@ -597,6 +625,26 @@ export default {
   margin-bottom: 24px;
 }
 
+.cancel-btn {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.cancel-btn:hover {
+  background: #e2e8f0;
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
 .form-group {
   margin-bottom: 24px;
 }
@@ -828,6 +876,56 @@ export default {
   transition: .4s;
 }
 
+.office-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  animation: fadeIn .7s ease-in-out;
+}
+
+
+.office-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.office-action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.equipment-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+}
+
+.equipment-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.delete-floor-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.delete-floor-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+
 /* Responsive */
 @media (max-width: 768px) {
   body {
@@ -875,6 +973,16 @@ export default {
 
   .switch input:checked + .slider:before {
     transform: translateX(1.2em);
+  }
+
+  .office-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .office-action-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

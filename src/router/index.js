@@ -7,6 +7,7 @@ import AudienceView from "@/views/AudienceView.vue";
 import HomeView from "@/views/HomeView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
 import CreateInlineAudience from "@/components/Layout/CreateInlineAudience.vue";
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 const routes = [
     {
@@ -32,7 +33,8 @@ const routes = [
     {
         path: '/new-audience',
         name: 'New Audience',
-        component: CreateInlineAudience
+        component: CreateInlineAudience,
+        meta: {requiresAuth: true}
     },
     {
         path: '/:pathMatch(.*)*',
@@ -58,22 +60,19 @@ const router = createRouter({
     routes
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, from) => {
+    const auth = useAuthStore()
+    const notify = useNotificationsStore()
+    if(to.meta.requiresAuth && !auth.user)
+    {
+        notify.warning("Вам необходимо авторизоваться")
+        return `/`
+    }
     const title = typeof to.meta.title === 'function'
         ? to.meta?.title(to)
         : to.meta?.title
     const defaultTitle = 'BGITU Computers management';
     document.title = title || defaultTitle
-    // const authStore = useAuthStore()
-    //
-    // if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    //     next('/login')
-    // } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    //     next('/')
-    // } else {
-    //     next()
-    // }
-    next() //Вызов next() обязателен
 })
 
 export default router

@@ -38,6 +38,11 @@ export default {
         this.loading = false
         this.filtered = false
         this.filterMode = "all"
+        if (this.office.audiences.length === 0)
+        {
+          this.notify.info("В этом корпусе нет аудиторий. Вы были перенаправлены на страницу добавления аудитории")
+          router.push({name: "New Audience"})
+        }
       }).catch(error => {
         router.push({ path: `/` })
         if (error.response.status === 404)
@@ -157,7 +162,7 @@ export default {
 </script>
 
 <template>
-  <h1 class="page-title">Расположение аудиторий</h1>
+  <h1 class="page-title">Список аудиторий</h1>
 
   <LoaderContainer v-if="loading"/>
 
