@@ -142,6 +142,20 @@ export default {
         })
       }
     },
+    async deleteAudience()
+    {
+      await api.delete(`/audiences/${this.audience.id}`).then((response) => {
+        this.notify.info(`Аудитория №${this.audience.id} удалена`)
+        const officeIdToRedirect = this.audience.office_id
+        router.push({
+          name: `Office`,
+          params: {
+          officeNumber: officeIdToRedirect}
+        }).catch((error) => {
+          this.notify.error(`Не удалось удалить аудиторию!`)
+        })
+      })
+    },
     connectWebSocket()
     {
       if (this.ws)
@@ -345,7 +359,7 @@ export default {
         Все ряды и компьютеры данной аудитории будут удалены безвозвратно.
       </p>
       <div class="modal-buttons">
-        <button class="modal-btn delete-btn">Удалить</button>
+        <button @click="deleteAudience" class="modal-btn delete-btn">Удалить</button>
         <button @click="dropAudienceModalShow = false" class="modal-btn cancel-btn">Отмена</button>
       </div>
     </div>
