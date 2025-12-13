@@ -6,7 +6,7 @@ import OfficeView from "@/views/OfficeView.vue";
 import AudienceView from "@/views/AudienceView.vue";
 import HomeView from "@/views/HomeView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
-import CreateInlineAudience from "@/components/Layout/CreateInlineAudience.vue";
+import CreateAudience from "@/components/Layout/CreateAudience.vue";
 import {useNotificationsStore} from "@/stores/notifications.js";
 
 const routes = [
@@ -33,8 +33,8 @@ const routes = [
     {
         path: '/new-audience',
         name: 'New Audience',
-        component: CreateInlineAudience,
-        meta: {requiresAuth: true}
+        component: CreateAudience,
+        meta: {requiresAuth: true, title: (route) => `Создание аудитории`}
     },
     {
         path: '/:pathMatch(.*)*',
@@ -63,7 +63,8 @@ const router = createRouter({
 router.beforeEach(async (to, from) => {
     const auth = useAuthStore()
     const notify = useNotificationsStore()
-    if(to.meta.requiresAuth && !auth.user)
+    const isAuthenticated = await auth.isAuthenticated
+    if(to.meta.requiresAuth && !isAuthenticated)
     {
         notify.warning("Вам необходимо авторизоваться")
         return `/`
