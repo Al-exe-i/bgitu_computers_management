@@ -35,7 +35,7 @@ async def read_current_user(current_user: user_dep):
 
 @router.get("/{user_id}", response_model=UserOut)
 async def read_user(service: user_service_dep, user_id: int, current_user: user_dep):
-    if current_user.id != user_id and not current_user.is_superuser:
+    if current_user.id != user_id and not current_user.role.admin:
         raise HTTP403("Not enough permissions")
     user = await service.get(user_id)
     if not user:
@@ -81,8 +81,8 @@ async def update_user(
         user_in: UserUpdate,
         current_user: user_dep
 ):
-    # Разрешить редактировать только себя, если не SU
-    if not current_user.is_superuser and current_user.id != user_id:
+    # Разрешить редактировать только себя, если не admin
+    if not current_user.role.admin and current_user.id != user_id:
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)

@@ -1,8 +1,7 @@
-# app/dependencies/auth.py
+# dependencies/auth.py
 from typing import Annotated, Literal
-from fastapi import Depends, HTTPException, status, Cookie
+from fastapi import Depends, Cookie
 from fastapi.security import OAuth2PasswordBearer
-
 from core.exceptions import HTTP403, HTTP401
 from core.security import verify_token
 from dependencies.user import user_service_dep
@@ -57,13 +56,13 @@ async def get_current_superuser(current_user: User = Depends(get_current_user)) 
 
 
 async def get_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role > UserRole.admin:
+    if current_user.role.value > UserRole.admin.value:
         raise HTTP403("Not enough permissions")
     return current_user
 
 
 async def get_technician(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role > UserRole.technician:
+    if current_user.role.value > UserRole.technician.value:
         raise HTTP403("Not enough permissions")
     return current_user
 
