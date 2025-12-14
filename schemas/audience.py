@@ -1,35 +1,23 @@
-from typing import List, Dict, Any
-from pydantic import BaseModel, Field, field_validator
-from models.audience import AudienceType
-from schemas.additional_hardware import AdditionalHardwareRead
-from schemas.row import Row, RowCreateRequest
+from typing import List
+from pydantic import BaseModel, Field
+from schemas.hardware import HardwareCreate, HardwareResponse
 
 
 class AudienceBase(BaseModel):
     id: int
-    type: AudienceType = AudienceType.row
+    description: str | None = Field(max_length=200, description="Название или номер аудитории (напр. '105')")
+    office_id: int = Field(description="ID офиса/здания/этажа")
+    width: int = Field(gt=0, le=15, description="Ширина сетки")
+    height: int = Field(gt=0, le=15, description="Высота сетки")
 
+class AudienceCreate(AudienceBase):
+    hardware: List[HardwareCreate] = []
 
 class AudienceUpdate(BaseModel):
     description: str | None = None
+    office_id: int | None = None
+    width: int | None = None
+    height: int | None = None
 
-
-class AudienceRead(AudienceBase):
-
-    rows: List[Row] = []
-    additional_hardware: List[AdditionalHardwareRead] = []
-    description: str | None = None
-    office_id: int
-
-
-class AudienceCreateRequest(AudienceBase):
-    rows: List['RowCreateRequest'] = Field(min_length=1, max_length=10)
-    office_id: int
-
-    @field_validator('rows')
-    @classmethod
-    def validate_row_names_unique(cls, v):
-        names = [row.name for row in v]
-        if len(names) != len(set(names)):
-            raise ValueError('Row names must be unique')
-        return v
+class AudienceResponse(AudienceBase):
+    hardware: List[HardwareResponse] = []

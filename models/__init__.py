@@ -1,13 +1,10 @@
-from .audience import Audience, Row, Computer
+from .audience import Audience, Hardware
 from .user import User
 from .office import Office
-from .additional_hardware import AdditionalHardware
 
 __all__ = [
     "Audience",
-    "Row",
-    "Computer",
+    "Hardware",
     "User",
-    "Office",
-    "AdditionalHardware"
+    "Office"
 ]

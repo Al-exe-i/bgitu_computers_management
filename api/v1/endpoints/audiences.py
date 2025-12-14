@@ -5,102 +5,44 @@ from starlette import status
 from core.exceptions import HTTP404
 from dependencies.audiences import audiences_service_dep
 from dependencies.auth import technician_dep
-from schemas.audience import AudienceRead, AudienceCreateRequest, AudienceUpdate
+from schemas.audience import AudienceUpdate, AudienceResponse, AudienceCreate
 from loguru import logger
 
 router = APIRouter()
 
-
-@router.get("/", response_model=List[AudienceRead])
-async def get_auditoriums(service: audiences_service_dep):
-    """
-    Получить все аудитории
-    """
-    return await service.get_all()
-
-
-@router.get("/{aud_id}", response_model=AudienceRead)
-async def get_auditorium_by_id(
-        aud_id: int,
-        service: audiences_service_dep
-):
-    """
-    Получить аудиторию по её номеру
-    """
-    result = await service.get(aud_id)
-    if not result:
-        raise HTTP404("Audience not found")
-    return result
-
-
-@router.get("/get_available_for_creation/")
-async def get_available_for_creation(
-        service: audiences_service_dep,
-        user: technician_dep
-):
-    return await service.get_available_for_creation()
-
-
-@router.post("/", response_model=AudienceRead, status_code=status.HTTP_201_CREATED)
+@router.post("/audiences", response_model=AudienceResponse, status_code=status.HTTP_201_CREATED)
 async def create_audience(
-        audience_data: AudienceCreateRequest,
-        service: audiences_service_dep,
-        user: technician_dep
+    data: AudienceCreate,
+    service: audiences_service_dep
 ):
     """
-    Создать новую аудиторию с рядами и компьютерами
-    Вы должны иметь права не менее специалиста ОИ
-    - **id**: номер аудитории
-    - **type**: тип аудитории (row 0/perimeter 1)
-    - **rows**: список рядов, каждый ряд содержит:
-        - **name**: имя ряда в формате "row_XX" (max 10)
-        - **computers_count**: количество компьютеров в ряду (1-10)
-        - **broken_ids**: id неисправных компьютеров в данном ряду, итерация идёт с 1.
-        Если сломан первый, третий и пятый, то так и пишите [1, 3, 5].
-        Если сломанных нет, то оставьте список пустым
-    - **office_id**: Номер корпуса (1 или 2)
+    Создать аудиторию вместе с сеткой оборудования.
+    Принимает JSON с полями аудитории и массивом hardware.
     """
-    try:
-        created = await service.create(audience_data)
-        return created
-    except IntegrityError as e:
-        logger.error(f"Can't create audience: {e}")
-        raise HTTPException(status_code=409, detail="Audience already exists")
-    except Exception as e:
-        logger.error(f"Can't create audience: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create audience"
-        )
+    return await service.create_audience(data)
 
 
-@router.patch("/update/{aud_id}", response_model=AudienceRead, response_model_exclude={"rows", "additional_hardware"})
-async def update_audience(
-        aud_id: int,
-        audience_data: AudienceUpdate,
-        service: audiences_service_dep,
-        user: technician_dep
+@router.get("/audiences", response_model=List[AudienceResponse])
+async def get_audiences(
+    service: audiences_service_dep
 ):
-    """
-     Обновляет некоторые параметры аудитории. Параметры описаны моделью.
-     Вы должны иметь права не менее специалиста ОИ.
-    """
-    updated = await service.update(aud_id, audience_data)
-    if not updated:
-        raise HTTP404("Audience not found")
-    return updated
+    """Получить список всех аудиторий"""
+    return await service.get_list()
 
 
-@router.delete("/{aud_id}")
+@router.get("/audiences/{audience_id}", response_model=AudienceResponse)
+async def get_audience_details(
+    audience_id: int,
+    service: audiences_service_dep
+):
+    """Получить детальную информацию об аудитории и оборудовании внутри"""
+    return await service.get_one(audience_id)
+
+
+@router.delete("/audiences/{audience_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_audience(
-        aud_id: int,
-        service: audiences_service_dep,
-        user: technician_dep
+    audience_id: int,
+    service: audiences_service_dep
 ):
-    """
-    Удаляет аудиторию и все её ряды и компьютеры каскадно
-    """
-    success = await service.delete(aud_id)
-    if not success:
-        raise HTTP404("Audience not found")
-    return {"msg": "Audience deleted"}
+    """Удалить аудиторию (оборудование удалится каскадно)"""
+    await service.delete_audience(audience_id)

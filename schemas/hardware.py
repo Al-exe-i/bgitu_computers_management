@@ -1,0 +1,29 @@
+from typing import Optional
+from pydantic import BaseModel, Field
+from models.audience import HardwareType
+
+
+class HardwareBase(BaseModel):
+    type: HardwareType
+    x: int = Field(..., ge=0, description="Координата X в сетке (колонка)")
+    y: int = Field(..., ge=0, description="Координата Y в сетке (ряд)")
+    state: bool = Field(default=True)
+    description: str | None = Field(default=None, max_length=255)
+    inv_number: str | None = Field(default=None, max_length=32)
+    title: str | None = Field(default=None, max_length=64)
+
+class HardwareCreate(HardwareBase):
+    pass
+
+class HardwareUpdate(BaseModel):
+    type: HardwareType | str = None
+    x: int | None = Field(None, ge=0)
+    y: int | None = Field(None, ge=0)
+    state: bool | None = None
+    description: str | None = None
+    inv_number: str | None = None
+    title: str | None = None
+
+class HardwareResponse(HardwareBase):
+    id: int
+    audience_id: int

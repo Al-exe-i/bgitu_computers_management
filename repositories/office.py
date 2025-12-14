@@ -2,7 +2,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from models import Audience, Row, Computer
+from models import Audience, Hardware
 from models.office import Office
 from schemas.office import OfficeUpdate
 
@@ -13,9 +13,7 @@ async def get_office(db: AsyncSession, office_id: int) -> Office | None:
         .where(Office.id == office_id)
         .options(
             selectinload(Office.audiences)
-            .selectinload(Audience.rows)
-            .selectinload(Row.computers),
-            selectinload(Office.audiences).selectinload(Audience.additional_hardware)
+            .selectinload(Audience)
         )
     )
     result = await db.execute(stmt)
@@ -33,13 +31,12 @@ async def update_office(db: AsyncSession, schema: OfficeUpdate, orm_model: Offic
 
 async def count_faulty_computers(db: AsyncSession, office_id: int) -> int:
     stmt = (
-        select(func.count(Computer.id))
-        .join(Row)
+        select(func.count(Hardware.id))
         .join(Audience)
         .join(Office)
         .where(
             Office.id == office_id,
-            Computer.state == False
+            Hardware.state == False
         )
     )
     result = await db.execute(stmt)

@@ -1,56 +1,43 @@
 from typing import List
 from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from models.additional_hardware import AdditionalHardware
 from models.base import Base
 import enum
-from models.mixins.int_id_pk_mixin import IntIdPkMixin
+from .mixins import IntIdPkMixin
 
+class HardwareType(enum.Enum):
+    computer = "computer"
+    tv = "tv"
+    projector = "projector"
+    printer = "printer"
+    switch = "switch"
+    router = "router"
+    other = "other"
 
-class AudienceType(enum.Enum):
-    row = 0
-    perimeter = 1
-
-
-class Computer(IntIdPkMixin, Base):
-    name: Mapped[str] = mapped_column(String(32))
-    row_id: Mapped[int] = mapped_column(ForeignKey('rows.id', ondelete='CASCADE'))
+class Hardware(IntIdPkMixin, Base):
+    inv_number: Mapped[str | None] = mapped_column(String(32))
+    title: Mapped[str | None] = mapped_column(String(64))
     state: Mapped[bool] = mapped_column(default=True)
     description: Mapped[str | None] = mapped_column(String(255))
-
-    row: Mapped["Row"] = relationship(
-        "Row",
-        back_populates="computers"
-    )
-
-
-class Row(IntIdPkMixin, Base):
-    name: Mapped[str] = mapped_column(String(6)) # row_xx - max row_10
+    type: Mapped[HardwareType] = mapped_column(Enum(HardwareType))
+    x: Mapped[int]
+    y: Mapped[int]
     audience_id: Mapped[int] = mapped_column(ForeignKey('audiences.id', ondelete='CASCADE'))
 
-    audience: Mapped["Audience"] = relationship("Audience", back_populates="rows")
-    computers: Mapped[List["Computer"]] = relationship(
-        "Computer",
-        back_populates="row",
-        cascade="all, delete-orphan",
-        order_by="Computer.id"
+    audience: Mapped["Audience"] = relationship(
+        "Audience",
+        back_populates="hardware"
     )
 
 
 class Audience(IntIdPkMixin, Base):
-    type: Mapped[AudienceType] = mapped_column(Enum(AudienceType), default=AudienceType.row)
     description: Mapped[str | None] = mapped_column(String(200))
     office_id: Mapped[int] = mapped_column(ForeignKey('offices.id', ondelete='CASCADE'))
+    width: Mapped[int]
+    height: Mapped[int]
 
-    rows: Mapped[List["Row"]] = relationship(
-        "Row",
-        back_populates="audience",
-        cascade="all, delete-orphan",
-        passive_deletes=True
-    )
-
-    additional_hardware: Mapped[List["AdditionalHardware"]] = relationship(
-        "AdditionalHardware",
+    hardware: Mapped[List["Hardware"]] = relationship(
+        "Hardware",
         back_populates="audience",
         cascade="all, delete-orphan",
         passive_deletes=True

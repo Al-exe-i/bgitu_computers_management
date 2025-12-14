@@ -1,53 +1,39 @@
-from functools import cache
-from typing import Literal
-from db.listeners import OFFICE_AUDIENCE_RULES
+from core.exceptions import HTTP404
+from models import Hardware, Audience
 from repositories.audience_repo import AudienceRepository
-from schemas.audience import AudienceRead, AudienceCreateRequest, AudienceUpdate, AudienceBase
+from schemas.audience import AudienceUpdate, AudienceBase, AudienceCreate
 
 
 class AudienceService:
-
     def __init__(self, repo: AudienceRepository):
         self.repo = repo
 
-    async def get_all(self, lazy=False) -> list[AudienceRead]:
-        response_model = AudienceBase if lazy else AudienceRead
-        audiences = await self.repo.get_all_lazy() if lazy else await self.repo.get_all()
-        return [response_model.model_validate(a, from_attributes=True) for a in audiences]
+    async def get_list(self):
+        return await self.repo.get_all()
 
-    async def get(self, aud_id: int) -> AudienceRead | None:
-        audience_orm = await self.repo.get(aud_id)
-        if not audience_orm:
-            return None
-        return AudienceRead.model_validate(audience_orm, from_attributes=True)
-
-    async def get_available_for_creation(self) -> dict[int, list]:
-        existing_audiences = await self.get_all(lazy=True)
-        existing_ids = {audience.id for audience in existing_audiences}
-        return {1: sorted(self.__get_all_possible_audiences(1) - existing_ids),
-                2: sorted(self.__get_all_possible_audiences(2) - existing_ids)}
-
-    async def create(self, data: AudienceCreateRequest) -> AudienceRead:
-        audience_orm = await self.repo.create(data)
-        return AudienceRead.model_validate(audience_orm, from_attributes=True)
-
-    async def update(self, audience_id: int, data: AudienceUpdate) -> AudienceRead | None:
-        audience = await self.repo.get(audience_id)
+    async def get_one(self, audience_id: int):
+        audience = await self.repo.get_by_id(audience_id)
         if not audience:
-            return None
-        updated = await self.repo.update(audience, data)
-        return AudienceRead.model_validate(updated, from_attributes=True)
+            raise HTTP404("Audience not found")
+        return audience
 
-    async def delete(self, aud_id: int) -> bool:
-        audience = await self.repo.get(aud_id)
+    async def create_audience(self, schema: AudienceCreate):
+        audience_data = schema.model_dump(exclude={'hardware'})
 
-        if audience:
-            await self.repo.delete(audience)
-            return True
+        hardware_orm_list = [
+            Hardware(**item.model_dump()) for item in schema.hardware
+        ]
 
-        return False
+        audience_orm = Audience(
+            **audience_data,
+            hardware=hardware_orm_list
+        )
 
-    @cache
-    def __get_all_possible_audiences(self, office_id: Literal[1, 2]) -> set[int]:
-        return OFFICE_AUDIENCE_RULES.get(office_id, frozenset())
+        return await self.repo.create(audience_orm)
+
+    async def delete_audience(self, audience_id: int):
+        await self.get_one(audience_id)
+        await self.repo.delete(audience_id)
+
+
 

@@ -1,10 +1,8 @@
-# app/db/session.py
+# db/session.py
 from typing import AsyncGenerator, Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-
 from core.config import settings
-from db.listeners import setup_listeners
 
 engine = create_async_engine(
     settings.db.url,
@@ -17,8 +15,6 @@ session_factory = async_sessionmaker(
     expire_on_commit=False,
     autoflush=False
 )
-
-setup_listeners()
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
