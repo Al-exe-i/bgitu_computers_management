@@ -5,7 +5,8 @@ from schemas.hardware import HardwareCreate, HardwareResponse
 
 class AudienceBase(BaseModel):
     id: int
-    description: str | None = Field(max_length=200, description="Название или номер аудитории (напр. '105')")
+    floor: int
+    description: str | None = Field(default=None,max_length=200, description="Название или номер аудитории (напр. '105')")
     office_id: int = Field(description="ID офиса/здания/этажа")
     width: int = Field(gt=0, le=15, description="Ширина сетки")
     height: int = Field(gt=0, le=15, description="Высота сетки")

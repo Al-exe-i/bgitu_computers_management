@@ -16,7 +16,3 @@ class Office(IntIdPkMixin, Base):
         passive_deletes=True,
         order_by="Audience.id"
     )
-
-    __table_args__ = (
-        CheckConstraint("id IN (1, 2)", name="id_check"),
-    )

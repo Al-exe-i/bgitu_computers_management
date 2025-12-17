@@ -9,8 +9,7 @@ import enum
 
 class UserRole(enum.Enum):
     admin = 1
-    technician = 2
-    teacher = 3
+    teacher = 2
 
 
 class User(IntIdPkMixin, Base):

@@ -5,7 +5,7 @@ from schemas.hardware import HardwareResponse, HardwareUpdate
 
 router = APIRouter()
 
-@router.patch("/hardware/{hardware_id}", response_model=HardwareResponse)
+@router.patch("/{hardware_id}", response_model=HardwareResponse)
 async def update_hardware_status(
     hardware_id: int,
     data: HardwareUpdate,

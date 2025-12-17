@@ -60,14 +60,6 @@ async def get_admin(current_user: User = Depends(get_current_user)) -> User:
         raise HTTP403("Not enough permissions")
     return current_user
 
-
-async def get_technician(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role.value > UserRole.technician.value:
-        raise HTTP403("Not enough permissions")
-    return current_user
-
-
 user_dep = Annotated[User, Depends(get_current_user)]
 superuser_dep = Annotated[User, Depends(get_current_superuser)]
 admin_dep = Annotated[User, Depends(get_admin)]
-technician_dep = Annotated[User, Depends(get_technician)]

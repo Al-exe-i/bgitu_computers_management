@@ -5,8 +5,8 @@ from models.audience import HardwareType
 
 class HardwareBase(BaseModel):
     type: HardwareType
-    x: int = Field(..., ge=0, description="Координата X в сетке (колонка)")
-    y: int = Field(..., ge=0, description="Координата Y в сетке (ряд)")
+    x: int = Field(ge=0, description="Координата X в сетке (колонка)")
+    y: int = Field(ge=0, description="Координата Y в сетке (ряд)")
     state: bool = Field(default=True)
     description: str | None = Field(default=None, max_length=255)
     inv_number: str | None = Field(default=None, max_length=32)

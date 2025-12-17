@@ -12,8 +12,7 @@ async def get_office(db: AsyncSession, office_id: int) -> Office | None:
         select(Office)
         .where(Office.id == office_id)
         .options(
-            selectinload(Office.audiences)
-            .selectinload(Audience)
+            selectinload(Office.audiences).selectinload(Audience.hardware)
         )
     )
     result = await db.execute(stmt)

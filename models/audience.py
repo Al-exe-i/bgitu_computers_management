@@ -31,6 +31,7 @@ class Hardware(IntIdPkMixin, Base):
 
 
 class Audience(IntIdPkMixin, Base):
+    floor: Mapped[int]
     description: Mapped[str | None] = mapped_column(String(200))
     office_id: Mapped[int] = mapped_column(ForeignKey('offices.id', ondelete='CASCADE'))
     width: Mapped[int]
