@@ -12,8 +12,8 @@ export default {
   props: ["officeNumber"],
   data() {
     return {
-      totalComputers: 0,
-      faultyComputers: 0,
+      totalHardware: 0,
+      brokenHardware: 0,
       office: null,
       floors: null,
       loading: true,
@@ -33,8 +33,8 @@ export default {
     {
       await api.get(`/offices/${officeNumber}`).then((response) => {
         this.office = response.data;
-        this.countTotalComputers(this.office.audiences)
         this.arrangeFloors(this.office.audiences)
+        this.countTotalHardware()
         this.loading = false
         this.filtered = false
         this.filterMode = "all"
@@ -51,40 +51,33 @@ export default {
           this.notify.error("Не удалось загрузить данные")
       })
     },
+    countTotalHardware()
+    {
+      let totalHardware = 0;
+      let totalBroken = 0;
+      this.office.audiences.forEach((audience) => {
+        let audienceTotalHardware = audience.hardware.length;
+        let audienceBrokenHardware = 0;
+        totalHardware += audienceTotalHardware;
+        audience.hardware.forEach((hardware) => {
+          if(!hardware.state)
+            audienceBrokenHardware++
+        })
+        totalBroken += audienceBrokenHardware;
+        audience.totalHardware = audienceTotalHardware;
+        audience.brokenHardware = audienceBrokenHardware;
+      })
+
+      this.totalHardware = totalHardware
+      this.brokenHardware = totalBroken
+    },
     arrangeFloors(audiences)
     {
       this.floors = {}
       audiences.forEach((item) => {
-        let audFloor = Math.floor(item.id / 100)
-        if(item.id === 257)
-          audFloor = 1 //Исключение, так как 257 аудитория на первом этаже
-        if(this.floors[audFloor] === undefined)
-          this.floors[audFloor] = {number: audFloor, audiences: []}
-        this.floors[audFloor].audiences.push(item)
-      })
-    },
-    countTotalComputers(audiences)
-    {
-      this.totalComputers = this.faultyComputers = 0
-      audiences.forEach((audience) =>
-      {
-        let currentTotal = 0;
-        let currentFaulty = 0;
-        audience.rows.forEach((row) =>
-        {
-          row.computers.forEach((computer) =>
-          {
-            if(!computer.state)
-            {
-              this.faultyComputers++
-              currentFaulty++;
-            }
-          })
-          this.totalComputers += row.computers.length;
-          currentTotal += row.computers.length;
-        })
-        audience.computersCount = currentTotal;
-        audience.faultyComputers = currentFaulty;
+        if(this.floors[item.floor] === undefined)
+          this.floors[item.floor] = {number: item.floor, audiences: []}
+        this.floors[item.floor].audiences.push(item)
       })
     },
     filterAudiencesByComputerState(data, targetState)
@@ -173,20 +166,20 @@ export default {
 
       <div class="stats-container">
         <div class="stat-card">
-          <div class="stat-value" id="totalClassrooms">{{ office.audiences.length }}</div>
+          <div class="stat-value">{{ office.audiences.length }}</div>
           <div class="stat-label">Всего аудиторий</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="totalComputers">{{ totalComputers }}</div>
-          <div class="stat-label">Всего компьютеров</div>
+          <div class="stat-value">{{ totalHardware }}</div>
+          <div class="stat-label">Всего оборудования</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="workingComputers">{{ totalComputers - faultyComputers }}</div>
-          <div class="stat-label">Исправных</div>
+          <div class="stat-value">{{ totalHardware - brokenHardware }}</div>
+          <div class="stat-label">Исправно</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="brokenComputers">{{ this.faultyComputers }}</div>
-          <div class="stat-label">Неисправных</div>
+          <div class="stat-value">{{ this.brokenHardware }}</div>
+          <div class="stat-label">Неисправно</div>
         </div>
       </div>
     </div>

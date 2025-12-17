@@ -1,455 +1,613 @@
 <script>
 import api from "@/services/api.js";
-import {useAuthStore} from "@/stores/auth.js";
-import RowSection from "@/components/Common/RowSection.vue";
 import router from "@/router/index.js";
-import {useAudienceContext} from "@/stores/officeCtx.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
-import {getWsUrl} from "@/config/api.js";
+import LoaderContainer from "@/components/Common/LoaderContainer.vue";
+import {useAuthStore} from "@/stores/auth.js";
 
 export default {
-  name: "AudienceView",
-  components: {Row: RowSection},
-  props: ["audienceId", "officeId"],
+  name: 'AudienceView',
+  components: {LoaderContainer},
+  props: ['audienceId'],
   data() {
     return {
-      audience: null,
-      descriptionShown: false,
-      descriptionEditModalShow: false,
-      dropAudienceModalShow: false,
-      description: "",
-      showStats: false,
-      totalComputers: 0,
-      faultyComputers: 0,
-      selectedComputer: null,
-      computerModalShow: false,
-      floorNumber: null,
-      ws: null,
-      wsConnected: false,
-      wsError: false,
-      wsReconnectAttempts: 0,
-      maxReconnectAttempts: 3,
-      reconnectDelay: 3000,
+      classroom: null,
+      loading: true,
+      dropClassroomModalShow: false,
+      selectedCell: null,
+      equipmentTypes: {
+        computer: {
+          name: 'Компьютер',
+          color: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>'
+        },
+        tv: {
+          name: 'Телевизор',
+          color: 'linear-gradient(135deg, #f97316, #ea580c)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1920 1536"><title>Television SVG Icon</title><path fill="currentColor" d="M1792 1120V160q0-13-9.5-22.5T1760 128H160q-13 0-22.5 9.5T128 160v960q0 13 9.5 22.5t22.5 9.5h1600q13 0 22.5-9.5t9.5-22.5m128-960v960q0 66-47 113t-113 47h-736v128h352q14 0 23 9t9 23v64q0 14-9 23t-23 9H544q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h352v-128H160q-66 0-113-47T0 1120V160Q0 94 47 47T160 0h1600q66 0 113 47t47 113"/></svg>'
+        },
+        projector: {
+          name: 'Проектор',
+          color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Projector SVG Icon</title><g fill="currentColor"><path d="M14 7.5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M2.5 6a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1zm0 2a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z"/><path d="M0 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1H5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/></g></svg>'
+        },
+        printer: {
+          name: 'Принтер',
+          color: 'linear-gradient(135deg, #10b981, #059669)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Printer-fill SVG Icon</title><g fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2zm2.5 1a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1"/></g></svg>'
+        },
+        switch: {
+          name: 'Коммутатор',
+          color: 'linear-gradient(135deg, #f59e0b, #d97706)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><title>Network-switch-solid-badged SVG Icon</title><path fill="currentColor" d="M32.26 13.15A7.49 7.49 0 0 1 22.57 7H7.13a2 2 0 0 0-1.91 1.41L2.09 18.48a2 2 0 0 0-.09.59V27a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2v-7.94a2 2 0 0 0-.09-.59ZM8.92 25h-1.8v-3h1.8Zm5 0h-1.8v-3h1.8Zm5 0h-1.8v-3h1.8Zm5 0H22.1v-3h1.8Zm5 0H27.1v-3h1.8ZM31 19.4H5V18h26Z" class="clr-i-solid--badged clr-i-solid-path-1--badged"/><circle cx="30" cy="6" r="5" fill="currentColor" class="clr-i-solid--badged clr-i-solid-path-2--badged clr-i-badge"/><path fill="none" d="M0 0h36v36H0z"/></svg>'
+        },
+        router: {
+          name: 'Роутер',
+          color: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Router-fill SVG Icon</title><g fill="currentColor"><path d="M5.525 3.025a3.5 3.5 0 0 1 4.95 0a.5.5 0 1 0 .707-.707a4.5 4.5 0 0 0-6.364 0a.5.5 0 0 0 .707.707"/><path d="M6.94 4.44a1.5 1.5 0 0 1 2.12 0a.5.5 0 0 0 .708-.708a2.5 2.5 0 0 0-3.536 0a.5.5 0 0 0 .707.707Z"/><path d="M2.974 2.342a.5.5 0 1 0-.948.316L3.806 8H1.5A1.5 1.5 0 0 0 0 9.5v2A1.5 1.5 0 0 0 1.5 13H2a.5.5 0 0 0 .5.5h2A.5.5 0 0 0 5 13h6a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5h.5a1.5 1.5 0 0 0 1.5-1.5v-2A1.5 1.5 0 0 0 14.5 8h-2.306l1.78-5.342a.5.5 0 1 0-.948-.316L11.14 8H4.86zM2.5 11a.5.5 0 1 1 0-1a.5.5 0 0 1 0 1m4.5-.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m2.5.5a.5.5 0 1 1 0-1a.5.5 0 0 1 0 1m1.5-.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m2 0a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0"/><path d="M8.5 5.5a.5.5 0 1 1-1 0a.5.5 0 0 1 1 0"/></g></svg>'
+        },
+        other: {
+          name: 'Другое',
+          color: 'linear-gradient(135deg, #64748b, #475569)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Processor-solid SVG Icon</title><path fill="currentColor" d="M10.358 9.938c1.082-.12 2.202-.12 3.284 0a.464.464 0 0 1 .409.4c.129 1.104.129 2.22 0 3.324a.464.464 0 0 1-.41.4a14.92 14.92 0 0 1-3.283 0a.464.464 0 0 1-.409-.4a14.324 14.324 0 0 1 0-3.324a.464.464 0 0 1 .41-.4"/><path fill="currentColor" fill-rule="evenodd" d="M15 2.25a.75.75 0 0 1 .75.75v2.927a2.929 2.929 0 0 1 2.308 2.323H21a.75.75 0 0 1 0 1.5h-2.788c.037.5.061 1 .073 1.5H20a.75.75 0 0 1 0 1.5h-1.715c-.012.5-.036 1-.073 1.5H21a.75.75 0 0 1 0 1.5h-2.942a2.929 2.929 0 0 1-2.308 2.323V21a.75.75 0 0 1-1.5 0v-2.774c-.498.035-.999.059-1.5.07V20a.75.75 0 0 1-1.5 0v-1.704a31.963 31.963 0 0 1-1.5-.07V21a.75.75 0 0 1-1.5 0v-2.927a2.929 2.929 0 0 1-2.308-2.323H3a.75.75 0 0 1 0-1.5h2.788c-.037-.5-.061-1-.074-1.5H4a.75.75 0 0 1 0-1.5h1.714c.013-.5.037-1 .074-1.5H3a.75.75 0 0 1 0-1.5h2.942A2.929 2.929 0 0 1 8.25 5.927V3a.75.75 0 0 1 1.5 0v2.774c.498-.035.999-.059 1.5-.07V4a.75.75 0 0 1 1.5 0v1.704c.501.011 1.002.035 1.5.07V3a.75.75 0 0 1 .75-.75m-1.192 6.197a16.407 16.407 0 0 0-3.616 0c-.898.1-1.626.808-1.732 1.717a15.808 15.808 0 0 0 0 3.672c.106.91.834 1.616 1.732 1.717c1.192.133 2.424.133 3.616 0a1.963 1.963 0 0 0 1.732-1.717c.143-1.22.143-2.452 0-3.672a1.963 1.963 0 0 0-1.732-1.717" clip-rule="evenodd"/></svg>'
+        }
+      },
+      invNumEdit: false,
+      hwTitleEdit: false,
+      newInv_no: ``,
+      newHwTitle: ``
+    };
+  },
+  computed: {
+    stats() {
+      const result = {
+        total: 0,
+        working: 0,
+        broken: 0,
+        computers: 0
+      };
+
+      Object.values(this.classroom.equipment).forEach(eq => {
+        result.total++;
+        if (eq.working) result.working++;
+        else result.broken++;
+
+        if (eq.id === 'computer') {
+          result.computers++;
+        }
+      });
+
+      return result;
+    },
+
+    notify() {
+      return useNotificationsStore()
+    },
+
+    authStore() {
+      return useAuthStore()
     }
   },
   methods: {
-    async getAudience()
-    {
-      await api.get(`/audiences/${this.audienceId}`).then((response) => {
-        this.audience = response.data;
-        this.audienceContext.setOffice(this.audience.office_id)
-        this.description = response.data.description;
-        this.floorNumber = this.extractFloor(this.audience.id);
-        this.getStats()
-      }).catch((error) => {
-        this.notify.error("Не удалось получить аудиторию!")
-        router.push(`/`)
+    async getAudience() {
+      await api.get(`/audiences/${this.audienceId}`).then(res => {
+        this.classroom = this.mapBackendToFrontend(res.data);
+        this.loading = false;
       })
     },
-    async updateDescription()
-    {
-      if(this.authStore.isAuthenticated)
+
+    mapBackendToFrontend(data) {
+      const equipmentMap = {};
+
+      data.hardware.forEach(item => {
+        const gridKey = `${item.y}-${item.x}`;
+
+        equipmentMap[gridKey] = {
+          // UI поля (для отображения иконок и цветов)
+          id: item.type,          // На фронте id - это тип иконки (computer)
+          working: item.state,    // true/false
+          comment: item.description || '',
+
+          // Технические поля (сохраняем реальные данные)
+          dbId: item.id,          // ВАЖНО: сохраняем ID из базы (19, 20...)
+          invNumber: item.inv_number,
+          title: item.title
+        };
+      });
+
+      return {
+        number: data.id,
+        floor: data.floor,
+        gridSize: {
+          width: data.width,
+          height: data.height
+        },
+        equipment: equipmentMap,
+        office_id: data.office_id,
+        description: data.description,
+      };
+    },
+
+    getEquipment(row, col) {
+      return this.classroom.equipment[`${row}-${col}`];
+    },
+
+    getEquipmentType(id) {
+      return this.equipmentTypes[id];
+    },
+
+    getCellClasses(row, col) {
+      const eq = this.getEquipment(row, col);
+      if (!eq) return ['empty'];
+
+      return [
+        'occupied',
+        eq.working ? 'working' : 'broken'
+      ];
+    },
+
+    openModal(row, col) {
+      if(!this.authStore.isAuthenticated) return;
+      const eq = this.getEquipment(row, col);
+      if (!eq) return;
+
+      // Мы передаем ссылку на объект из data, поэтому изменения в v-model
+      // будут сразу отображаться в UI. Если нужно "Сохранить/Отмена",
+      // здесь нужно делать глубокую копию.
+      this.selectedCell = {
+        row,
+        col,
+        key: `${row}-${col}`,
+        data: eq
+      };
+      this.newInv_no = this.selectedCell.data.invNumber;
+      this.newHwTitle = this.selectedCell.data.title;
+    },
+
+    closeModal() {
+      this.selectedCell = null;
+      this.invNumEdit = false;
+      this.hwTitleEdit = false;
+      this.newHwTitle = this.newInv_no = ``;
+    },
+
+    async setWorkingStatus(status) {
+      if (this.selectedCell)
       {
-        await api.patch(`/audiences/update/${this.audienceId}`, {"description": this.description}).then((response) => {
-          this.descriptionEditModalShow = false;
-          this.notify.success("Описание обновлено", 3000)
-        }).catch((error) => {
-          this.notify.error("Не удалось обновить описание")
+        let description = status === true ? `` : this.selectedCell.data.comment
+        await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {state: status, description: description}
+        ).then(res => {
+          this.selectedCell.data.working = status;
+        }).catch(err => {
+          this.notify.error(`Не удалось изменить состояние текущего оборудования!`)
         })
+        if(status)
+          this.selectedCell.data.comment = ``
       }
     },
-    getStats()
+
+    goBack() {
+      router.go(-1)
+    },
+
+    editClassroom() {
+      // this.$router.push(`/classrooms/${this.classroom.number}/edit`);
+      alert('Переход в режим редактора');
+    },
+
+    async updateHardwareField(localKey, apiKey, newValue, editFlagKey, errorMsg)
     {
-      if(this.audience)
+      const oldValue = this.selectedCell.data[localKey];
+
+      const isUnchanged = oldValue === newValue || (oldValue === null && newValue === '');
+
+      if (isUnchanged) {
+        this[editFlagKey] = false;
+        return;
+      }
+
+      try
       {
-        this.totalComputers = this.faultyComputers = 0
-        this.audience.rows.forEach((row) => {
-          this.totalComputers += row.computers.length;
-          row.computers.forEach((computer) => {
-            if(!computer.state)
-              this.faultyComputers++
-          })
-        })
+        await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {
+          [apiKey]: newValue
+        });
+
+        this.selectedCell.data[localKey] = newValue;
+        this[editFlagKey] = false;
+
       }
-    },
-    showHideDescription()
-    {
-      this.descriptionShown = !this.descriptionShown;
-    },
-    showHideDescriptionEditModal(shown)
-    {
-      this.descriptionEditModalShow = shown;
-    },
-    openComputerModal(computer)
-    {
-      if(this.authStore.isAuthenticated)
+      catch (err)
       {
-        this.selectedComputer = {...computer};
-        this.computerModalShow = true;
+        this.notify.error(errorMsg);
       }
     },
-    extractComputerNumber(computerObj)
+
+    async deleteClassroom()
     {
-      if(computerObj)
-        return Number(computerObj.name.split("_")[1])
-      else
-        return '';
-    },
-    extractComputerRow(computerObj)
-    {
-      if(computerObj)
-        return Number(computerObj.name.split("_")[0].slice(2));
-      else
-        return '';
-    },
-    extractFloor()
-    {
-      if (this.audience)
-      {
-        if(this.audience.id === 257)
-          return 1
-        else
-          return Math.floor(this.audience.id / 100)
-      }
-    },
-    async setComputerState(state)
-    {
-      if(this.selectedComputer)
-      {
-        let description = state === true ? null : this.selectedComputer.description
-        const dataToSend = {"state": state, "description": description, audience_id: this.audience.id}
-        this.closeWebSocket()
-        await api.patch(
-            `/computers/${this.selectedComputer.id}`, dataToSend).then((response) => {
-          this.selectedComputer.state = state;
-          let targetRow = this.audience.rows.find(row => row.id === this.selectedComputer.row_id)
-          let targetComputer = targetRow.computers.find(computer => computer.id === this.selectedComputer.id)
-          targetComputer.state = state
-          targetComputer.description = description
-          if(state === true)
-          {
-            this.selectedComputer.description = null
-            this.faultyComputers--
-          }
-          else
-          {
-            this.faultyComputers++
-          }
-        }).catch((error) => {
-          this.notify.error("Не удалось изменить состояние компьютера. Сервер не отвечает");
-        }).finally(()=>{
-          this.connectWebSocket()
-        })
-      }
-    },
-    async deleteAudience()
-    {
-      await api.delete(`/audiences/${this.audience.id}`).then((response) => {
-        this.notify.info(`Аудитория №${this.audience.id} удалена`)
-        const officeIdToRedirect = this.audience.office_id
+      await api.delete(`/audiences/${this.classroom.number}`).then((response) => {
+        this.notify.info(`Аудитория №${this.classroom.number} удалена`)
+        const officeIdToRedirect = this.classroom.office_id
         router.push({
           name: `Office`,
           params: {
-          officeNumber: officeIdToRedirect}
+            officeNumber: officeIdToRedirect}
         }).catch((error) => {
           this.notify.error(`Не удалось удалить аудиторию!`)
         })
       })
     },
-    connectWebSocket()
-    {
-      if (this.ws)
-      {
-        this.ws.onclose = null;
-        this.ws.close();
-      }
 
-      this.ws = new WebSocket(getWsUrl())
-
-      this.ws.onopen = () => {
-        this.wsConnected = true;
-        this.wsError = false;
-        this.wsReconnectAttempts = 0;
-        this.reconnectDelay = 1000;
-      };
-
-      this.ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg?.audience_updated === this.audience.id)
-        {
-          this.getAudience()
-        }
-      };
-
-      this.ws.onclose = (event) => {
-        this.wsConnected = false;
-
-        // Попытка переподключения
-        if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
-          this.wsReconnectAttempts++;
-          const delay = this.reconnectDelay * this.wsReconnectAttempts; // экспоненциально
-
-          this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
-
-          setTimeout(() => {
-            this.connectWebSocket();
-          }, delay);
-        }
-        else
-        {
-          // Не удалось восстановить
-          this.wsError = true;
-          this.notify.error("Не удалось восстановить соединение с сервером")
-        }
-      };
+    async saveInv_no() {
+      await this.updateHardwareField(
+          'invNumber',
+          'inv_number',
+          this.newInv_no,
+          'invNumEdit',
+          'Не удалось изменить инв. номер текущего оборудования!'
+      );
     },
-    closeWebSocket()
-    {
-      this.ws.onclose = null;
-      this.wsConnected = false;
-      this.ws.close()
+
+    async saveHwTitle() {
+      await this.updateHardwareField(
+          'title',
+          'title',
+          this.newHwTitle,
+          'hwTitleEdit',
+          'Не удалось изменить заголовок текущего оборудования!'
+      );
     }
   },
-  mounted()
-  {
+  mounted() {
     this.getAudience();
-    this.connectWebSocket();
-  },
-  computed: {
-    authStore()
-    {
-      return useAuthStore()
-    },
-    audienceContext()
-    {
-      return useAudienceContext()
-    },
-    notify()
-    {
-      return useNotificationsStore()
-    }
-  },
-  beforeUnmount() {
-    this.closeWebSocket()
-    this.audienceContext.clear()
   }
-}
+};
 </script>
 
 <template>
-  <div class="main-content">
-    <div v-if="audience" class="container">
-      <div class="page-header">
-        <h2 id="floorTitle" class="audience-title">Аудитория №{{ audienceId }}</h2>
-        <div class="stats-switcher-container">
-          <label class="switch">
-            <input type="checkbox" v-model="showStats">
-            <span class="slider"></span>
-          </label>
-          <p class="floor-subtitle">Показывать статистику аудитории</p>
-        </div>
-        <div v-if="authStore.user" class="office-actions">
-          <button class="office-action-btn equipment-btn">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+  <LoaderContainer v-if="loading" />
+  <div v-if="!loading" class="page-viewer">
+    <header class="top-header">
+      <div class="classroom-info">
+        <h1 class="classroom-number">Аудитория {{ classroom.number }}</h1>
+        <p class="classroom-subtitle">
+          {{ classroom.floor }} этаж • Сетка {{ classroom.gridSize.width }}×{{ classroom.gridSize.height }}
+        </p>
+      </div>
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="back-btn" @click="goBack">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
-            Доп. оборудование
+            Назад
           </button>
-          <button @click="dropAudienceModalShow = true" v-if="authStore?.user.role < 3" class="office-action-btn delete-floor-btn">
+        </div>
+
+
+        <div v-if="authStore?.user?.role === 1" class="header-actions">
+          <button class="header-btn edit-btn" @click="editClassroom">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            Удалить аудиторию
+            Редактировать
+          </button>
+          <button class="header-btn delete-btn" @click="dropClassroomModalShow = true">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Удалить
           </button>
         </div>
       </div>
+    </header>
 
-      <!-- Statistics -->
-      <div class="stats-grid" v-show="showStats" v-if="audience">
-
-        <div class="stat-card">
-          <div class="stat-label">Всего компьютеров</div>
-          <div class="stat-value">{{ totalComputers }}</div>
-        </div>
-
-        <div class="stat-card working">
-          <div class="stat-label">Исправных</div>
-          <div class="stat-value">{{ totalComputers - faultyComputers }}</div>
-        </div>
-
-        <div class="stat-card broken">
-          <div class="stat-label">Неисправных</div>
-          <div class="stat-value">{{ faultyComputers }}</div>
-        </div>
-
-      </div>
-
-      <!-- Описание -->
-      <div class="collapsible-section">
-        <div class="collapsible-header">
-          <h3 class="collapsible-title">Ориентиры расположения рядов</h3>
-          <div class="collapsible-actions">
-            <button v-if="authStore.user && authStore?.user.role < 3" class="edit-btn">
-              <svg @click="showHideDescriptionEditModal(true)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-              </svg>
-            </button>
-            <svg @click="this.showHideDescription" class="expand-icon" :class="{expanded: descriptionShown}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
+    <div class="container">
+      <div v-if="authStore.isAuthenticated" class="stats-section">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Всего оборудования</div>
+            <div class="stat-value">{{ stats.total }}</div>
           </div>
-        </div>
-        <div class="collapsible-content" :class="{expanded: descriptionShown}">
-          <div class="location-info">
-            <p class="location-text">{{ description ? description : 'Описание отсутствует' }}</p>
+          <div class="stat-card working">
+            <div class="stat-label">Исправного</div>
+            <div class="stat-value">{{ stats.working }}</div>
+          </div>
+          <div class="stat-card broken">
+            <div class="stat-label">Неисправного</div>
+            <div class="stat-value">{{ stats.broken }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Компьютеров</div>
+            <div class="stat-value">{{ stats.computers }}</div>
           </div>
         </div>
       </div>
 
-      <!-- Компьютеры -->
-      <div v-if="audience" id="computerRows" class="computer-rows">
-        <Row @open-computer-modal="openComputerModal" v-for="row in audience.rows" :row="row"></Row>
-      </div>
+      <div v-if="classroom" class="grid-section">
+        <div class="grid-header">
+          <h2 class="grid-title">Состояние оборудования</h2>
+          <p class="grid-info">Кликните по ячейке для деталей</p>
+        </div>
 
-      <div v-if="authStore.user" :class="{active: descriptionEditModalShow}" class="modal">
+        <div class="grid-wrapper">
+          <div
+              class="equipment-grid"
+              :style="{ gridTemplateColumns: `repeat(${classroom.gridSize.width}, 90px)` }"
+          >
+            <template v-for="row in classroom.gridSize.height" :key="row">
+              <div
+                  v-for="col in classroom.gridSize.width"
+                  :key="`${row}-${col}`"
+                  class="grid-cell"
+                  :class="getCellClasses(row - 1, col - 1)"
+                  @click="openModal(row - 1, col - 1)"
+              >
+                <template v-if="getEquipment(row - 1, col - 1)">
+                  <div
+                      class="equipment-icon"
+                      :style="{ background: getEquipmentType(getEquipment(row - 1, col - 1).id).color }"
+                      v-html="getEquipmentType(getEquipment(row - 1, col - 1).id).icon"
+                  ></div>
+                  <div class="equipment-label">
+                    {{ getEquipmentType(getEquipment(row - 1, col - 1).id).name }}
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <Transition>
+      <div v-if="selectedCell" class="modal active" @click.self="closeModal">
         <div class="modal-content">
-          <h2 class="modal-title">Редактирование ориентиров</h2>
+          <h2 class="modal-title">
+            {{ getEquipmentType(selectedCell.data.id).name }}
+            <span class="modal-subtitle">(Ряд {{ selectedCell.row + 1 }}, Место {{ selectedCell.col + 1 }})</span>
+          </h2>
+
+          <div class="modal-equipment-info">
+            <div
+                class="modal-equipment-icon"
+                :style="{ background: getEquipmentType(selectedCell.data.id).color }"
+                v-html="getEquipmentType(selectedCell.data.id).icon"
+            ></div>
+            <div class="modal-equipment-details">
+              <div v-if="!hwTitleEdit">
+                <h3>{{ selectedCell.data.title || getEquipmentType(selectedCell.data.id).name }}</h3>
+                <svg @click="hwTitleEdit = true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
+              </div>
+
+              <div v-if="hwTitleEdit">
+                <input v-model="newHwTitle">
+                <svg @click="saveHwTitle" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
+              </div>
+
+              <div v-if="invNumEdit">
+                <input v-model="newInv_no">
+                <svg @click="saveInv_no" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
+              </div>
+
+              <div v-if="!invNumEdit">
+                <p>Инвентарный №: {{ selectedCell.data.invNumber || `н\\д` }}</p>
+                <svg @click="invNumEdit = true" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="currentColor"
+                        d="M3.995 17.207V19.5a.5.5 0 0 0 .5.5h2.298a.5.5 0 0 0 .353-.146l9.448-9.448l-3-3l-9.452 9.448a.5.5 0 0 0-.147.353m10.837-11.04l3 3l1.46-1.46a1 1 0 0 0 0-1.414l-1.585-1.586a1 1 0 0 0-1.414 0z"/>
+                </svg>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="status-badge" :class="selectedCell.data.working ? 'working' : 'broken'">
+            Текущий статус: {{ selectedCell.data.working ? 'исправно' : 'неисправно' }}
+          </div>
+
           <div class="form-group">
-            <label for="locationTextarea" class="form-label">Описание расположения</label>
-            <textarea v-model="description" class="form-textarea" placeholder="Опишите, относительно каких объектов расположены ряды..."></textarea>
+            <label class="form-label">Комментарий / Проблема</label>
+            <textarea
+                v-model="selectedCell.data.comment"
+                class="form-textarea"
+                placeholder="Опишите проблему или состояние оборудования..."
+            ></textarea>
           </div>
-          <div class="modal-buttons">
-            <button @click="updateDescription" class="modal-btn save-btn">Сохранить</button>
-            <button @click="showHideDescriptionEditModal(false)" class="modal-btn cancel-btn">Отмена</button>
+
+          <div class="action-btns">
+            <button
+                class="action-btn fix-btn"
+                :disabled="selectedCell.data.working"
+                @click="setWorkingStatus(true)"
+            >
+              Исправно
+            </button>
+            <button
+                class="action-btn break-btn"
+                :disabled="!selectedCell.data.working"
+                @click="setWorkingStatus(false)"
+            >
+              Неисправно
+            </button>
+          </div>
+
+          <button class="close-btn" @click="closeModal">Закрыть</button>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition>
+      <div v-if="dropClassroomModalShow" class="modal">
+        <div class="modal-content">
+          <h2 class="modal-title">Удаление аудитории</h2>
+          <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">
+            Вы уверены, что хотите удалить <strong>аудиторию №{{ audienceId }}</strong>?
+            Сетка оборудования будет удалена безвозвратно.
+          </p>
+          <div class="action-btns">
+            <button @click="deleteClassroom" class="action-btn delete-btn">Удалить</button>
+            <button @click="dropClassroomModalShow = false" class="action-btn cancel-btn">Отмена</button>
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </Transition>
 
-  <!-- Модальное окно для управления компьютером -->
-  <div v-if="selectedComputer" class="modal" :class="{active: computerModalShow}">
-    <div class="modal-content">
-      <h2 class="modal-title">Компьютер №{{ extractComputerNumber(selectedComputer) }} (Ряд {{ extractComputerRow(selectedComputer) }})</h2>
-      <div id="currentStatus">
-        <div
-            class="status-badge"
-            :class="{working: selectedComputer.state, broken: !selectedComputer.state}"
-            v-if="selectedComputer">
-            Текущий статус: {{ selectedComputer.state ? 'исправен' : 'неисправен' }}
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="comment" class="form-label">Комментарий</label>
-        <textarea v-model="selectedComputer.description" :disabled="!selectedComputer.state" class="form-textarea" placeholder="Опишите проблему или состояние компьютера..."></textarea>
-      </div>
-      <div class="action-btns">
-        <button :disabled="selectedComputer.state" @click="setComputerState(true)" class="action-btn fix-btn">Исправен</button>
-        <button :disabled="!selectedComputer.state" @click="setComputerState(false)" class="action-btn break-btn">Неисправен</button>
-      </div>
-      <button @click="computerModalShow = false; selectedComputer = null" class="close-btn">Закрыть</button>
-    </div>
-  </div>
-
-  <div v-if="audience" class="modal" :class="{active: dropAudienceModalShow}">
-    <div class="modal-content">
-      <h2 class="modal-title">Удаление аудитории</h2>
-      <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">
-        Вы уверены, что хотите удалить <strong>аудиторию №{{ audienceId }}</strong>?
-        Все ряды и компьютеры данной аудитории будут удалены безвозвратно.
-      </p>
-      <div class="modal-buttons">
-        <button @click="deleteAudience" class="modal-btn delete-btn">Удалить</button>
-        <button @click="dropAudienceModalShow = false" class="modal-btn cancel-btn">Отмена</button>
-      </div>
-    </div>
   </div>
 </template>
 
 <style scoped>
-/* Main Content */
-.main-content {
-  padding: 40px 20px;
+.page-viewer {
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
+  min-height: 100vh;
+  padding-bottom: 40px;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 40px;
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
-.audience-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: #1e40af;
-  margin-bottom: 12px;
-  animation: leftToRightAppear .7s ease-in-out;
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
-@keyframes leftToRightAppear {
-  0%
-  {
-    opacity: 0;
-    transform: translateX(-10vw);
-  }
-  100%
-  {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.floor-subtitle {
-  font-size: 1.3rem;
-  color: #6b7280;
-}
-
-/* Stats Cards */
-.stats-switcher-container
-{
+/* Header */
+.header-container {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 1rem;
-  animation: rightToLeftAppear .7s ease-in-out;
+  justify-content: space-between;
+  padding: 20px 32px;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
-@keyframes rightToLeftAppear {
-  0%
-  {
-    opacity: 0;
-    transform: translateX(10vw);
-  }
-  100%
-  {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: white;
+  border: 2px solid #3b82f6;
+  border-radius: 10px;
+  color: #3b82f6;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: #3b82f6;
+  color: white;
+  transform: translateX(-3px);
+}
+
+.back-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.classroom-info {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.classroom-number {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.classroom-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  justify-content: end;
+}
+
+.header-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.header-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.edit-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+}
+
+.edit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Statistics */
+.stats-section {
+  margin-bottom: 30px;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
 }
 
 .stat-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
-  animation: fadeIn .6s ease-in-out;
+  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #64748b;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -457,9 +615,9 @@ export default {
 }
 
 .stat-value {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 800;
-  color: #1f2937;
+  color: #1e293b;
 }
 
 .stat-card.working .stat-value {
@@ -470,145 +628,138 @@ export default {
   color: #ef4444;
 }
 
-/* Collapsible Sections */
-.collapsible-section {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+/* Grid Section */
+.grid-section {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   margin-bottom: 24px;
-  overflow: hidden;
-  animation: fadeIn .7s ease-in-out;
 }
 
-@keyframes fadeIn {
-  0%
-  {
-    opacity: 0;
-  }
-  100%
-  {
-    opacity: 1;
-  }
-}
-
-.collapsible-header {
+.grid-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  user-select: none;
-}
-
-.collapsible-header:hover {
-  background: #f9fafb;
-}
-
-.collapsible-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.collapsible-actions {
-  display: flex;
   align-items: center;
-  gap: 12px;
+  margin-bottom: 24px;
 }
 
-.edit-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #f3f4f6;
-  border: none;
+.grid-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.grid-info {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.grid-wrapper {
   display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 20px 0;
+}
+
+.equipment-grid {
+  display: inline-grid;
+  gap: 12px;
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 2px dashed #cbd5e1;
+}
+
+.grid-cell {
+  width: 90px;
+  height: 90px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.edit-btn:hover {
-  background: #3b82f6;
-  transform: scale(1.1);
-}
-
-.edit-btn:hover svg {
-  color: white;
-}
-
-.edit-btn svg {
-  width: 20px;
-  height: 20px;
-  color: #4b5563;
-  transition: color 0.2s ease;
-}
-
-.expand-icon {
-  width: 24px;
-  height: 24px;
-  color: #6b7280;
-  transition: transform 0.3s ease;
-}
-
-.expand-icon.expanded {
-  transform: rotate(180deg);
-}
-
-.collapsible-content {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
   transition: all 0.3s ease;
-  border-top: 1px solid #e5e7eb;
+  position: relative;
+  /* Анимация появления */
+  animation: fadeInCell 0.4s ease forwards;
 }
 
-.collapsible-content.expanded {
-  max-height: 600px;
-  opacity: 1;
-  padding: 24px;
+@keyframes fadeInCell {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-.location-info {
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
-  padding: 20px;
+.grid-cell.empty {
   background: #f8fafc;
+  border-style: dashed;
+  cursor: default;
 }
 
-.location-text {
-  font-size: 16px;
-  color: #4b5563;
-  line-height: 1.8;
+.grid-cell.occupied:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
 }
 
-/* Computer Rows */
-.computer-rows {
+.grid-cell.occupied.working {
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.4), rgba(187, 247, 208, 0.4));
+  border-color: rgba(134, 239, 172, 0.5);
+}
+
+.grid-cell.occupied.broken {
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.4), rgba(254, 202, 202, 0.4));
+  border-color: rgba(252, 165, 165, 0.5);
+}
+
+.equipment-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  color: white;
+  transition: transform 0.3s ease;
+  will-change: transform;
 }
 
-/* Modals */
+.grid-cell.occupied:hover .equipment-icon {
+  transform: scale(1.08);
+}
+
+.equipment-icon :deep(svg) {
+  width: 26px;
+  height: 26px;
+}
+
+.equipment-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #334155;
+  text-align: center;
+}
+
+/* Modal */
 .modal {
-  display: none;
   position: fixed;
   z-index: 1000;
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0,0,0,0.6);
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   backdrop-filter: blur(4px);
-}
-
-.modal.active {
-  display: flex;
 }
 
 .modal-content {
@@ -617,26 +768,193 @@ export default {
   padding: 32px;
   width: 100%;
   max-width: 540px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: modalAppear 0.3s ease;
 }
 
-@keyframes modalAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+.modal-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 20px;
 }
 
-.modal-title {
-  font-size: 26px;
-  font-weight: 800;
-  color: #1f2937;
-  margin-bottom: 24px;
+.modal-subtitle {
+  font-size: 16px;
+  font-weight: normal;
+  color: #64748b;
+  margin-left: 8px;
+}
+
+.modal-equipment-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-equipment-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.modal-equipment-icon :deep(svg) {
+  width: 32px;
+  height: 32px;
+}
+
+
+.modal-equipment-details h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.modal-equipment-details div input {
+  border: 2px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #334155
+}
+
+.modal-equipment-details p {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.modal-equipment-details div {
+  display: flex;
+  align-items: center;
+}
+
+.modal-equipment-details :deep(svg) {
+  margin-left: 5px;
+}
+
+.modal-equipment-details :deep(svg):hover {
+  cursor: pointer;
+  transform: scale(1.02);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 100px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.status-badge.working {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-badge.broken {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.action-btns {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.fix-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.fix-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.break-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.break-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.action-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.close-btn {
+  width: 100%;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: #e2e8f0;
 }
 
 .cancel-btn {
@@ -648,355 +966,114 @@ export default {
   background: #e2e8f0;
 }
 
-.delete-btn {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+/* Modal Transition */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.delete-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
-}
-
-.form-group {
-  margin-bottom: 24px;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 700;
-  color: #374151;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.form-textarea {
-  width: 100%;
-  padding: 14px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 16px;
-  transition: all 0.3s ease;
-  font-family: inherit;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-}
-
-.form-textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-
-.modal-buttons {
-  display: flex;
-  gap: 12px;
-  margin-top: 28px;
-}
-
-.modal-btn {
-  flex: 1;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 16px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.save-btn {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.save-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-}
-
-.cancel-btn {
-  background: #f3f4f6;
-  color: #4b5563;
-}
-
-.cancel-btn:hover {
-  background: #e5e7eb;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 28px;
-  border-radius: 100px;
-  font-weight: 700;
-  font-size: 16px;
-  margin-bottom: 28px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.status-badge.working {
-  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-  color: #065f46;
-  border: 2px solid #6ee7b7;
-}
-
-.status-badge.broken {
-  background: linear-gradient(135deg, #fee2e2, #fecaca);
-  color: #991b1b;
-  border: 2px solid #fca5a5;
-}
-
-.action-btns {
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 18px;
-  border-radius: 16px;
-  font-weight: 800;
-  font-size: 16px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.fix-btn {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
-}
-
-.fix-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-}
-
-.fix-btn:disabled {
-  background: linear-gradient(135deg, #d1d5db, #9ca3af);
-  cursor: not-allowed;
-  opacity: 0.6;
-  transform: none;
-  box-shadow: none;
-}
-
-.break-btn {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
-}
-
-.break-btn:hover:not(:disabled) {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.5);
-}
-
-.break-btn:disabled {
-  background: linear-gradient(135deg, #d1d5db, #9ca3af);
-  cursor: not-allowed;
-  opacity: 0.6;
-  transform: none;
-  box-shadow: none;
-}
-
-.close-btn {
-  width: 100%;
-  background: #f3f4f6;
-  color: #4b5563;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 16px;
-  border: none;
-  cursor: pointer;
-  margin-top: 16px;
-  transition: all 0.3s ease;
-}
-
-.close-btn:hover {
-  background: #e5e7eb;
-}
-
-.switch {
-  font-size: 17px;
-  position: relative;
-  display: inline-block;
-  width: 3.5em;
-  height: 2em;
-
-  input:checked + .slider {
-    background-color: #007bff;
-    border: 1px solid #007bff;
-  }
-
-  input:focus + .slider {
-    box-shadow: 0 0 1px #007bff;
-  }
-
-  input:checked + .slider:before {
-    transform: translateX(1.4em);
-    background-color: #fff;
-  }
-}
-
-/* Hide default HTML checkbox */
-.switch input {
+.modal-fade-enter-from,
+.modal-fade-leave-to {
   opacity: 0;
-  width: 0;
-  height: 0;
 }
 
-/* The slider */
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #fff;
-  border: 1px solid #adb5bd;
-  transition: .4s;
-  border-radius: 30px;
+.modal-fade-enter-active .modal-content {
+  animation: modalAppear 0.3s ease;
 }
 
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 1.4em;
-  width: 1.4em;
-  border-radius: 20px;
-  left: 0.27em;
-  bottom: 0.25em;
-  background-color: #adb5bd;
-  transition: .4s;
+.modal-fade-leave-active .modal-content {
+  animation: modalAppear 0.3s ease reverse;
 }
 
-.office-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-  flex-wrap: wrap;
-  animation: fadeIn .7s ease-in-out;
+@keyframes modalAppear {
+  from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
-
-
-.office-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 28px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 15px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.office-action-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.equipment-btn {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: white;
-}
-
-.equipment-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-}
-
-.delete-floor-btn {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-}
-
-.delete-floor-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
-}
-
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .header-container {
+    flex-wrap: wrap;
+  }
+
+  .classroom-info {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .grid-cell {
+    width: 75px;
+    height: 75px;
+  }
+  .equipment-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 @media (max-width: 768px) {
-  body {
-    padding: 0;
+  .container {
+    padding: 12px;
   }
 
-  .main-content {
-    padding: 24px 12px;
+  .header-container {
+    padding: 16px;
   }
 
-  .audience-title {
-    font-size: 26px;
+  .classroom-number {
+    font-size: 22px;
   }
 
-  .modal-content {
-    padding: 24px;
+  .header-actions {
+    width: 100%;
+    order: 3;
+  }
+
+  .header-btn {
+    flex: 1;
+    justify-content: center;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
   }
 
-  .floor-subtitle
-  {
-    font-size: 1rem;
+  .grid-wrapper {
+    justify-content: flex-start;
   }
 
-  .switch {
-    font-size: 14px; /* Slightly smaller base size */
-    width: 3.2em;
-    height: 1.8em;
+  .grid-section {
+    padding: 20px;
   }
 
-  .slider {
-    border-radius: 28px;
+  .grid-cell {
+    width: 65px;
+    height: 65px;
   }
 
-  .slider:before {
-    height: 1.25em;
-    width: 1.25em;
-    left: 0.25em;
-    bottom: 0.23em;
+  .equipment-icon {
+    width: 36px;
+    height: 36px;
   }
 
-  .switch input:checked + .slider:before {
-    transform: translateX(1.2em);
+  .equipment-icon :deep(svg) {
+    width: 20px;
+    height: 20px;
   }
 
-  .office-actions {
-    flex-direction: column;
-    align-items: stretch;
+  .modal-content {
+    padding: 14px;
   }
 
-  .office-action-btn {
-    width: 100%;
-    justify-content: center;
+  .equipment-label{
+    font-size: 9px;
   }
+
+}
+
+@media (max-width: 480px) {
+  .grid-cell { width: 55px; height: 55px; }
+  .equipment-icon { width: 30px; height: 30px; }
+  .equipment-icon :deep(svg) { width: 18px; height: 18px; }
 }
 </style>

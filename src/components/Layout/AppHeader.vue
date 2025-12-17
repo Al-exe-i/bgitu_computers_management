@@ -40,8 +40,6 @@ export default {
         case 1:
           return `Админ`
         case 2:
-          return `Сотрудник ОИ`
-        case 3:
           return `Преподаватель`
       }
     },
@@ -51,7 +49,6 @@ export default {
     },
     userAvatar()
     {
-      // Если есть фото — используем его, иначе placeholder
       return this.authStore.user?.photo || null
     },
     userAvatarLarge() {
@@ -68,7 +65,6 @@ export default {
     {
       this.authStore.logout()
       this.isDropdownOpen = false
-      router.push('/')
     },
     toggleDropdown()
     {

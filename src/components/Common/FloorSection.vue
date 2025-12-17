@@ -46,13 +46,9 @@ export default {
     audienceStatus(faultyCnt)
     {
       if(faultyCnt === 0)
-        return `Все исправны`
-      else if(faultyCnt === 11)
-        return `${faultyCnt} неисправны`
-      else if(faultyCnt % 10 === 1)
-        return `${faultyCnt} неисправен`
+        return `Всё исправно`
       else
-        return `${faultyCnt} неисправны`
+        return `${faultyCnt} неисправно`
     },
     addNewAudience() {
       router.push({name: "New Audience"})
@@ -82,7 +78,7 @@ export default {
         </svg>
       </div>
     </div>
-    <button v-if="authStore.isAuthenticated && authStore?.user.role < 3" class="add-classroom-btn" @click="addNewAudience()">
+    <button v-if="authStore.isAuthenticated && authStore?.user.role < 2" class="add-classroom-btn" @click="addNewAudience()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 5v14M5 12h14"></path>
       </svg>
@@ -97,14 +93,14 @@ export default {
           <div class="classroom-number">{{ audience.id }}</div>
           <div class="classroom-info">
             <div class="info-item">
-              <div class="info-label">Компьютеры</div>
-              <div class="info-value computers-count">{{ audience.computersCount }}</div>
+              <div class="info-label">Оборудование</div>
+              <div class="info-value computers-count">{{ audience.totalHardware }}</div>
             </div>
             <div class="info-item">
               <div class="info-label">Статус</div>
               <div class="info-value">
-                <span class="status-indicator" :class="{'status-broken': audience.faultyComputers > 0, 'status-working': audience.faultyComputers === 0}"></span>
-                {{ audienceStatus(audience.faultyComputers) }}
+                <span class="status-indicator" :class="{'status-broken': audience.brokenHardware > 0, 'status-working': audience.brokenHardware === 0}"></span>
+                {{ audienceStatus(audience.brokenHardware) }}
               </div>
             </div>
           </div>

@@ -1,11 +1,13 @@
 <script>
 import router from "@/router/index.js";
+import api from "@/services/api.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: 'CreateAudience',
   data() {
     return {
-      classroomNumber: '',
+      classroomNumber: null,
       floorNumber: 1,
       officeNumber: 1,
       gridWidth: 6,
@@ -15,6 +17,7 @@ export default {
       // Храним данные сетки как объект: 'row-col': equipmentId
       gridData: {},
       clearGridClicked: false,
+      paramsCollapsed: false,
       equipmentTypes: [
         {
           id: 'computer',
@@ -87,6 +90,10 @@ export default {
 
       counts.network = counts.switch + counts.router;
       return counts;
+    },
+    notify()
+    {
+      return useNotificationsStore()
     }
   },
   methods: {
@@ -179,7 +186,7 @@ export default {
     },
 
     resetForm() {
-      this.classroomNumber = '';
+      this.classroomNumber = null;
       this.floorNumber = 1;
       this.gridWidth = 6;
       this.gridHeight = 4;
@@ -188,32 +195,67 @@ export default {
       this.clearGridClicked = false;
     },
 
+    mapFrontendToBackend(frontendEquipment) {
+      return Object.entries(frontendEquipment).map(([key, item]) => {
+        // 1. Парсим координаты из ключа "row-col"
+        const [row, col] = key.split('-').map(Number);
+
+        // 2. Формируем объект под Pydantic-схему HardwareCreate
+        return {
+          type: item.id,          // На фронте id='computer', на бэке это type
+          x: col,                 // Вторая часть ключа - это X (колонка)
+          y: row,                 // Первая часть ключа - это Y (ряд)
+          state: true,            // При создании считаем, что всё исправно (или добавьте поле в редактор)
+          description: null,      // При создании комментариев обычно нет
+          inv_number: null,       // Можно добавить поле ввода в редакторе позже
+          title: null             // Можно добавить поле ввода в редакторе позже
+        };
+      });
+    },
+
     saveClassroom() {
       if (!this.classroomNumber) {
-        alert('Введите номер аудитории!');
+        this.notify.warning('Введите номер аудитории!');
         return;
       }
 
       const equipmentCount = Object.keys(this.gridData).length;
       if (equipmentCount === 0) {
-        alert('Добавьте хотя бы одно оборудование!');
+        this.notify.warning('Добавьте хотя бы одно оборудование!');
         return;
       }
 
       const classroomData = {
-        number: this.classroomNumber,
+        id: Number(this.classroomNumber),
         floor: this.floorNumber,
-        gridSize: { width: this.gridWidth, height: this.gridHeight },
-        equipment: this.gridData
+        width: this.gridWidth,
+        height: this.gridHeight ,
+        hardware: this.mapFrontendToBackend(this.gridData),
+        office_id: this.officeNumber
       };
 
-      console.log('Saving classroom:', classroomData);
-      alert(`Аудитория ${this.classroomNumber} успешно создана!\n\nВсего оборудования: ${equipmentCount}\nРазмер сетки: ${this.gridWidth}×${this.gridHeight}`);
-      this.goBack();
+      api.post(`/audiences`, classroomData).then(res => {
+        this.notify.success(`Аудитория создана!`)
+        router.push({
+          name: "Audience",
+          params: {audienceId: Number(this.classroomNumber)},
+        })
+      }).catch(err => {
+        if(err.response.status === 409)
+          this.notify.error(`Такая аудитория уже существует!`)
+        else
+          this.notify.error(`Не удалось создать аудиторию!`)
+      })
     },
 
     goBack() {
       router.go(-1)
+    },
+
+    classroomNumberFilter() {
+
+      if (!/^\d*[1-9]\d*$/.test(this.classroomNumber) || this.classroomNumber.length > 3)
+        this.classroomNumber = this.classroomNumber.slice(0, -1);
     }
   }
 };
@@ -236,8 +278,16 @@ export default {
       <div class="main-layout">
         <div class="left-panel">
 
-          <div class="panel">
-            <h3 class="panel-title">Параметры аудитории</h3>
+          <div class="panel" :class="{collapsed: paramsCollapsed}">
+
+            <div class="panel-header">
+              <h3 class="panel-title" style="margin-bottom: 0">Параметры аудитории</h3>
+              <div @click="paramsCollapsed = !paramsCollapsed" class="collapse-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </div>
+            </div>
 
             <div class="form-group">
               <label class="form-label">Номер аудитории</label>
@@ -246,6 +296,7 @@ export default {
                   class="form-input"
                   v-model="classroomNumber"
                   placeholder="Например: 105"
+                  @input="classroomNumberFilter"
               >
             </div>
 
@@ -480,6 +531,43 @@ export default {
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+
+.panel.collapsed .collapse-icon svg {
+  transform: rotate(-90deg);
+}
+
+.panel.collapsed .form-group
+{
+  display: none;
+}
+
+.panel-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.collapse-icon {
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f1f5f9;
+  transition: all 0.3s ease;
+}
+
+.collapse-icon:hover {
+  cursor: pointer;
+}
+
+.collapse-icon svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
 }
 
 .panel-title {
