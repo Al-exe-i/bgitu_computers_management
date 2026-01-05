@@ -4,6 +4,7 @@ import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import ErrorContainer from "@/components/Common/ErrorContainer.vue";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
+import {getWsUrl} from "@/config/api.js";
 
 export default {
   name: "HomeView",
@@ -37,6 +38,7 @@ export default {
             this.faultyOfficeOne = response1.data.count;
             this.faultyOfficeTwo = response2.data.count;
             this.loading = false;
+            this.connectWebSocket()
           })
           .catch(err => {
             this.loading = false;
@@ -44,17 +46,82 @@ export default {
             this.errorMsg = `${err.code}: ${err.message}`;
             this.notify.error("Не удалось загрузить данные");
           });
+    },
+
+    connectWebSocket()
+    {
+      if (this.ws)
+      {
+        this.ws.onclose = null;
+        this.ws.close();
+      }
+
+      this.ws = new WebSocket(getWsUrl())
+
+      this.ws.onopen = () => {
+        this.wsConnected = true;
+        this.wsError = false;
+        this.wsReconnectAttempts = 0;
+        this.reconnectDelay = 1000;
+      };
+
+      this.ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg?.audience_updated)
+        {
+          this.fetchFaulty();
+        }
+      };
+
+      this.ws.onclose = (event) => {
+        this.wsConnected = false;
+
+        // Попытка переподключения
+        if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
+          this.wsReconnectAttempts++;
+          const delay = this.reconnectDelay * this.wsReconnectAttempts; // экспоненциально
+
+          this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
+
+          setTimeout(() => {
+            this.connectWebSocket();
+          }, delay);
+        }
+        else
+        {
+          // Не удалось восстановить
+          this.wsError = true;
+          this.notify.error("Не удалось восстановить соединение с сервером")
+          this.error = true;
+        }
+      };
+    },
+    closeWebSocket()
+    {
+      if(this.ws)
+      {
+        this.ws.onclose = null;
+        this.wsConnected = false;
+        this.ws.close()
+      }
     }
   },
+
   mounted() {
     this.fetchFaulty()
   },
+
   computed: {
     notify()
     {
       return useNotificationsStore()
     }
+  },
+
+  beforeUnmount() {
+    this.closeWebSocket();
   }
+
 }
 </script>
 
@@ -74,7 +141,11 @@ export default {
           <span>Первый корпус</span>
         </div>
         <div class="breakdowns-title">Количество поломок</div>
-        <div class="breakdowns-count" :class="{red: faultyOfficeOne > 0}">{{ faultyOfficeOne }}</div>
+        <div
+            class="breakdowns-count"
+            :class="{red: faultyOfficeOne > 0}"
+            :style="{ '--target-num': faultyOfficeOne }">
+        </div>
         <button @click="handleOfficeClick(1)" class="view-details-btn">Просмотреть детали</button>
       </div>
 
@@ -86,7 +157,11 @@ export default {
           <span>Второй корпус</span>
         </div>
         <div class="breakdowns-title">Количество поломок</div>
-        <div class="breakdowns-count" :class="{red: faultyOfficeTwo > 0}">{{ faultyOfficeTwo }}</div>
+        <div
+            class="breakdowns-count"
+            :class="{red: faultyOfficeTwo > 0}"
+            :style="{ '--target-num': faultyOfficeTwo }">
+        </div>
         <button @click="handleOfficeClick(2)" class="view-details-btn">Просмотреть детали</button>
       </div>
     </div>
@@ -229,11 +304,26 @@ export default {
   margin-bottom: 10px;
 }
 
+@property --num {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+
 .breakdowns-count {
   font-size: 48px;
   font-weight: 800;
   color: #10b981;
   margin-bottom: 15px;
+
+  transition: --num .5s linear;
+  --num: var(--target-num);
+
+  counter-reset: num var(--num);
+}
+
+.breakdowns-count::after {
+  content: counter(num);
 }
 
 .breakdowns-count.red

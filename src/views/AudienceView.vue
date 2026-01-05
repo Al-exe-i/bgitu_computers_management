@@ -4,10 +4,12 @@ import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {useAuthStore} from "@/stores/auth.js";
+import {getApiUrl, getWsUrl, SERVER_URL} from "@/config/api.js";
+import {useAudienceContext} from "@/stores/officeCtx.js";
 
 export default {
   name: 'AudienceView',
-  components: {LoaderContainer},
+  components: { LoaderContainer},
   props: ['audienceId'],
   data() {
     return {
@@ -55,7 +57,17 @@ export default {
       invNumEdit: false,
       hwTitleEdit: false,
       newInv_no: ``,
-      newHwTitle: ``
+      newHwTitle: ``,
+      isDragOver: false,
+      showConfirmModal: false,
+      fileToDeleteId: null,
+      dontAskAgain: false,
+      ws: null,
+      wsConnected: false,
+      wsError: false,
+      wsReconnectAttempts: 0,
+      maxReconnectAttempts: 3,
+      reconnectDelay: 3000,
     };
   },
   computed: {
@@ -86,13 +98,30 @@ export default {
 
     authStore() {
       return useAuthStore()
+    },
+
+    audienceContext() {
+      return useAudienceContext()
     }
   },
+
   methods: {
+    getApiUrl,
     async getAudience() {
       await api.get(`/audiences/${this.audienceId}`).then(res => {
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
+        if(this.selectedCell)
+        {
+          const row = this.selectedCell.row
+          const col = this.selectedCell.col
+          this.closeModal()
+          this.openModal(row, col);
+        }
+        this.connectWebSocket();
+      }).catch(err => {
+        this.loading = false;
+        router.push(`/`)
       })
     },
 
@@ -111,7 +140,8 @@ export default {
           // Технические поля (сохраняем реальные данные)
           dbId: item.id,          // ВАЖНО: сохраняем ID из базы (19, 20...)
           invNumber: item.inv_number,
-          title: item.title
+          title: item.title,
+          files: item.files,
         };
       });
 
@@ -151,9 +181,6 @@ export default {
       const eq = this.getEquipment(row, col);
       if (!eq) return;
 
-      // Мы передаем ссылку на объект из data, поэтому изменения в v-model
-      // будут сразу отображаться в UI. Если нужно "Сохранить/Отмена",
-      // здесь нужно делать глубокую копию.
       this.selectedCell = {
         row,
         col,
@@ -175,11 +202,14 @@ export default {
       if (this.selectedCell)
       {
         let description = status === true ? `` : this.selectedCell.data.comment
+        this.closeWebSocket();
         await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {state: status, description: description}
         ).then(res => {
           this.selectedCell.data.working = status;
         }).catch(err => {
           this.notify.error(`Не удалось изменить состояние текущего оборудования!`)
+        }).finally(() => {
+          this.connectWebSocket()
         })
         if(status)
           this.selectedCell.data.comment = ``
@@ -247,7 +277,8 @@ export default {
       );
     },
 
-    async saveHwTitle() {
+    async saveHwTitle()
+    {
       await this.updateHardwareField(
           'title',
           'title',
@@ -255,16 +286,166 @@ export default {
           'hwTitleEdit',
           'Не удалось изменить заголовок текущего оборудования!'
       );
+    },
+
+    connectWebSocket()
+    {
+      if (this.ws)
+      {
+        this.ws.onclose = null;
+        this.ws.close();
+      }
+
+      this.ws = new WebSocket(getWsUrl())
+
+      this.ws.onopen = () => {
+        this.wsConnected = true;
+        this.wsError = false;
+        this.wsReconnectAttempts = 0;
+        this.reconnectDelay = 1000;
+      };
+
+      this.ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg?.audience_updated === this.classroom.number)
+        {
+          this.getAudience()
+        }
+      };
+
+      this.ws.onclose = (event) => {
+        this.wsConnected = false;
+
+        // Попытка переподключения
+        if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
+          this.wsReconnectAttempts++;
+          const delay = this.reconnectDelay * this.wsReconnectAttempts; // экспоненциально
+
+          this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
+
+          setTimeout(() => {
+            this.connectWebSocket();
+          }, delay);
+        }
+        else
+        {
+          // Не удалось восстановить
+          this.wsError = true;
+          this.notify.error("Не удалось восстановить соединение с сервером")
+          router.push(`/`)
+        }
+      };
+    },
+    closeWebSocket()
+    {
+      if(this.ws)
+      {
+        this.ws.onclose = null;
+        this.wsConnected = false;
+        this.ws.close()
+      }
+    },
+
+    async uploadFiles(files) {
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+
+      try {
+        const hwId = this.selectedCell.data.dbId;
+        await api.post(`/hardware/${hwId}/files`, formData).then(response => {
+          if (!this.selectedCell.data.files)
+            this.selectedCell.data.files = []
+          this.selectedCell.data.files.push(...response.data.files)
+        })
+        this.notify.success("Файлы загружены");
+      } catch (e) {
+        this.notify.error("Ошибка при загрузке");
+      }
+    },
+
+    handleFileSelect(event) {
+      const files = Array.from(event.target.files);
+      this.uploadFiles(files);
+    },
+
+    handleDrop(event) {
+      this.isDragOver = false;
+      const files = Array.from(event.dataTransfer.files);
+      this.uploadFiles(files);
+    },
+
+    async deleteFile(fileId)
+    {
+      try
+      {
+        await api.delete(`/hardware/files/${fileId}`);
+
+        // Удаляем файл из локального состояния, чтобы не перекачивать всё заново
+        this.selectedCell.data.files = this.selectedCell.data.files.filter(f => f.id !== fileId);
+
+        this.notify.info("Файл удален");
+      }
+      catch (e)
+      {
+        this.notify.error("Не удалось удалить файл");
+      }
+    },
+
+    requestDeleteFile(fileId)
+    {
+      const isSuppressed = localStorage.getItem('hw_suppress_delete_confirm');
+
+      if (isSuppressed === 'true')
+      {
+        // Если просили не спрашивать - удаляем сразу
+        this.deleteFile(fileId);
+      }
+      else
+      {
+        // Иначе показываем окно
+        this.fileToDeleteId = fileId;
+        this.dontAskAgain = false; // Сбрасываем чекбокс
+        this.showConfirmModal = true;
+      }
+    },
+
+    confirmDelete()
+    {
+      if (this.dontAskAgain)
+      {
+        localStorage.setItem('hw_suppress_delete_confirm', 'true');
+      }
+
+      this.deleteFile(this.fileToDeleteId);
+      this.closeConfirmModal();
+    },
+
+    closeConfirmModal()
+    {
+      this.showConfirmModal = false;
+      this.fileToDeleteId = null;
+    },
+
+    resolveFileUrl(fileUrl)
+    {
+      return `${getApiUrl()}${fileUrl}`;
     }
   },
+
   mounted() {
     this.getAudience();
+  },
+
+  beforeUnmount() {
+    this.closeWebSocket()
+    this.audienceContext.clear()
   }
 };
 </script>
 
 <template>
   <LoaderContainer v-if="loading" />
+
   <div v-if="!loading" class="page-viewer">
     <header class="top-header">
       <div class="classroom-info">
@@ -326,7 +507,7 @@ export default {
       <div v-if="classroom" class="grid-section">
         <div class="grid-header">
           <h2 class="grid-title">Состояние оборудования</h2>
-          <p class="grid-info">Кликните по ячейке для деталей</p>
+          <p v-if="authStore.isAuthenticated" class="grid-info">Кликните по ячейке для деталей</p>
         </div>
 
         <div class="grid-wrapper">
@@ -362,6 +543,12 @@ export default {
     <Transition>
       <div v-if="selectedCell" class="modal active" @click.self="closeModal">
         <div class="modal-content">
+          <div class="modal-close-upper">
+            <button @click="closeModal" class="close">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path data-v-25e2186a="" fill="none" stroke="#f10e3c" stroke-linecap="round" stroke-width="2" d="M20 20L4 4m16 0L4 20"></path></svg>
+            </button>
+          </div>
+
           <h2 class="modal-title">
             {{ getEquipmentType(selectedCell.data.id).name }}
             <span class="modal-subtitle">(Ряд {{ selectedCell.row + 1 }}, Место {{ selectedCell.col + 1 }})</span>
@@ -430,7 +617,39 @@ export default {
             </button>
           </div>
 
-          <button class="close-btn" @click="closeModal">Закрыть</button>
+          <!-- Список файлов (фото и видео) -->
+          <div class="hw-files-section">
+            <div v-if="selectedCell.data.files && selectedCell.data.files.length > 0" class="hw-files-grid">
+              <div v-for="file in selectedCell.data.files" :key="file.id" class="hw-file-card">
+
+                <img v-if="file.file_type.startsWith('image/')" :src="resolveFileUrl(file.url)" class="hw-file-preview" />
+
+                <video v-else class="hw-file-preview" controls>
+                  <source :src="file.url" :type="file.file_type">
+                  Ваш браузер не поддерживает видео.
+                </video>
+
+                <button @click.stop="requestDeleteFile(file.id)" class="hw-delete-btn" title="Удалить">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><title>Удалить файл</title><path fill="currentColor" d="M17.414 16L24 9.414L22.586 8L16 14.586L9.414 8L8 9.414L14.586 16L8 22.586L9.414 24L16 17.414L22.586 24L24 22.586z"/></svg>
+                </button>
+              </div>
+            </div>
+            <!-- Зона добавления -->
+            <div
+                class="hw-upload-zone"
+                :class="{ 'is-active': isDragOver }"
+                @dragover.prevent="isDragOver = true"
+                @dragleave.prevent="isDragOver = false"
+                @drop.prevent="handleDrop"
+                @click="$refs.fileInput.click()"
+            >
+              <p class="hw-upload-text">
+                <span class="hw-upload-icon">📂</span>
+                Перетащите файлы сюда
+              </p>
+              <input type="file" ref="fileInput" multiple accept="image/*,video/*" @change="handleFileSelect" hidden />
+            </div>
+          </div>
         </div>
       </div>
     </Transition>
@@ -451,7 +670,26 @@ export default {
       </div>
     </Transition>
 
+    <div v-if="showConfirmModal" class="hw-confirm-overlay" @click.self="closeConfirmModal">
+      <div class="hw-confirm-box">
+        <h3 class="hw-confirm-title">Удалить файл?</h3>
+        <p class="hw-confirm-text">Вы уверены, что хотите удалить этот файл? Это действие нельзя будет отменить.</p>
+
+        <label class="hw-confirm-checkbox">
+          <input type="checkbox" v-model="dontAskAgain">
+          <span class="checkmark"></span>
+          Больше не спрашивать
+        </label>
+
+        <div class="hw-confirm-actions">
+          <button @click="closeConfirmModal" class="hw-btn-cancel">Отмена</button>
+          <button @click="confirmDelete" class="hw-btn-delete">Удалить</button>
+        </div>
+      </div>
+    </div>
+
   </div>
+
 </template>
 
 <style scoped>
@@ -762,10 +1000,35 @@ export default {
   backdrop-filter: blur(4px);
 }
 
+.modal-close-upper
+{
+  display: flex;
+  justify-content: end;
+  padding-top: 1rem;
+
+  button
+  {
+    display: block;
+    width: 32px;
+    height: 32px;
+    border-radius: 50px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: all 550ms ease;
+    margin: 0 -20px;
+  }
+
+  button:hover
+  {
+    transform: scale(1.1);
+  }
+}
+
 .modal-content {
   background: white;
   border-radius: 20px;
-  padding: 32px;
+  padding: 0 32px 32px;
   width: 100%;
   max-width: 540px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -989,6 +1252,265 @@ export default {
   from { opacity: 0; transform: scale(0.9) translateY(-20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* --- Контейнер секции файлов --- */
+.hw-files-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee; /* Визуальный разделитель от основного контента модалки */
+}
+
+/* --- Сетка (Grid) --- */
+.hw-files-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 12px;
+  padding: 4px 4px 12px 4px;
+  margin-bottom: 15px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* --- Карточка файла --- */
+.hw-file-card
+{
+  flex: 0 0 auto;
+  width: 100px;
+  height: 100px;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  transition: transform 0.2s;
+}
+
+.hw-file-card:hover
+{
+  transform: translateY(-2px);
+  border-color: #d1d5db;
+}
+
+/* Ползунок карусели файлов */
+.hw-files-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.hw-files-grid::-webkit-scrollbar-track
+{
+  background: #f1f1f1;      /* Цвет дорожки */
+  border-radius: 3px;
+}
+
+.hw-files-grid::-webkit-scrollbar-thumb
+{
+  background: #c1c1c1;      /* Цвет ползунка */
+  border-radius: 3px;
+}
+
+.hw-files-grid::-webkit-scrollbar-thumb:hover
+{
+  background: #a8a8a8;      /* Цвет ползунка при наведении */
+}
+
+/* --- Превью (Картинка) --- */
+.hw-file-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Заполняет квадрат, обрезая лишнее */
+  display: block;
+}
+
+/* --- Заглушка для видео --- */
+.hw-video-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e9ecef;
+  color: #6c757d;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* --- Кнопка удаления --- */
+.hw-delete-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s;
+  z-index: 2;
+  will-change: auto;
+}
+
+.hw-delete-btn:hover {
+  background: rgba(220, 53, 69, 0.9); /* Красный при наведении */
+}
+
+/* --- Зона загрузки (Dropzone) --- */
+.hw-upload-zone {
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  padding: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Состояние Active (когда тащим файл над зоной) */
+.hw-upload-zone.is-active {
+  background-color: #ebf8ff; /* Светло-голубой */
+  border-color: #4299e1;     /* Синий бордюр */
+}
+
+.hw-upload-zone:hover:not(.is-active) {
+  border-color: #a0aec0;
+  background-color: #f1f5f9;
+}
+
+.hw-upload-text {
+  margin: 0;
+  color: #718096;
+  font-size: 0.9rem;
+  pointer-events: none; /* Чтобы текст не мешал событию drop */
+}
+
+.hw-upload-icon {
+  margin-right: 8px;
+  font-size: 1.1rem;
+}
+
+/* Модалка подтверждения удаления файла*/
+.hw-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Само окно */
+.hw-confirm-box {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 320px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  text-align: center;
+  animation: scaleIn 0.2s ease;
+}
+
+.hw-confirm-title {
+  margin: 0 0 10px 0;
+  font-size: 1.25rem;
+  color: #1f2937;
+}
+
+.hw-confirm-text {
+  margin-bottom: 20px;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+/* Чекбокс */
+.hw-confirm-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hw-confirm-checkbox input {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+/* Кнопки */
+.hw-confirm-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hw-btn-cancel, .hw-btn-delete {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: opacity 0.2s;
+}
+
+.hw-btn-cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.hw-btn-cancel:hover {
+  background: #e5e7eb;
+}
+
+.hw-btn-delete {
+  background: #ef4444;
+  color: white;
+}
+
+.hw-btn-delete:hover {
+  background: #dc2626;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Конец стилей модалки подтверждения удаления файла */
 
 /* Responsive */
 @media (max-width: 1024px) {

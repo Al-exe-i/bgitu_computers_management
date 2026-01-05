@@ -75,7 +75,7 @@ export default {
   position: fixed;
   top: 24px;
   right: 24px;
-  z-index: 1000;
+  z-index: 5000;
   display: flex;
   flex-direction: column;
   gap: 16px;

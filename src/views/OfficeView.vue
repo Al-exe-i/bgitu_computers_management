@@ -5,6 +5,7 @@ import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import {toRaw} from "vue";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
+import {useAuthStore} from "@/stores/auth.js";
 
 export default {
   name: "floor",
@@ -18,14 +19,19 @@ export default {
       floors: null,
       loading: true,
       filterMode: "all",
-      filtered: false,
       proxyFloors: null,
+      searchField: ``,
     }
   },
+
   computed: {
     notify()
     {
       return useNotificationsStore()
+    },
+
+    authStore() {
+      return useAuthStore()
     }
   },
   methods: {
@@ -34,15 +40,10 @@ export default {
       await api.get(`/offices/${officeNumber}`).then((response) => {
         this.office = response.data;
         this.arrangeFloors(this.office.audiences)
+        this.proxyFloors = this.floors
         this.countTotalHardware()
         this.loading = false
-        this.filtered = false
         this.filterMode = "all"
-        if (this.office.audiences.length === 0)
-        {
-          this.notify.info("В этом корпусе нет аудиторий. Вы были перенаправлены на страницу добавления аудитории")
-          router.push({name: "New Audience"})
-        }
       }).catch(error => {
         router.push({ path: `/` })
         if (error.response.status === 404)
@@ -88,19 +89,15 @@ export default {
         const office = data[floorKey];
 
         const validAudiences = office.audiences.filter(audience => {
-          // Если ищем исправные (true) все ПК должны быть true
+          // Если ищем исправные (true) все должны быть true
           if (targetState === true)
           {
-            return audience.rows.every(row =>
-                row.computers.every(pc => pc.state === true)
-            );
+            return audience.hardware.every(hw => hw.state === true);
           }
-          // Если ищем неисправные (false) хотя бы один ПК должен быть false
+          // Если ищем неисправные (false) хотя бы один должен быть false
           else if (targetState === false)
           {
-            return audience.rows.some(row =>
-                row.computers.some(pc => pc.state === false)
-            );
+            return audience.hardware.some(hw => hw.state === false);
           }
           return false;
         });
@@ -117,29 +114,37 @@ export default {
 
       return result;
     },
+
     setFilterMode(filterMode)
     {
       this.filterMode = filterMode;
+    },
+
+    addNewAudience()
+    {
+      router.push({name: "New Audience"})
     }
   },
+
   mounted()
   {
     this.getOffice(this.officeNumber)
   },
+
   watch: {
     officeNumber(newOfficeNumber)
     {
       this.getOffice(newOfficeNumber)
     },
+
     filterMode(newFilterMode)
     {
       if(newFilterMode === "all")
       {
-        this.filtered = false;
+        this.proxyFloors = this.floors;
       }
       else if(this.filterMode === "working" || this.filterMode === "broken")
       {
-        this.filtered = true;
         if(this.filterMode === "working")
         {
           this.proxyFloors = this.filterAudiencesByComputerState(this.floors, true)
@@ -148,6 +153,37 @@ export default {
         {
           this.proxyFloors = this.filterAudiencesByComputerState(this.floors, false)
         }
+      }
+    },
+
+    searchField(newVal)
+    {
+      if(newVal === undefined || newVal === "")
+      {
+        this.filterMode = "all"
+        this.proxyFloors = this.floors;
+      }
+      else
+      {
+        const result = {}
+        Object.keys(this.proxyFloors).forEach(floorKey => {
+          const office = this.proxyFloors[floorKey];
+
+          const validAudiences = office.audiences.filter(audience => {
+            return String(audience.id).startsWith(newVal)
+          });
+
+          // Сохраняем этаж, только если остались подходящие аудитории
+          if (validAudiences.length > 0)
+          {
+            result[floorKey] = {
+              ...office,
+              audiences: validAudiences
+            };
+          }
+        });
+
+        this.proxyFloors = result
       }
     }
   }
@@ -164,7 +200,7 @@ export default {
       <h2 class="building-title">Учебный корпус №{{ office.id }}</h2>
       <p class="building-description">Расположен по адресу: {{ office.address }}</p>
 
-      <div class="stats-container">
+      <div v-if="this.authStore.isAuthenticated" class="stats-container">
         <div class="stat-card">
           <div class="stat-value">{{ office.audiences.length }}</div>
           <div class="stat-label">Всего аудиторий</div>
@@ -186,7 +222,7 @@ export default {
 
     <div v-if="!loading" class="controls-panel">
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
+        <input v-model="searchField" type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
       </div>
       <div class="filter-buttons">
         <button class="filter-btn" @click="setFilterMode(`all`)" :class="{active: this.filterMode === `all`}">Все аудитории</button>
@@ -195,8 +231,21 @@ export default {
       </div>
     </div>
 
-    <floor-section v-if="!filtered" v-for="floor in floors" :audiences="floor.audiences" :number="floor.number"></floor-section>
-    <floor-section v-if="filtered" v-for="floor in proxyFloors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+    <floor-section v-if="floors" v-for="floor in proxyFloors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+
+    <div v-if="!loading && Object.keys(floors).length === 0" class="empty-state">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"></path>
+      </svg>
+      <div class="empty-state-title">Аудиторий пока нет</div>
+      <div v-if="authStore.isAuthenticated && authStore?.user?.role === 1" class="empty-state-text">Добавьте первую аудиторию для этого корпуса</div>
+      <button v-if="authStore.isAuthenticated && authStore?.user?.role === 1" @click="addNewAudience" class="empty-state-btn">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+        </svg>
+        Добавить аудиторию
+      </button>
+    </div>
 
 
 
@@ -345,6 +394,65 @@ body {
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
   border-color: #1d4ed8;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 40px;
+  background: rgba(249, 250, 251, 0.8);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 2px dashed #cbd5e1;
+}
+
+.empty-state svg {
+  width: 80px;
+  height: 80px;
+  color: #cbd5e1;
+  margin: 0 auto 20px;
+  display: block;
+}
+
+.empty-state-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.empty-state-text {
+  font-size: 15px;
+  color: #94a3b8;
+  margin-bottom: 24px;
+}
+
+.empty-state-btn {
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-state-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.empty-state-btn svg {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  display: inline;
 }
 
 
