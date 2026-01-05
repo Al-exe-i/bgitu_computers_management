@@ -1,18 +1,17 @@
-from typing import List
 from pydantic import BaseModel, Field
-from schemas.hardware import HardwareCreate, HardwareResponse
+from schemas.hardware import HardwareCreate, HardwareFullResponse, HardwareShortResponse
 
 
 class AudienceBase(BaseModel):
     id: int
     floor: int
-    description: str | None = Field(default=None,max_length=200, description="Название или номер аудитории (напр. '105')")
+    description: str | None = Field(default=None, max_length=200, description="Название или номер аудитории (напр. '105')")
     office_id: int = Field(description="ID офиса/здания/этажа")
     width: int = Field(gt=0, le=15, description="Ширина сетки")
     height: int = Field(gt=0, le=15, description="Высота сетки")
 
 class AudienceCreate(AudienceBase):
-    hardware: List[HardwareCreate] = []
+    hardware: list[HardwareCreate] = []
 
 class AudienceUpdate(BaseModel):
     description: str | None = None
@@ -21,4 +20,7 @@ class AudienceUpdate(BaseModel):
     height: int | None = None
 
 class AudienceResponse(AudienceBase):
-    hardware: List[HardwareResponse] = []
+    hardware: list[HardwareFullResponse] = []
+
+class AudienceShortResponse(AudienceBase):
+    hardware: list[HardwareShortResponse] = []

@@ -1,4 +1,5 @@
-from .audience import Audience, Hardware
+from .audience import Audience
+from .hardware import Hardware
 from .user import User
 from .office import Office
 

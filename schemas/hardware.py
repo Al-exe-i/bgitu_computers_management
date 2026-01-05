@@ -1,6 +1,6 @@
-from typing import Optional
 from pydantic import BaseModel, Field
-from models.audience import HardwareType
+from models.hardware import HardwareType
+from schemas.hardware_file import HardwareFileResponse
 
 
 class HardwareBase(BaseModel):
@@ -23,7 +23,11 @@ class HardwareUpdate(BaseModel):
     description: str | None = None
     inv_number: str | None = None
     title: str | None = None
+    files: list[HardwareFileResponse] | None = None
 
-class HardwareResponse(HardwareBase):
+class HardwareShortResponse(HardwareBase):
     id: int
     audience_id: int
+
+class HardwareFullResponse(HardwareShortResponse):
+    files: list[HardwareFileResponse] | None  = []

@@ -1,11 +1,11 @@
 from typing import List
 from pydantic import BaseModel
-from schemas.audience import AudienceResponse
+from schemas.audience import AudienceShortResponse
 
 
 class OfficeBase(BaseModel):
     address: str
-    audiences: List[AudienceResponse]
+    audiences: List[AudienceShortResponse]
 
 class Office(OfficeBase):
     id: int

@@ -10,7 +10,6 @@ class Office(IntIdPkMixin, Base):
     address: Mapped[str] = mapped_column(String(100), nullable=False)
 
     audiences: Mapped[List["Audience"]] = relationship(
-        "Audience",
         back_populates="office",
         cascade="all, delete-orphan",
         passive_deletes=True,

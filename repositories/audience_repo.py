@@ -1,9 +1,9 @@
 from typing import Sequence
-
 from sqlalchemy import update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from models import Hardware
 from models.audience import Audience
 
 
@@ -14,7 +14,12 @@ class AudienceRepository:
 
     async def get_all(self) -> Sequence[Audience]:
         """Получить список всех аудиторий"""
-        stmt = select(Audience).options(selectinload(Audience.hardware))
+        stmt = (
+            select(Audience)
+            .options(
+                selectinload(Audience.hardware).selectinload(Hardware.files)
+            )
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -24,8 +29,8 @@ class AudienceRepository:
         """
         stmt = (
             select(Audience)
-            .where(Audience.id == audience_id)
-            .options(selectinload(Audience.hardware))
+            .options(selectinload(Audience.hardware).selectinload(Hardware.files))
+            .filter(Audience.id == audience_id)
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()

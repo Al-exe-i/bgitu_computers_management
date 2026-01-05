@@ -1,6 +1,6 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlalchemy.orm import selectinload
 from models import Hardware
 
 
@@ -8,10 +8,14 @@ class HardwareRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    def retrieve_session(self) -> AsyncSession:
+        return self.session
+
     async def get_by_id(self, hardware_id: int) -> Hardware | None:
-        stmt = select(Hardware).where(Hardware.id == hardware_id)
+        stmt = select(Hardware).where(Hardware.id == hardware_id).options(selectinload(Hardware.files))
         result = await self.session.execute(stmt)
         return result.scalars().first()
+
 
     async def update(self, hardware_id: int, data: dict) -> Hardware | None:
         stmt = (
