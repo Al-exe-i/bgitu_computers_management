@@ -1,12 +1,11 @@
 from fastapi import APIRouter, UploadFile
 from core.exceptions import HTTP404
 from db.session import session_dep
-from dependencies.auth import admin_dep
+from dependencies.auth import admin_dep, user_dep
 from dependencies.hardware import hardware_service_dep
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from fastapi.responses import FileResponse
 import os
-
 from schemas.hardware_file import HardwareFileResponse
 
 router = APIRouter()
@@ -17,7 +16,8 @@ async def add_hardware_file(
         hardware_id: int,
         files: list[UploadFile],
         service: hardware_service_dep,
-        db: session_dep
+        db: session_dep,
+        user: admin_dep
 ):
     hardware = await service.get(hardware_id)
     if not hardware:
@@ -42,8 +42,9 @@ async def update_hardware_status(
 
 @router.get("/files/{file_id}")
 async def get_file(
-    file_id: int,
-    service: hardware_service_dep
+        file_id: int,
+        service: hardware_service_dep,
+        user: user_dep
 ):
     db_file = await service.get_file_for_stream(file_id)
 
@@ -58,8 +59,9 @@ async def get_file(
 
 @router.delete("/files/{file_id}")
 async def delete_hardware_file(
-    file_id: int,
-    service: hardware_service_dep
+        file_id: int,
+        service: hardware_service_dep,
+        user: admin_dep
 ):
     await service.delete_file(file_id)
     return {"status": "success"}
