@@ -31,7 +31,6 @@ export const useAuthStore = defineStore('auth', {
             catch (error)
             {
                 console.error('Login failed:', error.response?.data || error.message);
-                throw error;
             }
         },
 
@@ -58,7 +57,7 @@ export const useAuthStore = defineStore('auth', {
                 this.user = null;
                 this.isAuthenticated = false;
                 // Не кидаем ошибку, чтобы не ломать приложение при старте
-                console.warn('User session not active');
+                //console.warn('User session not active');
             }
         },
 

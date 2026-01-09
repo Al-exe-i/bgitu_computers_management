@@ -60,8 +60,7 @@ export default {
       return valid
     },
 
-    async handleLogin()
-    {
+    async handleLogin() {
       if (!this.validate()) return
 
       this.serverError = null
@@ -69,18 +68,29 @@ export default {
       try
       {
         await this.authStore.login(this.email, this.password)
-        await this.authStore.fetchUser()
+
         this.closeModal()
         this.notify.success(`Вы успешно вошли в систему!`, 3500)
       }
       catch (err)
       {
-        let errMsg = this.authStore.error === `Invalid credentials` ? `Неверный логин или пароль!` : `Ошибка входа`
-        this.notify.error(errMsg)
-        this.password = ''
-        this.serverError = this.authStore.error || 'Ошибка входа'
+        console.error(err);
+
+        const backendMessage = err.response?.data?.detail;
+
+        let userMsg = 'Ошибка входа';
+
+        if (backendMessage === 'Invalid credentials' || err.response?.status === 401)
+        {
+          userMsg = 'Неверный логин или пароль!';
+        }
+
+        this.notify.error(userMsg);
+        this.password = '';
+        this.serverError = userMsg;
       }
     },
+
 
     closeModal()
     {
