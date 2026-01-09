@@ -3,11 +3,11 @@ from fastapi import APIRouter
 from starlette import status
 from dependencies.audiences import audiences_service_dep
 from dependencies.auth import admin_dep
-from schemas.audience import AudienceResponse, AudienceCreate
+from schemas.audience import AudienceResponse, AudienceCreate, AudienceShortResponse
 
 router = APIRouter()
 
-@router.post("/", response_model=AudienceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=AudienceShortResponse, status_code=status.HTTP_201_CREATED)
 async def create_audience(
         data: AudienceCreate,
         service: audiences_service_dep,

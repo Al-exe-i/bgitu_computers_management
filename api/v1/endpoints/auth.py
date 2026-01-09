@@ -25,5 +25,6 @@ async def login_for_access_token(
 @router.post("/logout")
 async def logout_user():
     response = JSONResponse(content={"message": "Successfully logged out"}, status_code=status.HTTP_200_OK)
-    response.delete_cookie(key="refresh_token")
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/api/v1/users/refresh")
     return response

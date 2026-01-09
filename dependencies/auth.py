@@ -8,7 +8,7 @@ from dependencies.user import user_service_dep
 from models.user import User, UserRole
 from schemas.user import UserOut
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token", auto_error=False)
 
 
 async def _validate_token_and_get_user(
@@ -32,8 +32,14 @@ async def _validate_token_and_get_user(
 
 async def get_current_user(
         service: user_service_dep,
-        token: str = Depends(oauth2_scheme)
+        access_token_cookie: str | None = Cookie(None, alias="access_token"),
+        access_token_header: str | None = Depends(oauth2_scheme)
 ) -> UserOut:
+    token = access_token_cookie if access_token_cookie else access_token_header
+
+    if token is None:
+        raise HTTP401("Not authenticated")
+
     user = await _validate_token_and_get_user(token, "access", service)
     return user
 
