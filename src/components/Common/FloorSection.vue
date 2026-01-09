@@ -59,9 +59,16 @@ export default {
     {
       return useAuthStore()
     },
+
     audienceContext()
     {
       return useAudienceContext()
+    },
+
+    havePermission()
+    {
+        const user = this.authStore.user;
+        return this.authStore.isAuthenticated && user && user.role < 2;
     }
   }
 }
@@ -78,7 +85,7 @@ export default {
         </svg>
       </div>
     </div>
-    <button v-if="authStore.isAuthenticated && authStore?.user.role < 2" class="add-classroom-btn" @click="addNewAudience()">
+    <button v-if="havePermission" class="add-classroom-btn" @click="addNewAudience()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 5v14M5 12h14"></path>
       </svg>

@@ -54,20 +54,28 @@ export default {
           icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Processor-solid SVG Icon</title><path fill="currentColor" d="M10.358 9.938c1.082-.12 2.202-.12 3.284 0a.464.464 0 0 1 .409.4c.129 1.104.129 2.22 0 3.324a.464.464 0 0 1-.41.4a14.92 14.92 0 0 1-3.283 0a.464.464 0 0 1-.409-.4a14.324 14.324 0 0 1 0-3.324a.464.464 0 0 1 .41-.4"/><path fill="currentColor" fill-rule="evenodd" d="M15 2.25a.75.75 0 0 1 .75.75v2.927a2.929 2.929 0 0 1 2.308 2.323H21a.75.75 0 0 1 0 1.5h-2.788c.037.5.061 1 .073 1.5H20a.75.75 0 0 1 0 1.5h-1.715c-.012.5-.036 1-.073 1.5H21a.75.75 0 0 1 0 1.5h-2.942a2.929 2.929 0 0 1-2.308 2.323V21a.75.75 0 0 1-1.5 0v-2.774c-.498.035-.999.059-1.5.07V20a.75.75 0 0 1-1.5 0v-1.704a31.963 31.963 0 0 1-1.5-.07V21a.75.75 0 0 1-1.5 0v-2.927a2.929 2.929 0 0 1-2.308-2.323H3a.75.75 0 0 1 0-1.5h2.788c-.037-.5-.061-1-.074-1.5H4a.75.75 0 0 1 0-1.5h1.714c.013-.5.037-1 .074-1.5H3a.75.75 0 0 1 0-1.5h2.942A2.929 2.929 0 0 1 8.25 5.927V3a.75.75 0 0 1 1.5 0v2.774c.498-.035.999-.059 1.5-.07V4a.75.75 0 0 1 1.5 0v1.704c.501.011 1.002.035 1.5.07V3a.75.75 0 0 1 .75-.75m-1.192 6.197a16.407 16.407 0 0 0-3.616 0c-.898.1-1.626.808-1.732 1.717a15.808 15.808 0 0 0 0 3.672c.106.91.834 1.616 1.732 1.717c1.192.133 2.424.133 3.616 0a1.963 1.963 0 0 0 1.732-1.717c.143-1.22.143-2.452 0-3.672a1.963 1.963 0 0 0-1.732-1.717" clip-rule="evenodd"/></svg>'
         }
       },
+      /*Редактирование инв номера и названия оборудования в модалке */
       invNumEdit: false,
       hwTitleEdit: false,
       newInv_no: ``,
       newHwTitle: ``,
+
+      /* Раздел файлов оборудования в модалке */
       isDragOver: false,
       showConfirmModal: false,
       fileToDeleteId: null,
       dontAskAgain: false,
+
+      /*WebSocket*/
       ws: null,
       wsConnected: false,
       wsError: false,
       wsReconnectAttempts: 0,
       maxReconnectAttempts: 3,
       reconnectDelay: 3000,
+
+      /* Preview */
+      previewIndex: null
     };
   },
   computed: {
@@ -102,6 +110,26 @@ export default {
 
     audienceContext() {
       return useAudienceContext()
+    },
+
+    currentPreviewFile() {
+      if (this.previewIndex === null || !this.selectedCell?.data?.files) return null;
+      return this.selectedCell.data.files[this.previewIndex];
+    },
+
+    isPreviewImage() {
+      return this.currentPreviewFile?.file_type?.startsWith('image/');
+    },
+
+    isPreviewVideo() {
+      return this.currentPreviewFile?.file_type?.startsWith('video/');
+    },
+
+    // Админ или специалист ОИ + авторизован
+    havePermission()
+    {
+      const user = this.authStore.user;
+      return this.authStore.isAuthenticated && user && user.role < 2;
     }
   },
 
@@ -111,6 +139,7 @@ export default {
       await api.get(`/audiences/${this.audienceId}`).then(res => {
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
+        //Обновляем, если открыта модалка,
         if(this.selectedCell)
         {
           const row = this.selectedCell.row
@@ -287,7 +316,7 @@ export default {
           'Не удалось изменить заголовок текущего оборудования!'
       );
     },
-
+    /* WebSocket */
     connectWebSocket()
     {
       if (this.ws)
@@ -345,7 +374,7 @@ export default {
         this.ws.close()
       }
     },
-
+    /* Файлы оборудования */
     async uploadFiles(files) {
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
@@ -429,6 +458,50 @@ export default {
     resolveFileUrl(fileUrl)
     {
       return `${getApiUrl()}${fileUrl}`;
+    },
+
+    /* Просмотр файлов */
+    openPreview(index) {
+      this.previewIndex = index;
+      // Блокируем скролл основной страницы, чтобы не ездила
+      document.body.style.overflow = 'hidden';
+
+      // Добавляем слушатель клавиш (Esc, Стрелки)
+      window.addEventListener('keydown', this.handlePreviewKeys);
+    },
+
+    // Закрыть
+    closePreview() {
+      this.previewIndex = null;
+      document.body.style.overflow = ''; // Возвращаем скролл
+      window.removeEventListener('keydown', this.handlePreviewKeys);
+    },
+
+    nextPreview() {
+      if (!this.selectedCell.data.files) return;
+      // Циклическая навигация: если последний -> переходим к первому
+      if (this.previewIndex < this.selectedCell.data.files.length - 1) {
+        this.previewIndex++;
+      } else {
+        this.previewIndex = 0;
+      }
+    },
+
+    prevPreview() {
+      if (!this.selectedCell.data.files) return;
+      // Если первый - переходим к последнему
+      if (this.previewIndex > 0) {
+        this.previewIndex--;
+      } else {
+        this.previewIndex = this.selectedCell.data.files.length - 1;
+      }
+    },
+
+    handlePreviewKeys(e)
+    {
+      if (e.key === 'Escape') this.closePreview();
+      if (e.key === 'ArrowRight') this.nextPreview();
+      if (e.key === 'ArrowLeft') this.prevPreview();
     }
   },
 
@@ -465,7 +538,7 @@ export default {
         </div>
 
 
-        <div v-if="authStore?.user?.role === 1" class="header-actions">
+        <div v-if="havePermission" class="header-actions">
           <button class="header-btn edit-btn" @click="editClassroom">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -602,6 +675,7 @@ export default {
 
           <div class="action-btns">
             <button
+                v-if="havePermission"
                 class="action-btn fix-btn"
                 :disabled="selectedCell.data.working"
                 @click="setWorkingStatus(true)"
@@ -620,7 +694,7 @@ export default {
           <!-- Список файлов (фото и видео) -->
           <div class="hw-files-section">
             <div v-if="selectedCell.data.files && selectedCell.data.files.length > 0" class="hw-files-grid">
-              <div v-for="file in selectedCell.data.files" :key="file.id" class="hw-file-card">
+              <div @click="openPreview(index)" v-for="(file, index) in selectedCell.data.files" :key="file.id" class="hw-file-card">
 
                 <img v-if="file.file_type.startsWith('image/')" :src="resolveFileUrl(file.url)" class="hw-file-preview" />
 
@@ -686,6 +760,46 @@ export default {
           <button @click="confirmDelete" class="hw-btn-delete">Удалить</button>
         </div>
       </div>
+    </div>
+
+    <div v-if="previewIndex !== null && selectedCell" class="hw-lightbox" @click.self="closePreview">
+
+      <button class="hw-lb-close" @click="closePreview">&times;</button>
+
+      <button
+          v-if="selectedCell?.data?.files.length > 1"
+          class="hw-lb-nav hw-lb-prev"
+          @click.stop="prevPreview"
+      >
+        &#10094; </button>
+
+      <div class="hw-lb-content" @click.stop>
+
+        <img
+            v-if="isPreviewImage"
+            :src="resolveFileUrl(currentPreviewFile.url)"
+            class="hw-lb-image"
+        />
+
+        <video
+            v-if="isPreviewVideo"
+            :src="resolveFileUrl(currentPreviewFile.url)"
+            controls
+            autoplay
+            class="hw-lb-video"
+        ></video>
+
+        <div class="hw-lb-caption">
+          Файл {{ previewIndex + 1 }} из {{ selectedCell?.data.files.length }}
+        </div>
+      </div>
+
+      <button
+          v-if="selectedCell.data.files.length > 1"
+          class="hw-lb-nav hw-lb-next"
+          @click.stop="nextPreview"
+      >
+        &#10095; </button>
     </div>
 
   </div>
@@ -1512,6 +1626,87 @@ export default {
 
 /* Конец стилей модалки подтверждения удаления файла */
 
+/* Просмотр фото и видео */
+/* --- LIGHTBOX (Оверлей) --- */
+.hw-lightbox {
+  position: fixed;
+  inset: 0; /* top:0, left:0, right:0, bottom:0 */
+  background: rgba(0, 0, 0, 0.9); /* Очень темный фон */
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.2s ease;
+}
+
+/* --- Контент (обертка) --- */
+.hw-lb-content {
+  position: relative;
+  max-width: 90vw;  /* Не шире 90% экрана */
+  max-height: 90vh; /* Не выше 90% экрана */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* --- Картинка и Видео --- */
+.hw-lb-image, .hw-lb-video {
+  max-width: 100%;
+  max-height: 85vh; /* Оставляем место под подпись */
+  object-fit: contain; /* Сохраняем пропорции */
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* --- Кнопки навигации (< >) --- */
+.hw-lb-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 3rem;
+  cursor: pointer;
+  padding: 20px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  z-index: 10001;
+}
+
+.hw-lb-nav:hover {
+  opacity: 1;
+}
+
+.hw-lb-prev { left: 20px; }
+.hw-lb-next { right: 20px; }
+
+/* --- Кнопка закрытия (X) --- */
+.hw-lb-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 2.5rem;
+  cursor: pointer;
+  z-index: 10002;
+  opacity: 0.7;
+}
+
+.hw-lb-close:hover { opacity: 1; }
+
+/* --- Подпись --- */
+.hw-lb-caption {
+  margin-top: 10px;
+  color: #ccc;
+  font-family: sans-serif;
+  font-size: 0.9rem;
+}
+/**/
+
 /* Responsive */
 @media (max-width: 1024px) {
   .header-container {
@@ -1589,6 +1784,16 @@ export default {
 
   .equipment-label{
     font-size: 9px;
+  }
+
+  .modal-close-upper
+  {
+    padding-top: 0;
+
+    button
+    {
+      margin: 0;
+    }
   }
 
 }

@@ -1,159 +1,93 @@
-// src/stores/auth.js
-
-import {defineStore} from 'pinia'
-import api from '@/services/api'
-import {useNotificationsStore} from "@/stores/notifications.js";
+import { defineStore } from 'pinia';
+import api from '@/services/api';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
-        accessToken: localStorage.getItem('accessToken') || null,
         user: null,
-        loading: false,
-        error: null
+        // isAuthenticated — это просто флаг.
+        // Изначально false, пока мы не проверим пользователя.
+        isAuthenticated: false,
     }),
 
-    getters: {
-        isAuthenticated: (state) => !!state.accessToken,
-        isTokenExpired: (state) => {
-            if (!state.accessToken) return true
-            try
-            {
-                const payload = JSON.parse(atob(state.accessToken.split('.')[1]))
-                return payload.exp * 1000 < Date.now()
-            }
-            catch
-            {
-                return true
-            }
-        }
-    },
-
     actions: {
-        async login(email, password)
-        {
-            this.loading = true
-            this.error = null
+        // LOGIN
+        async login(email, password) {
             try
             {
-                const response = await api.post('/token', new URLSearchParams({
-                    username: email,
-                    password: password
-                }), {
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                })
-                this.setAccessToken(response.data.access_token)
-                await this.fetchUser()
-                return true
+                const formData = new URLSearchParams();
+                formData.append('username', email);
+                formData.append('password', password);
+
+                await api.post('/token', formData, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
+
+                this.isAuthenticated = true;
+                await this.fetchUser();
+                return true;
             }
-            catch (err)
+            catch (error)
             {
-                this.error = err.response?.data?.detail || 'Проверьте интернет-соединение'
-                this.clearAccessTokenAndFreeUser()
-                throw err
-            }
-            finally
-            {
-                this.loading = false
+                console.error('Login failed:', error.response?.data || error.message);
+                throw error;
             }
         },
 
+        // FETCH USER
         async fetchUser()
         {
             try
             {
-                const userResponse = await api.get(`/users/me`);
-                this.user = userResponse.data;
-                this.user.photo = null;
+                const response = await api.get('/users/me');
+                this.user = response.data;
+                this.isAuthenticated = true;
 
+                this.user.photo = null;
                 try
                 {
-                    const userPhotoResponse = await api.get(`/users/me/photo`, { responseType: 'blob' });
-                    this.user.photo = URL.createObjectURL(userPhotoResponse.data);
+                    const photoRes = await api.get('/users/me/photo', { responseType: 'blob' });
+                    this.user.photo = URL.createObjectURL(photoRes.data);
                 }
-                catch (photoError)
-                {
-                    if (photoError.response && photoError.response.status !== 404)
-                    {
-                        console.error('Failed to fetch user photo', photoError);
-                    }
-                }
+                catch (e) { /* ignore 404 */ }
+
             }
-            catch (err)
+            catch (error)
             {
-                console.error('Failed to fetch main user data', err);
+                this.user = null;
+                this.isAuthenticated = false;
+                // Не кидаем ошибку, чтобы не ломать приложение при старте
+                console.warn('User session not active');
             }
         },
 
+        // REFRESH
         async refreshToken()
         {
-            if (!this.refreshToken)
-            {
-                this.clearAccessTokenAndFreeUser()
-                return false
-            }
+            await api.post('/users/refresh');
+        },
 
+        // LOGOUT
+        async logout() {
             try
             {
-                const response = await api.post('/users/refresh', {}, {
-                    headers: { Authorization: `Bearer ${this.refreshToken}` }
-                })
-
-                this.setAccessToken(response.data.access_token)
-                return true
+                // Сначала говорим серверу удалить куки
+                await api.post('/logout');
             }
-            catch (err)
+            catch (error)
             {
-                this.clearAccessTokenAndFreeUser()
-                return false
-            }
-        },
-
-        setAccessToken(access)
-        {
-            this.accessToken = access
-            localStorage.setItem('accessToken', access)
-            api.defaults.headers.common['Authorization'] = `Bearer ${access}`
-        },
-
-        clearAccessTokenAndFreeUser()
-        {
-            this.accessToken = null
-            if (this.user && this.user.photo)
-            {
-                URL.revokeObjectURL(this.user.photo)
-            }
-            this.user = null
-            localStorage.removeItem('accessToken')
-            delete api.defaults.headers.common['Authorization']
-        },
-
-        async logout()
-        {
-            const notify = useNotificationsStore()
-            try
-            {
-                await api.post('/logout')
-                notify.info("Вы вышли из аккаунта", 2700)
-            }
-            catch (e)
-            {
-                notify.error("Не удалось выйти. Попробуйте снова")
+                console.error('Logout API error', error);
             }
             finally
             {
-                this.clearAccessTokenAndFreeUser()
-            }
-        },
+                // Чистим клиентское состояние в любом случае
+                this.user = null;
+                this.isAuthenticated = false;
 
-        async initialize()
-        {
-            const token = localStorage.getItem('accessToken')
-            if (token)
-            {
-                this.accessToken = token
-                api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-                await this.fetchUser()
+                // Очистка URL фото из памяти, если было
+                if (this.user?.photo) URL.revokeObjectURL(this.user.photo);
             }
-        },
+        }
     }
-})
+});

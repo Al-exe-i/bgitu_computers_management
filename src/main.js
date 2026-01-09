@@ -8,7 +8,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 const authStore = useAuthStore()
-authStore.initialize().then(() => {
+authStore.fetchUser().then(() => {
     app.mount('#app')
 })
 
