@@ -2,9 +2,11 @@
 import router from "@/router/index.js";
 import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import {useAudienceContext} from "@/stores/officeCtx.js";
 
 export default {
   name: 'CreateAudience',
+  props: ['id'],
   data() {
     return {
       classroomNumber: null,
@@ -18,6 +20,7 @@ export default {
       gridData: {},
       clearGridClicked: false,
       paramsCollapsed: false,
+      loading: false,
       equipmentTypes: [
         {
           id: 'computer',
@@ -68,8 +71,17 @@ export default {
     };
   },
   computed: {
+    isEditMode()
+    {
+      return !!this.id;
+    },
+
+    pageTitle() {
+      return this.isEditMode ? `Редактирование аудитории №${this.id}` : 'Добавление новой аудитории';
+    },
     // Автоматический подсчет статистики
-    stats() {
+    stats()
+    {
       const counts = {
         total: 0,
         computer: 0,
@@ -91,9 +103,15 @@ export default {
       counts.network = counts.switch + counts.router;
       return counts;
     },
+
     notify()
     {
       return useNotificationsStore()
+    },
+
+    audienceContext()
+    {
+      return useAudienceContext()
     }
   },
   methods: {
@@ -157,9 +175,6 @@ export default {
 
     placeEquipment(row, col, equipmentId) {
       const key = `${row}-${col}`;
-      // В Vue 2 для реактивности нужно this.$set,
-      // в Vue 3 можно просто присваивать.
-      // Пишем универсально:
       this.gridData = {
         ...this.gridData,
         [key]: { id: equipmentId }
@@ -184,14 +199,60 @@ export default {
       }
     },
 
-    resetForm() {
-      this.classroomNumber = null;
-      this.floorNumber = 1;
-      this.gridWidth = 6;
-      this.gridHeight = 4;
-      this.gridData = {};
-      this.selectedEquipmentId = null;
-      this.clearGridClicked = false;
+    resetForm()
+    {
+      if(this.isEditMode)
+      {
+        this.loadAudienceData();
+      }
+      else
+      {
+        this.classroomNumber = null;
+        this.floorNumber = 1;
+        this.gridWidth = 6;
+        this.gridHeight = 4;
+        this.gridData = {};
+        this.selectedEquipmentId = null;
+        this.clearGridClicked = false;
+      }
+    },
+
+    async loadAudienceData()
+    {
+      this.loading = true;
+      try
+      {
+        const res = await api.get(`/audiences/${this.id}`);
+        const data = res.data;
+
+        // Заполняем форму
+        this.classroomNumber = String(data.id);
+        this.floorNumber = data.floor;
+        this.officeNumber = data.office_id;
+        this.gridWidth = data.width;
+        this.gridHeight = data.height;
+
+        // Заполняем сетку
+        const newGridData = {};
+        if (data.hardware)
+        {
+          data.hardware.forEach(hw => {
+            // Бэкенд: y=row, x=col. Фронт ключ: "row-col"
+            const key = `${hw.y}-${hw.x}`;
+            newGridData[key] = { id: hw.type }; // hw.type должно совпадать с equipmentTypes id
+          });
+        }
+        this.gridData = newGridData;
+      }
+      catch (e)
+      {
+        this.notify.error("Не удалось загрузить данные аудитории");
+        await router.push('/');
+      }
+      finally
+      {
+        this.loading = false;
+      }
     },
 
     mapFrontendToBackend(frontendEquipment) {
@@ -213,7 +274,8 @@ export default {
     },
 
     saveClassroom() {
-      if (!this.classroomNumber) {
+      if (!this.classroomNumber)
+      {
         this.notify.warning('Введите номер аудитории!');
         return;
       }
@@ -225,7 +287,6 @@ export default {
       }
 
       const classroomData = {
-        id: Number(this.classroomNumber),
         floor: this.floorNumber,
         width: this.gridWidth,
         height: this.gridHeight ,
@@ -233,18 +294,35 @@ export default {
         office_id: this.officeNumber
       };
 
-      api.post(`/audiences`, classroomData).then(res => {
-        this.notify.success(`Аудитория создана!`)
-        router.push({
-          name: "Audience",
-          params: {audienceId: Number(this.classroomNumber)},
-        })
-      }).catch(err => {
-        if(err.response.status === 409)
-          this.notify.error(`Такая аудитория уже существует!`)
-        else
-          this.notify.error(`Не удалось создать аудиторию!`)
-      })
+      if (this.isEditMode)
+      {
+        api.put(`/audiences/${this.id}`, classroomData)
+            .then(res => {
+              this.notify.success(`Аудитория обновлена!`);
+              this.audienceContext.setOffice(classroomData.office_id)
+              router.push({ name: "Audience", params: { audienceId: this.id } });
+            })
+            .catch(err => {
+              this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
+            });
+      }
+      else
+      {
+        const createPayload = {
+          ...classroomData,
+          id: Number(this.classroomNumber)
+        };
+
+        api.post(`/audiences`, createPayload)
+            .then(res => {
+              this.notify.success(`Аудитория создана!`);
+              router.push({ name: "Audience", params: { audienceId: Number(this.classroomNumber) } });
+            })
+            .catch(err => {
+              if(err.response?.status === 409) this.notify.error(`Такая аудитория уже существует!`);
+              else this.notify.error(`Не удалось создать аудиторию!`);
+            });
+      }
     },
 
     goBack() {
@@ -263,7 +341,16 @@ export default {
     {
       this.clearGridClicked = false;
     }
-  }
+  },
+
+  mounted()
+  {
+    if (this.id)
+    {
+      this.loadAudienceData();
+    }
+  },
+
 };
 </script>
 
@@ -277,7 +364,7 @@ export default {
           </svg>
           Назад к схеме
         </button>
-        <h1 class="page-title">Добавление новой аудитории</h1>
+        <h1 class="page-title">{{ pageTitle }}</h1>
         <div style="width: 180px;"></div>
       </div>
 
@@ -303,6 +390,7 @@ export default {
                   v-model="classroomNumber"
                   placeholder="Например: 105"
                   @input="classroomNumberFilter"
+                  :disabled="isEditMode"
               >
             </div>
 
@@ -401,7 +489,9 @@ export default {
 
             <div class="action-buttons" style="margin-top: 16px;">
               <button class="btn btn-secondary" @click="resetForm">Сброс</button>
-              <button class="btn btn-primary" @click="saveClassroom">Сохранить</button>
+              <button class="btn btn-primary" @click="saveClassroom">
+                {{ isEditMode ? 'Сохранить' : 'Создать' }}
+              </button>
             </div>
           </div>
         </div>

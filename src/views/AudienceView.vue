@@ -139,6 +139,7 @@ export default {
       await api.get(`/audiences/${this.audienceId}`).then(res => {
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
+        this.audienceContext.setOffice(this.classroom.office_id)
         //Обновляем, если открыта модалка,
         if(this.selectedCell)
         {
@@ -250,8 +251,10 @@ export default {
     },
 
     editClassroom() {
-      // this.$router.push(`/classrooms/${this.classroom.number}/edit`);
-      alert('Переход в режим редактора');
+      router.push({
+        name: 'ChangeAudience',
+        params: { id: this.classroom.number }
+      });
     },
 
     async updateHardwareField(localKey, apiKey, newValue, editFlagKey, errorMsg)

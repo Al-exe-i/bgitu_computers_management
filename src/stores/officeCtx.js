@@ -7,10 +7,12 @@ export const useAudienceContext = defineStore('audienceContext', {
     }),
 
     actions: {
-        setOffice(officeId) {
+        setOffice(officeId)
+        {
             this.officeId = officeId
             this.fromOffice = true
         },
+
         clear() {
             this.officeId = null
             this.fromOffice = false

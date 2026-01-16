@@ -16,6 +16,7 @@ const routes = [
         component: HomeView,
         meta: {title: "BGITU Computers management"}
     },
+
     {
         path: '/Office/:officeNumber',
         name: 'Office',
@@ -23,6 +24,15 @@ const routes = [
         props: true,
         meta: {title: (route) => `${route.params.officeNumber} корпус`},
     },
+
+    {
+        path: `/audience/:id/edit`,
+        name: 'ChangeAudience',
+        component: CreateAudience,
+        props: true,
+        meta: {requiresAuth: true, title: (route) => `Редактирование аудитории №${route.params.audienceId}`},
+    },
+
     {
         path: `/audience/:audienceId`,
         name: 'Audience',
@@ -30,12 +40,14 @@ const routes = [
         props: true,
         meta: {title: (route) => `Аудитория №${route.params.audienceId}`},
     },
+
     {
         path: '/new-audience',
         name: 'New Audience',
         component: CreateAudience,
         meta: {requiresAuth: true, title: (route) => `Создание аудитории`}
     },
+
     {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
