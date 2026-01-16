@@ -21,6 +21,7 @@ export default {
       clearGridClicked: false,
       paramsCollapsed: false,
       loading: false,
+      hasUnsavedChanges: false,
       equipmentTypes: [
         {
           id: 'computer',
@@ -140,11 +141,23 @@ export default {
       }
     },
 
-    // Drag & Drop
-    onDragStart(event, id) {
+    // Drag & Drop новое
+    onDragStart(event, id)
+    {
       event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('type', 'new'); // Помечаем, что это новое оборудование
       event.dataTransfer.setData('equipment-id', id);
       event.target.classList.add('dragging');
+    },
+
+    // Обработка начала перетаскивания из СЕТКИ
+    onGridItemDragStart(event, row, col) {
+      // Сохраняем координаты источника
+      const sourceCoords = JSON.stringify({ row, col });
+
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('type', 'move'); // Помечаем, что это перемещение
+      event.dataTransfer.setData('source-coords', sourceCoords);
     },
 
     onDragEnd(event) {
@@ -167,10 +180,52 @@ export default {
 
     onDrop(row, col, event) {
       this.dragOverCell = null;
-      const equipmentId = event.dataTransfer.getData('equipment-id');
-      if (equipmentId) {
-        this.placeEquipment(row, col, equipmentId);
+
+      const dragType = event.dataTransfer.getData('type');
+
+      // СЦЕНАРИЙ 1: Добавление нового из палитры
+      if (dragType === 'new')
+      {
+        const equipmentId = event.dataTransfer.getData('equipment-id');
+        if (equipmentId) {
+          this.placeEquipment(row, col, equipmentId);
+        }
       }
+      // СЦЕНАРИЙ 2: Перемещение существующего внутри сетки
+      else if (dragType === 'move')
+      {
+        const sourceData = event.dataTransfer.getData('source-coords');
+        if (sourceData)
+        {
+          const source = JSON.parse(sourceData);
+          this.moveEquipment(source.row, source.col, row, col);
+        }
+      }
+    },
+
+    // Логика перемещения оборудования
+    moveEquipment(fromRow, fromCol, toRow, toCol) {
+      // 1. Если координаты совпадают — ничего не делаем
+      if (fromRow === toRow && fromCol === toCol) return;
+
+      const sourceKey = `${fromRow}-${fromCol}`;
+      const targetKey = `${toRow}-${toCol}`;
+      const equipmentData = this.gridData[sourceKey];
+
+      if (!equipmentData) return;
+
+      // 2. Копируем данные в новую ячейку
+      // Используем спред (...), чтобы сохранить ВСЕ поля (state, inv_number, files и т.д.)
+      const newGridData = { ...this.gridData };
+
+      newGridData[targetKey] = { ...equipmentData };
+
+      // 3. Удаляем из старой ячейки
+      delete newGridData[sourceKey];
+
+      // 4. Обновляем реактивно
+      this.gridData = newGridData;
+      this.hasUnsavedChanges = true;
     },
 
     placeEquipment(row, col, equipmentId) {
@@ -179,6 +234,7 @@ export default {
         ...this.gridData,
         [key]: { id: equipmentId }
       };
+      this.hasUnsavedChanges = true;
     },
 
     removeEquipment(row, col) {
@@ -186,12 +242,14 @@ export default {
       const newData = { ...this.gridData };
       delete newData[key];
       this.gridData = newData;
+      this.hasUnsavedChanges = true;
     },
 
     clearGrid() {
       if (this.clearGridClicked)
       {
         this.gridData = {};
+        this.hasUnsavedChanges = true;
       }
       else
       {
@@ -239,7 +297,10 @@ export default {
           data.hardware.forEach(hw => {
             // Бэкенд: y=row, x=col. Фронт ключ: "row-col"
             const key = `${hw.y}-${hw.x}`;
-            newGridData[key] = { id: hw.type }; // hw.type должно совпадать с equipmentTypes id
+            newGridData[key] = {
+              id: hw.type,
+              state: hw.state
+            };
           });
         }
         this.gridData = newGridData;
@@ -265,7 +326,7 @@ export default {
           type: item.id,          // На фронте id='computer', на бэке это type
           x: col,                 // Вторая часть ключа - это X (колонка)
           y: row,                 // Первая часть ключа - это Y (ряд)
-          state: true,            // При создании считаем, что всё исправно (или добавьте поле в редактор)
+          state: item.state !== undefined ? item.state : true,
           description: null,      // При создании комментариев обычно нет
           inv_number: null,       // Можно добавить поле ввода в редакторе позже
           title: null             // Можно добавить поле ввода в редакторе позже
@@ -300,6 +361,7 @@ export default {
             .then(res => {
               this.notify.success(`Аудитория обновлена!`);
               this.audienceContext.setOffice(classroomData.office_id)
+              this.hasUnsavedChanges = false;
               router.push({ name: "Audience", params: { audienceId: this.id } });
             })
             .catch(err => {
@@ -316,10 +378,12 @@ export default {
         api.post(`/audiences`, createPayload)
             .then(res => {
               this.notify.success(`Аудитория создана!`);
+              this.hasUnsavedChanges = false;
               router.push({ name: "Audience", params: { audienceId: Number(this.classroomNumber) } });
             })
             .catch(err => {
-              if(err.response?.status === 409) this.notify.error(`Такая аудитория уже существует!`);
+              if(err.response?.status === 409)
+                this.notify.error(`Такая аудитория уже существует!`);
               else this.notify.error(`Не удалось создать аудиторию!`);
             });
       }
@@ -350,6 +414,26 @@ export default {
       this.loadAudienceData();
     }
   },
+
+  beforeRouteLeave(to, from, next)
+  {
+    if (this.hasUnsavedChanges)
+    {
+      const answer = window.confirm('У вас есть несохраненные изменения. Вы уверены, что хотите уйти?');
+      if (answer)
+      {
+        next();
+      }
+      else
+      {
+        next(false);
+      }
+    }
+    else
+    {
+      next();
+    }
+  }
 
 };
 </script>
@@ -530,7 +614,11 @@ export default {
                     @dragleave="onDragLeave"
                     @drop="onDrop(row - 1, col - 1, $event)"
                 >
-                  <div v-if="getEquipmentInCell(row - 1, col - 1)" class="cell-equipment">
+                  <div
+                      v-if="getEquipmentInCell(row - 1, col - 1)"
+                      class="cell-equipment"
+                      draggable="true"
+                      @dragstart.stop="onGridItemDragStart($event, row - 1, col - 1)">
                     <div
                         class="cell-icon"
                         :style="{ background: getEquipmentInCell(row - 1, col - 1).type.color }"
