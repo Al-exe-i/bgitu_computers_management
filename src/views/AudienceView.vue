@@ -618,13 +618,16 @@ export default {
         <div class="modal-content">
           <div class="modal-close-upper">
             <button @click="closeModal" class="close">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path data-v-25e2186a="" fill="none" stroke="#f10e3c" stroke-linecap="round" stroke-width="2" d="M20 20L4 4m16 0L4 20"></path></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
             </button>
           </div>
 
           <h2 class="modal-title">
             {{ getEquipmentType(selectedCell.data.id).name }}
-            <span class="modal-subtitle">(Ряд {{ selectedCell.row + 1 }}, Место {{ selectedCell.col + 1 }})</span>
+            <span class="modal-subtitle">Ряд {{ selectedCell.row + 1 }}, Место {{ selectedCell.col + 1 }}</span>
           </h2>
 
           <div class="modal-equipment-info">
@@ -717,8 +720,14 @@ export default {
                 @drop.prevent="handleDrop"
                 @click="$refs.fileInput.click()"
             >
+              <div class="hw-upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </div>
               <p class="hw-upload-text">
-                <span class="hw-upload-icon">📂</span>
                 Перетащите файлы сюда
               </p>
               <input type="file" ref="fileInput" multiple accept="image/*,video/*" @change="handleFileSelect" hidden />
@@ -1122,20 +1131,32 @@ export default {
 
   button
   {
-    display: block;
-    width: 32px;
-    height: 32px;
-    border-radius: 50px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     border: none;
-    background: none;
+    background: #f3f4f6;
     cursor: pointer;
-    transition: all 550ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
     margin: 0 -20px;
+    will-change: transform;
+  }
+
+  button svg
+  {
+    width: 20px;
+    height: 20px;
+    stroke: #e82935;
   }
 
   button:hover
   {
-    transform: scale(1.1);
+    background: #e5e7eb;
+    transform: scale(1.05);
   }
 }
 
@@ -1151,16 +1172,18 @@ export default {
 
 .modal-title {
   font-size: 24px;
-  font-weight: 800;
   color: #1e293b;
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 .modal-subtitle {
-  font-size: 16px;
-  font-weight: normal;
-  color: #64748b;
-  margin-left: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .modal-equipment-info {
@@ -1191,9 +1214,9 @@ export default {
 
 .modal-equipment-details h3 {
   font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
 }
 
 .modal-equipment-details div input {
@@ -1215,18 +1238,22 @@ export default {
 
 .modal-equipment-details :deep(svg) {
   margin-left: 5px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
 }
 
 .modal-equipment-details :deep(svg):hover {
   cursor: pointer;
   transform: scale(1.02);
+  opacity: 0.9;
 }
 
 .status-badge {
   display: inline-block;
   padding: 10px 20px;
   border-radius: 100px;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 14px;
   margin-bottom: 20px;
 }
@@ -1265,6 +1292,10 @@ export default {
   font-family: inherit;
   min-height: 100px;
   resize: vertical;
+}
+
+.form-textarea::placeholder {
+  color: #9ca3af;
 }
 
 .form-textarea:focus {
@@ -1407,6 +1438,7 @@ export default {
 {
   transform: translateY(-2px);
   border-color: #d1d5db;
+  cursor: pointer;
 }
 
 /* Ползунок карусели файлов */
@@ -1490,9 +1522,6 @@ export default {
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* Состояние Active (когда тащим файл над зоной) */
@@ -1514,8 +1543,10 @@ export default {
 }
 
 .hw-upload-icon {
-  margin-right: 8px;
-  font-size: 1.1rem;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  opacity: 0.4;
 }
 
 /* Модалка подтверждения удаления файла*/

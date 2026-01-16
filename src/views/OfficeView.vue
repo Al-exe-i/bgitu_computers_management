@@ -52,6 +52,7 @@ export default {
           this.notify.error("Не удалось загрузить данные")
       })
     },
+
     countTotalHardware()
     {
       let totalHardware = 0;
@@ -72,6 +73,7 @@ export default {
       this.totalHardware = totalHardware
       this.brokenHardware = totalBroken
     },
+
     arrangeFloors(audiences)
     {
       this.floors = {}
@@ -81,38 +83,51 @@ export default {
         this.floors[item.floor].audiences.push(item)
       })
     },
-    filterAudiencesByComputerState(data, targetState)
-    {
+
+    applyFilters() {
+      if (!this.floors) return;
+
       const result = {};
+      const searchText = this.searchField.toLowerCase().trim();
 
-      Object.keys(structuredClone(toRaw(data))).forEach(floorKey => {
-        const office = data[floorKey];
+      // Проходим по каждому этажу из ИСХОДНЫХ данных (this.floors)
+      Object.keys(this.floors).forEach(floorKey => {
+        const originalFloor = this.floors[floorKey];
 
-        const validAudiences = office.audiences.filter(audience => {
-          // Если ищем исправные (true) все должны быть true
-          if (targetState === true)
-          {
-            return audience.hardware.every(hw => hw.state === true);
+        // Фильтруем аудитории на этаже
+        const validAudiences = originalFloor.audiences.filter(audience => {
+
+          // 1. Проверка по состоянию (Filter Mode)
+          let matchesState = true;
+          if (this.filterMode === 'working') {
+            // Исправные: все компьютеры должны быть true
+            // (или если техники нет вообще - считаем исправной)
+            matchesState = audience.hardware.every(hw => hw.state === true);
+          } else if (this.filterMode === 'broken') {
+            // Неисправные: хотя бы один комп false
+            matchesState = audience.hardware.some(hw => hw.state === false);
           }
-          // Если ищем неисправные (false) хотя бы один должен быть false
-          else if (targetState === false)
-          {
-            return audience.hardware.some(hw => hw.state === false);
+
+          // 2. Проверка по поиску (Search Field)
+          let matchesSearch = true;
+          if (searchText) {
+            matchesSearch = String(audience.id).toLowerCase().startsWith(searchText);
           }
-          return false;
+
+          // Аудитория должна пройти ОБЕ проверки
+          return matchesState && matchesSearch;
         });
 
-        // Сохраняем этаж, только если остались подходящие аудитории
-        if (validAudiences.length > 0)
-        {
+        // Если на этаже остались аудитории после фильтрации, добавляем его в результат
+        if (validAudiences.length > 0) {
           result[floorKey] = {
-            ...office,
+            ...originalFloor,
             audiences: validAudiences
           };
         }
       });
 
-      return result;
+      this.proxyFloors = result;
     },
 
     setFilterMode(filterMode)
@@ -137,54 +152,14 @@ export default {
       this.getOffice(newOfficeNumber)
     },
 
-    filterMode(newFilterMode)
+    filterMode()
     {
-      if(newFilterMode === "all")
-      {
-        this.proxyFloors = this.floors;
-      }
-      else if(this.filterMode === "working" || this.filterMode === "broken")
-      {
-        if(this.filterMode === "working")
-        {
-          this.proxyFloors = this.filterAudiencesByComputerState(this.floors, true)
-        }
-        else
-        {
-          this.proxyFloors = this.filterAudiencesByComputerState(this.floors, false)
-        }
-      }
+      this.applyFilters();
     },
 
-    searchField(newVal)
+    searchField()
     {
-      if(newVal === undefined || newVal === "")
-      {
-        this.filterMode = "all"
-        this.proxyFloors = this.floors;
-      }
-      else
-      {
-        const result = {}
-        Object.keys(this.proxyFloors).forEach(floorKey => {
-          const office = this.proxyFloors[floorKey];
-
-          const validAudiences = office.audiences.filter(audience => {
-            return String(audience.id).startsWith(newVal)
-          });
-
-          // Сохраняем этаж, только если остались подходящие аудитории
-          if (validAudiences.length > 0)
-          {
-            result[floorKey] = {
-              ...office,
-              audiences: validAudiences
-            };
-          }
-        });
-
-        this.proxyFloors = result
-      }
+      this.applyFilters();
     }
   }
 }

@@ -176,7 +176,6 @@ export default {
     clearGrid() {
       if (this.clearGridClicked)
       {
-        this.clearGridClicked = false;
         this.gridData = {};
       }
       else
@@ -256,6 +255,13 @@ export default {
 
       if (!/^\d*[1-9]\d*$/.test(this.classroomNumber) || this.classroomNumber.length > 3)
         this.classroomNumber = this.classroomNumber.slice(0, -1);
+    }
+  },
+
+  watch: {
+    gridData()
+    {
+      this.clearGridClicked = false;
     }
   }
 };

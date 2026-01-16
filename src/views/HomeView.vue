@@ -166,7 +166,7 @@ export default {
       </div>
     </div>
     <ErrorContainer
-        v-if="error"
+        v-if="error && !loading"
         container-title="Не удалось загрузить данные"
         error-title="Произошла ошибка при попытке загрузить статистику неисправностей. Проверьте подключение к интернету и повторите попытку."
         :error-text="errorMsg"
