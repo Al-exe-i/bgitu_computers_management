@@ -14,10 +14,21 @@ api.interceptors.response.use(
 
         if (error.response && error.response.status === 401)
         {
-            if (originalRequest.url.includes('/users/refresh') || originalRequest.url.includes('/token')) {
-                const authStore = useAuthStore();
-                await authStore.logout();
-                return Promise.reject(error);
+            if (error.response && error.response.status === 401)
+            {
+                // Если ошибка при логине — просто отдаем ошибку компоненту
+                if (originalRequest.url.includes('/token'))
+                {
+                    return Promise.reject(error);
+                }
+
+                // Если ошибка при рефреше — разлогиниваем
+                if (originalRequest.url.includes('/users/refresh'))
+                {
+                    const authStore = useAuthStore();
+                    await authStore.logout();
+                    return Promise.reject(error);
+                }
             }
 
             if (!originalRequest._retry)
