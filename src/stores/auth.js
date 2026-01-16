@@ -1,17 +1,18 @@
 import { defineStore } from 'pinia';
 import api from '@/services/api';
+import router from "@/router/index.js";
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         user: null,
-        // isAuthenticated — это просто флаг.
-        // Изначально false, пока мы не проверим пользователя.
         isAuthenticated: false,
+        isInitialized: false,
     }),
 
     actions: {
         // LOGIN
-        async login(email, password) {
+        async login(email, password)
+        {
             try
             {
                 const formData = new URLSearchParams();
@@ -31,6 +32,7 @@ export const useAuthStore = defineStore('auth', {
             catch (error)
             {
                 console.error('Login failed:', error.response?.data || error.message);
+                throw error;
             }
         },
 
@@ -59,6 +61,10 @@ export const useAuthStore = defineStore('auth', {
                 // Не кидаем ошибку, чтобы не ломать приложение при старте
                 //console.warn('User session not active');
             }
+            finally
+            {
+                this.isInitialized = true;
+            }
         },
 
         // REFRESH
@@ -68,24 +74,31 @@ export const useAuthStore = defineStore('auth', {
         },
 
         // LOGOUT
-        async logout() {
+        async logout()
+        {
             try
             {
-                // Сначала говорим серверу удалить куки
-                await api.post('/logout');
+                await api.post('/logout'); // Сообщаем серверу убрать куки
             }
             catch (error)
             {
-                console.error('Logout API error', error);
+                console.error('Server logout error', error);
             }
             finally
             {
                 // Чистим клиентское состояние в любом случае
+                if (this.user?.photo) URL.revokeObjectURL(this.user.photo);
                 this.user = null;
                 this.isAuthenticated = false;
-
                 // Очистка URL фото из памяти, если было
-                if (this.user?.photo) URL.revokeObjectURL(this.user.photo);
+
+                const currentRoute = router.currentRoute.value;
+
+                if (currentRoute.meta.requiresAuth)
+                {
+                    await router.push('/');
+                }
+
             }
         }
     }

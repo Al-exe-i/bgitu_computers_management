@@ -63,8 +63,13 @@ const router = createRouter({
 router.beforeEach(async (to, from) => {
     const auth = useAuthStore()
     const notify = useNotificationsStore()
-    const isAuthenticated = await auth.isAuthenticated
-    if(to.meta.requiresAuth && !isAuthenticated)
+
+    if (!auth.isInitialized)
+    {
+        await auth.fetchUser()
+    }
+
+    if(to.meta.requiresAuth && !auth.isAuthenticated)
     {
         notify.warning("Вам необходимо авторизоваться")
         return `/`
