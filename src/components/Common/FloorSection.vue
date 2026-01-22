@@ -288,16 +288,6 @@ export default {
   border-color: #3b82f6;
 }
 
-.classroom-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-}
-
 .classroom-number {
   font-size: 36px;
   font-weight: 700;

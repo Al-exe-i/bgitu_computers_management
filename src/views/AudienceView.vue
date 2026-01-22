@@ -403,7 +403,10 @@ export default {
     handleDrop(event) {
       this.isDragOver = false;
       const files = Array.from(event.dataTransfer.files);
-      this.uploadFiles(files);
+      if (files.length > 0)
+      {
+        this.uploadFiles(files);
+      }
     },
 
     async deleteFile(fileId)
@@ -456,6 +459,11 @@ export default {
     {
       this.showConfirmModal = false;
       this.fileToDeleteId = null;
+    },
+
+    getVideoStreamUrl(fileId)
+    {
+      return `${getApiUrl()}/hardware/stream/${fileId}`;
     },
 
     resolveFileUrl(fileUrl)
@@ -698,43 +706,64 @@ export default {
           </div>
 
           <!-- Список файлов (фото и видео) -->
-          <div class="hw-files-section">
+          <div
+              class="hw-files-section"
+              @dragenter.prevent="isDragOver = true"
+              @dragover.prevent
+          >
+            <!-- Заголовок и кнопка ручного добавления -->
+            <div class="hw-section-header">
+              <span class="hw-section-title">Вложения ({{ selectedCell.data.files ? selectedCell.data.files.length : 0 }})</span>
+              <!-- Компактная кнопка для ручного выбора -->
+              <button class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+                Добавить
+              </button>
+            </div>
+
+            <!-- Сетка файлов -->
             <div v-if="selectedCell.data.files && selectedCell.data.files.length > 0" class="hw-files-grid">
               <div @click="openPreview(index)" v-for="(file, index) in selectedCell.data.files" :key="file.id" class="hw-file-card">
 
                 <img v-if="file.file_type.startsWith('image/')" :src="resolveFileUrl(file.url)" class="hw-file-preview" />
 
-                <video v-else class="hw-file-preview" controls>
-                  <source :src="file.url" :type="file.file_type">
-                  Ваш браузер не поддерживает видео.
+                <video v-else class="hw-file-preview">
+                  <source :src="getVideoStreamUrl(file.id)" :type="file.file_type">
                 </video>
 
                 <button @click.stop="requestDeleteFile(file.id)" class="hw-delete-btn" title="Удалить">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><title>Удалить файл</title><path fill="currentColor" d="M17.414 16L24 9.414L22.586 8L16 14.586L9.414 8L8 9.414L14.586 16L8 22.586L9.414 24L16 17.414L22.586 24L24 22.586z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><path fill="currentColor" d="M17.414 16L24 9.414L22.586 8L16 14.586L9.414 8L8 9.414L14.586 16L8 22.586L9.414 24L16 17.414L22.586 24L24 22.586z"/></svg>
                 </button>
               </div>
             </div>
-            <!-- Зона добавления -->
-            <div
-                class="hw-upload-zone"
-                :class="{ 'is-active': isDragOver }"
-                @dragover.prevent="isDragOver = true"
-                @dragleave.prevent="isDragOver = false"
-                @drop.prevent="handleDrop"
-                @click="$refs.fileInput.click()"
-            >
-              <div class="hw-upload-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-              </div>
-              <p class="hw-upload-text">
-                Перетащите файлы сюда
-              </p>
-              <input type="file" ref="fileInput" multiple accept="image/*,video/*" @change="handleFileSelect" hidden />
+
+            <div v-else class="hw-no-files">
+              Нет прикрепленных файлов
             </div>
+
+            <!-- Скрытый инпут -->
+            <input type="file" ref="fileInput" multiple accept="image/*,video/*" @change="handleFileSelect" hidden />
+
+            <!-- ЗОНА DRAG & DROP (OVERLAY). Появляется только если isDragOver === true -->
+            <Transition name="fade">
+              <div
+                  v-if="isDragOver"
+                  class="hw-drop-overlay"
+                  @dragleave.prevent="isDragOver = false"
+                  @drop.prevent="handleDrop"
+              >
+                <div class="hw-drop-content">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <p>Отпустите файлы для загрузки</p>
+                </div>
+              </div>
+            </Transition>
           </div>
         </div>
       </div>
@@ -795,7 +824,7 @@ export default {
 
         <video
             v-if="isPreviewVideo"
-            :src="resolveFileUrl(currentPreviewFile.url)"
+            :src="getVideoStreamUrl(currentPreviewFile.id)"
             controls
             autoplay
             class="hw-lb-video"
@@ -1176,7 +1205,7 @@ export default {
 .modal-title {
   font-size: 24px;
   color: #1e293b;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1403,9 +1432,45 @@ export default {
 
 /* --- Контейнер секции файлов --- */
 .hw-files-section {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee; /* Визуальный разделитель от основного контента модалки */
+  position: relative;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  min-height: 100px;
+}
+
+.hw-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.hw-section-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.hw-add-btn-small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px dashed #1890ff;
+  color: #1890ff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.hw-add-btn-small:hover {
+  background: #e6f7ff;
+}
+.hw-add-btn-small svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* --- Сетка (Grid) --- */
@@ -1413,14 +1478,50 @@ export default {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  overflow-y: hidden;
   gap: 12px;
-  padding: 4px 4px 12px 4px;
   margin-bottom: 15px;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 #f1f1f1;
+  max-height: 180px;
+  overflow-y: auto;
+  /* Место для скролла */
+  padding: 0 5px 0 4px;
+}
+
+.hw-no-files {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
+  border: 1px dashed #eee;
+  border-radius: 6px;
+}
+
+.hw-drop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(230, 247, 255, 0.95);
+  border: 2px dashed #1890ff;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.hw-drop-content {
+  text-align: center;
+  color: #1890ff;
+  pointer-events: none;
+}
+.hw-drop-content p {
+  margin-top: 10px;
+  font-weight: 500;
 }
 
 /* --- Карточка файла --- */
@@ -1513,43 +1614,6 @@ export default {
 
 .hw-delete-btn:hover {
   background: rgba(220, 53, 69, 0.9); /* Красный при наведении */
-}
-
-/* --- Зона загрузки (Dropzone) --- */
-.hw-upload-zone {
-  border: 2px dashed #cbd5e0;
-  border-radius: 8px;
-  background-color: #f8fafc;
-  padding: 15px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 60px;
-}
-
-/* Состояние Active (когда тащим файл над зоной) */
-.hw-upload-zone.is-active {
-  background-color: #ebf8ff; /* Светло-голубой */
-  border-color: #4299e1;     /* Синий бордюр */
-}
-
-.hw-upload-zone:hover:not(.is-active) {
-  border-color: #a0aec0;
-  background-color: #f1f5f9;
-}
-
-.hw-upload-text {
-  margin: 0;
-  color: #718096;
-  font-size: 0.9rem;
-  pointer-events: none; /* Чтобы текст не мешал событию drop */
-}
-
-.hw-upload-icon {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 12px;
-  opacity: 0.4;
 }
 
 /* Модалка подтверждения удаления файла*/
