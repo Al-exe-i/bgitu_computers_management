@@ -1,4 +1,5 @@
-from sqlalchemy import select, update
+from typing import Sequence
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from models import Hardware
@@ -16,6 +17,16 @@ class HardwareRepository:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_by_audience_id(self, audience_id: int) -> Sequence[Hardware]:
+        stmt = select(Hardware).where(Hardware.audience_id == audience_id)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def create(self, hardware: Hardware) -> Hardware:
+        self.session.add(hardware)
+        await self.session.commit()
+        await self.session.refresh(hardware)
+        return hardware
 
     async def update(self, hardware_id: int, data: dict) -> Hardware | None:
         stmt = (
@@ -27,3 +38,8 @@ class HardwareRepository:
         result = await self.session.execute(stmt)
         await self.session.commit()
         return result.scalars().first()
+
+    async def delete(self, hardware_id: int):
+        stmt = delete(Hardware).where(Hardware.id == hardware_id)
+        await self.session.execute(stmt)
+        await self.session.commit()

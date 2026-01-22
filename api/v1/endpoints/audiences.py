@@ -1,9 +1,8 @@
-from typing import List
 from fastapi import APIRouter
 from starlette import status
 from dependencies.audiences import audiences_service_dep
 from dependencies.auth import admin_dep
-from schemas.audience import AudienceResponse, AudienceCreate, AudienceShortResponse
+from schemas.audience import AudienceResponse, AudienceCreate, AudienceShortResponse, AudienceUpdate
 
 router = APIRouter()
 
@@ -20,7 +19,7 @@ async def create_audience(
     return await service.create_audience(data)
 
 
-@router.get("/", response_model=List[AudienceResponse])
+@router.get("/", response_model=list[AudienceResponse])
 async def get_audiences(
     service: audiences_service_dep
 ):
@@ -35,6 +34,19 @@ async def get_audience_details(
 ):
     """Получить детальную информацию об аудитории и оборудовании внутри"""
     return await service.get_one(audience_id)
+
+
+@router.put("/{audience_id}", response_model=AudienceShortResponse)
+async def update_audience(
+        audience_id: int,
+        data: AudienceUpdate,
+        service: audiences_service_dep,
+        user: admin_dep
+):
+    """
+    Обновить параметры аудитории и/или перестроить сетку оборудования.
+    """
+    return await service.update_audience(audience_id, data)
 
 
 @router.delete("/{audience_id}", status_code=status.HTTP_204_NO_CONTENT)

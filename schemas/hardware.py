@@ -13,7 +13,7 @@ class HardwareBase(BaseModel):
     title: str | None = Field(default=None, max_length=64)
 
 class HardwareCreate(HardwareBase):
-    pass
+    id: int | None = None
 
 class HardwareUpdate(BaseModel):
     type: HardwareType | str = None

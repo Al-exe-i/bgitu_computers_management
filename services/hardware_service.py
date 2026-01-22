@@ -45,6 +45,9 @@ class HardwareService:
             if not (file.content_type.startswith("image/") or file.content_type.startswith("video/")):
                 continue
 
+            if file.size > 20 * 1024 * 1024:
+                continue
+
             ext = os.path.splitext(file.filename)[1]
             unique_name = f"{uuid.uuid4()}{ext}"
 

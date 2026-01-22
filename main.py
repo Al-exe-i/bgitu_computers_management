@@ -7,7 +7,6 @@ import os
 from core.logger import setup_logging
 from websocket.routes import router as ws_router
 
-
 setup_logging()
 app = FastAPI(debug=settings.DEBUG, default_response_class=ORJSONResponse)
 
@@ -23,6 +22,7 @@ app.include_router(api_router, prefix=settings.api.prefix)
 app.include_router(ws_router)
 
 os.makedirs(settings.static.upload_dir, exist_ok=True)
+
 
 @app.get("/")
 def root():

@@ -18,6 +18,7 @@ class AudienceUpdate(BaseModel):
     office_id: int | None = None
     width: int | None = None
     height: int | None = None
+    hardware: list[HardwareCreate] | None = None
 
 class AudienceResponse(AudienceBase):
     hardware: list[HardwareFullResponse] = []

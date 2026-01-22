@@ -1,4 +1,6 @@
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, UploadFile, HTTPException
+from starlette.responses import StreamingResponse
+from fastapi import Request
 from core.exceptions import HTTP404
 from db.session import session_dep
 from dependencies.auth import admin_dep, user_dep
@@ -54,6 +56,85 @@ async def get_file(
         path=db_file.file_path,
         media_type=db_file.file_type,
         filename=filename
+    )
+
+
+@router.get("/stream/{file_id}")
+async def stream_video(
+        file_id: int,
+        request: Request,
+        service: hardware_service_dep,
+        user: user_dep
+):
+    db_file = await service.get_file_for_stream(file_id)
+    file_path = db_file.file_path
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    content_type = db_file.file_type
+    if not content_type.startswith('video/'):
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type and mime_type.startswith('video/'):
+            content_type = mime_type
+        else:
+            raise HTTPException(status_code=415, detail="Not a video file")
+
+    file_size = os.path.getsize(file_path)
+    range_header = request.headers.get("Range")
+
+    CHUNK_SIZE = 1024 * 1024
+
+    start = 0
+    end = file_size - 1
+
+    if range_header:
+        try:
+            range_str = range_header.replace("bytes=", "")
+            range_parts = range_str.split("-")
+
+            start = int(range_parts[0]) if range_parts[0] else 0
+
+            if range_parts[1]:
+                end = int(range_parts[1])
+            else:
+                end = min(start + CHUNK_SIZE - 1, file_size - 1)
+
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Bad Range header")
+
+    if start >= file_size:
+        raise HTTPException(status_code=416, detail="Range not satisfiable")
+
+    end = min(end, file_size - 1)
+
+    content_length = end - start + 1
+
+    def iter_file():
+        with open(file_path, "rb") as f:
+            f.seek(start)
+            remaining = content_length
+            while remaining > 0:
+                chunk_size_read = min(64 * 1024, remaining)
+                data = f.read(chunk_size_read)
+                if not data:
+                    break
+                yield data
+                remaining -= len(data)
+
+    headers = {
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(content_length),
+        "Content-Type": content_type,
+    }
+
+    return StreamingResponse(
+        iter_file(),
+        status_code=206,
+        headers=headers,
+        media_type=content_type
     )
 
 
