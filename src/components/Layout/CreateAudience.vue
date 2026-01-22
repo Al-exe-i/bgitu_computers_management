@@ -204,32 +204,49 @@ export default {
     },
 
     // Логика перемещения оборудования
-    moveEquipment(fromRow, fromCol, toRow, toCol) {
-      // 1. Если координаты совпадают — ничего не делаем
+    moveEquipment(fromRow, fromCol, toRow, toCol)
+    {
+      // Если координаты совпадают — ничего не делаем
       if (fromRow === toRow && fromCol === toCol) return;
 
       const sourceKey = `${fromRow}-${fromCol}`;
       const targetKey = `${toRow}-${toCol}`;
+
+      // ЗАЩИТА: Если в целевой ячейке уже что-то есть
+      if (this.gridData[targetKey] && this.gridData[targetKey].dbId)
+      {
+        if (!confirm('Целевая ячейка занята. Перемещение заменит текущее оборудование и удалит его файлы. Продолжить?'))
+        {
+          return;
+        }
+      }
+
       const equipmentData = this.gridData[sourceKey];
 
       if (!equipmentData) return;
 
-      // 2. Копируем данные в новую ячейку
-      // Используем спред (...), чтобы сохранить ВСЕ поля (state, inv_number, files и т.д.)
       const newGridData = { ...this.gridData };
 
       newGridData[targetKey] = { ...equipmentData };
 
-      // 3. Удаляем из старой ячейки
       delete newGridData[sourceKey];
 
-      // 4. Обновляем реактивно
       this.gridData = newGridData;
       this.hasUnsavedChanges = true;
     },
 
-    placeEquipment(row, col, equipmentId) {
+    placeEquipment(row, col, equipmentId)
+    {
       const key = `${row}-${col}`;
+      // ЗАЩИТА: Если там уже что-то стоит с dbId (существующее в базе)
+      if (this.gridData[key] && this.gridData[key].dbId)
+      {
+        if (!confirm('В этой ячейке уже есть сохраненное оборудование. Замена удалит его историю и файлы. Продолжить?'))
+        {
+          return;
+        }
+      }
+
       this.gridData = {
         ...this.gridData,
         [key]: { id: equipmentId }
@@ -298,8 +315,12 @@ export default {
             // Бэкенд: y=row, x=col. Фронт ключ: "row-col"
             const key = `${hw.y}-${hw.x}`;
             newGridData[key] = {
-              id: hw.type,
-              state: hw.state
+              id: hw.type,      // Тип иконки (computer, printer...)
+              dbId: hw.id,      //  Сохраняем реальный ID из базы
+              state: hw.state,
+              inv_number: hw.inv_number,
+              title: hw.title,
+              files: hw.files
             };
           });
         }
@@ -323,6 +344,7 @@ export default {
 
         // 2. Формируем объект под Pydantic-схему HardwareCreate
         return {
+          id: item.dbId || null,
           type: item.id,          // На фронте id='computer', на бэке это type
           x: col,                 // Вторая часть ключа - это X (колонка)
           y: row,                 // Первая часть ключа - это Y (ряд)
