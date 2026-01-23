@@ -1,32 +1,60 @@
-from fastapi import APIRouter, HTTPException
-from repositories.office import get_office, update_office, count_faulty_computers
-from db.session import session_dep
+from fastapi import APIRouter
+from core.exceptions import HTTP404
+from dependencies.office import office_service_dep
 from dependencies.auth import user_dep
-from schemas.office import Office, OfficeUpdate
+from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort
 
 router = APIRouter()
-@router.get("/{office_id}", response_model=Office)
-async def get_office_by_id(office_id: int, db: session_dep):
-    office = await get_office(db, office_id)
+
+
+@router.get("/", response_model=list[OfficeResponse])
+async def get_all_offices(service: office_service_dep):
+    offices = await service.get_all()
+    return offices
+
+
+@router.get("/all_short", response_model=list[OfficeShort])
+async def get_all_offices_short(service: office_service_dep):
+    offices = await service.get_all(full=False)
+    return offices
+
+
+@router.get("/{office_id}", response_model=OfficeResponse)
+async def get_office(
+        office_id: int,
+        service: office_service_dep
+):
+    office = await service.get(office_id)
     if office:
         return office
-    raise HTTPException(status_code=404, detail="Office not found")
+    raise HTTP404("Office not found")
 
 
-@router.patch("/{office_id}", response_model=Office)
+@router.patch("/{office_id}", response_model=OfficeResponse)
 async def update_office_by_id_endpoint(
-        db: session_dep, office_id: int,
+        office_id: int,
         office_in: OfficeUpdate,
+        service: office_service_dep,
         user: user_dep
 ):
-    office = await get_office(db, office_id)
+    office = await service.get(office_id)
+
     if not office:
-        raise HTTPException(status_code=404, detail="Office not found")
-    updated_office = await update_office(db, office_in, office)
+        raise HTTP404("Office not found")
+
+    updated_office = await service.update(office_in, office)
     return updated_office
 
 
 @router.get("/faulty_computers/{office_id}")
-async def get_faulty_computers_in_office(db: session_dep, office_id: int):
-    count = await count_faulty_computers(db, office_id)
+async def get_faulty_computers_in_office(
+        office_id: int,
+        service: office_service_dep
+):
+    office = await service.get_short(office_id)
+
+    if not office:
+        raise HTTP404("Office not found")
+
+    count = await service.count_faulty(office_id)
     return {"count": count}

@@ -4,11 +4,14 @@ from schemas.audience import AudienceShortResponse
 
 
 class OfficeBase(BaseModel):
+    id: int
     address: str
+
+class OfficeResponse(OfficeBase):
     audiences: List[AudienceShortResponse]
 
-class Office(OfficeBase):
-    id: int
+class OfficeShort(OfficeBase):
+    pass
 
 class OfficeUpdate(BaseModel):
     address: str | None = None

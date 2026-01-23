@@ -1,0 +1,23 @@
+from typing import Sequence
+from repositories.office_repo import OfficeRepository
+from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort
+
+
+class OfficeService:
+    def __init__(self, repo: OfficeRepository):
+        self.repo = repo
+
+    async def get_all(self, full=True) -> Sequence[OfficeResponse | OfficeShort]:
+        return await self.repo.get_list(full=full)
+
+    async def get(self, office_id: int) -> OfficeResponse | None:
+        return await self.repo.get_one(office_id)
+
+    async def get_short(self, office_id: int) -> OfficeResponse | None:
+        return await self.repo.get_one_short(office_id)
+
+    async def update(self, schema: OfficeUpdate, orm_model: OfficeResponse) -> OfficeResponse:
+        return await self.repo.update(schema, orm_model)
+
+    async def count_faulty(self, office_id: int) -> int:
+        return await self.repo.count_faulty_computers(office_id)

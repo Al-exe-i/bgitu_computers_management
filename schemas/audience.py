@@ -11,17 +11,18 @@ class AudienceBase(BaseModel):
     height: int = Field(gt=0, le=15, description="Высота сетки")
 
 class AudienceCreate(AudienceBase):
-    hardware: list[HardwareCreate] = []
+    hardware: list[HardwareCreate] = Field(default_factory=list)
 
 class AudienceUpdate(BaseModel):
     description: str | None = None
     office_id: int | None = None
+    floor: int | None = None
     width: int | None = None
     height: int | None = None
     hardware: list[HardwareCreate] | None = None
 
 class AudienceResponse(AudienceBase):
-    hardware: list[HardwareFullResponse] = []
+    hardware: list[HardwareFullResponse] = Field(default_factory=list)
 
 class AudienceShortResponse(AudienceBase):
-    hardware: list[HardwareShortResponse] = []
+    hardware: list[HardwareShortResponse] = Field(default_factory=list)

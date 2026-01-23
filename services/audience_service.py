@@ -1,9 +1,10 @@
+from typing import Sequence
 from fastapi import HTTPException
 from core.exceptions import HTTP404
 from models import Hardware, Audience
 from repositories.audience_repo import AudienceRepository
 from repositories.hardware_repo import HardwareRepository
-from schemas.audience import AudienceCreate, AudienceUpdate
+from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
 from websocket.routes import manager
 
 
@@ -12,8 +13,12 @@ class AudienceService:
         self.repo = repo
         self.hardware_repo = hardware_repo
 
-    async def get_list(self):
-        return await self.repo.get_all()
+    async def get_list(self) -> Sequence[AudienceResponse]:
+        audiences = await self.repo.get_all()
+        return [
+            AudienceResponse.model_validate(a)
+            for a in audiences
+        ]
 
     async def get_one(self, audience_id: int):
         audience = await self.repo.get_by_id(audience_id)
@@ -112,6 +117,3 @@ class AudienceService:
     async def delete_audience(self, audience_id: int):
         await self.get_one(audience_id)
         await self.repo.delete(audience_id)
-
-
-
