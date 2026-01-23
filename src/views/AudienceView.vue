@@ -130,7 +130,19 @@ export default {
     {
       const user = this.authStore.user;
       return this.authStore.isAuthenticated && user && user.role < 2;
-    }
+    },
+
+    // Плотность сетки
+    gridDensityClass()
+    {
+      if (!this.classroom) return '';
+
+      const cols = this.classroom.gridSize.width;
+
+      if (cols > 15) return 'density-tiny';    // >15 колонок: Очень мелко (как на телефоне)
+      if (cols > 10) return 'density-compact'; // 11-15 колонок: Средне (как на планшете)
+      return 'density-normal';                 // <=10 колонок: Стандарт
+    },
   },
 
   methods: {
@@ -597,7 +609,8 @@ export default {
         <div class="grid-wrapper">
           <div
               class="equipment-grid"
-              :style="{ gridTemplateColumns: `repeat(${classroom.gridSize.width}, 90px)` }">
+              :class="gridDensityClass"
+              :style="{ '--grid-cols': classroom.gridSize.width }">
             <template v-for="row in classroom.gridSize.height" :key="row">
               <div
                   v-for="col in classroom.gridSize.width"
@@ -1054,9 +1067,18 @@ export default {
   justify-content: center;
   overflow-x: auto;
   padding: 20px 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .equipment-grid {
+  --cell-size: 90px;
+  --icon-div-size: 48px;
+  --icon-size: 26px;
+  --font-size: 12px;
+  --equipment-label-fw: 600;
+  --icon-div-mb: 6px;
+
+  grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
   display: inline-grid;
   gap: 12px;
   padding: 24px;
@@ -1065,9 +1087,28 @@ export default {
   border: 2px dashed #cbd5e1;
 }
 
+.equipment-grid.density-compact {
+  --cell-size: 70px;
+  --icon-div-size: 42px;
+  --icon-size: 24px;
+  --font-size: 11px;
+  --equipment-label-fw: 500;
+  --icon-div-mb: 3px;
+
+  gap: 8px;
+}
+
+.equipment-grid.density-tiny {
+  --cell-size: 55px;
+  --icon-div-size: 38px;
+  --icon-size: 24px;
+  --font-size: 0px; /* Скрываем текст, так как он не влезет */
+  gap: 4px;
+}
+
 .grid-cell {
-  width: 90px;
-  height: 90px;
+  width: var(--cell-size);
+  height: var(--cell-size);
   background: white;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
@@ -1110,13 +1151,13 @@ export default {
 }
 
 .equipment-icon {
-  width: 48px;
-  height: 48px;
+  width: var(--icon-div-size);
+  height: var(--icon-div-size);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
+  margin-bottom: var(--icon-div-mb);
   color: white;
   transition: transform 0.3s ease;
   will-change: transform;
@@ -1127,13 +1168,13 @@ export default {
 }
 
 .equipment-icon :deep(svg) {
-  width: 26px;
-  height: 26px;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .equipment-label {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--font-size);
+  font-weight: var(--equipment-label-fw);
   color: #334155;
   text-align: center;
 }
@@ -1806,6 +1847,28 @@ export default {
 
 /* Responsive */
 @media (max-width: 1024px) {
+  .equipment-grid
+  {
+    --cell-size: 70px;
+    gap: 8px;
+  }
+
+  .grid-wrapper
+  {
+    justify-content: start;
+  }
+
+  .equipment-icon svg
+  {
+    width: 32px;
+    height: 32px;
+  }
+
+  .equipment-label
+  {
+    font-size: 12px;
+  }
+
   .header-container {
     flex-wrap: wrap;
   }
@@ -1825,7 +1888,8 @@ export default {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px)
+{
   .container {
     padding: 12px;
   }
@@ -1854,6 +1918,12 @@ export default {
 
   .grid-wrapper {
     justify-content: flex-start;
+  }
+
+  .equipment-grid {
+    --cell-size: 60px;
+    gap: 8px;
+    justify-content: start;
   }
 
   .grid-section {

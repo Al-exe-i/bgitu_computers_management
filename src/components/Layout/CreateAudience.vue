@@ -534,7 +534,7 @@ export default {
                       type="number"
                       class="form-input"
                       v-model.number="gridWidth"
-                      min="1" max="10"
+                      min="1" max="20"
                       placeholder="Ширина"
                   >
                 </div>
@@ -543,7 +543,7 @@ export default {
                       type="number"
                       class="form-input"
                       v-model.number="gridHeight"
-                      min="1" max="10"
+                      min="1" max="20"
                       placeholder="Высота"
                   >
                 </div>

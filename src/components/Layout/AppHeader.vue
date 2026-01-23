@@ -474,6 +474,14 @@ header {
   {
     display: none;
   }
+}
+
+@media (max-width: 768px)
+{
+  .app-title
+  {
+    display: none;
+  }
 
   .floor-switch
   {
