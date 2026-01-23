@@ -195,7 +195,7 @@ export default {
       </div>
     </div>
 
-    <div v-if="!loading" class="controls-panel">
+    <div v-if="!loading && office.audiences.length > 0" class="controls-panel">
       <div class="search-box">
         <input v-model="searchField" type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
       </div>

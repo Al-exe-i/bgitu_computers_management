@@ -10,6 +10,7 @@ export default {
   data() {
     return {
       classroomNumber: null,
+      offices_ids: null,
       floorNumber: 1,
       officeNumber: 1,
       gridWidth: 6,
@@ -141,7 +142,7 @@ export default {
       }
     },
 
-    // Drag & Drop новое
+    // Drag & Drop
     onDragStart(event, id)
     {
       event.dataTransfer.effectAllowed = 'copy';
@@ -292,6 +293,13 @@ export default {
       }
     },
 
+    async getOffices()
+    {
+      await api.get(`/offices/all_short`).then(response => {
+        this.offices_ids = Object.values(response.data).map(item => item.id);
+      })
+    },
+
     async loadAudienceData()
     {
       this.loading = true;
@@ -431,6 +439,7 @@ export default {
 
   mounted()
   {
+    this.getOffices();
     if (this.id)
     {
       this.loadAudienceData();
@@ -502,12 +511,9 @@ export default {
 
             <div class="form-group">
               <label class="form-label">Корпус</label>
-              <input
-                  type="number"
-                  class="form-input"
-                  v-model.number="officeNumber"
-                  min="1" max="5"
-              >
+              <select class="form-select" v-model.number="officeNumber">
+                <option v-for="office in offices_ids" :value="office">Корпус {{ office }}</option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -629,7 +635,8 @@ export default {
                     class="grid-cell"
                     :class="{
                     occupied: getEquipmentInCell(row - 1, col - 1),
-                    'drag-over': isDragOver(row - 1, col - 1)
+                    'drag-over': isDragOver(row - 1, col - 1),
+                    broken: getEquipmentInCell(row - 1, col - 1)?.state === false,
                   }"
                     @click="handleCellClick(row - 1, col - 1, $event)"
                     @dragover.prevent="onDragOver(row - 1, col - 1)"
@@ -654,7 +661,7 @@ export default {
                       class="remove-btn"
                       @click.stop="removeEquipment(row - 1, col - 1)"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024"><title>Close-outlined SVG Icon</title><path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024"><path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/></svg>
                   </button>
                 </div>
               </template>
@@ -805,6 +812,28 @@ export default {
 }
 
 .form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.form-select {
+  width: 100%;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+  background-color: #fff;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: border-color 0.2s;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding: 10px 40px 10px 14px;
+}
+
+.form-select:focus {
   outline: none;
   border-color: #3b82f6;
 }
@@ -1007,6 +1036,11 @@ export default {
 .grid-cell.occupied {
   background: linear-gradient(135deg, #f0f9ff, #dbeafe);
   border-color: #3b82f6;
+}
+
+.grid-cell.occupied.broken {
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.4), rgba(254, 202, 202, 0.4));
+  border-color: rgba(252, 165, 165, 0.5);
 }
 
 .grid-cell.drag-over {

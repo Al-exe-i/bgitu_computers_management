@@ -597,8 +597,7 @@ export default {
         <div class="grid-wrapper">
           <div
               class="equipment-grid"
-              :style="{ gridTemplateColumns: `repeat(${classroom.gridSize.width}, 90px)` }"
-          >
+              :style="{ gridTemplateColumns: `repeat(${classroom.gridSize.width}, 90px)` }">
             <template v-for="row in classroom.gridSize.height" :key="row">
               <div
                   v-for="col in classroom.gridSize.width"
