@@ -81,6 +81,16 @@ export default {
     pageTitle() {
       return this.isEditMode ? `Редактирование аудитории №${this.id}` : 'Добавление новой аудитории';
     },
+
+    // Плотость сетки
+    gridDensityClass() {
+      const cols = this.gridWidth;
+
+      if (cols > 15) return 'density-tiny';    // 16+ колонок
+      if (cols > 10) return 'density-compact'; // 11-15 колонок
+      return 'density-normal';                 // <= 10 колонок
+    },
+
     // Автоматический подсчет статистики
     stats()
     {
@@ -626,7 +636,8 @@ export default {
             <div
                 v-else
                 class="grid-container"
-                :style="{ gridTemplateColumns: `repeat(${gridWidth}, 80px)` }"
+                :class="gridDensityClass"
+                :style="{ '--grid-cols': gridWidth }"
             >
               <template v-for="row in gridHeight">
                 <div
@@ -1005,7 +1016,13 @@ export default {
 }
 
 .grid-container {
+  --cell-size: 80px;
+  --icon-size: 38px;
+  --font-size: 11px;
+  --btn-size: 20px;   /* Размер кнопки удаления */
+
   display: inline-grid;
+  grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
   gap: 8px;
   padding: 20px;
   background: #f8fafc;
@@ -1013,9 +1030,30 @@ export default {
   border: 2px dashed #cbd5e1;
 }
 
+
+.grid-container.density-compact {
+  --cell-size: 60px;
+  --icon-size: 30px;
+  --font-size: 10px;
+  --btn-size: 18px;
+  gap: 6px;
+}
+
+.grid-container.density-tiny {
+  --cell-size: 45px;
+  --icon-size: 28px;
+  --font-size: 0px; /* Скрываем текст */
+  --btn-size: 16px;
+  gap: 4px;
+}
+
+.grid-container.density-tiny .cell-label {
+  display: none;
+}
+
 .grid-cell {
-  width: 80px;
-  height: 80px;
+  height: var(--cell-size);
+  width: var(--cell-size);
   background: white;
   border: 2px solid #e2e8f0;
   border-radius: 10px;
@@ -1026,6 +1064,7 @@ export default {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  user-select: none;
 }
 
 .grid-cell:hover {
@@ -1057,8 +1096,8 @@ export default {
 }
 
 .cell-icon {
-  width: 40px;
-  height: 40px;
+  width: var(--icon-size);
+  height: var(--icon-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1067,12 +1106,12 @@ export default {
 }
 
 .cell-icon :deep(svg) {
-  width: 24px;
-  height: 24px;
+  width: 80%;
+  height: 80%;
 }
 
 .cell-label {
-  font-size: 10px;
+  font-size: var(--font-size);
   font-weight: 600;
   color: #334155;
   text-align: center;
@@ -1086,8 +1125,8 @@ export default {
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 20px;
-  height: 20px;
+  width: var(--btn-size);
+  height: var(--btn-size);
   background: #ef4444;
   border: none;
   border-radius: 50%;
@@ -1137,42 +1176,96 @@ export default {
   .main-layout {
     grid-template-columns: 1fr;
   }
+
   .header {
     flex-wrap: wrap;
     gap: 15px;
   }
+
   .page-title {
     font-size: 24px;
     text-align: center;
     width: 100%;
     order: -1;
   }
+
   .header > div:last-child {
     display: none;
   }
+
   .left-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
   }
-  .grid-cell { width: 70px; height: 70px; }
-  .cell-icon { width: 36px; height: 36px; }
+
+  .cell-icon {
+    width: 36px;
+    height: 36px; }
 }
 
-@media (max-width: 768px) {
-  .container { max-width: 100%; }
-  .back-btn { width: 100%; justify-content: center; }
-  .left-panel { grid-template-columns: 1fr; }
-  .grid-panel { overflow-x: auto; }
-  .grid-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .clear-grid-btn { width: 100%; }
-  .grid-cell { width: 60px; height: 60px; }
-  .cell-icon { width: 30px; height: 30px; }
+@media (max-width: 768px)
+{
+  .cell-label {
+    font-size: 8px;
+  }
+
+  .container {
+    max-width: 100%;
+  }
+
+  .back-btn {
+    width: 100%; justify-content: center;
+  }
+
+  .left-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-container.density-tiny {
+    gap: 8px;
+  }
+
+  .grid-panel {
+    overflow-x: auto;
+  }
+
+  .grid-header {
+    flex-direction: column;
+    align-items: flex-start; gap: 12px;
+  }
+
+  .clear-grid-btn {
+    width: 100%;
+  }
+
+  .grid-cell {
+    width: 60px; height: 60px;
+  }
+
+  .cell-icon {
+    width: 32px;
+    height: 32px;
+  }
 }
 
-@media (max-width: 480px) {
-  .equipment-palette { grid-template-columns: repeat(2, 1fr); }
-  .grid-cell { width: 50px; height: 50px; }
-  .cell-icon { width: 26px; height: 26px; }
+@media (max-width: 480px)
+{
+  .equipment-palette {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-cell {
+    width: 50px; height: 50px;
+  }
+
+  .cell-equipment {
+    gap: 0;
+  }
+
+  .cell-icon {
+    width: 32px;
+    height: 32px;
+  }
 }
 </style>

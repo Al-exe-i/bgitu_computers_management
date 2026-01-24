@@ -347,6 +347,12 @@ export default {
   background: #ef4444;
 }
 
+@media (max-width: 1024px) {
+  .info-value {
+    font-size: 15px;
+  }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .classrooms-grid {
@@ -362,6 +368,10 @@ export default {
     margin: 0 auto;
     padding: 10px 3rem;
   }
+
+  .info-value {
+    font-size: 15px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -374,7 +384,7 @@ export default {
   }
 
   .info-value {
-    font-size: 16px;
+    font-size: 14px;
   }
 }
 
