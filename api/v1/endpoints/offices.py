@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from core.exceptions import HTTP404
 from dependencies.office import office_service_dep
-from dependencies.auth import user_dep
-from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort
+from dependencies.auth import user_dep, admin_dep
+from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort, OfficeCreate
 
 router = APIRouter()
 
@@ -11,6 +11,15 @@ router = APIRouter()
 async def get_all_offices(service: office_service_dep):
     offices = await service.get_all()
     return offices
+
+
+@router.post("/", response_model=OfficeShort)
+async def create_office(
+        schema: OfficeCreate,
+        service: office_service_dep,
+        user: admin_dep
+):
+    return await service.create(schema)
 
 
 @router.get("/all_short", response_model=list[OfficeShort])

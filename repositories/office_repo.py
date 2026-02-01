@@ -41,6 +41,12 @@ class OfficeRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def create(self, office: Office) -> Office:
+        self.db.add(office)
+        await self.db.commit()
+        await self.db.refresh(office)
+        return office
+
     async def get_one_short(self, office_id: int) -> Office | None:
         stmt = (
             select(Office)
