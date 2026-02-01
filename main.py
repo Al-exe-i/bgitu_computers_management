@@ -22,6 +22,7 @@ app.include_router(api_router, prefix=settings.api.prefix)
 app.include_router(ws_router)
 
 os.makedirs(settings.static.upload_dir, exist_ok=True)
+os.makedirs(settings.static.avatars_dir, exist_ok=True)
 
 
 @app.get("/")

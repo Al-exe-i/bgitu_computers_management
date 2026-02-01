@@ -12,8 +12,10 @@ class HardwareBase(BaseModel):
     inv_number: str | None = Field(default=None, max_length=32)
     title: str | None = Field(default=None, max_length=64)
 
+
 class HardwareCreate(HardwareBase):
     id: int | None = None
+
 
 class HardwareUpdate(BaseModel):
     type: HardwareType | str = None
@@ -25,9 +27,11 @@ class HardwareUpdate(BaseModel):
     title: str | None = None
     files: list[HardwareFileResponse] | None = None
 
+
 class HardwareShortResponse(HardwareBase):
     id: int
     audience_id: int
 
+
 class HardwareFullResponse(HardwareShortResponse):
-    files: list[HardwareFileResponse] | None  = []
+    files: list[HardwareFileResponse] | None = []

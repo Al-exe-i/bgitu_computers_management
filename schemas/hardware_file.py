@@ -6,8 +6,10 @@ class HardwareFileBase(BaseModel):
     file_type: str
     hardware_id: int
 
+
 class HardwareFileCreate(HardwareFileBase):
     pass
+
 
 class HardwareFileResponse(HardwareFileBase):
     id: int

@@ -5,13 +5,16 @@ from schemas.hardware import HardwareCreate, HardwareFullResponse, HardwareShort
 class AudienceBase(BaseModel):
     id: int
     floor: int
-    description: str | None = Field(default=None, max_length=200, description="Название или номер аудитории (напр. '105')")
+    description: str | None = Field(default=None, max_length=200,
+                                    description="Название или номер аудитории (напр. '105')")
     office_id: int = Field(description="ID офиса/здания/этажа")
-    width: int = Field(gt=0, le=15, description="Ширина сетки")
-    height: int = Field(gt=0, le=15, description="Высота сетки")
+    width: int = Field(gt=0, le=20, description="Ширина сетки")
+    height: int = Field(gt=0, le=20, description="Высота сетки")
+
 
 class AudienceCreate(AudienceBase):
     hardware: list[HardwareCreate] = Field(default_factory=list)
+
 
 class AudienceUpdate(BaseModel):
     description: str | None = None
@@ -21,8 +24,10 @@ class AudienceUpdate(BaseModel):
     height: int | None = None
     hardware: list[HardwareCreate] | None = None
 
+
 class AudienceResponse(AudienceBase):
     hardware: list[HardwareFullResponse] = Field(default_factory=list)
+
 
 class AudienceShortResponse(AudienceBase):
     hardware: list[HardwareShortResponse] = Field(default_factory=list)

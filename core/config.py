@@ -20,6 +20,7 @@ class ApiPrefix(BaseModel):
 class StaticFiles(BaseModel):
     root: Path = Path("static")
     upload_dir: Path = root / "uploads"
+    avatars_dir: Path = root / "avatars"
 
 class DatabaseConfig(BaseModel):
     url: str

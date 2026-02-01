@@ -28,3 +28,7 @@ class UserOut(UserBase):
     email: str
     reg_date: datetime
     is_superuser: bool
+
+class ChangePasswordSchema(BaseModel):
+    current_password: str = Field(min_length=4)
+    new_password: str = Field(min_length=4)

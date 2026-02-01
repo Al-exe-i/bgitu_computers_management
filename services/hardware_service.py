@@ -25,6 +25,9 @@ class HardwareService:
     async def update_status(self, hardware_id: int, schema: HardwareUpdate):
         update_data = schema.model_dump(exclude_unset=True)
 
+        if update_data["state"]:
+            update_data["description"] = None
+
         updated_hw = await self.repo.update(hardware_id, update_data)
         if not updated_hw:
             raise HTTP404("Hardware not found")
