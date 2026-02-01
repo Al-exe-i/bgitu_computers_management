@@ -27,8 +27,6 @@ export default {
 
 <style>
   :root {
-    --login-primary: #6366F1;
-    --login-text: #1F2937;
     --login-error: #EF4444;
   }
 
@@ -45,5 +43,9 @@ export default {
     background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
     min-height: 100vh;
     padding: 0;
+  }
+
+  .pt-1 {
+    padding-top: 1rem !important;
   }
 </style>

@@ -413,6 +413,13 @@ export default {
     },
 
     handleDrop(event) {
+      if(!this.havePermission)
+      {
+        this.isDragOver = false;
+        this.notify.warning("У вас недостаточно прав для выполнения данного действия!")
+        return;
+      }
+
       this.isDragOver = false;
       const files = Array.from(event.dataTransfer.files);
       if (files.length > 0)
@@ -662,7 +669,7 @@ export default {
             <div class="modal-equipment-details">
               <div v-if="!hwTitleEdit">
                 <h3>{{ selectedCell.data.title || getEquipmentType(selectedCell.data.id).name }}</h3>
-                <svg @click="hwTitleEdit = true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
+                <svg v-if="havePermission" @click="hwTitleEdit = true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
               </div>
 
               <div v-if="hwTitleEdit">
@@ -677,7 +684,7 @@ export default {
 
               <div v-if="!invNumEdit">
                 <p>Инвентарный №: {{ selectedCell.data.invNumber || `н\\д` }}</p>
-                <svg @click="invNumEdit = true" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                <svg v-if="havePermission" @click="invNumEdit = true" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
                   <path fill="currentColor"
                         d="M3.995 17.207V19.5a.5.5 0 0 0 .5.5h2.298a.5.5 0 0 0 .353-.146l9.448-9.448l-3-3l-9.452 9.448a.5.5 0 0 0-.147.353m10.837-11.04l3 3l1.46-1.46a1 1 0 0 0 0-1.414l-1.585-1.586a1 1 0 0 0-1.414 0z"/>
                 </svg>
@@ -696,12 +703,12 @@ export default {
                 v-model="selectedCell.data.comment"
                 class="form-textarea"
                 placeholder="Опишите проблему или состояние оборудования..."
+                :disabled="!havePermission || !selectedCell.data.working"
             ></textarea>
           </div>
 
-          <div class="action-btns">
+          <div class="action-btns" v-if="havePermission">
             <button
-                v-if="havePermission"
                 class="action-btn fix-btn"
                 :disabled="selectedCell.data.working"
                 @click="setWorkingStatus(true)"
@@ -727,7 +734,7 @@ export default {
             <div class="hw-section-header">
               <span class="hw-section-title">Вложения ({{ selectedCell.data.files ? selectedCell.data.files.length : 0 }})</span>
               <!-- Компактная кнопка для ручного выбора -->
-              <button class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
+              <button v-if="havePermission" class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                 </svg>
@@ -745,7 +752,7 @@ export default {
                   <source :src="getVideoStreamUrl(file.id)" :type="file.file_type">
                 </video>
 
-                <button @click.stop="requestDeleteFile(file.id)" class="hw-delete-btn" title="Удалить">
+                <button v-if="havePermission" @click.stop="requestDeleteFile(file.id)" class="hw-delete-btn" title="Удалить">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><path fill="currentColor" d="M17.414 16L24 9.414L22.586 8L16 14.586L9.414 8L8 9.414L14.586 16L8 22.586L9.414 24L16 17.414L22.586 24L24 22.586z"/></svg>
                 </button>
               </div>
@@ -783,12 +790,17 @@ export default {
 
     <Transition>
       <div v-if="dropClassroomModalShow" class="modal">
-        <div class="modal-content">
+        <div class="modal-content pt-1">
           <h2 class="modal-title">Удаление аудитории</h2>
           <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">
             Вы уверены, что хотите удалить <strong>аудиторию №{{ audienceId }}</strong>?
-            Сетка оборудования будет удалена безвозвратно.
           </p>
+          <div class="warning-box">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <p>Сетка оборудования будет удалена безвозвратно. Это действие нельзя отменить.</p>
+          </div>
           <div class="action-btns">
             <button @click="deleteClassroom" class="action-btn delete-btn">Удалить</button>
             <button @click="dropClassroomModalShow = false" class="action-btn cancel-btn">Отмена</button>
@@ -947,16 +959,16 @@ export default {
 }
 
 .header-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  padding: 10px;
   border-radius: 10px;
-  font-weight: 600;
   font-size: 14px;
-  border: none;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .header-btn svg {
@@ -965,23 +977,27 @@ export default {
 }
 
 .edit-btn {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: white;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 2px solid rgba(59, 130, 246, 0.3);
 }
 
 .edit-btn:hover {
+  background: #3b82f6;
+  color: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
 }
 
 .delete-btn {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 2px solid rgba(239, 68, 68, 0.3);
 }
 
 .delete-btn:hover {
+  background: #ef4444;
+  color: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
 }
 
 /* Statistics */
@@ -1470,6 +1486,33 @@ export default {
 @keyframes modalAppear {
   from { opacity: 0; transform: scale(0.9) translateY(-20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Модалка подтверждения удаления аудитории */
+.warning-box {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border: 1px solid #ff6b6b;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: start;
+  gap: 12px;
+}
+
+.warning-box p {
+  font-size: 14px;
+  color: #dc2626;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.warning-box svg {
+  width: 20px;
+  height: 20px;
+  color: #e41c1c;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 /* --- Контейнер секции файлов --- */

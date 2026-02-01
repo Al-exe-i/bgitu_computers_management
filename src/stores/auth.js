@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', {
         user: null,
         isAuthenticated: false,
         isInitialized: false,
+        isLoggingOut: false
     }),
 
     actions: {
@@ -76,6 +77,7 @@ export const useAuthStore = defineStore('auth', {
         // LOGOUT
         async logout()
         {
+            this.isLoggingOut = true;
             try
             {
                 await api.post('/logout'); // Сообщаем серверу убрать куки
@@ -98,7 +100,7 @@ export const useAuthStore = defineStore('auth', {
                 {
                     await router.push('/');
                 }
-
+                this.isLoggingOut = false;
             }
         }
     }

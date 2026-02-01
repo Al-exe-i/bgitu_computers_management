@@ -8,6 +8,9 @@ import HomeView from "@/views/HomeView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
 import CreateAudience from "@/components/Layout/CreateAudience.vue";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import SettingsLayout from "@/components/Layout/Settings/SettingsLayout.vue";
+import UserProfile from "@/components/Layout/Settings/UserProfile.vue";
+import SecuritySettings from "@/components/Layout/Settings/SecuritySettings.vue";
 
 const routes = [
     {
@@ -52,19 +55,31 @@ const routes = [
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: NotFoundView
+    },
+
+    {
+        path: '/settings',
+        component: SettingsLayout,
+        meta: { requiresAuth: true },
+        children: [
+            {
+                path: '',
+                redirect: { name: 'SettingsProfile' } // По умолчанию открываем профиль
+            },
+            {
+                path: 'profile',
+                name: 'SettingsProfile',
+                component: UserProfile,
+                meta: { title: 'Профиль пользователя' }
+            },
+            {
+                path: 'security',
+                name: 'SettingsSecurity',
+                component: SecuritySettings, // Создадим простую заглушку
+                meta: { title: 'Безопасность' }
+            }
+        ]
     }
-    // {
-    //     path: '/login',
-    //     name: 'Login',
-    //     component: LoginView,
-    //     meta: { requiresGuest: true }
-    // },
-    // {
-    //     path: '/profile',
-    //     name: 'Profile',
-    //     component: ProfileView,
-    //     meta: { requiresAuth: true }
-    // }
 ]
 
 const router = createRouter({

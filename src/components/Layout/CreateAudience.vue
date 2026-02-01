@@ -3,6 +3,7 @@ import router from "@/router/index.js";
 import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
+import {useAuthStore} from "@/stores/auth.js";
 
 export default {
   name: 'CreateAudience',
@@ -82,7 +83,7 @@ export default {
       return this.isEditMode ? `Редактирование аудитории №${this.id}` : 'Добавление новой аудитории';
     },
 
-    // Плотость сетки
+    // Плотность сетки
     gridDensityClass() {
       const cols = this.gridWidth;
 
@@ -124,8 +125,14 @@ export default {
     audienceContext()
     {
       return useAudienceContext()
+    },
+
+    authStore()
+    {
+      return useAuthStore()
     }
   },
+
   methods: {
     selectEquipment(id)
     {
@@ -161,7 +168,7 @@ export default {
       event.target.classList.add('dragging');
     },
 
-    // Обработка начала перетаскивания из СЕТКИ
+    // Обработка начала перетаскивания из сетки
     onGridItemDragStart(event, row, col) {
       // Сохраняем координаты источника
       const sourceCoords = JSON.stringify({ row, col });
@@ -194,7 +201,7 @@ export default {
 
       const dragType = event.dataTransfer.getData('type');
 
-      // СЦЕНАРИЙ 1: Добавление нового из палитры
+      // Случай 1: Добавление нового из палитры
       if (dragType === 'new')
       {
         const equipmentId = event.dataTransfer.getData('equipment-id');
@@ -202,7 +209,7 @@ export default {
           this.placeEquipment(row, col, equipmentId);
         }
       }
-      // СЦЕНАРИЙ 2: Перемещение существующего внутри сетки
+      // Случай 2: Перемещение существующего внутри сетки
       else if (dragType === 'move')
       {
         const sourceData = event.dataTransfer.getData('source-coords');
@@ -381,6 +388,35 @@ export default {
         return;
       }
 
+      // Оборудование, которое выпадает за новые границы
+      const outOfBoundsItems = [];
+      Object.entries(this.gridData).forEach(([key, item]) => {
+        const [row, col] = key.split('-').map(Number);
+        if (row >= this.gridHeight || col >= this.gridWidth) {
+          outOfBoundsItems.push(item);
+        }
+      });
+
+      // Если такие есть — спрашиваем подтверждение
+      if (outOfBoundsItems.length > 0) {
+        const confirmMsg = `Внимание! Вы уменьшили размеры сетки.\n` +
+            `${outOfBoundsItems.length} ед. оборудования окажутся за пределами и БУДУТ УДАЛЕНЫ (вместе с файлами).\n\n` +
+            `Продолжить?`;
+
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+      }
+
+      // Фильтруем данные перед отправкой (оставляем только то, что влезает)
+      const validGridData = {};
+      Object.entries(this.gridData).forEach(([key, item]) => {
+        const [row, col] = key.split('-').map(Number);
+        if (row < this.gridHeight && col < this.gridWidth) {
+          validGridData[key] = item;
+        }
+      });
+
       const equipmentCount = Object.keys(this.gridData).length;
       if (equipmentCount === 0) {
         this.notify.warning('Добавьте хотя бы одно оборудование!');
@@ -391,7 +427,7 @@ export default {
         floor: this.floorNumber,
         width: this.gridWidth,
         height: this.gridHeight ,
-        hardware: this.mapFrontendToBackend(this.gridData),
+        hardware: this.mapFrontendToBackend(validGridData),
         office_id: this.officeNumber
       };
 
@@ -444,6 +480,14 @@ export default {
     gridData()
     {
       this.clearGridClicked = false;
+    },
+
+    gridWidth() {
+      this.hasUnsavedChanges = true;
+    },
+
+    gridHeight() {
+      this.hasUnsavedChanges = true;
     }
   },
 
@@ -458,7 +502,7 @@ export default {
 
   beforeRouteLeave(to, from, next)
   {
-    if (this.hasUnsavedChanges)
+    if (this.hasUnsavedChanges && !this.authStore.isLoggingOut)
     {
       const answer = window.confirm('У вас есть несохраненные изменения. Вы уверены, что хотите уйти?');
       if (answer)
@@ -1020,6 +1064,7 @@ export default {
   --icon-size: 38px;
   --font-size: 11px;
   --btn-size: 20px;   /* Размер кнопки удаления */
+  --cell-fw: 600;
 
   display: inline-grid;
   grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
@@ -1036,6 +1081,7 @@ export default {
   --icon-size: 30px;
   --font-size: 10px;
   --btn-size: 18px;
+  --cell-fw: 500;
   gap: 6px;
 }
 
@@ -1112,7 +1158,7 @@ export default {
 
 .cell-label {
   font-size: var(--font-size);
-  font-weight: 600;
+  font-weight: var(--cell-fw);
   color: #334155;
   text-align: center;
   max-width: 70px;

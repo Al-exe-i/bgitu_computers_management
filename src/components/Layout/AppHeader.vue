@@ -43,10 +43,6 @@ export default {
           return `Преподаватель`
       }
     },
-    userRoleNum()
-    {
-      return this.authStore.user?.role
-    },
     userAvatar()
     {
       return this.authStore.user?.photo || null
@@ -61,11 +57,13 @@ export default {
     {
       this.$emit('open-login')
     },
+
     handleLogout()
     {
       this.authStore.logout()
       this.isDropdownOpen = false
     },
+
     toggleDropdown()
     {
       this.isDropdownOpen = !this.isDropdownOpen
@@ -78,10 +76,12 @@ export default {
         this.isDropdownOpen = false
       }
     },
+
     handleHomeClick()
     {
       router.push('/')
     },
+
     handleOfficeClick(officeNumber)
     {
       router.push({
@@ -89,6 +89,7 @@ export default {
         params: { officeNumber: officeNumber }
       })
     },
+
     handleOfficeActive(officeNumber)
     {
       if(officeNumber)
@@ -104,6 +105,11 @@ export default {
           this.officeTwoActive = true
         }
       }
+    },
+
+    goSettings() {
+      router.push("/settings")
+      this.isDropdownOpen = false
     }
   },
   watch: {
@@ -146,6 +152,7 @@ export default {
         <div class="logo">
           <img src="../../assets/logo_IT.png">
         </div>
+
         <h1 class="app-title">Computers management</h1>
       </div>
 
@@ -160,7 +167,7 @@ export default {
       <div class="auth-container">
         <!-- Если авторизованы -->
         <div v-if="authStore.isAuthenticated" class="profile-dropdown">
-          <div class="profile-trigger" @click="toggleDropdown">
+          <div class="profile-trigger" :class="{active: isDropdownOpen}" @click="toggleDropdown">
             <img
                 v-if="userAvatar"
                 :src="userAvatar"
@@ -168,7 +175,7 @@ export default {
                 class="profile-img"
             >
             <div class="profile-no-icon" v-else>{{ userName[0].toUpperCase() }}</div>
-            <span class="profile-name">{{ userName }}</span>
+            <span class="profile-name">{{ userName }} </span>
           </div>
           <div v-show="isDropdownOpen" class="profile-dropdown-content">
             <div class="profile-dropdown-content-inner">
@@ -182,6 +189,23 @@ export default {
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M33.07 19.51L28 23.2l2 5.93a.57.57 0 0 1-.87.63L24 26.15l-5.08 3.7a.56.56 0 0 1-.79-.15a.62.62 0 0 1-.08-.48L20 23.3l-5.07-3.7a.55.55 0 0 1 .32-1h6.27l1.95-5.93a.55.55 0 0 1 1.06-.09l1.95 5.92h6.27a.56.56 0 0 1 .55.57a.53.53 0 0 1-.23.44"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M24 4.5s-11.26 2-15.25 2v20a11.2 11.2 0 0 0 .8 4.1a15 15 0 0 0 2 3.61a22 22 0 0 0 2.81 3.07a35 35 0 0 0 3 2.48a34 34 0 0 0 2.89 1.86c1 .59 1.71 1 2.13 1.19l1 .49a1.44 1.44 0 0 0 1.24 0l1-.49c.42-.2 1.13-.6 2.13-1.19a34 34 0 0 0 2.89-1.86a35 35 0 0 0 3-2.48a22 22 0 0 0 2.81-3.07a15 15 0 0 0 2-3.61a11.2 11.2 0 0 0 .8-4.1v-20c-3.99.03-15.25-2-15.25-2"/></svg>
                 <span>{{ userRole }}</span>
               </div>
+            </div>
+            <div class="user-dropdown-menu">
+              <div class="menu-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                <span>Мой профиль</span>
+              </div>
+
+              <div @click="goSettings" class="menu-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span>Настройки</span>
+              </div>
+
             </div>
             <div class="border-t pt-3">
               <button @click="handleLogout" class="logout-btn">
@@ -339,11 +363,17 @@ header {
   border: 2px solid transparent;
 }
 
+.profile-trigger.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+}
+
 .profile-img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: 2px solid #dbeafe;
+  object-fit: cover;
 }
 
 .profile-no-icon {
@@ -356,6 +386,7 @@ header {
   justify-content: center;
   color: white;
   font-weight: 700;
+  user-select: none;
 }
 
 .profile-name {
@@ -372,7 +403,7 @@ header {
   min-width: 280px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.15);
   border-radius: 20px;
-  padding: 30px 25px;
+  padding: 25px 20px;
   z-index: 100;
   animation: fadeIn 0.5s linear;
 }
@@ -396,6 +427,7 @@ header {
   border-radius: 50%;
   border: 4px solid #dbeafe;
   margin-bottom: 12px;
+  object-fit: cover;
 }
 
 .profile-fullname
@@ -420,6 +452,34 @@ header {
   color: #3b82f6;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.user-dropdown-menu {
+  padding-bottom: 10px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #4b5563;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.menu-item:hover {
+  color: #3b82f6;
+  transform: translateX(4px);
+}
+
+.menu-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .logout-btn {

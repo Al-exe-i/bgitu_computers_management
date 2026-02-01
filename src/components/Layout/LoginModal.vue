@@ -301,10 +301,6 @@ export default {
   50% { transform: translateY(-4px); }
 }
 
-.login-logo path {
-  fill: var(--login-primary);
-}
-
 .login-title {
   font-size: 32px;
   font-weight: 700;
