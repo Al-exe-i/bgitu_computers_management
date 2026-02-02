@@ -11,6 +11,19 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 import SettingsLayout from "@/components/Layout/Settings/SettingsLayout.vue";
 import UserProfile from "@/components/Layout/Settings/UserProfile.vue";
 import SecuritySettings from "@/components/Layout/Settings/SecuritySettings.vue";
+import SystemLayout from "@/components/Layout/Settings/System/SystemLayout.vue";
+import ManageUsers from "@/components/Layout/Settings/System/ManageUsers.vue";
+import ManageOffices from "@/components/Layout/Settings/System/ManageOffices.vue";
+
+const adminGuard = async (to, from, next) => {
+    const authStore = useAuthStore();
+    if (!authStore.isInitialized) await authStore.fetchUser();
+    if (authStore.user && authStore.user.role === 1) {
+        next();
+    } else {
+        next('/settings');
+    }
+};
 
 const routes = [
     {
@@ -66,18 +79,45 @@ const routes = [
                 path: '',
                 redirect: { name: 'SettingsProfile' } // По умолчанию открываем профиль
             },
+
             {
                 path: 'profile',
                 name: 'SettingsProfile',
                 component: UserProfile,
                 meta: { title: 'Профиль пользователя' }
             },
+
             {
                 path: 'security',
                 name: 'SettingsSecurity',
-                component: SecuritySettings, // Создадим простую заглушку
+                component: SecuritySettings,
                 meta: { title: 'Безопасность' }
-            }
+            },
+
+            {
+                path: 'system',
+                component: SystemLayout, // Оболочка раздела
+                beforeEnter: adminGuard, // Защита
+                children: [
+                    { path: '', redirect: { name: 'SystemOffices' } },
+                    {
+                        path: 'offices',
+                        name: 'SystemOffices',
+                        component: ManageOffices,
+                        meta: { title: 'Управление корпусами' }
+                    },
+
+                    {
+                        path: 'users',
+                        name: 'SystemUsers',
+                        component: ManageUsers,
+                        meta: { title: 'Управление пользователями' }
+                    },
+                    // Заглушки для будущего
+                    // { path: 'audiences', ... },
+                    // { path: 'logs', ... },
+                ]
+            },
         ]
     }
 ]

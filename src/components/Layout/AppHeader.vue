@@ -2,6 +2,10 @@
 import { useAuthStore } from '@/stores/auth.js'
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
+import noAvatar from '@/assets/user_no_icon.svg';
+import suIcon from '@/assets/crown.svg'
+import adminIcon from '@/assets/shield_with_star.svg';
+import teacherIcon from '@/assets/graduation-cap.svg';
 
 export default {
   name: 'appHeader',
@@ -29,12 +33,16 @@ export default {
       if (!user) return 'Гость'
       return user.name || user.email.split('@')[0] || 'Пользователь'
     },
+
     userEmail()
     {
       return this.authStore.user?.email || ''
     },
+
     userRole()
     {
+      if(this.authStore.user?.is_superuser)
+        return `SU`
       switch (this.authStore.user?.role)
       {
         case 1:
@@ -48,7 +56,7 @@ export default {
       return this.authStore.user?.photo || null
     },
     userAvatarLarge() {
-      return this.authStore.user?.photo || `/src/assets/User_no_icon.svg`
+      return this.authStore.user?.photo || noAvatar
     }
   },
 
@@ -105,6 +113,13 @@ export default {
           this.officeTwoActive = true
         }
       }
+    },
+
+    getPermissionIcon(user)
+    {
+      if(user?.is_superuser) return suIcon;
+      if(user?.role === 1) return adminIcon;
+      return teacherIcon;
     },
 
     goSettings() {
@@ -186,7 +201,7 @@ export default {
               >
               <h3 class="profile-fullname">{{ userEmail }}</h3>
               <div class="role-badge">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M33.07 19.51L28 23.2l2 5.93a.57.57 0 0 1-.87.63L24 26.15l-5.08 3.7a.56.56 0 0 1-.79-.15a.62.62 0 0 1-.08-.48L20 23.3l-5.07-3.7a.55.55 0 0 1 .32-1h6.27l1.95-5.93a.55.55 0 0 1 1.06-.09l1.95 5.92h6.27a.56.56 0 0 1 .55.57a.53.53 0 0 1-.23.44"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M24 4.5s-11.26 2-15.25 2v20a11.2 11.2 0 0 0 .8 4.1a15 15 0 0 0 2 3.61a22 22 0 0 0 2.81 3.07a35 35 0 0 0 3 2.48a34 34 0 0 0 2.89 1.86c1 .59 1.71 1 2.13 1.19l1 .49a1.44 1.44 0 0 0 1.24 0l1-.49c.42-.2 1.13-.6 2.13-1.19a34 34 0 0 0 2.89-1.86a35 35 0 0 0 3-2.48a22 22 0 0 0 2.81-3.07a15 15 0 0 0 2-3.61a11.2 11.2 0 0 0 .8-4.1v-20c-3.99.03-15.25-2-15.25-2"/></svg>
+                <img :src="getPermissionIcon(authStore.user)" alt="Роль">
                 <span>{{ userRole }}</span>
               </div>
             </div>
