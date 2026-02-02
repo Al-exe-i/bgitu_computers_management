@@ -22,6 +22,15 @@ async def create_office(
     return await service.create(schema)
 
 
+@router.delete("/{office_id}", status_code=204)
+async def delete_office(
+        office_id: int,
+        service: office_service_dep,
+        user: admin_dep
+):
+    await service.delete(office_id)
+
+
 @router.get("/all_short", response_model=list[OfficeShort])
 async def get_all_offices_short(service: office_service_dep):
     offices = await service.get_all(full=False)

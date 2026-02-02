@@ -75,3 +75,11 @@ class OfficeRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
+    async def delete(self, office: Office) -> bool:
+        try:
+            await self.db.delete(office)
+            await self.db.commit()
+        except Exception as e:
+            return False
+

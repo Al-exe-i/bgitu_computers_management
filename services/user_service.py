@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from core.security import get_password_hash
 from models import User
 from repositories.user_repo import UserRepository
@@ -7,6 +9,9 @@ from schemas.user import UserUpdate, UserOut, UserCreate
 class UserService:
     def __init__(self, repo: UserRepository):
         self.repo = repo
+
+    async def get_all(self) -> Sequence[User]:
+        return await self.repo.get_all()
 
     async def get(self, user_id: int) -> UserOut:
         return await self.repo.get(user_id)

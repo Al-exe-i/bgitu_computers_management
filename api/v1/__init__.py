@@ -1,7 +1,8 @@
 from fastapi import APIRouter
-from .endpoints import users, audiences, auth, offices, hardware
+from .endpoints import users, audiences, auth, offices, hardware, admin
 
 api_router = APIRouter()
+api_router.include_router(admin.router, prefix="/admin", tags=["Администрирование (admin)"])
 api_router.include_router(users.router, prefix="/users", tags=["Пользователи (users)"])
 api_router.include_router(audiences.router, prefix="/audiences", tags=["Аудитории (audiences)"])
 api_router.include_router(hardware.router, prefix="/hardware", tags=["Оборудование (hardware)"])

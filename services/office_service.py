@@ -24,5 +24,9 @@ class OfficeService:
     async def update(self, schema: OfficeUpdate, orm_model: OfficeResponse) -> OfficeResponse:
         return await self.repo.update(schema, orm_model)
 
+    async def delete(self, office_id: int) -> bool:
+        office = await self.repo.get_one(office_id)
+        return await self.repo.delete(office)
+
     async def count_faulty(self, office_id: int) -> int:
         return await self.repo.count_faulty_computers(office_id)

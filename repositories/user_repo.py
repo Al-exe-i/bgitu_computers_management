@@ -1,3 +1,4 @@
+from typing import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.user import User
@@ -25,6 +26,10 @@ class UserRepository:
     async def get(self, user_id: int):
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
+
+    async def get_all(self) -> Sequence[User]:
+        result = await self.db.execute(select(User).order_by(User.id))
+        return result.scalars().all()
 
     async def get_by_email(self, email: str):
         result = await self.db.execute(select(User).where(User.email == email))

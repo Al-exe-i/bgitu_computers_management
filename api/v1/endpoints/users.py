@@ -11,7 +11,7 @@ from dependencies.user import user_service_dep
 from models.user import User
 from schemas.token import Token
 from schemas.user import UserCreate, UserOut, UserUpdate, ChangePasswordSchema
-from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep
+from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep, admin_dep
 from utils.tokens import create_token_pair_and_build_response
 import os
 
@@ -34,6 +34,15 @@ async def create_user(
 @router.get("/me", response_model=UserOut)
 async def read_current_user(current_user: user_dep):
     return current_user
+
+
+@router.get("/all", response_model=list[UserOut])
+async def get_all_users(
+        service: user_service_dep,
+        user: admin_dep
+):
+    users = await service.get_all()
+    return users
 
 
 @router.get("/{user_id}", response_model=UserOut)
