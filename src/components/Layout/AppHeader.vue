@@ -26,7 +26,7 @@ export default {
     {
       return useAudienceContext()
     },
-    // Данные пользователя
+
     userName()
     {
       const user = this.authStore.user

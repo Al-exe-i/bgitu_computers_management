@@ -33,14 +33,16 @@ export default {
   methods: {
     async fetchUsers() {
       this.loading = true;
-      try {
-        // Предполагаемый эндпоинт списка пользователей
-        // Вам нужно его создать: @router.get("/", response_model=list[UserOut])
+      try
+      {
         const res = await api.get('/users/all');
         this.users = res.data;
-      } catch (e) {
+      }
+      catch (e) {
         this.notify.error("Ошибка загрузки пользователей");
-      } finally {
+      }
+      finally
+      {
         this.loading = false;
       }
     },
@@ -76,30 +78,59 @@ export default {
         this.notify.success(`Пользователь ${payload.email} создан`);
         this.closeModal();
         await this.fetchUsers(); // Обновляем список
-      } catch (error) {
-        // Обработка ошибок (например, email занят)
+      }
+      catch (error)
+      {
         const msg = error.response?.data?.detail || "Не удалось создать пользователя";
         this.notify.error(msg);
-      } finally {
+      }
+      finally {
         this.createLoading = false;
       }
     },
 
-    getUserAvatar(user) {
+    getUserAvatar(user)
+    {
       if (user.photo) return `${import.meta.env.VITE_API_BASE_URL}/admin/files/avatars/${user.photo}`;
       return noAvatar;
     },
 
-    getRoleName(role) {
+    getRoleName(user)
+    {
+      const role = user?.role;
+      if(user?.is_superuser) return 'SU';
       if (role === 1) return 'Админ';
       if (role === 2) return 'Преподаватель';
       return 'Пользователь';
     },
 
-    getRoleClass(role) {
-      if (role === 0) return 'badge-admin';
-      if (role === 1) return 'badge-spec';
+    getRoleClass(user) {
+      const role = user?.role;
+      if(user?.is_superuser) return 'badge-su';
+      if (role === 1) return 'badge-admin';
+      if (role === 2) return 'badge-user';
       return 'badge-user';
+    },
+
+    async changeRole(user) {
+      if (user.id === this.authStore.user.id)
+      {
+        this.notify.error('Нельзя изменить свою роль');
+        return;
+      }
+
+      const newRole = user.role === 1 ? 2 : 1;
+      try
+      {
+        const response = await api.patch(`/users/${user.id}`, {"role": newRole});
+        const localUser = this.users.find(u => u.id === user.id);
+        if (localUser) localUser.role = newRole;
+        this.notify.success(`Роль пользователя ${user.email} изменена`);
+      }
+      catch (e)
+      {
+        this.notify.error('Ошибка изменения роли');
+      }
     },
 
     async deleteUser(user) {
@@ -158,10 +189,14 @@ export default {
           </td>
 
           <!-- Роль -->
-          <td>
-              <span class="badge" :class="getRoleClass(user.role)">
-                {{ getRoleName(user.role) }}
-              </span>
+          <td class="role-td">
+            <span class="badge" :class="getRoleClass(user)">
+              {{ getRoleName(user) }}
+            </span>
+            <span class="role-control" v-if="!user?.is_superuser && authStore?.user?.is_superuser">
+              <svg @click="changeRole(user)" v-if="user.role === 1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Понизить</title><path fill="#dc2626" d="M12 17.308L6.692 12l.708-.708l4.1 4.1V5.5h1v9.892l4.1-4.1l.708.708z"/></svg>
+              <svg @click="changeRole(user)" v-if="user.role === 2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Повысить</title><path fill="#10b981" d="M11.5 17.308V7.415l-4.1 4.1l-.708-.707L12 5.5l5.308 5.308l-.708.707l-4.1-4.1v9.893z"/></svg>
+            </span>
           </td>
 
           <!-- TG ID -->
@@ -289,6 +324,16 @@ export default {
   font-size: 14px;
 }
 
+.role-td {
+  display: inline-flex;
+  align-items: center;
+}
+
+.role-td .role-control:hover {
+  cursor: pointer;
+  transform: scale(1.05);
+}
+
 /* User Cell */
 .user-cell { display: flex; align-items: center; gap: 10px; }
 .avatar-small { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #e2e8f0; }
@@ -297,10 +342,27 @@ export default {
 .user-name { font-size: 12px; color: #94a3b8; }
 
 /* Badges */
-.badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-.badge-admin { background: #fee2e2; color: #dc2626; }
-.badge-spec { background: #e0f2fe; color: #0284c7; }
-.badge-user { background: #f1f5f9; color: #64748b; }
+.badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-su {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.badge-admin {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.badge-user {
+  background: #f1f5f9;
+  color: #64748b;
+}
 
 /* Buttons */
 .btn-primary {

@@ -13,6 +13,7 @@ export default {
       // Модалка
       showModal: false,
       isEditMode: false,
+      officeAlreadyExists: false,
       form: {
         id: null,
         address: ''
@@ -86,6 +87,23 @@ export default {
         this.notify.success('Корпус удален');
       } catch (e) {
         this.notify.error('Ошибка удаления.');
+      }
+    }
+  },
+
+  watch: {
+    async "form.id"(newVal) {
+      if (newVal)
+      {
+        await api.get(`/offices/${newVal}`).then(res => {
+          this.officeAlreadyExists = true;
+        }).catch(e => {
+          this.officeAlreadyExists = false;
+        })
+      }
+      else
+      {
+        this.officeAlreadyExists = false;
       }
     }
   },
@@ -168,7 +186,15 @@ export default {
           <!-- Номер (только при создании) -->
           <div class="form-group" v-if="!isEditMode">
             <label>Номер корпуса</label>
-            <input type="number" v-model.number="form.id" class="form-input" required min="1">
+            <input
+                type="number"
+                v-model.number="form.id"
+                class="form-input"
+                required
+                min="1"
+                :class="{error: officeAlreadyExists}"
+            >
+            <p v-if="officeAlreadyExists">Корпус с таким номером уже существует</p>
           </div>
 
           <!-- Адрес -->
@@ -265,10 +291,44 @@ export default {
 }
 .modal-content h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; }
 
-.form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 13px; font-weight: 500; color: #64748b; }
-.form-input { padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; }
-.form-input:focus { border-color: #3b82f6; outline: none; }
+.form-group {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.form-group p {
+  color: #ec1616;
+  font-size: 14px;
+}
+
+.form-input {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.form-input:focus {
+  border-color: #3b82f6;
+  outline: none;
+}
+
+.form-input.error {
+  border-color: #ec1616;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
 </style>
