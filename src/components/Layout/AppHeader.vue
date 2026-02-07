@@ -6,22 +6,48 @@ import noAvatar from '@/assets/user_no_icon.svg';
 import suIcon from '@/assets/crown.svg'
 import adminIcon from '@/assets/shield_with_star.svg';
 import teacherIcon from '@/assets/graduation-cap.svg';
+import api from "@/services/api.js";
+import {useOfficeStore} from "@/stores/offices.js";
 
 export default {
   name: 'appHeader',
   data() {
     return {
       isDropdownOpen: false,
-      officeOneActive: false,
-      officeTwoActive: false,
+      activeOfficeId: null,
+      isOfficeDropdownOpen: false,
+      offices: []
     }
   },
 
   computed: {
+    officeStore() { return useOfficeStore() },
+
+    // Все корпуса из глобального стора
+    allOffices() {
+      return this.officeStore.list;
+    },
+
+    // Первые 2 корпуса (для кнопок)
+    visibleOffices() {
+      return this.allOffices.slice(0, 2);
+    },
+
+    // Остальные корпуса (для дропдауна)
+    hiddenOffices() {
+      return this.allOffices.slice(2);
+    },
+
+    // Проверка, выбран ли корпус из скрытых (чтобы подсветить кнопку "Еще")
+    isHiddenOfficeActive() {
+      return this.hiddenOffices.some(o => o.id === this.activeOfficeId);
+    },
+
     authStore()
     {
       return useAuthStore()
     },
+
     audienceContext()
     {
       return useAudienceContext()
@@ -76,7 +102,7 @@ export default {
     {
       this.isDropdownOpen = !this.isDropdownOpen
     },
-    // Закрываем дропдаун при клике вне его
+
     handleClickOutside(event)
     {
       if (!event.target.closest('.profile-dropdown'))
@@ -90,28 +116,23 @@ export default {
       router.push('/')
     },
 
-    handleOfficeClick(officeNumber)
+    toggleOfficeDropdown()
     {
-      router.push({
-        name: 'Office',
-        params: { officeNumber: officeNumber }
-      })
+      this.isOfficeDropdownOpen = !this.isOfficeDropdownOpen;
     },
 
-    handleOfficeActive(officeNumber)
+    handleOfficeClick(id)
     {
-      if(officeNumber)
-      {
-        if(officeNumber === 1)
-        {
-          this.officeOneActive = true
-          this.officeTwoActive = false
-        }
-        if(officeNumber === 2)
-        {
-          this.officeOneActive = false
-          this.officeTwoActive = true
-        }
+      router.push({ name: 'Office', params: { officeNumber: id } });
+      this.isOfficeDropdownOpen = false;
+    },
+
+    updateActiveOffice() {
+      const routeOffice = Number(this.$route.params.officeNumber);
+      if (this.$route.name === 'Office' || this.$route.name === 'Audience') {
+        this.activeOfficeId = routeOffice || this.audienceContext.officeId || null;
+      } else {
+        this.activeOfficeId = null;
       }
     },
 
@@ -127,32 +148,27 @@ export default {
       this.isDropdownOpen = false
     }
   },
+
   watch: {
-    '$route' (to, from)
+    '$route'()
     {
-      let officeNumber = Number(to?.params?.officeNumber)
-      this.handleOfficeActive(officeNumber)
-      if(to.name !== 'Office' && to.name !== 'Audience')
-      {
-        this.officeOneActive = this.officeTwoActive = false
-      }
+      this.updateActiveOffice()
     },
-    'audienceContext.officeId' (newId, oldId)
+
+    'audienceContext.officeId'()
     {
-      if (newId)
-      {
-        this.handleOfficeActive(newId)
-      }
+      this.updateActiveOffice()
     }
   },
+
   mounted() {
     document.addEventListener('click', this.handleClickOutside)
-    let officeNumber = Number(this.$route?.params.officeNumber) | this.audienceContext.officeId
-    if(this.$route.name === 'Office' || this.$route.name === 'Audience')
+    if (this.officeStore.list.length === 0)
     {
-      this.handleOfficeActive(officeNumber)
+      this.officeStore.fetchOffices();
     }
   },
+
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
   }
@@ -171,11 +187,49 @@ export default {
         <h1 class="app-title">Computers management</h1>
       </div>
 
-      <!-- Переключение между этажами -->
-      <div class="floor-switch">
-      <!-- Добавить класс active, чтобы был выбран корпус-->
-        <button @click="handleOfficeClick(1)" class="floor-btn" :class="{active: this.officeOneActive}">1 корпус</button>
-        <button @click="handleOfficeClick(2)" class="floor-btn" :class="{active: this.officeTwoActive}">2 корпус</button>
+      <!-- Переключение между корпусами -->
+      <div class="office-switch" v-if="allOffices.length > 0">
+
+        <!--  Видимые кнопки (максимум 2) -->
+        <button
+            v-for="office in visibleOffices"
+            :key="office.id"
+            @click="handleOfficeClick(office.id)"
+            class="office-btn"
+            :class="{ active: activeOfficeId === office.id }"
+        >
+          {{ office.id }} корпус
+        </button>
+
+        <!-- Кнопка "Ещё", если корпусов > 2 -->
+        <div v-if="hiddenOffices.length > 0" class="more-offices-wrapper">
+          <button
+              @click="toggleOfficeDropdown"
+              class="office-btn more-btn"
+              :class="{ active: isHiddenOfficeActive || isOfficeDropdownOpen }"
+          >
+            Ещё
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          <!-- Выпадающий список скрытых корпусов -->
+          <transition name="fade">
+            <div v-show="isOfficeDropdownOpen" class="office-dropdown">
+              <div
+                  v-for="office in hiddenOffices"
+                  :key="office.id"
+                  @click="handleOfficeClick(office.id)"
+                  class="office-dropdown-item"
+                  :class="{ active: activeOfficeId === office.id }"
+              >
+                {{ office.id }} корпус
+              </div>
+            </div>
+          </transition>
+        </div>
+
       </div>
 
       <!-- Профиль или кнопка авторизации -->
@@ -301,7 +355,53 @@ header {
   color: #1f2937;
 }
 
-.floor-btn {
+.more-offices-wrapper {
+  position: relative;
+}
+
+.more-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.office-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0; /* Или left: 0 */
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 6px;
+  min-width: 140px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.office-dropdown-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.office-dropdown-item:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.office-dropdown-item.active {
+  background: #eff6ff;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.office-btn {
   padding: 12px 28px;
   border-radius: 10px;
   font-size: 15px;
@@ -313,18 +413,18 @@ header {
   background: transparent;
 }
 
-.floor-btn.active {
+.office-btn.active {
   color: white;
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-.floor-btn:not(.active):hover {
+.office-btn:not(.active):hover {
   color: #1e293b;
   background: rgba(255, 255, 255, 0.8);
 }
 
-.floor-switch {
+.office-switch {
   display: flex;
   gap: 8px;
   background: rgba(241, 245, 249, 0.8);
@@ -558,15 +658,15 @@ header {
     display: none;
   }
 
-  .floor-switch
+  .office-switch
   {
     margin-right: 0;
   }
 
-  .floor-btn
+  .office-btn
   {
     font-size: 14px;
-    padding: 9px 9px;
+    padding: 5px 5px;
   }
 
   .profile-name

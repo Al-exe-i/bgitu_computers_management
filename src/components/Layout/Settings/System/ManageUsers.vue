@@ -189,14 +189,16 @@ export default {
           </td>
 
           <!-- Роль -->
-          <td class="role-td">
-            <span class="badge" :class="getRoleClass(user)">
+          <td>
+            <div class="role-td">
+              <span class="badge" :class="getRoleClass(user)">
               {{ getRoleName(user) }}
             </span>
-            <span class="role-control" v-if="!user?.is_superuser && authStore?.user?.is_superuser">
+              <span class="role-control" v-if="!user?.is_superuser && authStore?.user?.is_superuser">
               <svg @click="changeRole(user)" v-if="user.role === 1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Понизить</title><path fill="#dc2626" d="M12 17.308L6.692 12l.708-.708l4.1 4.1V5.5h1v9.892l4.1-4.1l.708.708z"/></svg>
               <svg @click="changeRole(user)" v-if="user.role === 2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Повысить</title><path fill="#10b981" d="M11.5 17.308V7.415l-4.1 4.1l-.708-.707L12 5.5l5.308 5.308l-.708.707l-4.1-4.1v9.893z"/></svg>
             </span>
+            </div>
           </td>
 
           <!-- TG ID -->
@@ -327,6 +329,11 @@ export default {
 .role-td {
   display: inline-flex;
   align-items: center;
+}
+
+.role-control {
+  display: flex;
+  margin-left: 1rem;
 }
 
 .role-td .role-control:hover {

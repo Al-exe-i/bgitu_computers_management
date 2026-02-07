@@ -46,7 +46,7 @@ const routes = [
         name: 'ChangeAudience',
         component: CreateAudience,
         props: true,
-        meta: {requiresAuth: true, title: (route) => `Редактирование аудитории №${route.params.audienceId}`},
+        meta: {requiresAuth: true, title: (route) => `Редактирование аудитории №${route.params.id}`},
     },
 
     {

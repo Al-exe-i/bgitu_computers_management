@@ -2,6 +2,7 @@
 import api from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
+import {useOfficeStore} from "@/stores/offices.js";
 
 export default {
   name: "ManageOffices",
@@ -23,21 +24,16 @@ export default {
 
   computed: {
     authStore() { return useAuthStore(); },
+    officeStore() { return useOfficeStore(); },
+    offices() { return this.officeStore.list; },
+    loading() { return this.officeStore.loading; },
     notify() { return useNotificationsStore(); },
     isSuperuser() { return this.authStore.user?.is_superuser === true; }
   },
 
   methods: {
     async fetchOffices() {
-      this.loading = true;
-      try {
-        const res = await api.get('/offices'); // Убедитесь, что эндпоинт верный
-        this.offices = res.data;
-      } catch (e) {
-        this.notify.error("Не удалось загрузить список корпусов");
-      } finally {
-        this.loading = false;
-      }
+      await this.officeStore.fetchOffices();
     },
 
     openCreateModal() {
@@ -58,19 +54,25 @@ export default {
     },
 
     async saveOffice() {
-      try {
-        if (this.isEditMode) {
+      try
+      {
+        if (this.isEditMode)
+        {
           await api.patch(`/offices/${this.form.id}`, { address: this.form.address });
           this.notify.success(`Корпус №${this.form.id} обновлен`);
-        } else {
+          this.officeStore.updateOffice({ address: this.form.address });
+        }
+        else
+        {
           // CREATE
           await api.post('/offices', this.form);
+          this.officeStore.addOffice(this.form);
           this.notify.success('Корпус создан');
         }
-
-        await this.fetchOffices(); // Обновляем список
         this.closeModal();
-      } catch (e) {
+      }
+      catch (e)
+      {
         const msg = e.response?.data?.detail || "Ошибка сохранения";
         this.notify.error(msg);
       }
@@ -83,7 +85,7 @@ export default {
 
       try {
         await api.delete(`/offices/${office.id}`);
-        this.offices = this.offices.filter(o => o.id !== office.id);
+        this.officeStore.removeOffice(office.id);
         this.notify.success('Корпус удален');
       } catch (e) {
         this.notify.error('Ошибка удаления.');

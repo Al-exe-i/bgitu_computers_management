@@ -1,3 +1,4 @@
+/*******************    💫 Codegeex Inline Diff    *******************/
 <script>
 import router from "@/router/index.js";
 import api from "@/services/api.js";
@@ -12,11 +13,16 @@ export default {
   data()
   {
     return {
-      faultyOfficeOne: 0,
-      faultyOfficeTwo: 0,
+      offices: [],
       loading: true,
       error: false,
       errorMsg: "",
+
+      // WebSocket
+      ws: null,
+      wsReconnectAttempts: 0,
+      maxReconnectAttempts: 3,
+      reconnectDelay: 1000,
     }
   },
 
@@ -28,24 +34,35 @@ export default {
         params: { officeNumber: n }}
       )
     },
-    async fetchFaulty()
-    {
-      Promise.all([
-        api.get('/offices/faulty_computers/1'),
-        api.get('/offices/faulty_computers/2')
-      ])
-          .then(([response1, response2]) => {
-            this.faultyOfficeOne = response1.data.count;
-            this.faultyOfficeTwo = response2.data.count;
-            this.loading = false;
-            this.connectWebSocket()
-          })
-          .catch(err => {
-            this.loading = false;
-            this.error = true
-            this.errorMsg = `${err.code}: ${err.message}`;
-            this.notify.error("Не удалось загрузить данные");
-          });
+
+    async fetchOfficesData() {
+      try {
+        // Получаем список всех корпусов
+        const res = await api.get('/offices/all_short'); // Ожидаем [{id: 1, address: '...'}, ...]
+        const officesList = res.data;
+
+        //  Для каждого корпуса запрашиваем статистику поломок
+        // (Оптимизация: лучше сделать 1 запрос на бэкенд /offices/stats, но пока так)
+        const statsPromises = officesList.map(office =>
+            api.get(`/offices/faulty_computers/${office.id}`)
+                .then(r => ({ ...office, faultyCount: r.data.count }))
+                .catch(() => ({ ...office, faultyCount: 0 })) // Если ошибка, считаем 0
+        );
+
+        this.offices = await Promise.all(statsPromises);
+        this.loading = false;
+
+        // Подключаем сокет только после первой успешной загрузки
+        if (!this.ws) this.connectWebSocket();
+
+      }
+      catch (err)
+      {
+        this.loading = false;
+        this.error = true;
+        this.errorMsg = "Не удалось загрузить список корпусов";
+        console.error(err);
+      }
     },
 
     connectWebSocket()
@@ -69,7 +86,7 @@ export default {
         const msg = JSON.parse(event.data);
         if (msg?.audience_updated)
         {
-          this.fetchFaulty();
+          this.fetchOfficesData();
         }
       };
 
@@ -108,7 +125,7 @@ export default {
   },
 
   mounted() {
-    this.fetchFaulty()
+    this.fetchOfficesData()
   },
 
   computed: {
@@ -127,50 +144,49 @@ export default {
 
 <template>
   <div class="dashboard-container">
-    <h1 v-if="!loading && !error" class="dashboard-title">Статистика неисправностей</h1>
 
-    <LoaderContainer v-if="loading"/>
-
-    <div v-if="!loading && !error" class="stats-container">
-
-      <div class="office-stats left-animated">
-        <div class="office-title">
-          <div class="office-icon">
-            <span class="office-number">1</span>
-          </div>
-          <span>Первый корпус</span>
-        </div>
-        <div class="breakdowns-title">Количество поломок</div>
-        <div
-            class="breakdowns-count"
-            :class="{red: faultyOfficeOne > 0}"
-            :style="{ '--target-num': faultyOfficeOne }">
-        </div>
-        <button @click="handleOfficeClick(1)" class="view-details-btn">Просмотреть детали</button>
-      </div>
-
-      <div class="office-stats right-animated">
-        <div class="office-title">
-          <div class="office-icon">
-            <span class="office-number">2</span>
-          </div>
-          <span>Второй корпус</span>
-        </div>
-        <div class="breakdowns-title">Количество поломок</div>
-        <div
-            class="breakdowns-count"
-            :class="{red: faultyOfficeTwo > 0}"
-            :style="{ '--target-num': faultyOfficeTwo }">
-        </div>
-        <button @click="handleOfficeClick(2)" class="view-details-btn">Просмотреть детали</button>
-      </div>
-    </div>
+    <LoaderContainer v-if="loading" />
     <ErrorContainer
-        v-if="error && !loading"
+        v-else-if="error" :errorText="errorMsg"
         container-title="Не удалось загрузить данные"
         error-title="Произошла ошибка при попытке загрузить статистику неисправностей. Проверьте подключение к интернету и повторите попытку."
-        :error-text="errorMsg"
     />
+
+    <template v-else>
+      <h1 class="dashboard-title">Выберите корпус</h1>
+
+      <div class="stats-container">
+
+        <!-- Карточка корпуса -->
+        <div
+            v-for="(office, index) in offices"
+            :key="office.id"
+            class="office-stats"
+            :style="{ animationDelay: `${index * 0.15}s` }"
+        >
+          <div class="office-title">
+            <div class="office-icon">
+              <span class="office-number">{{ office.id }}</span>
+            </div>
+            <span class="office-number">Корпус №{{ office.id }}</span>
+          </div>
+
+          <div class="breakdowns-title">Неисправностей</div>
+
+          <!-- Счетчик CSS (var(--target-num)) -->
+          <div
+              class="breakdowns-count"
+              :class="{ red: office.faultyCount > 0 }"
+              :style="{ '--target-num': office.faultyCount }"
+          ></div>
+
+          <button @click="handleOfficeClick(office.id)" class="view-details-btn">
+            Просмотреть детали
+          </button>
+        </div>
+
+      </div>
+    </template>
   </div>
 </template>
 
@@ -181,6 +197,7 @@ export default {
   flex-direction: column;
   align-items: center;
   min-height: calc(100vh - 120px);
+  overflow-x: hidden;
 }
 
 .dashboard-title {
@@ -207,10 +224,15 @@ export default {
 
 .stats-container {
   display: flex;
-  gap: 30px;
   justify-content: center;
-  flex-wrap: wrap;
-  max-width: 800px;
+  gap: 30px;
+  overflow-x: auto;
+  max-width: 100%;
+  width: 100%;
+  padding: 20px 20px 40px 20px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .office-stats
@@ -221,13 +243,19 @@ export default {
   box-shadow: 0 8px 30px rgba(0,0,0,0.1);
   text-align: center;
   transition: all 0.3s ease;
-  min-width: 290px;
+
   display: flex;
   flex-direction: column;
   align-items: center;
 
-  animation-duration: 1.2s;
-  animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  min-width: 300px; /* Минимальная ширина */
+  flex: 0 0 auto;   /* Запрещаем сжиматься */
+  scroll-snap-align: center; /* Центрирование при скролле */
+
+  opacity: 0; /* Скрыто до начала анимации */
+  animation-name: popIn; /* Новая универсальная анимация */
+  animation-duration: 0.8s;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
   animation-fill-mode: forwards;
 }
 
@@ -236,37 +264,14 @@ export default {
   box-shadow: 0 12px 35px rgba(0,0,0,0.15);
 }
 
-.left-animated
-{
-  animation-name: slideFromLeft;
-}
-
-.right-animated
-{
-  animation-name: slideFromRight;
-}
-
-@keyframes slideFromLeft {
+@keyframes popIn {
   0% {
-    transform: translateX(-20vw) scale(0);
     opacity: 0;
+    transform: translateY(50px) scale(0.9);
   }
-
   100% {
-    transform: translateX(0) scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes slideFromRight {
-  0% {
-    transform: translateX(20vw) scale(0);
-    opacity: 0;
-  }
-
-  100% {
-    transform: translateX(0) scale(1);
-    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -348,11 +353,28 @@ export default {
   background: #2563eb;
 }
 
+@media (max-width: 1024px) {
+  .stats-container {
+    justify-content: start;
+  }
+}
+
 @media (max-width: 768px)
 {
-  .office-stats
+  .dashboard-title
   {
-    min-width: 250px;
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .office-stats {
+    min-width: 80vw;
+  }
+
+  .stats-container {
+    padding-left: 20px;
+    gap: 15px;
+    justify-content: start;
   }
 
 }
