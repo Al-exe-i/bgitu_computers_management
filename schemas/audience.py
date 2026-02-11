@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from schemas.hardware import HardwareCreate, HardwareFullResponse, HardwareShortResponse
+from schemas.hardware import HardwareCreate, HardwareFullResponse, HardwareShortResponse, HardwareGridItem
 
 
 class AudienceBase(BaseModel):
@@ -22,7 +22,7 @@ class AudienceUpdate(BaseModel):
     floor: int | None = None
     width: int | None = None
     height: int | None = None
-    hardware: list[HardwareCreate] | None = None
+    hardware: list[HardwareGridItem] | None = None
 
 
 class AudienceResponse(AudienceBase):

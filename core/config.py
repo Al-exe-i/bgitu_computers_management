@@ -1,5 +1,5 @@
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,11 +19,19 @@ class ApiPrefix(BaseModel):
 
 class StaticFiles(BaseModel):
     root: Path = Path("static")
-    upload_dir: Path = root / "uploads"
-    avatars_dir: Path = root / "avatars"
+
+    @computed_field
+    @property
+    def upload_dir(self) -> Path:
+        return self.root / "uploads"
+
+    @computed_field
+    @property
+    def avatars_dir(self) -> Path:
+        return self.root / "avatars"
 
 class DatabaseConfig(BaseModel):
-    url: str
+    url: PostgresDsn
     echo: bool = False
     echo_pool: bool = False
     pool_size: int = 50
@@ -52,7 +60,7 @@ class Settings(BaseSettings):
     api: ApiPrefix = ApiPrefix()
     static: StaticFiles = StaticFiles()
     DEBUG: bool = False
-    logger: LoggingConfig
+    logger: LoggingConfig = LoggingConfig()
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

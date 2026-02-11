@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from core.exceptions import HTTP404
 from dependencies.office import office_service_dep
-from dependencies.auth import user_dep, admin_dep
+from dependencies.auth import admin_dep
 from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort, OfficeCreate
 
 router = APIRouter()
@@ -53,7 +53,7 @@ async def update_office_by_id_endpoint(
         office_id: int,
         office_in: OfficeUpdate,
         service: office_service_dep,
-        user: user_dep
+        user: admin_dep
 ):
     office = await service.get(office_id)
 

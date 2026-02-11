@@ -6,10 +6,10 @@ from core.config import settings
 from core.exceptions import HTTP403, HTTP404
 from dependencies.auth import admin_dep
 
-router = APIRouter(prefix="/files", tags=["Admin Static"])
+router = APIRouter(prefix="")
 
 
-@router.get("/{file_path:path}")
+@router.get("/files/{file_path:path}")
 async def get_protected_file(
         file_path: str,
         user: admin_dep

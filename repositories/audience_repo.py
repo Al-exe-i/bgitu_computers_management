@@ -1,7 +1,7 @@
 from typing import Sequence
 from sqlalchemy import update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from models import Hardware
 from models.audience import Audience

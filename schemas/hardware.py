@@ -14,11 +14,15 @@ class HardwareBase(BaseModel):
 
 
 class HardwareCreate(HardwareBase):
+    pass
+
+
+class HardwareGridItem(HardwareBase):
     id: int | None = None
 
 
 class HardwareUpdate(BaseModel):
-    type: HardwareType | str = None
+    type: HardwareType | None = None
     x: int | None = Field(None, ge=0)
     y: int | None = Field(None, ge=0)
     state: bool | None = None

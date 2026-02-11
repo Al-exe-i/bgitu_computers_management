@@ -12,21 +12,35 @@ class OfficeRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_list(self, full: bool) -> Sequence[Office]:
+    async def get_list(self, full: bool):
         if full:
             stmt = (
                 select(Office)
                 .options(
-                    selectinload(Office.audiences)
-                    .selectinload(Audience.hardware)
+                    selectinload(Office.audiences).selectinload(Audience.hardware)
                 )
             )
-        else:
-            stmt = (
-                select(Office)
+            result = await self.db.execute(stmt)
+            return result.scalars().all()
+
+        stmt = (
+            select(
+                Office.id,
+                Office.address,
+                func.count(Audience.id).label("audiences_count"),
             )
+            .outerjoin(Audience, Audience.office_id == Office.id)  # чтобы корпуса без аудиторий тоже были
+            .group_by(Office.id, Office.address)
+            .order_by(Office.id)
+        )
+
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        rows = result.all()
+
+        return [
+            {"id": office_id, "address": address, "audiences_count": cnt}
+            for office_id, address, cnt in rows
+        ]
 
     async def get_one(self, office_id: int) -> Office | None:
         stmt = (

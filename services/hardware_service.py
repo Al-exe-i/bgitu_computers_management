@@ -1,3 +1,5 @@
+from typing import Any, Protocol, Sequence
+
 import aiofiles
 import uuid
 import os
@@ -5,27 +7,33 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from core.exceptions import HTTP404
+from models import Hardware
 from models.hardware_file import HardwareFile
 from repositories.hardware_repo import HardwareRepository
 from repositories.hw_files_repo import HardwareFilesRepository
-from schemas.hardware import HardwareUpdate
+from schemas.hardware import HardwareUpdate, HardwareGridItem
 from schemas.hardware_file import HardwareFileResponse
 from websocket.routes import manager
+
+
+class HardwareGridPort(Protocol):
+    async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]: ...
+    async def create_in_audience(self, audience_id: int, item: HardwareGridItem) -> Hardware: ...
+    async def delete(self, hardware_id: int) -> None: ...
 
 
 class HardwareService:
     def __init__(self, repo: HardwareRepository):
         self.repo = repo
 
-
     async def get(self, hardware_id: int):
         hardware = await self.repo.get_by_id(hardware_id)
         return hardware
 
     async def update_status(self, hardware_id: int, schema: HardwareUpdate):
-        update_data = schema.model_dump(exclude_unset=True)
+        update_data: dict[str, Any] = schema.model_dump(exclude_unset=True)
 
-        if update_data["state"]:
+        if update_data.get("state"):
             update_data["description"] = None
 
         updated_hw = await self.repo.update(hardware_id, update_data)
@@ -33,6 +41,16 @@ class HardwareService:
             raise HTTP404("Hardware not found")
         await manager.broadcast({"audience_updated": updated_hw.audience_id})
         return updated_hw
+
+    async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]:
+        return await self.repo.get_by_audience_id(audience_id)
+
+    async def create_in_audience(self, audience_id: int, item: HardwareGridItem) -> Hardware:
+        hw = Hardware(**item.model_dump(exclude={"id"}), audience_id=audience_id)
+        return await self.repo.create(hw)
+
+    async def delete(self, hardware_id: int) -> None:
+        await self.repo.delete(hardware_id)
 
     async def update_files(
             self,
@@ -70,7 +88,6 @@ class HardwareService:
             created_files.append(HardwareFileResponse.model_validate(created, from_attributes=True))
         await manager.broadcast({"audience_updated": audience_id})
         return created_files
-
 
     async def get_file_for_stream(self, file_id: int):
         repo = HardwareFilesRepository(self.repo.retrieve_session())

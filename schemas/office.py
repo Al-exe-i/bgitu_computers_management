@@ -17,7 +17,7 @@ class OfficeResponse(OfficeBase):
 
 
 class OfficeShort(OfficeBase):
-    pass
+    audiences_count: int | None = None
 
 
 class OfficeUpdate(BaseModel):

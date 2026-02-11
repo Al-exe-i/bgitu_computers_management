@@ -14,6 +14,7 @@ from schemas.user import UserCreate, UserOut, UserUpdate, ChangePasswordSchema
 from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep, admin_dep
 from utils.tokens import create_token_pair_and_build_response
 import os
+from loguru import logger
 
 router = APIRouter()
 
@@ -22,11 +23,13 @@ router = APIRouter()
 async def create_user(
         service: user_service_dep,
         user_in: UserCreate,
-        current_user: superuser_dep
+        current_user: admin_dep
 ):
     existing_user = await service.get_by_email(user_in.email)
+
     if existing_user:
         raise HTTP400("User already exists")
+
     user = await service.create(user_in)
     return user
 
@@ -98,12 +101,24 @@ async def change_password(
 
 
 @router.delete("/{user_id}")
-async def delete_user(service: user_service_dep, user_id: int,
-                      current_user: superuser_dep
-                      ):
-    user = await service.delete(user_id)
+async def delete_user(
+        service: user_service_dep,
+        user_id: int,
+        current_user: superuser_dep
+):
+    user = await service.get(user_id)
+
+    if current_user.id == user_id:
+        raise HTTP400("You can't delete yourself")
+
+    if user.is_superuser:
+        raise HTTP400("You can't delete superuser")
+
     if not user:
         raise HTTP404("User not found")
+
+    await service.delete(user_id)
+
     return {"msg": "User deleted successfully"}
 
 
@@ -119,8 +134,10 @@ async def update_user(
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
+
     if not user:
         raise HTTP404("User not found")
+
     updated_user = await service.update(user_id, user_in)
     return updated_user
 
@@ -158,7 +175,8 @@ async def upload_user_photo(
     if user.photo:
         try:
             os.remove(os.path.join(settings.static.avatars_dir, user.photo))
-        except FileNotFoundError: pass
+        except FileNotFoundError as e:
+            logger.error(f"Ошибка в {__name__}: {e}")
 
     updated_user = await service.update(user_id, update_data)
 
@@ -183,8 +201,8 @@ async def delete_user_photo(
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.error(f"Ошибка в {__name__}: {e}")
 
     updated_user = await service.update(user_id, UserUpdate(photo=None))
 
