@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 from core.exceptions import HTTP404
+from dependencies.audit_log import audit_log_service_dep
 from dependencies.office import office_service_dep
 from dependencies.auth import admin_dep
+from dependencies.request_meta import request_meta_dep
 from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort, OfficeCreate
 
 router = APIRouter()
@@ -17,9 +19,22 @@ async def get_all_offices(service: office_service_dep):
 async def create_office(
         schema: OfficeCreate,
         service: office_service_dep,
-        user: admin_dep
+        user: admin_dep,
+        audit: audit_log_service_dep,
+        meta: request_meta_dep
 ):
-    return await service.create(schema)
+    office = await service.create(schema)
+
+    await audit.log(
+        user_id=user.id,
+        action="office.create",
+        entity_type="office",
+        entity_id=office.id,
+        payload={"address": office.address},
+        **meta,
+    )
+
+    return office
 
 
 @router.delete("/{office_id}", status_code=204)
