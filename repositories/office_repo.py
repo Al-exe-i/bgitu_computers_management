@@ -55,12 +55,6 @@ class OfficeRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def create(self, office: Office) -> Office:
-        self.db.add(office)
-        await self.db.commit()
-        await self.db.refresh(office)
-        return office
-
     async def get_one_short(self, office_id: int) -> Office | None:
         stmt = (
             select(Office)
@@ -69,11 +63,18 @@ class OfficeRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def create(self, office: Office) -> Office:
+        self.db.add(office)
+        await self.db.flush()
+        await self.db.refresh(office)
+        return office
+
     async def update(self, schema: OfficeUpdate, orm_model: Office) -> Office:
         update_data = schema.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(orm_model, field, value)
-        await self.db.commit()
+
+        await self.db.flush()
         await self.db.refresh(orm_model)
         return orm_model
 
@@ -90,10 +91,14 @@ class OfficeRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def delete(self, office: Office) -> bool:
+    async def delete(self, office: Office | None) -> bool:
+        if office is None:
+            return False
+
         try:
             await self.db.delete(office)
-            await self.db.commit()
-        except Exception as e:
+            await self.db.flush()
+            return True
+        except Exception:
             return False
 

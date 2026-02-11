@@ -41,9 +41,19 @@ async def create_office(
 async def delete_office(
         office_id: int,
         service: office_service_dep,
-        user: admin_dep
+        user: admin_dep,
+        audit: audit_log_service_dep,
+        meta: request_meta_dep
 ):
     await service.delete(office_id)
+
+    await audit.log(
+        user_id=user.id,
+        action="office.delete",
+        entity_type="office",
+        entity_id=office_id,
+        **meta,
+    )
 
 
 @router.get("/all_short", response_model=list[OfficeShort])

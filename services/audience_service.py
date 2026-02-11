@@ -5,7 +5,6 @@ from repositories.audience_repo import AudienceRepository
 from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
 from schemas.hardware import HardwareGridItem
 from services.hardware_service import HardwareGridPort
-from websocket.routes import manager
 
 
 class AudienceService:
@@ -48,23 +47,19 @@ class AudienceService:
         if not current_audience:
             raise HTTP404("Audience not found")
 
-        # Обновляем поля самой аудитории
         update_data = schema.model_dump(exclude_unset=True, exclude={'hardware'})
 
-        # Если есть поля для обновления
         if update_data:
             for key, value in update_data.items():
                 setattr(current_audience, key, value)
-            await self.repo.session.commit()
+            await self.repo.session.flush()
 
         # Синхронизируем сетку оборудования (если она пришла)
         if schema.hardware is not None:
             await self._sync_grid(audience_id, schema.hardware)
 
-        await self.repo.session.commit()
+        await self.repo.session.flush()
 
-        # Уведомляем всех через WebSocket, что аудитория изменилась
-        await manager.broadcast({"audience_updated": audience_id})
         await self.repo.session.refresh(current_audience)
         return current_audience
 

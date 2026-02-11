@@ -39,7 +39,6 @@ class HardwareService:
         updated_hw = await self.repo.update(hardware_id, update_data)
         if not updated_hw:
             raise HTTP404("Hardware not found")
-        await manager.broadcast({"audience_updated": updated_hw.audience_id})
         return updated_hw
 
     async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]:
@@ -86,7 +85,7 @@ class HardwareService:
 
             created = await files_repo.create(db_file)
             created_files.append(HardwareFileResponse.model_validate(created, from_attributes=True))
-        await manager.broadcast({"audience_updated": audience_id})
+            await db.flush()
         return created_files
 
     async def get_file_for_stream(self, file_id: int):
@@ -101,7 +100,7 @@ class HardwareService:
 
         return db_file
 
-    async def delete_file(self, file_id: int):
+    async def delete_file(self, file_id: int) -> int:
         files_repo = HardwareFilesRepository(self.repo.retrieve_session())
 
         db_file = await files_repo.get_by_id(file_id)
@@ -110,6 +109,10 @@ class HardwareService:
 
         if os.path.exists(db_file.file_path):
             os.remove(db_file.file_path)
-        audience_id = (await self.get(db_file.hardware_id)).audience_id
+
+        hw = await self.get(db_file.hardware_id)
+        audience_id = hw.audience_id
+
         await files_repo.delete(file_id)
-        await manager.broadcast({"audience_updated": audience_id})
+
+        return audience_id

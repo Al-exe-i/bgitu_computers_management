@@ -1,6 +1,5 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from models.hardware_file import HardwareFile
 
 
@@ -15,14 +14,15 @@ class HardwareFilesRepository:
 
     async def create(self, hardware_file: HardwareFile) -> HardwareFile:
         self.db.add(hardware_file)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(hardware_file)
         return hardware_file
 
     async def delete(self, file_id: int) -> bool:
         db_file = await self.get_by_id(file_id)
-        if db_file:
-            await self.db.delete(db_file)
-            await self.db.commit()
-            return True
-        return False
+        if not db_file:
+            return False
+
+        await self.db.delete(db_file)
+        await self.db.flush()
+        return True

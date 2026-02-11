@@ -24,22 +24,22 @@ class HardwareRepository:
 
     async def create(self, hardware: Hardware) -> Hardware:
         self.session.add(hardware)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(hardware)
         return hardware
 
     async def update(self, hardware_id: int, data: dict) -> Hardware | None:
-        stmt = (
-            update(Hardware)
-            .where(Hardware.id == hardware_id)
-            .values(**data)
-            .returning(Hardware)
-        )
-        result = await self.session.execute(stmt)
-        await self.session.commit()
-        return result.scalars().first()
+        hw = await self.get_by_id(hardware_id)
+        if not hw:
+            return None
+        for k, v in data.items():
+            setattr(hw, k, v)
+        await self.session.flush()
+        await self.session.refresh(hw)
+        return hw
 
-    async def delete(self, hardware_id: int):
-        stmt = delete(Hardware).where(Hardware.id == hardware_id)
-        await self.session.execute(stmt)
-        await self.session.commit()
+    async def delete(self, hardware_id: int) -> None:
+        hw = await self.get_by_id(hardware_id)
+        if hw:
+            await self.session.delete(hw)
+            await self.session.flush()

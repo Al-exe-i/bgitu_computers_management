@@ -10,7 +10,7 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def update(self, orm_model: User, schema: UserUpdate):
+    async def update(self, orm_model: User, schema: UserUpdate) -> User:
         update_data = schema.model_dump(exclude_unset=True)
         if "password" in update_data:
             update_data["password"] = get_password_hash(update_data["password"])
@@ -18,9 +18,8 @@ class UserRepository:
         for field, value in update_data.items():
             setattr(orm_model, field, value)
 
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(orm_model)
-
         return orm_model
 
     async def get(self, user_id: int):
@@ -37,10 +36,10 @@ class UserRepository:
 
     async def create(self, user: User):
         self.db.add(user)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(user)
         return user
 
     async def delete(self, user: User):
         await self.db.delete(user)
-        await self.db.commit()
+        await self.db.flush()

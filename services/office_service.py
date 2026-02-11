@@ -21,11 +21,13 @@ class OfficeService:
         new_office = Office(**office.model_dump())
         return await self.repo.create(new_office)
 
-    async def update(self, schema: OfficeUpdate, orm_model: OfficeResponse) -> OfficeResponse:
+    async def update(self, schema: OfficeUpdate, orm_model: OfficeResponse) -> Office:
         return await self.repo.update(schema, orm_model)
 
     async def delete(self, office_id: int) -> bool:
         office = await self.repo.get_one(office_id)
+        if not office:
+            return False
         return await self.repo.delete(office)
 
     async def count_faulty(self, office_id: int) -> int:

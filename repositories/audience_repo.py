@@ -38,14 +38,14 @@ class AudienceRepository:
     async def create(self, audience: Audience) -> Audience:
         """Создание аудитории"""
         self.session.add(audience)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(audience, attribute_names=["hardware"])
         return audience
 
     async def delete(self, audience_id: int) -> None:
         stmt = delete(Audience).where(Audience.id == audience_id)
         await self.session.execute(stmt)
-        await self.session.commit()
+        await self.session.flush()
 
     async def update(self, audience_id: int, data: dict) -> Audience | None:
         stmt = (
@@ -55,5 +55,5 @@ class AudienceRepository:
             .returning(Audience)
         )
         result = await self.session.execute(stmt)
-        await self.session.commit()
+        await self.session.flush()
         return result.scalars().first()

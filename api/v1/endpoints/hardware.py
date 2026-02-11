@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, HTTPException
+from fastapi import APIRouter, UploadFile, HTTPException, BackgroundTasks
 from starlette.responses import StreamingResponse
 from fastapi import Request
 from core.exceptions import HTTP404
@@ -9,6 +9,7 @@ from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from fastapi.responses import FileResponse
 import os
 from schemas.hardware_file import HardwareFileResponse
+from utils.broadcast import broadcast_audience_updated
 
 router = APIRouter()
 
@@ -19,12 +20,14 @@ async def add_hardware_file(
         files: list[UploadFile],
         service: hardware_service_dep,
         db: session_dep,
+        background_tasks: BackgroundTasks,
         user: admin_dep
 ):
     hardware = await service.get(hardware_id)
     if not hardware:
         raise HTTP404("Hardware doesn't exist")
     result: list[HardwareFileResponse] = await service.update_files(hardware_id, files, db)
+    broadcast_audience_updated(background_tasks, hardware.audience_id)
     return {"status": "success", "files": result}
 
 
@@ -33,13 +36,16 @@ async def update_hardware_status(
         hardware_id: int,
         data: HardwareUpdate,
         service: hardware_service_dep,
+        background_tasks: BackgroundTasks,
         user: admin_dep
 ):
     """
     Обновить статус, комментарий или позицию конкретного оборудования.
     Используется при клике 'Исправно/Неисправно' или перемещении на фронте.
     """
-    return await service.update_status(hardware_id, data)
+    updated_hw = await service.update_status(hardware_id, data)
+    broadcast_audience_updated(background_tasks, updated_hw.audience_id)
+    return updated_hw
 
 
 @router.get("/files/{file_id}")
@@ -142,7 +148,9 @@ async def stream_video(
 async def delete_hardware_file(
         file_id: int,
         service: hardware_service_dep,
+        background_tasks: BackgroundTasks,
         user: admin_dep
 ):
-    await service.delete_file(file_id)
+    audience_id = await service.delete_file(file_id)
+    broadcast_audience_updated(background_tasks, audience_id)
     return {"status": "success"}
