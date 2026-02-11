@@ -11,7 +11,7 @@ export default {
   data() {
     return {
       classroomNumber: null,
-      offices_ids: null,
+      offices_ids: [],
       floorNumber: 1,
       officeNumber: 1,
       gridWidth: 6,
@@ -92,12 +92,17 @@ export default {
       return 'density-normal';                 // <= 10 колонок
     },
 
+    equipmentTypeMap() {
+      return Object.fromEntries(this.equipmentTypes.map(t => [t.id, t]));
+    },
+
     // Автоматический подсчет статистики
     stats()
     {
       const counts = {
         total: 0,
         computer: 0,
+        tv: 0,
         projector: 0,
         printer: 0,
         switch: 0,
@@ -148,7 +153,7 @@ export default {
       const item = this.gridData[key];
       if (!item) return null;
 
-      const type = this.equipmentTypes.find(e => e.id === item.id);
+      const type = this.equipmentTypeMap[item.id];
       return { ...item, type };
     },
 
@@ -297,6 +302,7 @@ export default {
       if(this.isEditMode)
       {
         this.loadAudienceData();
+        this.hasUnsavedChanges = false;
       }
       else
       {
@@ -350,6 +356,7 @@ export default {
           });
         }
         this.gridData = newGridData;
+        this.hasUnsavedChanges = false;
       }
       catch (e)
       {
@@ -364,10 +371,10 @@ export default {
 
     mapFrontendToBackend(frontendEquipment) {
       return Object.entries(frontendEquipment).map(([key, item]) => {
-        // 1. Парсим координаты из ключа "row-col"
+        // Парсим координаты из ключа "row-col"
         const [row, col] = key.split('-').map(Number);
 
-        // 2. Формируем объект под Pydantic-схему HardwareCreate
+        // Формируем объект под DTO HardwareCreate
         return {
           id: item.dbId || null,
           type: item.id,          // На фронте id='computer', на бэке это type
@@ -417,7 +424,7 @@ export default {
         }
       });
 
-      const equipmentCount = Object.keys(this.gridData).length;
+      const equipmentCount = Object.keys(validGridData).length;
       if (equipmentCount === 0) {
         this.notify.warning('Добавьте хотя бы одно оборудование!');
         return;
@@ -483,11 +490,13 @@ export default {
     },
 
     gridWidth() {
-      this.hasUnsavedChanges = true;
+      if (this.gridData.length > 0)
+        this.hasUnsavedChanges = true;
     },
 
     gridHeight() {
-      this.hasUnsavedChanges = true;
+      if (this.gridData.length > 0)
+        this.hasUnsavedChanges = true;
     }
   },
 
@@ -640,6 +649,10 @@ export default {
                 <span class="stat-value">{{ stats.computer }}</span>
               </div>
               <div class="stat-item">
+                <span class="stat-label">Телевизоров:</span>
+                <span class="stat-value">{{ stats.tv }}</span>
+              </div>
+              <div class="stat-item">
                 <span class="stat-label">Проекторов:</span>
                 <span class="stat-value">{{ stats.projector }}</span>
               </div>
@@ -702,7 +715,8 @@ export default {
                       v-if="getEquipmentInCell(row - 1, col - 1)"
                       class="cell-equipment"
                       draggable="true"
-                      @dragstart.stop="onGridItemDragStart($event, row - 1, col - 1)">
+                      @dragstart.stop="onGridItemDragStart($event, row - 1, col - 1)"
+                      @dragend="onDragEnd">
                     <div
                         class="cell-icon"
                         :style="{ background: getEquipmentInCell(row - 1, col - 1).type.color }"

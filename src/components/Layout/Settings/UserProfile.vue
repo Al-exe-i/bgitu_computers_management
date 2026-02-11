@@ -80,6 +80,11 @@ export default {
     },
 
     async saveProfile() {
+      if(this.form.name === this.authStore.user.name && this.form.surname === this.authStore.user.surname) {
+        this.notify.success('Профиль сохранен');
+        return // Зачем лишний раз грузить сервер, если данные не изменились?
+      }
+
       this.loading = true;
       try {
         const userId = this.authStore.user.id;
@@ -97,13 +102,11 @@ export default {
 
         this.notify.success('Профиль сохранен');
       }
-      catch (e)
-      {
+      catch (e) {
         this.notify.error('Ошибка сохранения');
         console.error(e.response?.data?.detail || 'Неизвестная ошибка');
       }
-      finally
-      {
+      finally {
         this.loading = false;
       }
     },

@@ -14,6 +14,7 @@ import SecuritySettings from "@/components/Layout/Settings/SecuritySettings.vue"
 import SystemLayout from "@/components/Layout/Settings/System/SystemLayout.vue";
 import ManageUsers from "@/components/Layout/Settings/System/ManageUsers.vue";
 import ManageOffices from "@/components/Layout/Settings/System/ManageOffices.vue";
+import ManageAudiences from "@/components/Layout/Settings/System/ManageAudiences.vue";
 
 const adminGuard = async (to, from, next) => {
     const authStore = useAuthStore();
@@ -112,6 +113,13 @@ const routes = [
                         name: 'SystemUsers',
                         component: ManageUsers,
                         meta: { title: 'Управление пользователями' }
+                    },
+
+                    {
+                        path: 'audiences',
+                        name: 'SystemAudiences',
+                        component: ManageAudiences,
+                        meta: { title: 'Управление аудиториями' }
                     },
                     // Заглушки для будущего
                     // { path: 'audiences', ... },

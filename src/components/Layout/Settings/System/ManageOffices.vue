@@ -8,10 +8,6 @@ export default {
   name: "ManageOffices",
   data() {
     return {
-      offices: [],
-      loading: true,
-
-      // Модалка
       showModal: false,
       isEditMode: false,
       officeAlreadyExists: false,
@@ -25,7 +21,7 @@ export default {
   computed: {
     authStore() { return useAuthStore(); },
     officeStore() { return useOfficeStore(); },
-    offices() { return this.officeStore.list; },
+    offices() { return this.officeStore.list || []; },
     loading() { return this.officeStore.loading; },
     notify() { return useNotificationsStore(); },
     isSuperuser() { return this.authStore.user?.is_superuser === true; }
@@ -60,7 +56,7 @@ export default {
         {
           await api.patch(`/offices/${this.form.id}`, { address: this.form.address });
           this.notify.success(`Корпус №${this.form.id} обновлен`);
-          this.officeStore.updateOffice({ address: this.form.address });
+          this.officeStore.updateOffice({ id: this.form.id, address: this.form.address });
         }
         else
         {
@@ -97,11 +93,7 @@ export default {
     async "form.id"(newVal) {
       if (newVal)
       {
-        await api.get(`/offices/${newVal}`).then(res => {
-          this.officeAlreadyExists = true;
-        }).catch(e => {
-          this.officeAlreadyExists = false;
-        })
+        this.officeAlreadyExists = this.offices.some(o => o.id === newVal);
       }
       else
       {
@@ -153,7 +145,7 @@ export default {
           <!-- Кол-во аудиторий -->
           <td>
               <span class="count-badge">
-                {{ office.audiences ? office.audiences.length : 0 }}
+                {{ office.audiences_count ?? 0}}
               </span>
           </td>
 
@@ -207,7 +199,7 @@ export default {
 
           <div class="modal-actions">
             <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
-            <button type="submit" class="btn-primary">Сохранить</button>
+            <button type="submit" class="btn-primary" :disabled="officeAlreadyExists">Сохранить</button>
           </div>
         </form>
       </div>
@@ -267,10 +259,36 @@ export default {
 }
 
 /* Кнопки */
-.btn-primary { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
-.btn-primary:hover { background: #2563eb; }
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
 
-.btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+.btn-primary:not(:disabled):hover {
+  background: #2563eb;
+}
+
+.btn-primary:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .btn-secondary:hover { background: #e2e8f0; }
 
 .actions-group { display: flex; gap: 8px; }
@@ -280,7 +298,7 @@ export default {
 
 .loading-state, .empty-state { padding: 20px; text-align: center; color: #94a3b8; }
 
-/* МОДАЛЬНОЕ ОКНО (Простое) */
+/* МОДАЛЬНОЕ ОКНО */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5);
@@ -332,5 +350,16 @@ export default {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 25px;
+}
+
+@media (max-width: 768px) {
+  .card-header h2 {
+    font-size: 15px;
+  }
+
+  .card-header .btn-primary {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
 }
 </style>
