@@ -1,10 +1,11 @@
 from fastapi import APIRouter, UploadFile, HTTPException, BackgroundTasks
 from starlette.responses import StreamingResponse
 from fastapi import Request
-from core.exceptions import HTTP404
+from core.exceptions import HTTP404, HTTP403
 from db.session import session_dep
 from dependencies.auth import admin_dep, user_dep
 from dependencies.hardware import hardware_service_dep
+from models.user import UserRole
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from fastapi.responses import FileResponse
 import os
@@ -37,12 +38,18 @@ async def update_hardware_status(
         data: HardwareUpdate,
         service: hardware_service_dep,
         background_tasks: BackgroundTasks,
-        user: admin_dep
+        user: user_dep
 ):
     """
     Обновить статус, комментарий или позицию конкретного оборудования.
     Используется при клике 'Исправно/Неисправно' или перемещении на фронте.
     """
+    if data.state and user.role == UserRole.teacher:
+        raise HTTP403("Teacher can't mark hardware as good state")
+    #TODO: Преподаватель может только менять состояние, надо протестить
+    if user.role == UserRole.teacher:
+        data = HardwareUpdate(**data.model_dump(include={"state"}))
+
     updated_hw = await service.update_status(hardware_id, data)
     broadcast_audience_updated(background_tasks, updated_hw.audience_id)
     return updated_hw

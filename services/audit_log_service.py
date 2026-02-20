@@ -1,18 +1,7 @@
 from models.audit_log import AuditLog
 from repositories.audit_log_repo import AuditLogRepository
+from utils.audit import clean_sensitive
 
-SENSITIVE_KEYS = {"password", "access_token", "refresh_token", "token", "secret", "api_key"}
-
-def kill_sensitive_data(payload: dict | None) -> dict | None:
-    if not payload:
-        return payload
-    clean = {}
-    for k, v in payload.items():
-        if k.lower() in SENSITIVE_KEYS:
-            clean[k] = "***"
-        else:
-            clean[k] = v
-    return clean
 
 class AuditLogService:
     def __init__(self, repo: AuditLogRepository):
@@ -36,7 +25,7 @@ class AuditLogService:
             action=action,
             entity_type=entity_type,
             entity_id=entity_id,
-            payload=kill_sensitive_data(payload),
+            payload=clean_sensitive(payload),
             ip=ip,
             user_agent=user_agent,
             path=path,

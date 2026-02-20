@@ -26,9 +26,6 @@ class AudienceService:
         return audience
 
     async def create_audience(self, schema: AudienceCreate):
-        if await self.repo.get_by_id(schema.id):
-            raise HTTP400("Audience already exists")
-
         audience_data = schema.model_dump(exclude={'hardware'})
 
         hardware_orm_list = [

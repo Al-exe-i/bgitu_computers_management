@@ -19,3 +19,8 @@ class HTTP403(HTTPException):
 class HTTP404(HTTPException):
     def __init__(self, detail: str = "Not Found"):
         super().__init__(status_code=404, detail=detail)
+
+
+class HTTP409(HTTPException):
+    def __init__(self, detail: str = "Conflict"):
+        super().__init__(status_code=409, detail=detail)

@@ -1,4 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks
+from sqlalchemy.exc import IntegrityError
+
+from core.exceptions import HTTP409
 from dependencies.audiences import audiences_service_dep
 from dependencies.auth import admin_dep
 from schemas.audience import AudienceResponse, AudienceCreate, AudienceShortResponse, AudienceUpdate
@@ -17,9 +20,12 @@ async def create_audience(
     Создать аудиторию вместе с сеткой оборудования.
     Принимает JSON с полями аудитории и массивом hardware.
     """
-    created = await service.create_audience(data)
-    broadcast_audience_updated(background_tasks, created.id)
-    return created
+    try:
+        created = await service.create_audience(data)
+        broadcast_audience_updated(background_tasks, created.id)
+        return created
+    except IntegrityError:
+        raise HTTP409("Такая аудитория уже существует")
 
 
 @router.get("/", response_model=list[AudienceResponse])
