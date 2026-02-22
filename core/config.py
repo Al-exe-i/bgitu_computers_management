@@ -69,6 +69,12 @@ class JWTConfig(BaseModel):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
 
+class CeleryConfig(BaseModel):
+    broker_url: str
+    result_backend: str
+    timezone: str = "UTC"
+
+
 class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
@@ -76,6 +82,7 @@ class Settings(BaseSettings):
     static: StaticFiles = StaticFiles()
     DEBUG: bool = False
     logger: LoggingConfig = LoggingConfig()
+    celery: CeleryConfig
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

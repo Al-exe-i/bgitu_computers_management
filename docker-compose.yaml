@@ -4,7 +4,7 @@ services:
     container_name: postgres_db
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.docker
     environment:
       - POSTGRES_USER=${BGITU__DB__USERNAME}
       - POSTGRES_PASSWORD=${BGITU__DB__PASSWORD}
@@ -27,7 +27,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +49,33 @@ services:
       - "8080:80"
     depends_on:
       - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: diplom_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  celery_worker:
+    build: .
+    container_name: diplom_celery_worker
+    command: celery -A celery_app:celery_app worker -l info
+    env_file:
+      - .env.docker
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    container_name: diplom_celery_beat
+    command: celery -A celery_app:celery_app beat -l info
+    env_file:
+      - .env.docker
+    depends_on:
+      - redis
+    restart: unless-stopped
 
 volumes:
   postgres_data:

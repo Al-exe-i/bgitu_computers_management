@@ -1,0 +1,12 @@
+[project]
+name = "BGITU_Hardware_Management"
+version = "0.1.0"
+description = "A WEB service for managing the health of university hardware"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "alembic[black]>=1.17.2",
+    "celery[redis]>=5.6.2",
+    "fastapi>=0.125.0",
+]
