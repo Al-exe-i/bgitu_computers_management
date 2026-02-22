@@ -42,18 +42,6 @@ async def get_current_user(
     user = await _validate_token_and_get_user(token, "access", service)
     return user
 
-
-async def get_current_refresh_user(
-        service: user_service_dep,
-        refresh_token: str | None = Cookie(None, alias="refresh_token")
-) -> UserOut:
-    if refresh_token is None:
-        raise HTTP401("Couldn't find a refresh token")
-
-    user = await _validate_token_and_get_user(refresh_token, "refresh", service)
-    return user
-
-
 async def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_superuser:
         raise HTTP403("Not enough permissions")

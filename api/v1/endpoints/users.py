@@ -1,21 +1,18 @@
 # api/v1/endpoints/users.py
+import mimetypes
+import os
 import aiofiles
 import uuid
-from fastapi import APIRouter, Depends, status, Cookie, UploadFile, File
+from fastapi import APIRouter, status, UploadFile, File
 from fastapi.responses import StreamingResponse
-import mimetypes
+from loguru import logger
 from sqlalchemy.exc import IntegrityError
 from core.config import settings
-from core.exceptions import HTTP403, HTTP401, HTTP404, HTTP400, HTTP409
+from core.exceptions import HTTP403, HTTP404, HTTP400, HTTP409
 from core.security import verify_password
+from dependencies.auth import superuser_dep, user_dep, admin_dep
 from dependencies.user import user_service_dep
-from models.user import User
-from schemas.token import Token
 from schemas.user import UserCreate, UserOut, UserUpdate, ChangePasswordSchema
-from dependencies.auth import get_current_refresh_user, superuser_dep, user_dep, admin_dep
-from utils.tokens import create_token_pair_and_build_response
-import os
-from loguru import logger
 
 router = APIRouter()
 
@@ -206,13 +203,3 @@ async def delete_user_photo(
     updated_user = await service.update(user_id, UserUpdate(photo=None))
 
     return updated_user
-
-
-@router.post("/refresh", response_model=Token)
-async def refresh_access_token(
-        current_user: User = Depends(get_current_refresh_user),
-        refresh_token: str | None = Cookie(None, alias="refresh_token"),
-):
-    if not refresh_token:
-        raise HTTP401("No refresh token provided")
-    return await create_token_pair_and_build_response(user=current_user)

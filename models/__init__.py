@@ -4,6 +4,7 @@ from .user import User
 from .office import Office
 from .audit_log import AuditLog
 from .hardware_file import HardwareFile
+from .user_session import UserSession
 
 __all__ = [
     "Audience",
@@ -12,4 +13,5 @@ __all__ = [
     "Office",
     "AuditLog",
     "HardwareFile",
+    "UserSession"
 ]
