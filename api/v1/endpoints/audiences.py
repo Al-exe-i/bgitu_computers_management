@@ -1,6 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
-
 from core.exceptions import HTTP409
 from dependencies.audiences import audiences_service_dep
 from dependencies.auth import admin_dep
@@ -9,7 +8,7 @@ from utils.broadcast import broadcast_audience_updated
 
 router = APIRouter()
 
-@router.post("/", response_model=AudienceShortResponse, status_code=201)
+@router.post("", response_model=AudienceShortResponse, status_code=201)
 async def create_audience(
         data: AudienceCreate,
         service: audiences_service_dep,
@@ -28,7 +27,7 @@ async def create_audience(
         raise HTTP409("Такая аудитория уже существует")
 
 
-@router.get("/", response_model=list[AudienceResponse])
+@router.get("", response_model=list[AudienceResponse])
 async def get_audiences(
     service: audiences_service_dep
 ):

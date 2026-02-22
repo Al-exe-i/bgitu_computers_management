@@ -14,14 +14,14 @@ class OfficeService:
     async def get(self, office_id: int) -> OfficeResponse | None:
         return await self.repo.get_one(office_id)
 
-    async def get_short(self, office_id: int) -> OfficeResponse | None:
+    async def get_short(self, office_id: int) -> OfficeShort | None:
         return await self.repo.get_one_short(office_id)
 
     async def create(self, office: OfficeCreate) -> Office:
         new_office = Office(**office.model_dump())
         return await self.repo.create(new_office)
 
-    async def update(self, schema: OfficeUpdate, orm_model: OfficeResponse) -> Office:
+    async def update(self, schema: OfficeUpdate, orm_model: OfficeShort) -> Office:
         return await self.repo.update(schema, orm_model)
 
     async def delete(self, office_id: int) -> bool:

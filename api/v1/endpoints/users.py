@@ -19,7 +19,7 @@ from loguru import logger
 router = APIRouter()
 
 
-@router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def create_user(
         service: user_service_dep,
         user_in: UserCreate,

@@ -1,5 +1,7 @@
 from fastapi import APIRouter
-from core.exceptions import HTTP404
+from loguru import logger
+from sqlalchemy.exc import IntegrityError
+from core.exceptions import HTTP404, HTTP409, HTTP400
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.office import office_service_dep
 from dependencies.auth import admin_dep
@@ -9,13 +11,13 @@ from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort, OfficeCrea
 router = APIRouter()
 
 
-@router.get("/", response_model=list[OfficeResponse])
+@router.get("", response_model=list[OfficeResponse])
 async def get_all_offices(service: office_service_dep):
     offices = await service.get_all()
     return offices
 
 
-@router.post("/", response_model=OfficeShort)
+@router.post("", response_model=OfficeShort)
 async def create_office(
         schema: OfficeCreate,
         service: office_service_dep,
@@ -23,16 +25,20 @@ async def create_office(
         audit: audit_log_service_dep,
         meta: request_meta_dep
 ):
-    office = await service.create(schema)
+    try:
+        office = await service.create(schema)
 
-    await audit.log(
-        user_id=user.id,
-        action="office.create",
-        entity_type="office",
-        entity_id=office.id,
-        payload={"address": office.address},
-        **meta,
-    )
+        await audit.log(
+            user_id=user.id,
+            action="office.create",
+            entity_type="office",
+            entity_id=office.id,
+            payload={"address": office.address},
+            **meta,
+        )
+
+    except IntegrityError:
+        raise HTTP409("Office already exists")
 
     return office
 
@@ -45,7 +51,9 @@ async def delete_office(
         audit: audit_log_service_dep,
         meta: request_meta_dep
 ):
-    await service.delete(office_id)
+    result = await service.delete(office_id)
+    if not result:
+        raise HTTP400("Office not found")
 
     await audit.log(
         user_id=user.id,
@@ -73,14 +81,14 @@ async def get_office(
     raise HTTP404("Office not found")
 
 
-@router.patch("/{office_id}", response_model=OfficeResponse)
+@router.patch("/{office_id}", response_model=OfficeShort)
 async def update_office_by_id_endpoint(
         office_id: int,
         office_in: OfficeUpdate,
         service: office_service_dep,
         user: admin_dep
 ):
-    office = await service.get(office_id)
+    office = await service.get_short(office_id)
 
     if not office:
         raise HTTP404("Office not found")
