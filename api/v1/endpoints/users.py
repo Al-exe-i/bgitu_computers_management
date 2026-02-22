@@ -4,8 +4,9 @@ import uuid
 from fastapi import APIRouter, Depends, status, Cookie, UploadFile, File
 from fastapi.responses import StreamingResponse
 import mimetypes
+from sqlalchemy.exc import IntegrityError
 from core.config import settings
-from core.exceptions import HTTP403, HTTP401, HTTP404, HTTP400
+from core.exceptions import HTTP403, HTTP401, HTTP404, HTTP400, HTTP409
 from core.security import verify_password
 from dependencies.user import user_service_dep
 from models.user import User
@@ -25,13 +26,11 @@ async def create_user(
         user_in: UserCreate,
         current_user: admin_dep
 ):
-    existing_user = await service.get_by_email(user_in.email)
-
-    if existing_user:
-        raise HTTP400("User already exists")
-
-    user = await service.create(user_in)
-    return user
+    try:
+        user = await service.create(user_in)
+        return user
+    except IntegrityError:
+        raise HTTP409("User already exists")
 
 
 @router.get("/me", response_model=UserOut)

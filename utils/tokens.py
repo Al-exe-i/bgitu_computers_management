@@ -1,4 +1,4 @@
-from starlette.responses import JSONResponse
+from fastapi.responses import JSONResponse
 from core.config import settings
 from core.security import generate_token
 from models import User

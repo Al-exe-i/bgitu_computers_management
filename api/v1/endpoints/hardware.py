@@ -1,15 +1,18 @@
 from fastapi import APIRouter, UploadFile, HTTPException, BackgroundTasks
-from starlette.responses import StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi import Request
 from core.exceptions import HTTP404, HTTP403
 from db.session import session_dep
+from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep, user_dep
 from dependencies.hardware import hardware_service_dep
+from dependencies.request_meta import request_meta_dep
 from models.user import UserRole
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from fastapi.responses import FileResponse
 import os
 from schemas.hardware_file import HardwareFileResponse
+from utils.audit import clean_sensitive
 from utils.broadcast import broadcast_audience_updated
 
 router = APIRouter()
@@ -22,12 +25,29 @@ async def add_hardware_file(
         service: hardware_service_dep,
         db: session_dep,
         background_tasks: BackgroundTasks,
-        user: admin_dep
+        user: admin_dep,
+        audit: audit_log_service_dep,
+        meta: request_meta_dep,
 ):
     hardware = await service.get(hardware_id)
     if not hardware:
         raise HTTP404("Hardware doesn't exist")
+
     result: list[HardwareFileResponse] = await service.update_files(hardware_id, files, db)
+
+    await audit.log(
+        user_id=user.id,
+        action="hardware.file_add",
+        entity_type="hardware",
+        entity_id=hardware_id,
+        payload={
+            "audience_id": hardware.audience_id,
+            "files_count": len(files),
+            "filenames": [f.filename for f in files][:10],  # чтобы лог не раздувался
+        },
+        **meta,
+    )
+
     broadcast_audience_updated(background_tasks, hardware.audience_id)
     return {"status": "success", "files": result}
 
@@ -38,19 +58,33 @@ async def update_hardware_status(
         data: HardwareUpdate,
         service: hardware_service_dep,
         background_tasks: BackgroundTasks,
-        user: user_dep
+        user: user_dep,
+        audit: audit_log_service_dep,
+        meta: request_meta_dep,
 ):
     """
     Обновить статус, комментарий или позицию конкретного оборудования.
-    Используется при клике 'Исправно/Неисправно' или перемещении на фронте.
     """
     if data.state and user.role == UserRole.teacher:
         raise HTTP403("Teacher can't mark hardware as good state")
-    #TODO: Преподаватель может только менять состояние, надо протестить
+
     if user.role == UserRole.teacher:
         data = HardwareUpdate(**data.model_dump(include={"state"}))
 
     updated_hw = await service.update_status(hardware_id, data)
+
+    await audit.log(
+        user_id=user.id,
+        action="hardware.update",
+        entity_type="hardware",
+        entity_id=hardware_id,
+        payload={
+            "audience_id": updated_hw.audience_id,
+            **(clean_sensitive(data) or {}),
+        },
+        **meta,
+    )
+
     broadcast_audience_updated(background_tasks, updated_hw.audience_id)
     return updated_hw
 
@@ -156,8 +190,20 @@ async def delete_hardware_file(
         file_id: int,
         service: hardware_service_dep,
         background_tasks: BackgroundTasks,
-        user: admin_dep
+        user: admin_dep,
+        audit: audit_log_service_dep,
+        meta: request_meta_dep,
 ):
     audience_id = await service.delete_file(file_id)
+
+    await audit.log(
+        user_id=user.id,
+        action="hardware.file_delete",
+        entity_type="hardware_file",
+        entity_id=file_id,
+        payload={"audience_id": audience_id},
+        **meta,
+    )
+
     broadcast_audience_updated(background_tasks, audience_id)
     return {"status": "success"}
