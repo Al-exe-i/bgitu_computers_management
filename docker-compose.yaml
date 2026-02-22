@@ -6,15 +6,15 @@ services:
     env_file:
       - .env
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${BGITU__DB__USERNAME}
+      - POSTGRES_PASSWORD=${BGITU__DB__PASSWORD}
+      - POSTGRES_DB=${BGITU__DB__DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,22 +28,27 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    environment:
-      - BGITU__DB__URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
     command: >
       sh -c "
       echo 'Waiting for database...' &&
-      until pg_isready -h db -p 5432 -U ${POSTGRES_USER}; do sleep 2; done &&
+      until pg_isready -h db -p 5432 -U ${BGITU__DB__USERNAME}; do sleep 2; done &&
       echo 'Running migrations...' &&
       alembic upgrade head &&
       echo 'Seeding...' &&
       cd /backend && python -m core.seed &&
       echo 'Starting server...' &&
-      uvicorn main:app --host 0.0.0.0 --port 8000
+      uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
       "
+
+  frontend:
+    build: E:\University\JS\frontend_computers
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

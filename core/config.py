@@ -1,5 +1,5 @@
 from pathlib import Path
-from pydantic import BaseModel, computed_field, PostgresDsn
+from pydantic import BaseModel, computed_field, PostgresDsn, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,7 +31,12 @@ class StaticFiles(BaseModel):
         return self.root / "avatars"
 
 class DatabaseConfig(BaseModel):
-    url: PostgresDsn
+    host: str = "localhost"
+    port: int = 5432
+    username: str
+    password: str
+    database: str
+
     echo: bool = False
     echo_pool: bool = False
     pool_size: int = 50
@@ -44,6 +49,16 @@ class DatabaseConfig(BaseModel):
         "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
         "pk": "pk_%(table_name)s",
     }
+
+    @computed_field
+    @property
+    def url(self) -> PostgresDsn:
+        db = self.database.lstrip("/")
+        dsn = (
+            f"postgresql+asyncpg://{self.username}:{self.password}"
+            f"@{self.host}:{self.port}/{db}"
+        )
+        return PostgresDsn(dsn)
 
 
 class JWTConfig(BaseModel):

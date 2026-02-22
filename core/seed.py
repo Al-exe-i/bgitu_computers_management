@@ -2,6 +2,8 @@ import os
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+
+from core.config import settings
 from core.security import get_password_hash
 
 OFFICES = [
@@ -18,7 +20,7 @@ USER = {
 }
 
 async def main():
-    db_url = os.environ["BGITU__DB__URL"]
+    db_url = str(settings.db.url)
     engine = create_async_engine(db_url)
 
     async with engine.begin() as conn:
