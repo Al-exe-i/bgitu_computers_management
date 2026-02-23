@@ -19,6 +19,20 @@ class UserSessionRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
+    async def list_by_user(self, user_id: int, include_inactive: bool = False) -> list[UserSession]:
+        now = datetime.now(timezone.utc)
+        stmt = select(UserSession).where(UserSession.user_id == user_id)
+
+        if not include_inactive:
+            stmt = stmt.where(
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > now,
+            )
+
+        stmt = stmt.order_by(UserSession.last_used_at.desc().nullslast(), UserSession.created_at.desc())
+        return (await self.db.execute(stmt)).scalars().all()
+
+
     async def validate(self, *, sid: str, user_id: int, jti: str) -> bool:
         now = datetime.now(timezone.utc)
         stmt = select(UserSession.id).where(

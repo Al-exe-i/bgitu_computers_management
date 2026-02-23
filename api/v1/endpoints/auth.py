@@ -1,15 +1,16 @@
 # api/v1/endpoints/auth.py
-
-from fastapi import APIRouter, Depends, status, Cookie
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, Cookie, Query
 from fastapi.security import OAuth2PasswordRequestForm
-from starlette.responses import JSONResponse
-from core.exceptions import HTTP401
+from fastapi.responses import JSONResponse
+from core.exceptions import HTTP401, HTTP404
 from core.security import verify_password, verify_token
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import user_dep
 from dependencies.request_meta import request_meta_dep
 from dependencies.user import user_service_dep
 from dependencies.user_session_service import user_session_service_dep
+from schemas.user_session import UserSessionOut
 from utils.tokens import issue_access_token, issue_refresh_token, build_token_response
 
 router = APIRouter()
@@ -171,4 +172,66 @@ async def logout_all_user(
     response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/api/v1/")
+    return response
+
+
+@router.get("/sessions", response_model=list[UserSessionOut])
+async def get_my_sessions(
+    sessions: user_session_service_dep,
+    user: user_dep,
+    include_inactive: bool = Query(False),
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
+):
+    # current sid, чтобы подсветить текущую сессию
+    current_sid = None
+    if refresh_token:
+        payload = verify_token(refresh_token, "refresh")
+        if payload:
+            current_sid = payload.get("sid")
+
+    now = datetime.now(timezone.utc)
+    rows = await sessions.repo.list_by_user(user.id, include_inactive=include_inactive)
+
+    result = []
+    for s in rows:
+        is_active = (s.revoked_at is None) and (s.expires_at > now)
+        is_current = (current_sid is not None and s.sid == current_sid)
+        result.append(UserSessionOut.model_validate(
+            {**s.__dict__, "is_active": is_active, "is_current": is_current}
+        ))
+    return result
+
+
+@router.delete("/sessions/{sid}")
+async def revoke_session(
+    sid: str,
+    sessions: user_session_service_dep,
+    user: user_dep,
+    audit: audit_log_service_dep,
+    meta: request_meta_dep,
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
+):
+    ok = await sessions.revoke_for_user(user.id, sid)
+    if not ok:
+        raise HTTP404("Session not found")
+
+    await audit.log(
+        user_id=user.id,
+        action="auth.session_revoke",
+        entity_type="user_session",
+        entity_id=None,
+        payload={"sid": sid},
+        **meta,
+    )
+
+    current_sid = None
+    if refresh_token:
+        payload = verify_token(refresh_token, "refresh")
+        if payload:
+            current_sid = payload.get("sid")
+
+    response = JSONResponse({"status": "success"})
+    if current_sid and current_sid == sid:
+        response.delete_cookie("access_token", path="/")
+        response.delete_cookie("refresh_token", path="/api/v1/")
     return response
