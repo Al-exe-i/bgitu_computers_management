@@ -6,7 +6,18 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiofiles>=25.1.0",
-    "alembic[black]>=1.17.2",
+    "alembic>=1.17.2",
+    "argon2-cffi>=25.1.0",
+    "asyncpg>=0.31.0",
     "celery[redis]>=5.6.2",
+    "email-validator>=2.3.0",
     "fastapi>=0.125.0",
+    "inflection>=0.5.1",
+    "loguru>=0.7.3",
+    "orjson>=3.11.7",
+    "pydantic-settings>=2.13.1",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.22",
+    "sqlalchemy>=2.0.45",
+    "uvicorn>=0.41.0",
 ]
