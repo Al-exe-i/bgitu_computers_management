@@ -126,13 +126,9 @@ const routes = [
                     {
                         path: 'logs',
                         name: 'SystemLogs',
-                        component: ManageAuditLogs, // импортни компонент
+                        component: ManageAuditLogs,
                         meta: { title: 'Журнал действий' }
                     },
-
-                    // Заглушки для будущего
-                    // { path: 'audiences', ... },
-                    // { path: 'logs', ... },
                 ]
             },
         ]

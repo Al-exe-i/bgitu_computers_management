@@ -540,7 +540,7 @@ export default {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Назад к схеме
+          Назад
         </button>
         <h1 class="page-title">{{ pageTitle }}</h1>
         <div style="width: 180px;"></div>

@@ -251,8 +251,8 @@ export default {
                   v-model="form.new_password"
                   class="form-input"
                   required
-                  placeholder="Минимум 4 символа"
-                  minlength="4"
+                  placeholder="Минимум 6 символов"
+                  minlength="6"
               >
               <button type="button" class="eye-btn" @click="togglePasswordVisibility('new')">
                 <svg v-if="!showPassword.new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -323,7 +323,7 @@ export default {
                 <div class="session-details">
                   <span>IP: {{ session.ip || 'Неизвестно' }}</span>
                   <span class="dot-separator">•</span>
-                  <span>Акт.: {{ formatDate(session.last_used_at) }}</span>
+                  <span>Начата: {{ formatDate(session.created_at) }} UTC</span>
                 </div>
               </div>
 
@@ -342,7 +342,7 @@ export default {
           <div class="actions-footer">
             <button class="btn btn-danger" @click="handleLogoutAll" :disabled="loadingAction || activeSessions.length <= 1">
               <span v-if="loadingAction" class="spinner"></span>
-              {{ loadingAction ? 'Обработка...' : 'Завершить все другие сеансы' }}
+              {{ loadingAction ? 'Обработка...' : 'Завершить все сеансы' }}
             </button>
           </div>
         </template>
