@@ -199,7 +199,7 @@ export default {
 
           <div class="modal-actions">
             <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
-            <button type="submit" class="btn-primary" :disabled="officeAlreadyExists">Сохранить</button>
+            <button type="submit" class="btn-primary" :disabled="officeAlreadyExists && !isEditMode">Сохранить</button>
           </div>
         </form>
       </div>

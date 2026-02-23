@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia';
 import api from '@/services/api';
 import router from "@/router/index.js";
+import axios from "axios";
+
+const plain = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL,
+    withCredentials: true,
+});
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -71,16 +77,22 @@ export const useAuthStore = defineStore('auth', {
         // REFRESH
         async refreshToken()
         {
-            await api.post('/users/refresh');
+            await plain.post('/refresh');
         },
 
         // LOGOUT
-        async logout()
+        async logout(all = false)
         {
             this.isLoggingOut = true;
             try
             {
-                await api.post('/logout'); // Сообщаем серверу убрать куки
+                if(all) {
+                    await api.post('/logout_all');
+                }
+                else {
+                    await api.post('/logout');
+                }
+
             }
             catch (error)
             {

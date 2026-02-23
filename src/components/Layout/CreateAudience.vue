@@ -585,7 +585,7 @@ export default {
                   type="number"
                   class="form-input"
                   v-model.number="floorNumber"
-                  min="1" max="10"
+                  min="1" max="9"
               >
             </div>
 

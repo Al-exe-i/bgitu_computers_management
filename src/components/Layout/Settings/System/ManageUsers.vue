@@ -73,7 +73,7 @@ export default {
           ...(this.createForm.name && { name: this.createForm.name })
         };
 
-        await api.post('/users/', payload);
+        await api.post('/users', payload);
 
         this.notify.success(`Пользователь ${payload.email} создан`);
         this.closeModal();
@@ -81,7 +81,7 @@ export default {
       }
       catch (error)
       {
-        const msg = error.response?.data?.detail || "Не удалось создать пользователя";
+        const msg = error?.status === 409 ? "Такой пользователь уже существует" : "Не удалось создать пользователя";
         this.notify.error(msg);
       }
       finally {

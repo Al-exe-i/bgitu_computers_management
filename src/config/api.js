@@ -12,8 +12,3 @@ export const getApiUrl = () =>
 export const getWsUrl = () => {
     return WS_BASE_URL
 };
-
-export const SERVER_URL = () =>
-{
-    return API_BASE_URL.replace('/api/v1', '');
-}

@@ -39,7 +39,7 @@ export const useOfficeStore = defineStore('offices', {
         {
             const index = this.list.findIndex(o => o.id === updatedOffice.id);
             if (index !== -1) {
-                this.list[index] = updatedOffice;
+                this.list[index] = {...this.list[index], ...updatedOffice};
             }
         }
     }
