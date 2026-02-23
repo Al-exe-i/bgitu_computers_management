@@ -4,8 +4,9 @@ import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {useAuthStore} from "@/stores/auth.js";
-import {getApiUrl, getWsUrl, SERVER_URL} from "@/config/api.js";
+import {getApiUrl, getWsUrl} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
+import { markRaw } from "vue";
 
 export default {
   name: 'AudienceView',
@@ -15,10 +16,23 @@ export default {
     return {
       classroom: null,
       loading: true,
+
+      // workspace
+      isWorkspace: false,
+      workspaceWantsFullscreen: false, // Поставить false, если нужен только CSS-оверлей
+
+      // Масштаб сетки
+      scaleMode: 'auto',     // 'auto' | 'manual'
+      uiScale: 1.0,          // 0.7 ... 1.4
+      uiScaleMin: 0.6,
+      uiScaleMax: 1.5,
+
       dropClassroomModalShow: false,
+
       selectedCell: null,
-      equipmentTypes: {
-        computer: {
+
+      equipmentTypes: markRaw({
+        computer:{
           name: 'Компьютер',
           color: 'linear-gradient(135deg, #3b82f6, #2563eb)',
           icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>'
@@ -53,7 +67,7 @@ export default {
           color: 'linear-gradient(135deg, #64748b, #475569)',
           icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M10.358 9.938c1.082-.12 2.202-.12 3.284 0a.464.464 0 0 1 .409.4c.129 1.104.129 2.22 0 3.324a.464.464 0 0 1-.41.4a14.92 14.92 0 0 1-3.283 0a.464.464 0 0 1-.409-.4a14.324 14.324 0 0 1 0-3.324a.464.464 0 0 1 .41-.4"/><path fill="currentColor" fill-rule="evenodd" d="M15 2.25a.75.75 0 0 1 .75.75v2.927a2.929 2.929 0 0 1 2.308 2.323H21a.75.75 0 0 1 0 1.5h-2.788c.037.5.061 1 .073 1.5H20a.75.75 0 0 1 0 1.5h-1.715c-.012.5-.036 1-.073 1.5H21a.75.75 0 0 1 0 1.5h-2.942a2.929 2.929 0 0 1-2.308 2.323V21a.75.75 0 0 1-1.5 0v-2.774c-.498.035-.999.059-1.5.07V20a.75.75 0 0 1-1.5 0v-1.704a31.963 31.963 0 0 1-1.5-.07V21a.75.75 0 0 1-1.5 0v-2.927a2.929 2.929 0 0 1-2.308-2.323H3a.75.75 0 0 1 0-1.5h2.788c-.037-.5-.061-1-.074-1.5H4a.75.75 0 0 1 0-1.5h1.714c.013-.5.037-1 .074-1.5H3a.75.75 0 0 1 0-1.5h2.942A2.929 2.929 0 0 1 8.25 5.927V3a.75.75 0 0 1 1.5 0v2.774c.498-.035.999-.059 1.5-.07V4a.75.75 0 0 1 1.5 0v1.704c.501.011 1.002.035 1.5.07V3a.75.75 0 0 1 .75-.75m-1.192 6.197a16.407 16.407 0 0 0-3.616 0c-.898.1-1.626.808-1.732 1.717a15.808 15.808 0 0 0 0 3.672c.106.91.834 1.616 1.732 1.717c1.192.133 2.424.133 3.616 0a1.963 1.963 0 0 0 1.732-1.717c.143-1.22.143-2.452 0-3.672a1.963 1.963 0 0 0-1.732-1.717" clip-rule="evenodd"/></svg>'
         }
-      },
+      }),
       /*Редактирование инв номера и названия оборудования в модалке */
       invNumEdit: false,
       hwTitleEdit: false,
@@ -67,6 +81,10 @@ export default {
       dontAskAgain: false,
 
       /*WebSocket*/
+      refreshTimer: null,
+      refreshDebounceMs: 400,
+      wsSuspendedUntil: 0,
+
       ws: null,
       wsConnected: false,
       wsError: false,
@@ -79,7 +97,13 @@ export default {
     };
   },
   computed: {
+    // Стата для админов
     stats() {
+      if (!this.classroom?.equipment) {
+        return { total: 0, working: 0, broken: 0, computers: 0 };
+      }
+
+
       const result = {
         total: 0,
         working: 0,
@@ -133,8 +157,7 @@ export default {
     },
 
     // Плотность сетки
-    gridDensityClass()
-    {
+    gridDensityClass() {
       if (!this.classroom) return '';
 
       const cols = this.classroom.gridSize.width;
@@ -143,28 +166,50 @@ export default {
       if (cols > 10) return 'density-compact'; // 11-15 колонок: Средне (как на планшете)
       return 'density-normal';                 // <=10 колонок: Стандарт
     },
+
+    gridStyle() {
+      const s = this.scaleMode === 'manual' ? this.uiScale : 1;
+      return {
+        '--grid-cols': this.classroom?.gridSize?.width ?? 1,
+        '--ui-scale': s
+      };
+    },
+
   },
 
   methods: {
     getApiUrl,
-    async getAudience() {
-      await api.get(`/audiences/${this.audienceId}`).then(res => {
-        this.classroom = this.mapBackendToFrontend(res.data);
+    async getAudience({ keepModal = true } = {}) {
+      try {
+        const res = await api.get(`/audiences/${this.audienceId}`);
+        const next = this.mapBackendToFrontend(res.data);
+
+        // аккуратно обновим classroom
+        this.classroom = next;
         this.loading = false;
-        this.audienceContext.setOffice(this.classroom.office_id)
-        //Обновляем, если открыта модалка,
-        if(this.selectedCell)
-        {
-          const row = this.selectedCell.row
-          const col = this.selectedCell.col
-          this.closeModal()
+
+        this.audienceContext.setOffice(this.classroom.office_id);
+
+        // если модалка открыта — можно просто переоткрыть на те же координаты
+        if (keepModal && this.selectedCell) {
+          const { row, col } = this.selectedCell;
+          this.closeModal();
           this.openModal(row, col);
         }
-        this.connectWebSocket();
-      }).catch(err => {
+      } catch (e) {
         this.loading = false;
-        router.push(`/`)
-      })
+        await router.push(`/`);
+      }
+    },
+
+    scheduleRefresh() {
+      // если мы недавно сами меняли (PATCH/UPLOAD/DELETE) — можно игнорить WS
+      if (Date.now() < this.wsSuspendedUntil) return;
+
+      if (this.refreshTimer) clearTimeout(this.refreshTimer);
+      this.refreshTimer = setTimeout(() => {
+        this.getAudience({ keepModal: true });
+      }, this.refreshDebounceMs);
     },
 
     mapBackendToFrontend(data) {
@@ -244,15 +289,16 @@ export default {
       if (this.selectedCell)
       {
         let description = status === true ? `` : this.selectedCell.data.comment
-        this.closeWebSocket();
+
+        this.wsSuspendedUntil = Date.now() + 1000;
+
         await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {state: status, description: description}
         ).then(res => {
           this.selectedCell.data.working = status;
         }).catch(err => {
           this.notify.error(`Не удалось изменить состояние текущего оборудования!`)
-        }).finally(() => {
-          this.connectWebSocket()
         })
+
         if(status)
           this.selectedCell.data.comment = ``
       }
@@ -332,15 +378,13 @@ export default {
       );
     },
     /* WebSocket */
-    connectWebSocket()
-    {
-      if (this.ws)
-      {
+    connectWebSocket() {
+      if (this.ws) {
         this.ws.onclose = null;
         this.ws.close();
       }
 
-      this.ws = new WebSocket(getWsUrl())
+      this.ws = new WebSocket(getWsUrl());
 
       this.ws.onopen = () => {
         this.wsConnected = true;
@@ -351,39 +395,34 @@ export default {
 
       this.ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg?.audience_updated === this.classroom.number)
-        {
-          this.getAudience()
+        if (msg?.audience_updated === this.classroom?.number) {
+          this.scheduleRefresh();
         }
       };
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = () => {
         this.wsConnected = false;
 
-        // Попытка переподключения
         if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
           this.wsReconnectAttempts++;
-          const delay = this.reconnectDelay * this.wsReconnectAttempts; // экспоненциально
+          const delay = this.reconnectDelay * this.wsReconnectAttempts;
 
           this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
 
-          setTimeout(() => {
-            this.connectWebSocket();
-          }, delay);
-        }
-        else
-        {
-          // Не удалось восстановить
+          setTimeout(() => this.connectWebSocket(), delay);
+        } else {
           this.wsError = true;
-          this.notify.error("Не удалось восстановить соединение с сервером")
-          router.push(`/`)
+          this.notify.error("Не удалось восстановить соединение с сервером");
+          router.push(`/`);
         }
       };
     },
+
     closeWebSocket()
     {
       if(this.ws)
       {
+        clearTimeout(this.refreshTimer)
         this.ws.onclose = null;
         this.wsConnected = false;
         this.ws.close()
@@ -396,6 +435,7 @@ export default {
 
       try {
         const hwId = this.selectedCell.data.dbId;
+        this.wsSuspendedUntil = Date.now() + 1000;
         await api.post(`/hardware/${hwId}/files`, formData).then(response => {
           if (!this.selectedCell.data.files)
             this.selectedCell.data.files = []
@@ -432,6 +472,7 @@ export default {
     {
       try
       {
+        this.wsSuspendedUntil = Date.now() + 1000;
         await api.delete(`/hardware/files/${fileId}`);
 
         // Удаляем файл из локального состояния, чтобы не перекачивать всё заново
@@ -492,18 +533,20 @@ export default {
 
     /* Просмотр файлов */
     openPreview(index) {
-      this.previewIndex = index;
-      // Блокируем скролл основной страницы, чтобы не ездила
-      document.body.style.overflow = 'hidden';
+      if (this.previewIndex !== null) {
+        this.previewIndex = index;
+        return;
+      }
 
-      // Добавляем слушатель клавиш (Esc, Стрелки)
+      this.previewIndex = index;
+      document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', this.handlePreviewKeys);
     },
 
     // Закрыть
     closePreview() {
       this.previewIndex = null;
-      document.body.style.overflow = ''; // Возвращаем скролл
+      if (!this.isWorkspace) document.body.style.overflow = ''; // Если workspace активен — НЕ возвращаем скролл
       window.removeEventListener('keydown', this.handlePreviewKeys);
     },
 
@@ -532,11 +575,51 @@ export default {
       if (e.key === 'Escape') this.closePreview();
       if (e.key === 'ArrowRight') this.nextPreview();
       if (e.key === 'ArrowLeft') this.prevPreview();
-    }
+    },
+
+    toggleWorkspace() {
+      const next = !this.isWorkspace;
+      this.isWorkspace = next;
+
+
+      if (next) {
+        document.body.style.overflow = 'hidden';
+
+        // нативный fullscreen (опционально)
+        if (this.workspaceWantsFullscreen) {
+          this.requestFullscreenSafe();
+        }
+      } else {
+        // если preview не открыт — возвращаем скролл
+        if (this.previewIndex === null) document.body.style.overflow = '';
+
+        if (document.fullscreenElement) {
+          document.exitFullscreen?.();
+        }
+      }
+    },
+
+    requestFullscreenSafe() {
+      const el = this.$refs.gridSection;
+      if (!el) return;
+      el.requestFullscreen?.().catch(() => {
+        // браузер мог запретить — тогда останется CSS-оверлей
+      });
+    },
+
+    toggleScaleMode() {
+      this.scaleMode = this.scaleMode === 'auto' ? 'manual' : 'auto';
+      if (this.scaleMode === 'manual') {
+        // стартуем с 100%, чтобы было предсказуемо
+        this.uiScale = 1.0;
+      }
+    },
+
   },
 
   mounted() {
     this.getAudience();
+    this.connectWebSocket();
   },
 
   beforeUnmount() {
@@ -549,7 +632,7 @@ export default {
 <template>
   <LoaderContainer v-if="loading" />
 
-  <div v-if="!loading" class="page-viewer">
+  <div v-if="!loading" class="page-viewer" :class="{ workspace: isWorkspace }">
     <header class="top-header">
       <div class="classroom-info">
         <h1 class="classroom-number">Аудитория {{ classroom.number }}</h1>
@@ -586,7 +669,7 @@ export default {
     </header>
 
     <div class="container">
-      <div v-if="authStore.isAuthenticated" class="stats-section">
+      <div v-if="havePermission" class="stats-section">
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-label">Всего оборудования</div>
@@ -607,9 +690,31 @@ export default {
         </div>
       </div>
 
-      <div v-if="classroom" class="grid-section">
+      <div v-if="classroom" class="grid-section" ref="gridSection" :class="{ workspace: isWorkspace }">
         <div class="grid-header">
           <h2 class="grid-title">Состояние оборудования</h2>
+          <div class="grid-tools">
+            <button class="switch-fullscreen-btn" @click="toggleWorkspace">
+              <svg v-if="!isWorkspace" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+                <title>Полноэкранный режим</title>
+                <path fill="currentColor" d="m290 236.4l43.9-43.9a8.01 8.01 0 0 0-4.7-13.6L169 160c-5.1-.6-9.5 3.7-8.9 8.9L179 329.1c.8 6.6 8.9 9.4 13.6 4.7l43.7-43.7L370 423.7c3.1 3.1 8.2 3.1 11.3 0l42.4-42.3c3.1-3.1 3.1-8.2 0-11.3zm352.7 187.3c3.1 3.1 8.2 3.1 11.3 0l133.7-133.6l43.7 43.7a8.01 8.01 0 0 0 13.6-4.7L863.9 169c.6-5.1-3.7-9.5-8.9-8.9L694.8 179c-6.6.8-9.4 8.9-4.7 13.6l43.9 43.9L600.3 370a8.03 8.03 0 0 0 0 11.3zM845 694.9c-.8-6.6-8.9-9.4-13.6-4.7l-43.7 43.7L654 600.3a8.03 8.03 0 0 0-11.3 0l-42.4 42.3a8.03 8.03 0 0 0 0 11.3L734 787.6l-43.9 43.9a8.01 8.01 0 0 0 4.7 13.6L855 864c5.1.6 9.5-3.7 8.9-8.9zm-463.7-94.6a8.03 8.03 0 0 0-11.3 0L236.3 733.9l-43.7-43.7a8.01 8.01 0 0 0-13.6 4.7L160.1 855c-.6 5.1 3.7 9.5 8.9 8.9L329.2 845c6.6-.8 9.4-8.9 4.7-13.6L290 787.6L423.7 654c3.1-3.1 3.1-8.2 0-11.3z"></path>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><title>Выйти из полноэкранного режима</title><path fill="currentColor" d="M391 240.9c-.8-6.6-8.9-9.4-13.6-4.7l-43.7 43.7L200 146.3a8.03 8.03 0 0 0-11.3 0l-42.4 42.3a8.03 8.03 0 0 0 0 11.3L280 333.6l-43.9 43.9a8.01 8.01 0 0 0 4.7 13.6L401 410c5.1.6 9.5-3.7 8.9-8.9zm10.1 373.2L240.8 633c-6.6.8-9.4 8.9-4.7 13.6l43.9 43.9L146.3 824a8.03 8.03 0 0 0 0 11.3l42.4 42.3c3.1 3.1 8.2 3.1 11.3 0L333.7 744l43.7 43.7A8.01 8.01 0 0 0 391 783l18.9-160.1c.6-5.1-3.7-9.4-8.8-8.8m221.8-204.2L783.2 391c6.6-.8 9.4-8.9 4.7-13.6L744 333.6L877.7 200c3.1-3.1 3.1-8.2 0-11.3l-42.4-42.3a8.03 8.03 0 0 0-11.3 0L690.3 279.9l-43.7-43.7a8.01 8.01 0 0 0-13.6 4.7L614.1 401c-.6 5.2 3.7 9.5 8.8 8.9M744 690.4l43.9-43.9a8.01 8.01 0 0 0-4.7-13.6L623 614c-5.1-.6-9.5 3.7-8.9 8.9L633 783.1c.8 6.6 8.9 9.4 13.6 4.7l43.7-43.7L824 877.7c3.1 3.1 8.2 3.1 11.3 0l42.4-42.3c3.1-3.1 3.1-8.2 0-11.3z"/></svg>
+            </button>
+
+            <button class="scale-type-btn" @click="toggleScaleMode">
+              {{ scaleMode === 'auto' ? 'Масштаб: авто' : `Масштаб: ${Math.round(uiScale*100)}%` }}
+            </button>
+
+            <div v-if="scaleMode === 'manual'" class="scale-controls">
+              <input type="range"
+                     :min="uiScaleMin"
+                     :max="uiScaleMax"
+                     step="0.05"
+                     v-model.number="uiScale" />
+            </div>
+
+          </div>
           <p v-if="authStore.isAuthenticated" class="grid-info">Кликните по ячейке для деталей</p>
         </div>
 
@@ -617,7 +722,7 @@ export default {
           <div
               class="equipment-grid"
               :class="gridDensityClass"
-              :style="{ '--grid-cols': classroom.gridSize.width }">
+              :style="gridStyle">
             <template v-for="row in classroom.gridSize.height" :key="row">
               <div
                   v-for="col in classroom.gridSize.width"
@@ -707,11 +812,12 @@ export default {
             ></textarea>
           </div>
 
-          <div class="action-btns" v-if="havePermission">
+          <div class="action-btns">
             <button
                 class="action-btn fix-btn"
                 :disabled="selectedCell.data.working"
                 @click="setWorkingStatus(true)"
+                v-if="havePermission"
             >
               Исправно
             </button>
@@ -879,6 +985,11 @@ export default {
   padding-bottom: 40px;
 }
 
+.page-viewer.workspace .top-header,
+.page-viewer.workspace .stats-section {
+  display: none;
+}
+
 @keyframes gradientShift {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -971,6 +1082,39 @@ export default {
   gap: 6px;
 }
 
+.switch-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  will-change: auto;
+}
+
+.switch-fullscreen-btn:hover {
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+}
+
+.switch-fullscreen-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.switch-fullscreen-btn svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+  will-change: auto;
+}
+
 .header-btn svg {
   width: 18px;
   height: 18px;
@@ -1060,6 +1204,16 @@ export default {
   margin-bottom: 24px;
 }
 
+.grid-section.workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 100;        /* выше AppHeader */
+  border-radius: 0;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
 .grid-header {
   display: flex;
   justify-content: space-between;
@@ -1071,6 +1225,68 @@ export default {
   font-size: 22px;
   font-weight: 700;
   color: #1e293b;
+}
+
+.grid-tools {
+  display: flex;
+  gap: 1rem;
+}
+
+.scale-type-btn {
+  padding: 8px 16px;
+  background: white;
+  border: 1.5px solid #3b82f6;
+  border-radius: 12px;
+  color: #3b82f6;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  min-width: 127px;
+}
+
+.scale-type-btn:hover {
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+.scale-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0f9ff;
+  border-radius: 12px;
+  border: 1px solid #bfdbfe;
+  padding-left: 1rem;
+  padding-right: 1rem;
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 180px;
+    height: 6px;
+    background: #dbeafe;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
 }
 
 .grid-info {
@@ -1087,12 +1303,14 @@ export default {
 }
 
 .equipment-grid {
-  --cell-size: 90px;
-  --icon-div-size: 48px;
-  --icon-size: 26px;
-  --font-size: 12px;
+  --ui-scale: 1;
+
+  --cell-size: calc(90px * var(--ui-scale));
+  --icon-div-size: calc(48px * var(--ui-scale));
+  --icon-size: calc(26px * var(--ui-scale));
+  --font-size: calc(12px * var(--ui-scale));
+  --icon-div-mb: calc(6px * var(--ui-scale));
   --equipment-label-fw: 600;
-  --icon-div-mb: 6px;
 
   grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
   display: inline-grid;
@@ -1104,21 +1322,22 @@ export default {
 }
 
 .equipment-grid.density-compact {
-  --cell-size: 70px;
-  --icon-div-size: 42px;
-  --icon-size: 24px;
-  --font-size: 11px;
+  --cell-size: calc(70px * var(--ui-scale));
+  --icon-div-size: calc(42px * var(--ui-scale));
+  --icon-size: calc(24px * var(--ui-scale));
+  --font-size: calc(11px * var(--ui-scale));
+  --icon-div-mb: calc(3px * var(--ui-scale));
   --equipment-label-fw: 500;
-  --icon-div-mb: 3px;
 
   gap: 8px;
 }
 
 .equipment-grid.density-tiny {
-  --cell-size: 55px;
-  --icon-div-size: 38px;
-  --icon-size: 24px;
-  --font-size: 0px; /* Скрываем текст, так как он не влезет */
+  --cell-size: calc(55px * var(--ui-scale));
+  --icon-div-size: calc(38px * var(--ui-scale));
+  --icon-size: calc(24px * var(--ui-scale));
+  --font-size: 0px;
+
   gap: 4px;
 }
 
@@ -1955,6 +2174,14 @@ export default {
   .header-btn {
     flex: 1;
     justify-content: center;
+  }
+
+  .scale-type-btn, .scale-controls {
+    display: none;
+  }
+
+  .grid-info {
+    display: none;
   }
 
   .stats-grid {
