@@ -15,7 +15,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     email: str  # Потом поменять на EmailStr, если добавлю логин
-    password: str
+    password: str = Field(min_length=6)
 
 
 class UserUpdate(UserBase):
@@ -30,5 +30,5 @@ class UserOut(UserBase):
     is_superuser: bool
 
 class ChangePasswordSchema(BaseModel):
-    current_password: str = Field(min_length=4)
-    new_password: str = Field(min_length=4)
+    current_password: str = Field(min_length=6)
+    new_password: str = Field(min_length=6)

@@ -12,6 +12,7 @@ from core.exceptions import HTTP403, HTTP404, HTTP400, HTTP409
 from core.security import verify_password
 from dependencies.auth import superuser_dep, user_dep, admin_dep
 from dependencies.user import user_service_dep
+from models.user import UserRole
 from schemas.user import UserCreate, UserOut, UserUpdate, ChangePasswordSchema
 
 router = APIRouter()
@@ -46,7 +47,7 @@ async def get_all_users(
 
 @router.get("/{user_id}", response_model=UserOut)
 async def read_user(service: user_service_dep, user_id: int, current_user: user_dep):
-    if current_user.id != user_id and not current_user.role.admin:
+    if current_user.id != user_id and current_user.role != UserRole.admin:
         raise HTTP403("Not enough permissions")
     user = await service.get(user_id)
     if not user:
@@ -104,14 +105,14 @@ async def delete_user(
 ):
     user = await service.get(user_id)
 
+    if not user:
+        raise HTTP404("User not found")
+
     if current_user.id == user_id:
         raise HTTP400("You can't delete yourself")
 
     if user.is_superuser:
         raise HTTP400("You can't delete superuser")
-
-    if not user:
-        raise HTTP404("User not found")
 
     await service.delete(user_id)
 

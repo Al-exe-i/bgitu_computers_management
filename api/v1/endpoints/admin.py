@@ -22,7 +22,7 @@ async def get_protected_file(
     abs_protected_dir = os.path.abspath(settings.static.root)
     abs_requested_path = os.path.abspath(full_path)
 
-    if not abs_requested_path.startswith(abs_protected_dir):
+    if os.path.commonpath([abs_protected_dir, abs_requested_path]) != abs_protected_dir:
         raise HTTP403("Доступ запрещен")
 
     if not os.path.exists(full_path) or not os.path.isfile(full_path):
@@ -53,3 +53,4 @@ async def get_audit_log(
         offset=offset,
     )
     return {"items": items, "total": total}
+
