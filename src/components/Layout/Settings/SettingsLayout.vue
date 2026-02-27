@@ -135,13 +135,12 @@ export default {
   top: 0;
   z-index: 30;
   padding: 0 20px;
-  height: 60px; /* Вернул оригинальную высоту */
+  height: 60px;
   display: flex;
   align-items: center;
   border-bottom: 1px solid #e2e8f0;
 }
 
-/* Оставил эффект матового стекла, он делает скролл контента под шапку красивым */
 .glass-effect {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
@@ -157,7 +156,6 @@ export default {
   align-items: center;
 }
 
-/* ЗАГОЛОВОК */
 .section-title {
   font-size: 20px;
   font-weight: 600;
@@ -178,7 +176,7 @@ export default {
 .icon-tabs {
   display: flex;
   gap: 8px;
-  background: #f1f5f9; /* Подложка под кнопки */
+  background: #f1f5f9;
   padding: 4px;
   border-radius: 10px;
 }

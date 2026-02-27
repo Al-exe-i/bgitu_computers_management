@@ -6,6 +6,7 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 import {toRaw} from "vue";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {useAuthStore} from "@/stores/auth.js";
+import {useThemeStore} from "@/stores/theme.js";
 
 export default {
   name: "floor",
@@ -32,6 +33,10 @@ export default {
 
     authStore() {
       return useAuthStore()
+    },
+
+    themeStore() {
+      return useThemeStore()
     }
   },
   methods: {
@@ -199,7 +204,7 @@ export default {
       <div class="search-box">
         <input v-model="searchField" type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
       </div>
-      <div class="filter-buttons">
+      <div class="filter-buttons" :class="{ 'is-dark': themeStore.isDark }">
         <button class="filter-btn" @click="setFilterMode(`all`)" :class="{active: this.filterMode === `all`}">Все аудитории</button>
         <button class="filter-btn" @click="setFilterMode(`working`)" :class="{active: this.filterMode === `working`}">Исправные</button>
         <button class="filter-btn" @click="setFilterMode(`broken`)" :class="{active: this.filterMode === `broken`}">С неисправностями</button>
@@ -369,6 +374,23 @@ body {
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
   border-color: #1d4ed8;
+}
+
+.filter-buttons.is-dark .filter-btn {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.filter-buttons.is-dark .filter-btn:hover {
+  background: #334155;
+  border-color: #64748b;
+}
+
+.filter-buttons.is-dark .filter-btn.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #e2e8f0;
+  border-color: #2563eb;
 }
 
 /* Empty State */

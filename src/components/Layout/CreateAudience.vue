@@ -5,6 +5,54 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {useAuthStore} from "@/stores/auth.js";
 
+const EQUIPMENT_TYPES = Object.freeze([
+  {
+    id: 'computer',
+    name: 'Компьютер',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n' +
+        '                <rect x="2" y="3" width="20" height="14" rx="2"></rect>\n' +
+        '                <path d="M8 21h8M12 17v4"></path>\n' +
+        '              </svg>',
+    color: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+  },
+  {
+    id: 'tv',
+    name: 'Телевизор',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1920 1536"><title>Television SVG Icon</title><path fill="currentColor" d="M1792 1120V160q0-13-9.5-22.5T1760 128H160q-13 0-22.5 9.5T128 160v960q0 13 9.5 22.5t22.5 9.5h1600q13 0 22.5-9.5t9.5-22.5m128-960v960q0 66-47 113t-113 47h-736v128h352q14 0 23 9t9 23v64q0 14-9 23t-23 9H544q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h352v-128H160q-66 0-113-47T0 1120V160Q0 94 47 47T160 0h1600q66 0 113 47t47 113"/></svg>',
+    color: 'linear-gradient(135deg, #f97316, #ea580c)'
+  },
+  {
+    id: 'projector',
+    name: 'Проектор',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Projector SVG Icon</title><g fill="currentColor"><path d="M14 7.5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M2.5 6a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1zm0 2a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z"/><path d="M0 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1H5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/></g></svg>',
+    color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+  },
+  {
+    id: 'printer',
+    name: 'Принтер',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Printer-fill SVG Icon</title><g fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2zm2.5 1a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1"/></g></svg>',
+    color: 'linear-gradient(135deg, #10b981, #059669)'
+  },
+  {
+    id: 'switch',
+    name: 'Коммутатор',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><title>Network-switch-solid-badged SVG Icon</title><path fill="currentColor" d="M32.26 13.15A7.49 7.49 0 0 1 22.57 7H7.13a2 2 0 0 0-1.91 1.41L2.09 18.48a2 2 0 0 0-.09.59V27a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2v-7.94a2 2 0 0 0-.09-.59ZM8.92 25h-1.8v-3h1.8Zm5 0h-1.8v-3h1.8Zm5 0h-1.8v-3h1.8Zm5 0H22.1v-3h1.8Zm5 0H27.1v-3h1.8ZM31 19.4H5V18h26Z" class="clr-i-solid--badged clr-i-solid-path-1--badged"/><circle cx="30" cy="6" r="5" fill="currentColor" class="clr-i-solid--badged clr-i-solid-path-2--badged clr-i-badge"/><path fill="none" d="M0 0h36v36H0z"/></svg>',
+    color: 'linear-gradient(135deg, #f59e0b, #d97706)'
+  },
+  {
+    id: 'router',
+    name: 'Роутер',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Router-fill SVG Icon</title><g fill="currentColor"><path d="M5.525 3.025a3.5 3.5 0 0 1 4.95 0a.5.5 0 1 0 .707-.707a4.5 4.5 0 0 0-6.364 0a.5.5 0 0 0 .707.707"/><path d="M6.94 4.44a1.5 1.5 0 0 1 2.12 0a.5.5 0 0 0 .708-.708a2.5 2.5 0 0 0-3.536 0a.5.5 0 0 0 .707.707Z"/><path d="M2.974 2.342a.5.5 0 1 0-.948.316L3.806 8H1.5A1.5 1.5 0 0 0 0 9.5v2A1.5 1.5 0 0 0 1.5 13H2a.5.5 0 0 0 .5.5h2A.5.5 0 0 0 5 13h6a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5h.5a1.5 1.5 0 0 0 1.5-1.5v-2A1.5 1.5 0 0 0 14.5 8h-2.306l1.78-5.342a.5.5 0 1 0-.948-.316L11.14 8H4.86zM2.5 11a.5.5 0 1 1 0-1a.5.5 0 0 1 0 1m4.5-.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m2.5.5a.5.5 0 1 1 0-1a.5.5 0 0 1 0 1m1.5-.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m2 0a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0"/><path d="M8.5 5.5a.5.5 0 1 1-1 0a.5.5 0 0 1 1 0"/></g></svg>',
+    color: 'linear-gradient(135deg, #06b6d4, #0891b2)'
+  },
+  {
+    id: 'other',
+    name: 'Другое',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Processor-solid SVG Icon</title><path fill="currentColor" d="M10.358 9.938c1.082-.12 2.202-.12 3.284 0a.464.464 0 0 1 .409.4c.129 1.104.129 2.22 0 3.324a.464.464 0 0 1-.41.4a14.92 14.92 0 0 1-3.283 0a.464.464 0 0 1-.409-.4a14.324 14.324 0 0 1 0-3.324a.464.464 0 0 1 .41-.4"/><path fill="currentColor" fill-rule="evenodd" d="M15 2.25a.75.75 0 0 1 .75.75v2.927a2.929 2.929 0 0 1 2.308 2.323H21a.75.75 0 0 1 0 1.5h-2.788c.037.5.061 1 .073 1.5H20a.75.75 0 0 1 0 1.5h-1.715c-.012.5-.036 1-.073 1.5H21a.75.75 0 0 1 0 1.5h-2.942a2.929 2.929 0 0 1-2.308 2.323V21a.75.75 0 0 1-1.5 0v-2.774c-.498.035-.999.059-1.5.07V20a.75.75 0 0 1-1.5 0v-1.704a31.963 31.963 0 0 1-1.5-.07V21a.75.75 0 0 1-1.5 0v-2.927a2.929 2.929 0 0 1-2.308-2.323H3a.75.75 0 0 1 0-1.5h2.788c-.037-.5-.061-1-.074-1.5H4a.75.75 0 0 1 0-1.5h1.714c.013-.5.037-1 .074-1.5H3a.75.75 0 0 1 0-1.5h2.942A2.929 2.929 0 0 1 8.25 5.927V3a.75.75 0 0 1 1.5 0v2.774c.498-.035.999-.059 1.5-.07V4a.75.75 0 0 1 1.5 0v1.704c.501.011 1.002.035 1.5.07V3a.75.75 0 0 1 .75-.75m-1.192 6.197a16.407 16.407 0 0 0-3.616 0c-.898.1-1.626.808-1.732 1.717a15.808 15.808 0 0 0 0 3.672c.106.91.834 1.616 1.732 1.717c1.192.133 2.424.133 3.616 0a1.963 1.963 0 0 0 1.732-1.717c.143-1.22.143-2.452 0-3.672a1.963 1.963 0 0 0-1.732-1.717" clip-rule="evenodd"/></svg>',
+    color: 'linear-gradient(135deg, #64748b, #475569)'
+  }
+])
+
 export default {
   name: 'CreateAudience',
   props: ['id'],
@@ -24,59 +72,18 @@ export default {
       paramsCollapsed: false,
       loading: false,
       hasUnsavedChanges: false,
-      equipmentTypes: [
-        {
-          id: 'computer',
-          name: 'Компьютер',
-          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n' +
-              '                <rect x="2" y="3" width="20" height="14" rx="2"></rect>\n' +
-              '                <path d="M8 21h8M12 17v4"></path>\n' +
-              '              </svg>',
-          color: 'linear-gradient(135deg, #3b82f6, #2563eb)'
-        },
-        {
-          id: 'tv',
-          name: 'Телевизор',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1920 1536"><title>Television SVG Icon</title><path fill="currentColor" d="M1792 1120V160q0-13-9.5-22.5T1760 128H160q-13 0-22.5 9.5T128 160v960q0 13 9.5 22.5t22.5 9.5h1600q13 0 22.5-9.5t9.5-22.5m128-960v960q0 66-47 113t-113 47h-736v128h352q14 0 23 9t9 23v64q0 14-9 23t-23 9H544q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h352v-128H160q-66 0-113-47T0 1120V160Q0 94 47 47T160 0h1600q66 0 113 47t47 113"/></svg>',
-          color: 'linear-gradient(135deg, #f97316, #ea580c)'
-        },
-        {
-          id: 'projector',
-          name: 'Проектор',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Projector SVG Icon</title><g fill="currentColor"><path d="M14 7.5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M2.5 6a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1zm0 2a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z"/><path d="M0 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1H5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/></g></svg>',
-          color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
-        },
-        {
-          id: 'printer',
-          name: 'Принтер',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Printer-fill SVG Icon</title><g fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2zm2.5 1a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1"/></g></svg>',
-          color: 'linear-gradient(135deg, #10b981, #059669)'
-        },
-        {
-          id: 'switch',
-          name: 'Коммутатор',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><title>Network-switch-solid-badged SVG Icon</title><path fill="currentColor" d="M32.26 13.15A7.49 7.49 0 0 1 22.57 7H7.13a2 2 0 0 0-1.91 1.41L2.09 18.48a2 2 0 0 0-.09.59V27a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2v-7.94a2 2 0 0 0-.09-.59ZM8.92 25h-1.8v-3h1.8Zm5 0h-1.8v-3h1.8Zm5 0h-1.8v-3h1.8Zm5 0H22.1v-3h1.8Zm5 0H27.1v-3h1.8ZM31 19.4H5V18h26Z" class="clr-i-solid--badged clr-i-solid-path-1--badged"/><circle cx="30" cy="6" r="5" fill="currentColor" class="clr-i-solid--badged clr-i-solid-path-2--badged clr-i-badge"/><path fill="none" d="M0 0h36v36H0z"/></svg>',
-          color: 'linear-gradient(135deg, #f59e0b, #d97706)'
-        },
-        {
-          id: 'router',
-          name: 'Роутер',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><title>Router-fill SVG Icon</title><g fill="currentColor"><path d="M5.525 3.025a3.5 3.5 0 0 1 4.95 0a.5.5 0 1 0 .707-.707a4.5 4.5 0 0 0-6.364 0a.5.5 0 0 0 .707.707"/><path d="M6.94 4.44a1.5 1.5 0 0 1 2.12 0a.5.5 0 0 0 .708-.708a2.5 2.5 0 0 0-3.536 0a.5.5 0 0 0 .707.707Z"/><path d="M2.974 2.342a.5.5 0 1 0-.948.316L3.806 8H1.5A1.5 1.5 0 0 0 0 9.5v2A1.5 1.5 0 0 0 1.5 13H2a.5.5 0 0 0 .5.5h2A.5.5 0 0 0 5 13h6a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5h.5a1.5 1.5 0 0 0 1.5-1.5v-2A1.5 1.5 0 0 0 14.5 8h-2.306l1.78-5.342a.5.5 0 1 0-.948-.316L11.14 8H4.86zM2.5 11a.5.5 0 1 1 0-1a.5.5 0 0 1 0 1m4.5-.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m2.5.5a.5.5 0 1 1 0-1a.5.5 0 0 1 0 1m1.5-.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m2 0a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0"/><path d="M8.5 5.5a.5.5 0 1 1-1 0a.5.5 0 0 1 1 0"/></g></svg>',
-          color: 'linear-gradient(135deg, #06b6d4, #0891b2)'
-        },
-        {
-          id: 'other',
-          name: 'Другое',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Processor-solid SVG Icon</title><path fill="currentColor" d="M10.358 9.938c1.082-.12 2.202-.12 3.284 0a.464.464 0 0 1 .409.4c.129 1.104.129 2.22 0 3.324a.464.464 0 0 1-.41.4a14.92 14.92 0 0 1-3.283 0a.464.464 0 0 1-.409-.4a14.324 14.324 0 0 1 0-3.324a.464.464 0 0 1 .41-.4"/><path fill="currentColor" fill-rule="evenodd" d="M15 2.25a.75.75 0 0 1 .75.75v2.927a2.929 2.929 0 0 1 2.308 2.323H21a.75.75 0 0 1 0 1.5h-2.788c.037.5.061 1 .073 1.5H20a.75.75 0 0 1 0 1.5h-1.715c-.012.5-.036 1-.073 1.5H21a.75.75 0 0 1 0 1.5h-2.942a2.929 2.929 0 0 1-2.308 2.323V21a.75.75 0 0 1-1.5 0v-2.774c-.498.035-.999.059-1.5.07V20a.75.75 0 0 1-1.5 0v-1.704a31.963 31.963 0 0 1-1.5-.07V21a.75.75 0 0 1-1.5 0v-2.927a2.929 2.929 0 0 1-2.308-2.323H3a.75.75 0 0 1 0-1.5h2.788c-.037-.5-.061-1-.074-1.5H4a.75.75 0 0 1 0-1.5h1.714c.013-.5.037-1 .074-1.5H3a.75.75 0 0 1 0-1.5h2.942A2.929 2.929 0 0 1 8.25 5.927V3a.75.75 0 0 1 1.5 0v2.774c.498-.035.999-.059 1.5-.07V4a.75.75 0 0 1 1.5 0v1.704c.501.011 1.002.035 1.5.07V3a.75.75 0 0 1 .75-.75m-1.192 6.197a16.407 16.407 0 0 0-3.616 0c-.898.1-1.626.808-1.732 1.717a15.808 15.808 0 0 0 0 3.672c.106.91.834 1.616 1.732 1.717c1.192.133 2.424.133 3.616 0a1.963 1.963 0 0 0 1.732-1.717c.143-1.22.143-2.452 0-3.672a1.963 1.963 0 0 0-1.732-1.717" clip-rule="evenodd"/></svg>',
-          color: 'linear-gradient(135deg, #64748b, #475569)'
-        }
-      ]
+
     };
   },
+
   computed: {
     isEditMode()
     {
       return !!this.id;
+    },
+
+    equipmentTypes() {
+      return EQUIPMENT_TYPES;
     },
 
     pageTitle() {
@@ -261,7 +268,7 @@ export default {
     placeEquipment(row, col, equipmentId)
     {
       const key = `${row}-${col}`;
-      // ЗАЩИТА: Если там уже что-то стоит с dbId (существующее в базе)
+      // Проверка: если там уже что-то есть с dbId (существующее в базе)
       if (this.gridData[key] && this.gridData[key].dbId)
       {
         if (!confirm('В этой ячейке уже есть сохраненное оборудование. Замена удалит его историю и файлы. Продолжить?'))
@@ -533,7 +540,7 @@ export default {
 </script>
 
 <template>
-  <div class="page-wrapper">
+  <div class="page-wrapper create-audience-page">
     <div class="container">
       <div class="header">
         <button class="back-btn" @click="goBack">
@@ -543,7 +550,7 @@ export default {
           Назад
         </button>
         <h1 class="page-title">{{ pageTitle }}</h1>
-        <div style="width: 180px;"></div>
+        <div class="header-spacer"></div>
       </div>
 
       <div class="main-layout">
@@ -552,7 +559,7 @@ export default {
           <div class="panel" :class="{collapsed: paramsCollapsed}">
 
             <div class="panel-header">
-              <h3 class="panel-title" style="margin-bottom: 0">Параметры аудитории</h3>
+              <h3 class="panel-title panel-title-tight">Параметры аудитории</h3>
               <div @click="paramsCollapsed = !paramsCollapsed" class="collapse-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M6 9l6 6 6-6"/>
@@ -616,7 +623,7 @@ export default {
 
           <div class="panel">
             <h3 class="panel-title">Оборудование</h3>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+            <p class="panel-hint">
               Выберите и перетащите в сетку или кликните на клетку
             </p>
 
@@ -666,7 +673,7 @@ export default {
               </div>
             </div>
 
-            <div class="action-buttons" style="margin-top: 16px;">
+            <div class="action-buttons action-buttons-spaced">
               <button class="btn btn-secondary" @click="resetForm">Сброс</button>
               <button class="btn btn-primary" @click="saveClassroom">
                 {{ isEditMode ? 'Сохранить' : 'Создать' }}
@@ -678,7 +685,7 @@ export default {
         <div class="grid-panel">
           <div class="grid-header">
             <div>
-              <h3 class="panel-title" style="margin: 0;">Расстановка оборудования</h3>
+              <h3 class="panel-title panel-title-no-margin">Расстановка оборудования</h3>
               <p class="grid-info">Сетка {{ gridWidth }}×{{ gridHeight }}</p>
             </div>
             <button class="clear-grid-btn" @click="clearGrid">{{ clearGridClicked ? 'Подтвердить' : 'Очистить всё' }}</button>
@@ -762,6 +769,10 @@ export default {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 30px;
+}
+
+.header-spacer {
+  width: 180px;
 }
 
 .back-btn {
@@ -857,6 +868,21 @@ export default {
   font-weight: 600;
   color: #1e3a8a;
   margin-bottom: 16px;
+}
+
+.panel-title-tight {
+  margin-bottom: 0;
+}
+
+.panel-title-no-margin {
+  margin: 0;
+}
+
+.panel-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 12px;
+  line-height: 1.45;
 }
 
 .form-group {
@@ -1004,6 +1030,10 @@ export default {
 .action-buttons {
   display: flex;
   gap: 10px;
+}
+
+.action-buttons-spaced {
+  margin-top: 16px;
 }
 
 .btn {

@@ -8,6 +8,7 @@ import adminIcon from '@/assets/shield_with_star.svg';
 import teacherIcon from '@/assets/graduation-cap.svg';
 import api from "@/services/api.js";
 import {useOfficeStore} from "@/stores/offices.js";
+import {useThemeStore} from "@/stores/theme.js";
 
 export default {
   name: 'appHeader',
@@ -51,6 +52,10 @@ export default {
     audienceContext()
     {
       return useAudienceContext()
+    },
+
+    themeStore() {
+      return useThemeStore()
     },
 
     userName()
@@ -146,6 +151,10 @@ export default {
     goSettings() {
       router.push("/settings")
       this.isDropdownOpen = false
+    },
+
+    toggleTheme() {
+      this.themeStore.toggleTheme()
     }
   },
 
@@ -237,6 +246,27 @@ export default {
 
       <!-- Профиль или кнопка авторизации -->
       <div class="auth-container">
+        <button
+            class="theme-toggle"
+            :title="themeStore.isDark ? 'Светлая тема' : 'Тёмная тема'"
+            :aria-label="themeStore.isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'"
+            @click="toggleTheme"
+        >
+          <svg v-if="themeStore.isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+          </svg>
+        </button>
         <!-- Если авторизованы -->
         <div v-if="authStore.isAuthenticated" class="profile-dropdown">
           <div class="profile-trigger" :class="{active: isDropdownOpen}" @click="toggleDropdown">
@@ -452,7 +482,35 @@ header {
 .auth-container {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
   flex: 1;
+}
+
+.theme-toggle {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: rgba(248, 250, 252, 0.9);
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  background: #eff6ff;
 }
 
 .login-btn {
@@ -466,7 +524,7 @@ header {
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .login-btn:hover {
@@ -477,7 +535,7 @@ header {
 .profile-dropdown
 {
   position: relative;
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .profile-trigger {
@@ -667,15 +725,32 @@ header {
 
 @media (max-width: 768px)
 {
+  .header-container {
+    gap: 8px;
+  }
+
+  .logo-container {
+    flex: 0 0 auto;
+  }
+
   .office-switch
   {
-    margin-right: 0;
+    margin-right: 8px;
+    padding: 5px;
   }
 
   .office-btn
   {
     font-size: 14px;
-    padding: 5px 5px;
+    padding: 5px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .auth-container {
+    flex: 0 0 auto;
+    margin-left: 8px;
+    gap: 8px;
   }
 
   .profile-name
@@ -686,6 +761,12 @@ header {
   .profile-trigger
   {
     padding: 0;
+  }
+
+  .theme-toggle {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
   }
 }
 </style>

@@ -1791,7 +1791,7 @@ export default {
   max-height: 180px;
   overflow-y: auto;
   /* Место для скролла */
-  padding: 0 5px 0 4px;
+  padding: 10px 5px 0 0;
 }
 
 .hw-no-files {
@@ -1837,7 +1837,6 @@ export default {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
   background: #f9fafb;
   transition: transform 0.2s;
 }

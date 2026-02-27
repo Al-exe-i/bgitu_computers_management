@@ -140,9 +140,7 @@ export default {
         <p class="section-subtitle">Управление корпусами</p>
       </div>
       <button v-if="isSuperuser" class="btn btn-primary" @click="openCreateModal">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building2 lucide-building-2 size-5 text-primary" aria-hidden="true"><path d="M10 12h4"></path><path d="M10 8h4"></path><path d="M14 21v-3a2 2 0 0 0-4 0v3"></path><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"></path><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"></path></svg>
         Добавить
       </button>
     </div>
@@ -152,10 +150,10 @@ export default {
       <table class="data-table">
         <thead>
         <tr>
-          <th width="100">Номер</th>
+          <th>Номер</th>
           <th>Адрес здания</th>
-          <th width="140">Аудиторий</th>
-          <th v-if="isSuperuser" width="100" class="text-right">Действия</th>
+          <th>Аудиторий</th>
+          <th v-if="isSuperuser" class="text-right">Действия</th>
         </tr>
         </thead>
         <tbody>
@@ -221,7 +219,7 @@ export default {
       </table>
     </div>
 
-    <!-- МОДАЛКА (с Vue анимацией) -->
+    <!-- Модалка -->
     <transition name="modal">
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
@@ -439,6 +437,7 @@ export default {
 .btn svg {
   width: 18px;
   height: 18px;
+  will-change: transform;
 }
 
 .btn-primary {
