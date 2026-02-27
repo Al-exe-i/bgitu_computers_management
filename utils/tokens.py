@@ -1,10 +1,10 @@
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 from core.config import settings
 from core.security import generate_token
 
-def build_token_response(*, access_token: str, refresh_token: str) -> ORJSONResponse:
+def build_token_response(*, access_token: str, refresh_token: str) -> JSONResponse:
     token_data = {"access_token": access_token, "token_type": "bearer", "status": "success"}
-    response = ORJSONResponse(content=token_data)
+    response = JSONResponse(content=token_data)
 
     cookie_params = {
         "httponly": True,
