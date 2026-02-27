@@ -3,10 +3,11 @@
 import AppHeader from "@/components/Layout/AppHeader.vue";
 import LoginModal from "@/components/Layout/LoginModal.vue";
 import NotificationsModal from "@/components/Layout/NotificationsModal.vue";
+import AppFooter from "@/components/Layout/AppFooter.vue";
 
 export default {
   name: "AppView",
-  components: {NotificationsModal, LoginModal, AppHeader},
+  components: {AppFooter, NotificationsModal, LoginModal, AppHeader},
   data()
   {
     return {
@@ -23,6 +24,7 @@ export default {
   <login-modal :is-open="isLoginModalOpen" @close="this.isLoginModalOpen = false"></login-modal>
   <router-view></router-view>
   <NotificationsModal></NotificationsModal>
+  <app-footer></app-footer>
 </template>
 
 <style>

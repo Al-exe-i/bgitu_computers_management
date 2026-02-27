@@ -184,7 +184,10 @@ export default {
           <img src="../../assets/logo_IT.png">
         </div>
 
-        <h1 class="app-title">Computers management</h1>
+        <div class="brand-text">
+          <span class="brand-title">BGITU</span>
+          <span class="brand-subtitle">Computers Management</span>
+        </div>
       </div>
 
       <!-- Переключение между корпусами -->
@@ -349,10 +352,21 @@ header {
   height: 100%;
 }
 
-.app-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1f2937;
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.brand-subtitle {
+  font-size: 12px;
+  color: oklch(0.65 0.02 260);
 }
 
 .more-offices-wrapper {
@@ -645,7 +659,7 @@ header {
 
 @media (max-width: 768px)
 {
-  .app-title
+  .brand-text
   {
     display: none;
   }
@@ -653,11 +667,6 @@ header {
 
 @media (max-width: 768px)
 {
-  .app-title
-  {
-    display: none;
-  }
-
   .office-switch
   {
     margin-right: 0;
