@@ -616,6 +616,17 @@ export default {
   border-top: 1px solid #e2e8f0;
 }
 
+html[data-theme='dark'] .load-more-wrapper {
+  background: #0f172a;
+  border-top-color: #334155;
+}
+
+html[data-theme='dark'] .code-badge {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
 .load-more-btn {
   width: 100%;
   max-width: 300px;

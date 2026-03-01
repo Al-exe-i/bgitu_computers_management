@@ -549,7 +549,15 @@ export default {
   font-size: 18px;
   color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
+  flex-shrink: 0;
   border-radius: 6px;
   transition: 0.2s;
 }
@@ -623,6 +631,44 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 28px;
+}
+
+html[data-theme='dark'] .modal-content {
+  background: #111827;
+  border: 1px solid #334155;
+}
+
+html[data-theme='dark'] .modal-header {
+  border-bottom-color: #334155;
+}
+
+html[data-theme='dark'] .modal-header .close-btn {
+  background: #0f172a !important;
+  border: 1px solid #475569 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .modal-header .close-btn:hover {
+  background: #1e293b !important;
+  border-color: #64748b !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .modal-actions .btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: 1px solid #2563eb;
+  color: #e2e8f0;
+}
+
+html[data-theme='dark'] .modal-actions .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #3b82f6;
+}
+
+html[data-theme='dark'] .modal-actions .btn-primary:disabled {
+  background: #334155;
+  border-color: #475569;
+  color: #94a3b8;
 }
 
 /* --- Спиннеры и Пустое состояние --- */

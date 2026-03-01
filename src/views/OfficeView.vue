@@ -202,7 +202,13 @@ export default {
 
     <div v-if="!loading && office.audiences.length > 0" class="controls-panel">
       <div class="search-box">
-        <input v-model="searchField" type="text" id="searchInput" placeholder="🔍 Поиск по номеру аудитории...">
+        <span class="search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path stroke-linecap="round" d="m20 20-3.5-3.5"></path>
+          </svg>
+        </span>
+        <input v-model="searchField" type="text" id="searchInput" placeholder="Поиск по номеру аудитории...">
       </div>
       <div class="filter-buttons" :class="{ 'is-dark': themeStore.isDark }">
         <button class="filter-btn" @click="setFilterMode(`all`)" :class="{active: this.filterMode === `all`}">Все аудитории</button>
@@ -212,6 +218,17 @@ export default {
     </div>
 
     <floor-section v-if="floors" v-for="floor in proxyFloors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+
+    <div
+      v-if="!loading && office?.audiences?.length > 0 && proxyFloors && Object.keys(proxyFloors).length === 0"
+      class="empty-state filtered-empty-state"
+    >
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75h16.5m-16.5 0v16.5m16.5-16.5v16.5M8.25 8.25h7.5m-7.5 4.5h7.5m-7.5 4.5h4.5"></path>
+      </svg>
+      <div class="empty-state-title">По выбранным фильтрам аудитории не найдены</div>
+      <div class="empty-state-text">Измените параметры поиска или выберите другой фильтр</div>
+    </div>
 
     <div v-if="!loading && Object.keys(floors).length === 0" class="empty-state">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -331,11 +348,28 @@ body {
 .search-box {
   flex: 1;
   min-width: 250px;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.search-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .search-box input {
   width: 100%;
-  padding: 12px 20px;
+  padding: 12px 20px 12px 46px;
   border: 2px solid #93c5fd;
   border-radius: 12px;
   font-size: 16px;
@@ -450,6 +484,10 @@ body {
   height: 18px;
   margin: 0;
   display: inline;
+}
+
+.filtered-empty-state {
+  margin-top: -8px;
 }
 
 

@@ -6,7 +6,8 @@ import noAvatar from '@/assets/user_no_icon.svg';
 import suIcon from '@/assets/crown.svg'
 import adminIcon from '@/assets/shield_with_star.svg';
 import teacherIcon from '@/assets/graduation-cap.svg';
-import api from "@/services/api.js";
+import logoLight from '@/assets/logo_IT.png';
+import logoDark from '@/assets/logo_IT_dark.png'
 import {useOfficeStore} from "@/stores/offices.js";
 import {useThemeStore} from "@/stores/theme.js";
 
@@ -82,12 +83,18 @@ export default {
           return `Преподаватель`
       }
     },
+
     userAvatar()
     {
       return this.authStore.user?.photo || null
     },
+
     userAvatarLarge() {
       return this.authStore.user?.photo || noAvatar
+    },
+
+    appLogo() {
+      return this.themeStore.isDark ? logoDark : logoLight;
     }
   },
 
@@ -190,7 +197,7 @@ export default {
       <!-- Логотип -->
       <div @click="handleHomeClick" class="logo-container">
         <div class="logo">
-          <img src="../../assets/logo_IT.png">
+          <img :src="appLogo" alt="Logo">
         </div>
 
         <div class="brand-text">

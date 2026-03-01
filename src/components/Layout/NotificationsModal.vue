@@ -1,4 +1,4 @@
-<script>
+﻿<script>
 import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
@@ -13,26 +13,36 @@ export default {
     getIcon(type)
     {
       const icons = {
-        'success': '✓',
-        'info': 'ⓘ',
-        'warning': '⚠',
-        'error': '✗'
+        success: '✓',
+        info: 'ℹ',
+        warning: '⚠',
+        error: '✕'
       };
-      return icons[type] || 'ⓘ'
+      return icons[type] || 'ℹ'
     },
     getTitle(type)
     {
       const titles = {
-        'success': 'Успешно',
-        'info': 'Информация',
-        'warning': 'Внимание',
-        'error': 'Ошибка'
+        success: 'Успешно',
+        info: 'Информация',
+        warning: 'Внимание',
+        error: 'Ошибка'
       };
       return titles[type]
     },
     closeNotification(id)
     {
       this.notificationsStore.remove(id)
+    },
+    getProgressStyle(notif)
+    {
+      const progress = Number.isFinite(notif.progress) ? Math.min(100, Math.max(0, notif.progress)) : 100
+      const duration = Number.isFinite(notif.duration) ? Math.max(0, notif.duration) : 5000
+
+      return {
+        strokeDasharray: `${progress} 100`,
+        transitionDuration: `${duration}ms`
+      }
     }
   }
 }
@@ -53,13 +63,35 @@ export default {
           <div class="notification-message">{{ notif.text }}</div>
         </div>
         <button class="notification-close" @click="closeNotification(notif.id)">✕</button>
-        <div
-            class="notification-progress"
-            :style="{
-            width: notif.progress + '%',
-            transitionDuration: notif.duration + 'ms'
-          }"
-        ></div>
+
+        <svg
+            v-if="notif.duration > 0"
+            class="notification-progress-ring"
+            aria-hidden="true"
+        >
+          <rect
+              class="notification-progress-track"
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              rx="16"
+              ry="16"
+              pathLength="100"
+          />
+          <rect
+              class="notification-progress-value"
+              :class="`is-${notif.type}`"
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              rx="16"
+              ry="16"
+              pathLength="100"
+              :style="getProgressStyle(notif)"
+          />
+        </svg>
       </div>
     </transition-group>
   </div>
@@ -67,7 +99,8 @@ export default {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
-*{
+
+* {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -87,24 +120,13 @@ export default {
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: flex-start;
   gap: 16px;
   min-width: 340px;
   position: relative;
   overflow: hidden;
-}
-
-.notification::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, currentColor, transparent);
-  opacity: 0.6;
 }
 
 .notification-enter-active {
@@ -125,22 +147,6 @@ export default {
   opacity: 0;
 }
 
-.notification.success::before {
-  color: #10b981;
-}
-
-.notification.info::before {
-  color: #3b82f6;
-}
-
-.notification.warning::before {
-  color: #f59e0b;
-}
-
-.notification.error::before {
-  color: #ef4444;
-}
-
 .notification-icon {
   width: 48px;
   height: 48px;
@@ -152,6 +158,7 @@ export default {
   font-size: 24px;
   position: relative;
   animation: iconPulse 2s ease-in-out infinite;
+  z-index: 2;
 }
 
 @keyframes iconPulse {
@@ -186,6 +193,7 @@ export default {
 .notification-content {
   flex: 1;
   padding-top: 4px;
+  z-index: 2;
 }
 
 .notification-title {
@@ -216,6 +224,7 @@ export default {
   border-radius: 8px;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  z-index: 2;
 }
 
 .notification-close:hover {
@@ -224,30 +233,47 @@ export default {
   transform: rotate(90deg);
 }
 
-.notification-progress {
+.notification-progress-ring {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: currentColor;
-  opacity: 0.3;
-  transition: width linear;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.notification.success .notification-progress {
-  color: #10b981;
+.notification-progress-track,
+.notification-progress-value {
+  fill: none;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
 }
 
-.notification.info .notification-progress {
-  color: #3b82f6;
+.notification-progress-track {
+  stroke: rgba(148, 163, 184, 0.22);
 }
 
-.notification.warning .notification-progress {
-  color: #f59e0b;
+.notification-progress-value {
+  stroke: #3b82f6;
+  transition-property: stroke-dasharray;
+  transition-timing-function: linear;
 }
 
-.notification.error .notification-progress {
-  color: #ef4444;
+.notification-progress-value.is-success {
+  stroke: #10b981;
+}
+
+.notification-progress-value.is-info {
+  stroke: #3b82f6;
+}
+
+.notification-progress-value.is-warning {
+  stroke: #f59e0b;
+}
+
+.notification-progress-value.is-error {
+  stroke: #ef4444;
 }
 
 @media (max-width: 768px) {
@@ -261,7 +287,8 @@ export default {
     min-width: 300px;
   }
 
-  .notification-enter-from, .notification-leave-to {
+  .notification-enter-from,
+  .notification-leave-to {
     transform: translateX(calc(100vw + 20px)) scale(0.9);
   }
 }

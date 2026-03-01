@@ -128,6 +128,11 @@ html[data-theme='dark'] .search-bar {
   color: var(--text-primary) !important;
 }
 
+html[data-theme='dark'] .office-stats {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+}
+
 html[data-theme='dark'] .dashboard-title,
 html[data-theme='dark'] .page-title,
 html[data-theme='dark'] .office-title,
@@ -162,7 +167,7 @@ html[data-theme='dark'] select,
 html[data-theme='dark'] .form-input,
 html[data-theme='dark'] .login-input,
 html[data-theme='dark'] .search-box input {
-  background: var(--input-bg) !important;
+  background-color: var(--input-bg) !important;
   color: var(--text-primary) !important;
   border-color: var(--input-border) !important;
 }
@@ -272,12 +277,24 @@ html[data-theme='dark'] .profile-card .avatar-wrapper {
   background: #0f172a !important;
 }
 
+html[data-theme='dark'] .profile-card .user-email {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .office-switch .office-btn:not(.active) {
+  color: #94a3b8 !important;
+}
+
 html[data-theme='dark'] .office-btn:not(.active):hover,
 html[data-theme='dark'] .icon-tab:hover:not(.active),
 html[data-theme='dark'] .segment-btn:hover:not(.active),
 html[data-theme='dark'] .menu-item:hover,
 html[data-theme='dark'] .notification-close:hover {
   background: rgba(148, 163, 184, 0.15) !important;
+}
+
+html[data-theme='dark'] .profile-dropdown .menu-item:hover {
+  background: transparent !important;
 }
 
 html[data-theme='dark'] .office-dropdown-item {
@@ -343,6 +360,14 @@ html[data-theme='dark'] .system-content .card .card-header .btn-primary:hover:no
 
 html[data-theme='dark'] .security-card .actions-footer {
   border-top-color: #334155 !important;
+}
+
+html[data-theme='dark'] .security-card .password-strength-title {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .security-card .password-strength-track {
+  background: #334155 !important;
 }
 
 html[data-theme='dark'] .audit-card .btn-secondary {
@@ -787,6 +812,16 @@ html[data-theme='dark'] .input-icon,
 html[data-theme='dark'] .toggle-password {
   color: var(--text-primary) !important;
   stroke: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .divider::before {
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.32), transparent) !important;
+}
+
+html[data-theme='dark'] .divider span {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
 }
 
 html[data-theme='dark'] .close {

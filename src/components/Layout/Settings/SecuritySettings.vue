@@ -1,4 +1,4 @@
-<script>
+﻿<script>
 import api from "@/services/api";
 import { useNotificationsStore } from "@/stores/notifications";
 import {useAuthStore} from "@/stores/auth.js";
@@ -10,7 +10,7 @@ export default {
     return {
       activeTab: 'password', // 'password' или 'sessions'
 
-      // Состояния загрузки
+      // состояние загрузки
       loadingPassword: false,
       loadingSessions: false,
       loadingAction: false, // Для кнопок выхода
@@ -35,15 +35,64 @@ export default {
     notify() {
       return useNotificationsStore();
     },
+
     passwordsMatch() {
       return this.form.new_password === this.form.confirm_password;
     },
+
     isFormValid() {
       return (
           this.form.current_password.length > 0 &&
           this.form.new_password.length >= 4 &&
           this.passwordsMatch
       );
+    },
+
+    passwordStrength() {
+      const pwd = this.form.new_password || '';
+
+      if (!pwd) {
+        return {
+          score: 0,
+          percent: 0,
+          level: 'empty',
+          label: 'Введите пароль'
+        };
+      }
+
+      let score = 0;
+
+      // Баллы за длину (ключевой фактор надежности)
+      if (pwd.length >= 8) score += 1;
+      if (pwd.length >= 12) score += 1; // Бонус за большую длину
+      if (pwd.length >= 16) score += 1; // Супер-пароль
+
+      // Баллы за разнообразие символов
+      if (/[a-z]/.test(pwd)) score += 1;
+      if (/[A-Z]/.test(pwd)) score += 1;
+      if (/\d/.test(pwd)) score += 1;
+      if (/[^\w\s]/.test(pwd)) score += 1; // Спецсимволы
+
+      // Ограничение для коротких паролей (Hard Cap)
+      // Пароль меньше 6 символов — всегда "Очень слабый", независимо от набора символов.
+      if (pwd.length < 6) {
+        score = Math.min(score, 1);
+      }
+      // Пароль от 6 до 8 символов может быть максимум "Слабый" (score 2)
+      else if (pwd.length < 8) {
+        score = Math.min(score, 2);
+      }
+
+      // Максимально возможный score теперь = 6 (3 за длину + 3 за символы, но 4 за символы возможны, если длина мала, но мы ограничили это выше)
+      // Реальный максимум для расчета процентов возьмем 5 или 6.
+      const percent = Math.min((score / 6) * 100, 100);
+
+      if (score <= 1) return { score, percent, level: 'weak', label: 'Очень слабый' };
+      if (score === 2) return { score, percent, level: 'fair', label: 'Слабый' };
+      if (score === 3) return { score, percent, level: 'medium', label: 'Средний' };
+      if (score === 4) return { score, percent, level: 'good', label: 'Надежный' };
+
+      return { score, percent, level: 'strong', label: 'Сильный' };
     },
     // Отображаем только активные сессии, сортируя так, чтобы текущая была первой
     activeSessions() {
@@ -54,6 +103,14 @@ export default {
 
     authStore() {
       return useAuthStore();
+    },
+
+    sectionTitle() {
+      return this.activeTab === 'password' ? 'Изменение пароля' : 'Управление сессиями'
+    },
+
+    sectionSubTitle() {
+      return this.activeTab === 'password' ? 'Измените пароль учётной записи' : 'Управляйте активными сессиями вашей учётной записи'
     }
   },
 
@@ -166,14 +223,14 @@ export default {
       // Определение типа устройства
       if (/mobile|android|iphone|ipad|phone/i.test(ua)) type = 'mobile';
 
-      // Определение браузера
+      // Браузер
       if (ua.includes('firefox')) browser = 'Firefox';
       else if (ua.includes('edg')) browser = 'Edge';
       else if (ua.includes('opr') || ua.includes('opera')) browser = 'Opera';
       else if (ua.includes('chrome')) browser = 'Chrome';
       else if (ua.includes('safari')) browser = 'Safari';
 
-      // Определение ОС
+      // ОС
       if (ua.includes('win')) os = 'Windows';
       else if (ua.includes('mac')) os = 'macOS';
       else if (ua.includes('android')) os = 'Android';
@@ -189,31 +246,52 @@ export default {
 <template>
   <div class="security-card">
     <div class="card-header">
-      <h2 class="section-title">Безопасность</h2>
-      <p class="section-subtitle">Управляйте паролем и активными сессиями вашего аккаунта.</p>
+      <h2 class="section-title">{{ sectionTitle }}</h2>
+      <p class="section-subtitle">{{ sectionSubTitle }}</p>
     </div>
 
     <!-- Вкладки навигации -->
-    <div class="tabs-container">
-      <div class="segmented-control">
+        <div class="tabs-container">
+      <div class="icon-tabs security-tabs" role="tablist" aria-label="Разделы безопасности">
         <button
-            class="segment-btn"
+            type="button"
+            class="icon-tab security-tab"
             :class="{ active: activeTab === 'password' }"
+            role="tab"
+            :aria-selected="activeTab === 'password'"
+            title="Смена пароля"
             @click="switchTab('password')"
         >
-          Смена пароля
+          <span class="tab-icon-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <span class="security-tab-label">Смена пароля</span>
         </button>
         <button
-            class="segment-btn"
+            type="button"
+            class="icon-tab security-tab"
             :class="{ active: activeTab === 'sessions' }"
+            role="tab"
+            :aria-selected="activeTab === 'sessions'"
+            title="Активные сессии"
             @click="switchTab('sessions')"
         >
-          Активные сессии
+          <span class="tab-icon-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </span>
+          <span class="security-tab-label">Активные сессии</span>
         </button>
       </div>
     </div>
 
-    <!-- Вкладка 1: Смена пароля -->
+    <!-- Вкладка 1 смена пароля -->
     <transition name="fade" mode="out-in">
       <div v-if="activeTab === 'password'" class="tab-content" key="password">
         <div class="alert-box warning">
@@ -259,6 +337,15 @@ export default {
                 <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
               </button>
             </div>
+            <div v-if="form.new_password" class="password-strength" :class="`is-${passwordStrength.level}`">
+              <div class="password-strength-head">
+                <span class="password-strength-title">Сложность пароля</span>
+                <span class="password-strength-label">{{ passwordStrength.label }}</span>
+              </div>
+              <div class="password-strength-track">
+                <div class="password-strength-fill" :style="{ width: `${passwordStrength.percent}%` }"></div>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">
@@ -289,7 +376,7 @@ export default {
         </form>
       </div>
 
-      <!-- Вкладка 2: Активные сессии -->
+      <!-- Вкладка 2: управление сессиями -->
       <div v-else-if="activeTab === 'sessions'" class="tab-content" key="sessions">
 
         <div v-if="loadingSessions" class="loading-state">
@@ -381,35 +468,61 @@ export default {
 
 .tabs-container {
   margin-bottom: 28px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.segmented-control {
+.security-tabs {
   display: inline-flex;
+  gap: 8px;
   background: #f1f5f9;
   padding: 4px;
   border-radius: 10px;
 }
 
-.segment-btn {
+.security-tab {
   background: transparent;
   border: none;
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 0 14px;
+  min-height: 40px;
+  font-size: 13px;
+  font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
-.segment-btn:hover:not(.active) {
-  color: #0f172a;
+.security-tab .tab-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.segment-btn.active {
+.security-tab .tab-icon-wrapper :deep(svg) {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.security-tab:hover:not(.active) {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.security-tab.active {
   background: #ffffff;
-  color: #0f172a;
+  color: #3b82f6;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.security-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
 .alert-box {
@@ -496,6 +609,88 @@ export default {
   font-size: 12px;
   color: #ef4444;
   margin-top: 2px;
+}
+
+.password-strength {
+  margin-top: 10px;
+}
+
+.password-strength-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.password-strength-title,
+.password-strength-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.password-strength-title {
+  color: #64748b;
+}
+
+.password-strength-label {
+  color: #64748b;
+}
+
+.password-strength-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.password-strength-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: #94a3b8;
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.password-strength.is-weak .password-strength-fill {
+  background: #ef4444;
+}
+
+.password-strength.is-weak .password-strength-label {
+  color: #b91c1c;
+}
+
+.password-strength.is-fair .password-strength-fill {
+  background: #f97316;
+}
+
+.password-strength.is-fair .password-strength-label {
+  color: #c2410c;
+}
+
+.password-strength.is-medium .password-strength-fill {
+  background: #f59e0b;
+}
+
+.password-strength.is-medium .password-strength-label {
+  color: #b45309;
+}
+
+.password-strength.is-good .password-strength-fill {
+  background: #3b82f6;
+}
+
+.password-strength.is-good .password-strength-label {
+  color: #1d4ed8;
+}
+
+.password-strength.is-strong .password-strength-fill {
+  background: #22c55e;
+}
+
+.password-strength.is-strong .password-strength-label {
+  color: #15803d;
 }
 
 .eye-btn {
@@ -726,6 +921,13 @@ export default {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+
+@media (max-width: 768px) {
+  .security-tab-label {
+    display: none;
   }
 }
 

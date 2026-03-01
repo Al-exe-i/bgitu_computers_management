@@ -439,6 +439,25 @@ export default {
 .btn-save:active:not(:disabled) { transform: translateY(0); }
 .btn-save:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
 
+html[data-theme='dark'] .btn-save:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: 1px solid #2563eb;
+  color: #e2e8f0;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.3);
+}
+
+html[data-theme='dark'] .btn-save:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #3b82f6;
+}
+
+html[data-theme='dark'] .btn-save:disabled {
+  background: #334155;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  box-shadow: none;
+}
+
 /* --- Крутилка-спиннер --- */
 .spinner {
   width: 24px; height: 24px;
