@@ -50,11 +50,7 @@ class UserSessionService:
         await self.repo.revoke(sid)
 
     async def revoke_for_user(self, user_id: int, sid: str) -> bool:
-        sess = await self.repo.get_by_sid(sid)
-        if not sess or sess.user_id != user_id:
-            return False
-        await self.repo.revoke(sid)
-        return True
+        return await self.repo.revoke_by_sid_and_user(sid=sid, user_id=user_id)
 
     async def revoke_all_for_user(self, user_id: int) -> None:
         await self.repo.revoke_all_for_user(user_id)

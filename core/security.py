@@ -1,7 +1,8 @@
 from datetime import timedelta, datetime, timezone
 from typing import Literal
 from argon2.exceptions import VerifyMismatchError, InvalidHashError
-from jose import jwt, JWTError
+from jwt import PyJWTError
+import jwt
 from argon2 import PasswordHasher
 from core.config import settings
 
@@ -41,5 +42,5 @@ def verify_token(token: str, token_type: Literal["access", "refresh"]) -> dict |
         if payload.get("type") != token_type:
             return None
         return payload
-    except JWTError:
+    except PyJWTError:
         return None

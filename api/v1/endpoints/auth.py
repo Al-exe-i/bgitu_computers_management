@@ -85,7 +85,7 @@ async def refresh_access_token(
 
     rotated = await sessions.rotate(sid=sid, old_jti=old_jti, new_jti=new_jti)
     if not rotated:
-        # reuse detection: старый refresh пытаются использовать повторно
+        # это reuse: старый refresh пытаются использовать повторно, отзываем
         await sessions.revoke(sid)
 
         await audit.log(

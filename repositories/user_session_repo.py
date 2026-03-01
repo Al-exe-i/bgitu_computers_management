@@ -73,6 +73,21 @@ class UserSessionRepository:
         )
         await self.db.execute(stmt)
 
+    async def revoke_by_sid_and_user(self, sid: str, user_id: int) -> bool:
+        now = datetime.now(timezone.utc)
+        stmt = (
+            update(UserSession)
+            .where(
+                UserSession.sid == sid,
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None)
+            )
+            .values(revoked_at=now)
+            .returning(UserSession.id)  # Вернет ID, если запись найдена и обновлена
+        )
+        res = await self.db.execute(stmt)
+        return res.scalar_one_or_none() is not None
+
     async def revoke_all_for_user(self, user_id: int) -> None:
         now = datetime.now(timezone.utc)
         stmt = (

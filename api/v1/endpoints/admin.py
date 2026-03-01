@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
@@ -14,21 +14,23 @@ router = APIRouter(prefix="")
 @router.get("/files/{file_path:path}")
 async def get_protected_file(
         file_path: str,
-        user: admin_dep
+        user=admin_dep
 ):
-    full_path = os.path.join(settings.static.root, file_path)
+    base_dir = Path(settings.static.root).resolve()
 
-    # Безопасность: проверяем, что файл действительно находится ВНУТРИ разрешенной папки
-    abs_protected_dir = os.path.abspath(settings.static.root)
-    abs_requested_path = os.path.abspath(full_path)
+    safe_file_path = file_path.lstrip("/")
 
-    if os.path.commonpath([abs_protected_dir, abs_requested_path]) != abs_protected_dir:
-        raise HTTP403("Доступ запрещен")
+    requested_path = (base_dir / safe_file_path).resolve()
 
-    if not os.path.exists(full_path) or not os.path.isfile(full_path):
-        raise HTTP404("Файл не найден")
+    try:
+        requested_path.relative_to(base_dir)
+    except ValueError:
+        raise HTTP403("Access Denied")
 
-    return FileResponse(full_path)
+    if not requested_path.is_file():
+        raise HTTP404("File Not Found")
+
+    return FileResponse(requested_path)
 
 
 @router.get("/audit-log", response_model=AuditLogListResponse)
