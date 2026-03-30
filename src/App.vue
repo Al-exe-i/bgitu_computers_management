@@ -580,14 +580,61 @@ html[data-theme='dark'] .create-audience-page .grid-cell:hover {
   border-color: #60a5fa !important;
 }
 
-html[data-theme='dark'] .create-audience-page .grid-cell.occupied {
-  background: linear-gradient(135deg, rgba(30, 64, 175, 0.36), rgba(37, 99, 235, 0.24)) !important;
-  border-color: #60a5fa !important;
+/* CreateAudience: новое оборудование поверх сетки */
+html[data-theme='dark'] .create-audience-page .grid-equipment {
+  background: linear-gradient(145deg, #0f172a, #111827) !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 10px 20px rgba(2, 6, 23, 0.45) !important;
 }
 
-html[data-theme='dark'] .create-audience-page .grid-cell.occupied.broken {
-  background: linear-gradient(135deg, rgba(127, 29, 29, 0.5), rgba(220, 38, 38, 0.22)) !important;
+html[data-theme='dark'] .create-audience-page .grid-equipment:hover {
+  border-color: #60a5fa !important;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.52) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .grid-equipment.broken {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.52), rgba(220, 38, 38, 0.24)) !important;
   border-color: rgba(248, 113, 113, 0.66) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .size-btn {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .size-btn:hover {
+  background: #172554 !important;
+  border-color: #60a5fa !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .size-btn.active {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.36), rgba(37, 99, 235, 0.24)) !important;
+  border-color: #60a5fa !important;
+  color: #dbeafe !important;
+}
+
+/* AudienceView: карточка оборудования в overlay */
+html[data-theme='dark'] .page-viewer .grid-equipment {
+  background: #111827 !important;
+  border: 2px solid #334155 !important;
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.38) !important;
+}
+
+html[data-theme='dark'] .page-viewer .grid-equipment.working {
+  background: linear-gradient(135deg, #14281c, #183223) !important;
+  border-color: rgba(74, 222, 128, 0.42) !important;
+}
+
+html[data-theme='dark'] .page-viewer .grid-equipment.broken {
+  background: linear-gradient(135deg, #2a1415, #38181b) !important;
+  border-color: rgba(248, 113, 113, 0.46) !important;
+}
+
+html[data-theme='dark'] .page-viewer .grid-equipment:hover {
+  border-color: #60a5fa !important;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.5) !important;
 }
 
 html[data-theme='dark'] .create-audience-page .grid-cell.drag-over {

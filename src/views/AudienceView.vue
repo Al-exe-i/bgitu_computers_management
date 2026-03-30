@@ -99,10 +99,7 @@ export default {
   computed: {
     // Стата для админов
     stats() {
-      if (!this.classroom?.equipment) {
-        return { total: 0, working: 0, broken: 0, computers: 0 };
-      }
-
+      const items = this.classroom?.equipment ?? [];
 
       const result = {
         total: 0,
@@ -111,15 +108,15 @@ export default {
         computers: 0
       };
 
-      Object.values(this.classroom.equipment).forEach(eq => {
+      for (const eq of items) {
         result.total++;
         if (eq.working) result.working++;
         else result.broken++;
 
-        if (eq.id === 'computer') {
+        if (eq.type === 'computer') {
           result.computers++;
         }
-      });
+      }
 
       return result;
     },
@@ -171,8 +168,30 @@ export default {
       const s = this.scaleMode === 'manual' ? this.uiScale : 1;
       return {
         '--grid-cols': this.classroom?.gridSize?.width ?? 1,
+        '--grid-rows': this.classroom?.gridSize?.height ?? 1,
         '--ui-scale': s
       };
+    },
+
+    occupiedMap() {
+      const map = {};
+      const items = this.classroom?.equipment ?? [];
+
+      for (const item of items) {
+        for (let dy = 0; dy < item.height; dy++) {
+          for (let dx = 0; dx < item.width; dx++) {
+            const row = item.y + dy;
+            const col = item.x + dx;
+
+            map[`${row}-${col}`] = {
+              item,
+              isAnchor: dx === 0 && dy === 0
+            };
+          }
+        }
+      }
+
+      return map;
     },
 
   },
@@ -213,25 +232,6 @@ export default {
     },
 
     mapBackendToFrontend(data) {
-      const equipmentMap = {};
-
-      data.hardware.forEach(item => {
-        const gridKey = `${item.y}-${item.x}`;
-
-        equipmentMap[gridKey] = {
-          // UI поля (для отображения иконок и цветов)
-          id: item.type,          // На фронте id - это тип иконки (computer)
-          working: item.state,    // true/false
-          comment: item.description || '',
-
-          // Технические поля (сохраняем реальные данные)
-          dbId: item.id,          // ВАЖНО: сохраняем ID из базы (19, 20...)
-          invNumber: item.inv_number,
-          title: item.title,
-          files: item.files,
-        };
-      });
-
       return {
         number: data.id,
         floor: data.floor,
@@ -239,14 +239,28 @@ export default {
           width: data.width,
           height: data.height
         },
-        equipment: equipmentMap,
+        equipment: (data.hardware ?? []).map(item => ({
+          dbId: item.id,
+          type: item.type,
+
+          x: item.x,
+          y: item.y,
+          width: item.width ?? 1,
+          height: item.height ?? 1,
+
+          working: item.state,
+          comment: item.description || '',
+          invNumber: item.inv_number,
+          title: item.title,
+          files: item.files ?? []
+        })),
         office_id: data.office_id,
         description: data.description,
       };
     },
 
     getEquipment(row, col) {
-      return this.classroom.equipment[`${row}-${col}`];
+      return this.occupiedMap[`${row}-${col}`]?.item ?? null;
     },
 
     getEquipmentType(id) {
@@ -264,7 +278,8 @@ export default {
     },
 
     openModal(row, col) {
-      if(!this.authStore.isAuthenticated) return;
+      if (!this.authStore.isAuthenticated) return;
+
       const eq = this.getEquipment(row, col);
       if (!eq) return;
 
@@ -274,8 +289,9 @@ export default {
         key: `${row}-${col}`,
         data: eq
       };
-      this.newInv_no = this.selectedCell.data.invNumber;
-      this.newHwTitle = this.selectedCell.data.title;
+
+      this.newInv_no = eq.invNumber;
+      this.newHwTitle = eq.title;
     },
 
     closeModal() {
@@ -719,30 +735,49 @@ export default {
         </div>
 
         <div class="grid-wrapper">
-          <div
-              class="equipment-grid"
-              :class="gridDensityClass"
-              :style="gridStyle">
-            <template v-for="row in classroom.gridSize.height" :key="row">
-              <div
-                  v-for="col in classroom.gridSize.width"
-                  :key="`${row}-${col}`"
-                  class="grid-cell"
-                  :class="getCellClasses(row - 1, col - 1)"
-                  @click="openModal(row - 1, col - 1)"
-              >
-                <template v-if="getEquipment(row - 1, col - 1)">
+          <div class="equipment-grid" :class="gridDensityClass" :style="gridStyle">
+            <div class="grid-stage">
+              <div class="grid-base">
+                <template v-for="row in classroom.gridSize.height" :key="`row-${row}`">
                   <div
-                      class="equipment-icon"
-                      :style="{ background: getEquipmentType(getEquipment(row - 1, col - 1).id).color }"
-                      v-html="getEquipmentType(getEquipment(row - 1, col - 1).id).icon"
-                  ></div>
-                  <div class="equipment-label">
-                    {{ getEquipmentType(getEquipment(row - 1, col - 1).id).name }}
-                  </div>
+                      v-for="col in classroom.gridSize.width"
+                      :key="`cell-${row}-${col}`"
+                      class="grid-cell"
+                      :class="getCellClasses(row - 1, col - 1)"
+                      @click="openModal(row - 1, col - 1)"
+                  />
                 </template>
               </div>
-            </template>
+
+              <div class="grid-overlay">
+                <div
+                    v-for="item in classroom.equipment"
+                    :key="item.dbId"
+                    class="grid-equipment"
+                    :class="{
+                    broken: !item.working,
+                    working: item.working,
+                    'is-wide': item.width > item.height,
+                    'is-tall': item.height >= item.width
+                  }"
+                    :style="{
+                    gridColumn: `${item.x + 1} / span ${item.width}`,
+                    gridRow: `${item.y + 1} / span ${item.height}`
+                  }"
+                    @click.stop="openModal(item.y, item.x)"
+                >
+                  <div
+                      class="equipment-icon"
+                      :style="{ background: getEquipmentType(item.type).color }"
+                      v-html="getEquipmentType(item.type).icon"
+                  ></div>
+
+                  <div class="equipment-label">
+                    {{ getEquipmentType(item.type).name }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -761,19 +796,19 @@ export default {
           </div>
 
           <h2 class="modal-title">
-            {{ getEquipmentType(selectedCell.data.id).name }}
+            {{ getEquipmentType(selectedCell.data.type).name }}
             <span class="modal-subtitle">Ряд {{ selectedCell.row + 1 }}, Место {{ selectedCell.col + 1 }}</span>
           </h2>
 
           <div class="modal-equipment-info">
             <div
                 class="modal-equipment-icon"
-                :style="{ background: getEquipmentType(selectedCell.data.id).color }"
-                v-html="getEquipmentType(selectedCell.data.id).icon"
+                :style="{ background: getEquipmentType(selectedCell.data.type).color }"
+                v-html="getEquipmentType(selectedCell.data.type).icon"
             ></div>
             <div class="modal-equipment-details">
               <div v-if="!hwTitleEdit">
-                <h3>{{ selectedCell.data.title || getEquipmentType(selectedCell.data.id).name }}</h3>
+                <h3>{{ selectedCell.data.title || getEquipmentType(selectedCell.data.type).name }}</h3>
                 <svg v-if="havePermission" @click="hwTitleEdit = true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
               </div>
 
@@ -1302,23 +1337,34 @@ export default {
   -webkit-overflow-scrolling: touch;
 }
 
+.grid-stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
 .equipment-grid {
   --ui-scale: 1;
 
   --cell-size: calc(90px * var(--ui-scale));
   --icon-div-size: calc(48px * var(--ui-scale));
   --icon-size: calc(26px * var(--ui-scale));
-  --font-size: calc(12px * var(--ui-scale));
+  --font-size: calc(11px * var(--ui-scale));
   --icon-div-mb: calc(6px * var(--ui-scale));
   --equipment-label-fw: 600;
 
-  grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
-  display: inline-grid;
-  gap: 12px;
-  padding: 24px;
+  --grid-gap: calc(12px * var(--ui-scale));
+  --grid-padding: calc(24px * var(--ui-scale));
+  --equipment-padding: calc(10px * var(--ui-scale));
+
+  position: relative;
+  display: inline-block;
+  padding: var(--grid-padding);
   background: #f8fafc;
   border-radius: 16px;
   border: 2px dashed #cbd5e1;
+  box-sizing: border-box;
+  user-select: none;
 }
 
 .equipment-grid.density-compact {
@@ -1329,31 +1375,110 @@ export default {
   --icon-div-mb: calc(3px * var(--ui-scale));
   --equipment-label-fw: 500;
 
-  gap: 8px;
+  --grid-gap: calc(8px * var(--ui-scale));
+  --equipment-padding: calc(8px * var(--ui-scale));
 }
 
 .equipment-grid.density-tiny {
-  --cell-size: calc(55px * var(--ui-scale));
-  --icon-div-size: calc(38px * var(--ui-scale));
-  --icon-size: calc(24px * var(--ui-scale));
-  --font-size: 0px;
+  --cell-size: calc(52px * var(--ui-scale));
+  --icon-div-size: calc(34px * var(--ui-scale));
+  --icon-size: calc(20px * var(--ui-scale));
+  --font-size: calc(0px * var(--ui-scale));
+  --icon-div-mb: calc(0px * var(--ui-scale));
+  --equipment-label-fw: 500;
 
-  gap: 4px;
+  --grid-gap: calc(6px * var(--ui-scale));
+  --equipment-padding: calc(6px * var(--ui-scale));
+}
+
+.equipment-grid.density-tiny .equipment-label {
+  display: none;
+}
+
+.grid-base,
+.grid-overlay {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
+  grid-template-rows: repeat(var(--grid-rows), var(--cell-size));
+  gap: var(--grid-gap);
+}
+
+.grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.grid-overlay .grid-equipment {
+  pointer-events: auto;
+}
+
+.grid-equipment {
+  width: 100%;
+  height: 100%;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  animation: fadeInCell 0.4s ease forwards;
+}
+
+.grid-equipment:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+.grid-equipment:hover .equipment-icon {
+  transform: scale(1.08);
+}
+
+.grid-equipment.working {
+  background:
+      linear-gradient(135deg, rgba(240, 253, 244, 0.98) 0%, rgba(220, 252, 231, 0.98) 100%);
+  border-color: rgba(134, 239, 172, 0.5);
+}
+
+.grid-equipment.broken {
+  background:
+      linear-gradient(135deg, rgba(254, 242, 242, 0.98) 0%, rgba(254, 226, 226, 0.98) 100%);
+  border-color: rgba(252, 165, 165, 0.5);
+}
+
+.grid-equipment.is-wide {
+  flex-direction: row;
+  gap: calc(10px * var(--ui-scale));
+}
+
+.grid-equipment.is-wide .equipment-icon {
+  margin-bottom: 0;
+}
+
+.grid-equipment.is-tall {
+  flex-direction: column;
 }
 
 .grid-cell {
   width: var(--cell-size);
   height: var(--cell-size);
-  background: white;
-  border: 2px solid #e2e8f0;
+  box-sizing: border-box;
   border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
+  border: 1.5px dashed #cbd5e1;
+  background: #ffffff;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   /* Анимация появления */
   animation: fadeInCell 0.4s ease forwards;
 }
@@ -1367,6 +1492,15 @@ export default {
   background: #f8fafc;
   border-style: dashed;
   cursor: default;
+}
+
+.grid-cell.occupied {
+  border-style: solid;
+}
+
+.grid-cell.empty:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .grid-cell.occupied:hover {
@@ -1394,8 +1528,12 @@ export default {
   justify-content: center;
   margin-bottom: var(--icon-div-mb);
   color: white;
-  transition: transform 0.3s ease;
+  transition: transform 0.28s ease;
   will-change: transform;
+  flex-shrink: 0;
+  box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.22),
+      0 6px 14px rgba(15, 23, 42, 0.14);
 }
 
 .grid-cell.occupied:hover .equipment-icon {
@@ -1410,9 +1548,12 @@ export default {
 .equipment-label {
   font-size: var(--font-size);
   font-weight: var(--equipment-label-fw);
-  color: #334155;
+  line-height: 1.15;
   text-align: center;
-  user-select: none;
+  color: #334155;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 /* Modal */
@@ -2110,26 +2251,16 @@ export default {
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .equipment-grid
-  {
-    --cell-size: 70px;
-    gap: 8px;
+  .equipment-grid {
+    --cell-size: calc(70px * var(--ui-scale));
+    --icon-div-size: calc(40px * var(--ui-scale));
+    --icon-size: calc(22px * var(--ui-scale));
+    --font-size: calc(11px * var(--ui-scale));
+    --grid-gap: calc(8px * var(--ui-scale));
   }
 
-  .grid-wrapper
-  {
+  .grid-wrapper {
     justify-content: start;
-  }
-
-  .equipment-icon svg
-  {
-    width: 32px;
-    height: 32px;
-  }
-
-  .equipment-label
-  {
-    font-size: 12px;
   }
 
   .header-container {
@@ -2140,19 +2271,9 @@ export default {
     width: 100%;
     margin-bottom: 16px;
   }
-
-  .grid-cell {
-    width: 75px;
-    height: 75px;
-  }
-  .equipment-icon {
-    width: 40px;
-    height: 40px;
-  }
 }
 
-@media (max-width: 768px)
-{
+@media (max-width: 768px) {
   .container {
     padding: 12px;
   }
@@ -2175,7 +2296,8 @@ export default {
     justify-content: center;
   }
 
-  .scale-type-btn, .scale-controls {
+  .scale-type-btn,
+  .scale-controls {
     display: none;
   }
 
@@ -2192,53 +2314,36 @@ export default {
   }
 
   .equipment-grid {
-    --cell-size: 60px;
-    gap: 8px;
-    justify-content: start;
+    --cell-size: calc(60px * var(--ui-scale));
+    --icon-div-size: calc(36px * var(--ui-scale));
+    --icon-size: calc(20px * var(--ui-scale));
+    --font-size: calc(9px * var(--ui-scale));
+    --grid-gap: calc(8px * var(--ui-scale));
   }
 
   .grid-section {
     padding: 20px;
   }
 
-  .grid-cell {
-    width: 65px;
-    height: 65px;
-  }
-
-  .equipment-icon {
-    width: 36px;
-    height: 36px;
-  }
-
-  .equipment-icon :deep(svg) {
-    width: 20px;
-    height: 20px;
-  }
-
   .modal-content {
     padding: 14px;
   }
 
-  .equipment-label{
-    font-size: 9px;
-  }
-
-  .modal-close-upper
-  {
+  .modal-close-upper {
     padding-top: 0;
-
-    button
-    {
-      margin: 0;
-    }
   }
 
+  .modal-close-upper button {
+    margin: 0;
+  }
 }
 
 @media (max-width: 480px) {
-  .grid-cell { width: 55px; height: 55px; }
-  .equipment-icon { width: 30px; height: 30px; }
-  .equipment-icon :deep(svg) { width: 18px; height: 18px; }
+  .equipment-grid {
+    --cell-size: calc(55px * var(--ui-scale));
+    --icon-div-size: calc(30px * var(--ui-scale));
+    --icon-size: calc(18px * var(--ui-scale));
+    --grid-gap: calc(4px * var(--ui-scale));
+  }
 }
 </style>

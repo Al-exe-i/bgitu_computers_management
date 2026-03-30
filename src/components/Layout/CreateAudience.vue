@@ -64,15 +64,23 @@ export default {
       officeNumber: 1,
       gridWidth: 6,
       gridHeight: 4,
+
       selectedEquipmentId: null,
-      dragOverCell: null, // { r, c }
-      // Храним данные сетки как объект: 'row-col': equipmentId
-      gridData: {},
+      selectedEquipmentSize: { width: 1, height: 1 },
+
+      dragOverCell: null,
+      draggedEquipmentId: null,
+      suppressNextCellClick: false,
+
+      equipmentItems: [],
+
       clearGridClicked: false,
       paramsCollapsed: false,
       loading: false,
-      hasUnsavedChanges: false,
 
+      hasUnsavedChanges: false,
+      isHydrating: false,
+      initialSnapshot: '',
     };
   },
 
@@ -90,6 +98,24 @@ export default {
       return this.isEditMode ? `Редактирование аудитории №${this.id}` : 'Добавление новой аудитории';
     },
 
+    visibleEquipmentItems() {
+      return this.equipmentItems.filter(item =>
+          item.x >= 0 &&
+          item.y >= 0 &&
+          item.x + item.width <= this.gridWidth &&
+          item.y + item.height <= this.gridHeight
+      );
+    },
+
+    outOfBoundsEquipmentItems() {
+      return this.equipmentItems.filter(item =>
+          item.x < 0 ||
+          item.y < 0 ||
+          item.x + item.width > this.gridWidth ||
+          item.y + item.height > this.gridHeight
+      );
+    },
+
     // Плотность сетки
     gridDensityClass() {
       const cols = this.gridWidth;
@@ -104,8 +130,7 @@ export default {
     },
 
     // Автоматический подсчет статистики
-    stats()
-    {
+    stats() {
       const counts = {
         total: 0,
         computer: 0,
@@ -118,12 +143,12 @@ export default {
         network: 0
       };
 
-      Object.values(this.gridData).forEach(item => {
+      for (const item of this.equipmentItems) {
         counts.total++;
-        if (counts[item.id] !== undefined) {
-          counts[item.id]++;
+        if (counts[item.type] !== undefined) {
+          counts[item.type]++;
         }
-      });
+      }
 
       counts.network = counts.switch + counts.router;
       return counts;
@@ -154,173 +179,246 @@ export default {
         this.selectedEquipmentId = id;
     },
 
-    // Получение данных для конкретной ячейки
-    getEquipmentInCell(row, col) {
-      const key = `${row}-${col}`;
-      const item = this.gridData[key];
-      if (!item) return null;
-
-      const type = this.equipmentTypeMap[item.id];
-      return { ...item, type };
-    },
-
     // Обработка клика (если выбран инструмент)
     handleCellClick(row, col) {
-      if (this.selectedEquipmentId) {
-        this.placeEquipment(row, col, this.selectedEquipmentId);
+      if (this.suppressNextCellClick) {
+        this.suppressNextCellClick = false;
+        return;
       }
+
+      if (!this.selectedEquipmentId) return;
+
+      this.placeEquipment(
+          row,
+          col,
+          this.selectedEquipmentId,
+          this.selectedEquipmentSize.width,
+          this.selectedEquipmentSize.height
+      );
+    },
+
+    canPlace(candidate, ignoreId = null) {
+      if (candidate.x < 0 || candidate.y < 0) return false;
+      if (candidate.x + candidate.width > this.gridWidth) return false;
+      if (candidate.y + candidate.height > this.gridHeight) return false;
+
+      return !this.equipmentItems.some(item => {
+        const itemId = item.localId ?? item.dbId;
+        if (itemId === ignoreId) return false;
+
+        return !(
+            candidate.x + candidate.width <= item.x ||
+            item.x + item.width <= candidate.x ||
+            candidate.y + candidate.height <= item.y ||
+            item.y + item.height <= candidate.y
+        );
+      });
     },
 
     // Drag & Drop
-    onDragStart(event, id)
-    {
+    onDragStart(event, eq) {
+      const payload = {
+        mode: 'new',
+        equipmentType: eq.id,
+        width: this.selectedEquipmentSize.width,
+        height: this.selectedEquipmentSize.height,
+      };
+
       event.dataTransfer.effectAllowed = 'copy';
-      event.dataTransfer.setData('type', 'new'); // Помечаем, что это новое оборудование
-      event.dataTransfer.setData('equipment-id', id);
+      event.dataTransfer.setData('application/json', JSON.stringify(payload));
       event.target.classList.add('dragging');
     },
 
     // Обработка начала перетаскивания из сетки
-    onGridItemDragStart(event, row, col) {
-      // Сохраняем координаты источника
-      const sourceCoords = JSON.stringify({ row, col });
+    onGridItemDragStart(event, item) {
+      const payload = {
+        mode: 'move',
+        itemId: item.localId ?? item.dbId,
+      };
+
+      this.draggedEquipmentId = item.localId ?? item.dbId;
 
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('type', 'move'); // Помечаем, что это перемещение
-      event.dataTransfer.setData('source-coords', sourceCoords);
+      event.dataTransfer.setData('application/json', JSON.stringify(payload));
     },
 
     onDragEnd(event) {
-      event.target.classList.remove('dragging');
+      event?.target?.classList?.remove('dragging');
       this.dragOverCell = null;
+      this.draggedEquipmentId = null;
     },
 
     onDragOver(row, col) {
-      this.dragOverCell = { r: row, c: col };
+      this.dragOverCell = { row, col };
     },
 
     onDragLeave() {
-      // Логика может быть сложнее, чтобы избежать мерцания,
-      // но для простого примера сброс можно делать в drop или leave grid
+      this.dragOverCell = null;
     },
 
     isDragOver(row, col) {
-      return this.dragOverCell && this.dragOverCell.r === row && this.dragOverCell.c === col;
+      return this.dragOverCell?.row === row && this.dragOverCell?.col === col;
     },
 
     onDrop(row, col, event) {
-      this.dragOverCell = null;
+      event.preventDefault();
+      event.stopPropagation();
+      this.suppressNextCellClick = true;
 
-      const dragType = event.dataTransfer.getData('type');
+      try {
+        const raw = event.dataTransfer.getData('application/json');
+        if (!raw) return;
 
-      // Случай 1: Добавление нового из палитры
-      if (dragType === 'new')
-      {
-        const equipmentId = event.dataTransfer.getData('equipment-id');
-        if (equipmentId) {
-          this.placeEquipment(row, col, equipmentId);
+        const payload = JSON.parse(raw);
+
+        if (payload.mode === 'new') {
+          this.placeEquipment(
+              row,
+              col,
+              payload.equipmentType,
+              payload.width ?? 1,
+              payload.height ?? 1
+          );
+          return;
         }
-      }
-      // Случай 2: Перемещение существующего внутри сетки
-      else if (dragType === 'move')
-      {
-        const sourceData = event.dataTransfer.getData('source-coords');
-        if (sourceData)
-        {
-          const source = JSON.parse(sourceData);
-          this.moveEquipment(source.row, source.col, row, col);
+
+        if (payload.mode === 'move') {
+          const item = this.equipmentItems.find(
+              eq => (eq.localId ?? eq.dbId) === payload.itemId
+          );
+          if (!item) return;
+
+          this.moveEquipment(item, row, col);
         }
+      } finally {
+        this.dragOverCell = null;
+        this.draggedEquipmentId = null;
+
+        setTimeout(() => {
+          this.suppressNextCellClick = false;
+        }, 30);
       }
     },
 
     // Логика перемещения оборудования
-    moveEquipment(fromRow, fromCol, toRow, toCol)
-    {
-      // Если координаты совпадают — ничего не делаем
-      if (fromRow === toRow && fromCol === toCol) return;
+    moveEquipment(item, toRow, toCol) {
+      const id = item.localId ?? item.dbId;
 
-      const sourceKey = `${fromRow}-${fromCol}`;
-      const targetKey = `${toRow}-${toCol}`;
-
-      // ЗАЩИТА: Если в целевой ячейке уже что-то есть
-      if (this.gridData[targetKey] && this.gridData[targetKey].dbId)
-      {
-        if (!confirm('Целевая ячейка занята. Перемещение заменит текущее оборудование и удалит его файлы. Продолжить?'))
-        {
-          return;
-        }
-      }
-
-      const equipmentData = this.gridData[sourceKey];
-
-      if (!equipmentData) return;
-
-      const newGridData = { ...this.gridData };
-
-      newGridData[targetKey] = { ...equipmentData };
-
-      delete newGridData[sourceKey];
-
-      this.gridData = newGridData;
-      this.hasUnsavedChanges = true;
-    },
-
-    placeEquipment(row, col, equipmentId)
-    {
-      const key = `${row}-${col}`;
-      // Проверка: если там уже что-то есть с dbId (существующее в базе)
-      if (this.gridData[key] && this.gridData[key].dbId)
-      {
-        if (!confirm('В этой ячейке уже есть сохраненное оборудование. Замена удалит его историю и файлы. Продолжить?'))
-        {
-          return;
-        }
-      }
-
-      this.gridData = {
-        ...this.gridData,
-        [key]: { id: equipmentId }
+      const updated = {
+        ...item,
+        x: toCol,
+        y: toRow,
       };
-      this.hasUnsavedChanges = true;
+
+      if (!this.canPlace(updated, id)) {
+        this.notify.warning('Нельзя переместить оборудование в эту позицию');
+        return;
+      }
+
+      this.equipmentItems = this.equipmentItems.map(eq =>
+          (eq.localId ?? eq.dbId) === id ? updated : eq
+      );
     },
 
-    removeEquipment(row, col) {
-      const key = `${row}-${col}`;
-      const newData = { ...this.gridData };
-      delete newData[key];
-      this.gridData = newData;
-      this.hasUnsavedChanges = true;
+    placeEquipment(row, col, equipmentType, width = 1, height = 1) {
+      const item = {
+        localId: crypto.randomUUID(),
+        dbId: null,
+        type: equipmentType,
+        x: col,
+        y: row,
+        width,
+        height,
+        state: true,
+        description: null,
+        inv_number: null,
+        title: null,
+        files: []
+      };
+
+      if (!this.canPlace(item, item.localId)) {
+        this.notify.warning('Оборудование не помещается или пересекается');
+        return;
+      }
+
+      this.equipmentItems = [...this.equipmentItems, item];
+    },
+
+    removeEquipment(item) {
+      const id = item.localId ?? item.dbId;
+      this.equipmentItems = this.equipmentItems.filter(
+          eq => (eq.localId ?? eq.dbId) !== id
+      );
     },
 
     clearGrid() {
-      if (this.clearGridClicked)
-      {
-        this.gridData = {};
-        this.hasUnsavedChanges = true;
-      }
-      else
-      {
-        this.clearGridClicked = true;
+      if (this.clearGridClicked) {
+        this.equipmentItems = [];
       }
     },
 
-    resetForm()
-    {
-      if(this.isEditMode)
-      {
+    resetForm() {
+      this.isHydrating = true;
+
+      if (this.isEditMode) {
         this.loadAudienceData();
-        this.hasUnsavedChanges = false;
+        return;
       }
-      else
-      {
-        this.classroomNumber = null;
-        this.floorNumber = 1;
-        this.gridWidth = 6;
-        this.gridHeight = 4;
-        this.gridData = {};
-        this.selectedEquipmentId = null;
-        this.clearGridClicked = false;
-      }
+
+      this.classroomNumber = null;
+      this.floorNumber = 1;
+      this.gridWidth = 6;
+      this.gridHeight = 4;
+      this.officeNumber = 1;
+      this.equipmentItems = [];
+      this.selectedEquipmentId = null;
+      this.selectedEquipmentSize = { width: 1, height: 1 };
+      this.clearGridClicked = false;
+
+      this.$nextTick(() => {
+        this.captureInitialSnapshot();
+        this.isHydrating = false;
+      });
+    },
+
+    buildAudienceSnapshot() {
+      const normalizedItems = [...this.equipmentItems]
+          .map(item => ({
+            id: item.dbId || null,
+            type: item.type,
+            x: item.x,
+            y: item.y,
+            width: item.width,
+            height: item.height,
+            state: item.state ?? true,
+            description: item.description ?? null,
+            inv_number: item.inv_number ?? null,
+            title: item.title ?? null,
+          }))
+          .sort((a, b) => {
+            const aKey = `${a.id ?? 'new'}-${a.x}-${a.y}-${a.type}`;
+            const bKey = `${b.id ?? 'new'}-${b.x}-${b.y}-${b.type}`;
+            return aKey.localeCompare(bKey);
+          });
+
+      return JSON.stringify({
+        classroomNumber: this.classroomNumber ?? null,
+        floorNumber: this.floorNumber,
+        officeNumber: this.officeNumber,
+        gridWidth: this.gridWidth,
+        gridHeight: this.gridHeight,
+        hardware: normalizedItems,
+      });
+    },
+
+    captureInitialSnapshot() {
+      this.initialSnapshot = this.buildAudienceSnapshot();
+      this.hasUnsavedChanges = false;
+    },
+
+    recomputeUnsavedChanges() {
+      if (this.isHydrating) return;
+      this.hasUnsavedChanges = this.buildAudienceSnapshot() !== this.initialSnapshot;
     },
 
     async getOffices()
@@ -330,91 +428,79 @@ export default {
       })
     },
 
-    async loadAudienceData()
-    {
+    async loadAudienceData() {
       this.loading = true;
-      try
-      {
+      try {
         const res = await api.get(`/audiences/${this.id}`);
         const data = res.data;
 
-        // Заполняем форму
         this.classroomNumber = String(data.id);
         this.floorNumber = data.floor;
         this.officeNumber = data.office_id;
         this.gridWidth = data.width;
         this.gridHeight = data.height;
 
-        // Заполняем сетку
-        const newGridData = {};
-        if (data.hardware)
-        {
-          data.hardware.forEach(hw => {
-            // Бэкенд: y=row, x=col. Фронт ключ: "row-col"
-            const key = `${hw.y}-${hw.x}`;
-            newGridData[key] = {
-              id: hw.type,      // Тип иконки (computer, printer...)
-              dbId: hw.id,      //  Сохраняем реальный ID из базы
-              state: hw.state,
-              inv_number: hw.inv_number,
-              title: hw.title,
-              files: hw.files
-            };
-          });
-        }
-        this.gridData = newGridData;
-        this.hasUnsavedChanges = false;
-      }
-      catch (e)
-      {
+        this.equipmentItems = (data.hardware ?? []).map(hw => ({
+          localId: `db-${hw.id}`,
+          dbId: hw.id,
+          type: hw.type,
+          x: hw.x,
+          y: hw.y,
+          width: hw.width ?? 1,
+          height: hw.height ?? 1,
+          state: hw.state,
+          description: hw.description ?? null,
+          inv_number: hw.inv_number ?? null,
+          title: hw.title ?? null,
+          files: hw.files ?? []
+        }));
+
+        await this.$nextTick(() => {
+          this.captureInitialSnapshot();
+          this.isHydrating = false;
+        });
+      } catch (e) {
         this.notify.error("Не удалось загрузить данные аудитории");
         await router.push('/');
-      }
-      finally
-      {
+      } finally {
         this.loading = false;
       }
     },
 
-    mapFrontendToBackend(frontendEquipment) {
-      return Object.entries(frontendEquipment).map(([key, item]) => {
-        // Парсим координаты из ключа "row-col"
-        const [row, col] = key.split('-').map(Number);
+    getEquipmentStyle(item) {
+      return {
+        gridColumn: `${item.x + 1} / span ${item.width}`,
+        gridRow: `${item.y + 1} / span ${item.height}`,
+      };
+    },
 
-        // Формируем объект под DTO HardwareCreate
-        return {
-          id: item.dbId || null,
-          type: item.id,          // На фронте id='computer', на бэке это type
-          x: col,                 // Вторая часть ключа - это X (колонка)
-          y: row,                 // Первая часть ключа - это Y (ряд)
-          state: item.state !== undefined ? item.state : true,
-          description: null,      // При создании комментариев обычно нет
-          inv_number: null,       // Можно добавить поле ввода в редакторе позже
-          title: null             // Можно добавить поле ввода в редакторе позже
-        };
-      });
+    mapFrontendToBackend(items) {
+      return items.map(item => ({
+        id: item.dbId || null,
+        type: item.type,
+        x: item.x,
+        y: item.y,
+        width: item.width,
+        height: item.height,
+        state: item.state ?? true,
+        description: item.description ?? null,
+        inv_number: item.inv_number ?? null,
+        title: item.title ?? null
+      }));
     },
 
     saveClassroom() {
-      if (!this.classroomNumber)
-      {
+      if (!this.classroomNumber) {
         this.notify.warning('Введите номер аудитории!');
         return;
       }
 
-      // Оборудование, которое выпадает за новые границы
-      const outOfBoundsItems = [];
-      Object.entries(this.gridData).forEach(([key, item]) => {
-        const [row, col] = key.split('-').map(Number);
-        if (row >= this.gridHeight || col >= this.gridWidth) {
-          outOfBoundsItems.push(item);
-        }
-      });
+      const outOfBoundsItems = this.outOfBoundsEquipmentItems
 
-      // Если такие есть — спрашиваем подтверждение
       if (outOfBoundsItems.length > 0) {
-        const confirmMsg = `Внимание! Вы уменьшили размеры сетки.\n` +
-            `${outOfBoundsItems.length} ед. оборудования окажутся за пределами и БУДУТ УДАЛЕНЫ (вместе с файлами).\n\n` +
+        const confirmMsg =
+            `Внимание! Вы уменьшили размеры сетки.\n` +
+            `${outOfBoundsItems.length} ед. оборудования окажутся за пределами и будут удалены.\n\n` +
             `Продолжить?`;
 
         if (!confirm(confirmMsg)) {
@@ -422,17 +508,14 @@ export default {
         }
       }
 
-      // Фильтруем данные перед отправкой (оставляем только то, что влезает)
-      const validGridData = {};
-      Object.entries(this.gridData).forEach(([key, item]) => {
-        const [row, col] = key.split('-').map(Number);
-        if (row < this.gridHeight && col < this.gridWidth) {
-          validGridData[key] = item;
-        }
-      });
+      const validItems = this.equipmentItems.filter(item =>
+          item.x >= 0 &&
+          item.y >= 0 &&
+          item.x + item.width <= this.gridWidth &&
+          item.y + item.height <= this.gridHeight
+      );
 
-      const equipmentCount = Object.keys(validGridData).length;
-      if (equipmentCount === 0) {
+      if (validItems.length === 0) {
         this.notify.warning('Добавьте хотя бы одно оборудование!');
         return;
       }
@@ -440,41 +523,40 @@ export default {
       const classroomData = {
         floor: this.floorNumber,
         width: this.gridWidth,
-        height: this.gridHeight ,
-        hardware: this.mapFrontendToBackend(validGridData),
+        height: this.gridHeight,
+        hardware: this.mapFrontendToBackend(validItems),
         office_id: this.officeNumber
       };
 
-      if (this.isEditMode)
-      {
+      if (this.isEditMode) {
         api.put(`/audiences/${this.id}`, classroomData)
-            .then(res => {
+            .then(() => {
               this.notify.success(`Аудитория обновлена!`);
-              this.audienceContext.setOffice(classroomData.office_id)
+              this.audienceContext.setOffice(classroomData.office_id);
               this.hasUnsavedChanges = false;
               router.push({ name: "Audience", params: { audienceId: this.id } });
             })
             .catch(err => {
               this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
             });
-      }
-      else
-      {
+      } else {
         const createPayload = {
           ...classroomData,
           id: Number(this.classroomNumber)
         };
 
         api.post(`/audiences`, createPayload)
-            .then(res => {
+            .then(() => {
               this.notify.success(`Аудитория создана!`);
               this.hasUnsavedChanges = false;
               router.push({ name: "Audience", params: { audienceId: Number(this.classroomNumber) } });
             })
             .catch(err => {
-              if(err.response?.status === 409)
+              if (err.response?.status === 409) {
                 this.notify.error(`Такая аудитория уже существует!`);
-              else this.notify.error(`Не удалось создать аудиторию!`);
+              } else {
+                this.notify.error(`Не удалось создать аудиторию!`);
+              }
             });
       }
     },
@@ -491,19 +573,32 @@ export default {
   },
 
   watch: {
-    gridData()
-    {
-      this.clearGridClicked = false;
+    equipmentItems: {
+      handler() {
+        this.clearGridClicked = false;
+        this.recomputeUnsavedChanges();
+      },
+      deep: true
     },
 
     gridWidth() {
-      if (this.gridData.length > 0)
-        this.hasUnsavedChanges = true;
+      this.recomputeUnsavedChanges();
     },
 
     gridHeight() {
-      if (this.gridData.length > 0)
-        this.hasUnsavedChanges = true;
+      this.recomputeUnsavedChanges();
+    },
+
+    floorNumber() {
+      this.recomputeUnsavedChanges();
+    },
+
+    officeNumber() {
+      this.recomputeUnsavedChanges();
+    },
+
+    classroomNumber() {
+      this.recomputeUnsavedChanges();
     }
   },
 
@@ -627,6 +722,35 @@ export default {
               Выберите и перетащите в сетку или кликните на клетку
             </p>
 
+            <div class="size-picker">
+              <button
+                  type="button"
+                  class="size-btn"
+                  :class="{ active: selectedEquipmentSize.width === 1 && selectedEquipmentSize.height === 1 }"
+                  @click="selectedEquipmentSize = { width: 1, height: 1 }"
+              >
+                1×1
+              </button>
+
+              <button
+                  type="button"
+                  class="size-btn"
+                  :class="{ active: selectedEquipmentSize.width === 2 && selectedEquipmentSize.height === 1 }"
+                  @click="selectedEquipmentSize = { width: 2, height: 1 }"
+              >
+                2×1
+              </button>
+
+              <button
+                  type="button"
+                  class="size-btn"
+                  :class="{ active: selectedEquipmentSize.width === 1 && selectedEquipmentSize.height === 2 }"
+                  @click="selectedEquipmentSize = { width: 1, height: 2 }"
+              >
+                1×2
+              </button>
+            </div>
+
             <div class="equipment-palette">
               <div
                   v-for="eq in equipmentTypes"
@@ -635,7 +759,7 @@ export default {
                   :class="{ selected: selectedEquipmentId === eq.id }"
                   draggable="true"
                   @click="selectEquipment(eq.id)"
-                  @dragstart="onDragStart($event, eq.id)"
+                  @dragstart="onDragStart($event, eq)"
                   @dragend="onDragEnd"
               >
                 <div class="equipment-icon" :style="{ background: eq.color }" v-html="eq.icon"></div>
@@ -701,46 +825,58 @@ export default {
                 v-else
                 class="grid-container"
                 :class="gridDensityClass"
-                :style="{ '--grid-cols': gridWidth }"
+                :style="{ '--grid-cols': gridWidth, '--grid-rows': gridHeight }"
             >
-              <template v-for="row in gridHeight">
+              <div class="grid-base">
+                <template v-for="row in gridHeight" :key="`row-${row}`">
+                  <div
+                      v-for="col in gridWidth"
+                      :key="`cell-${row}-${col}`"
+                      class="grid-cell"
+                      :class="{ 'drag-over': isDragOver(row - 1, col - 1) }"
+                      @click="handleCellClick(row - 1, col - 1)"
+                      @dragover.prevent="onDragOver(row - 1, col - 1)"
+                      @dragleave="onDragLeave"
+                      @drop="onDrop(row - 1, col - 1, $event)"
+                  />
+                </template>
+              </div>
+
+              <div class="grid-overlay">
                 <div
-                    v-for="col in gridWidth"
-                    :key="`${row}-${col}`"
-                    class="grid-cell"
+                    v-for="item in visibleEquipmentItems"
+                    :key="item.localId || item.dbId"
+                    class="grid-equipment"
                     :class="{
-                    occupied: getEquipmentInCell(row - 1, col - 1),
-                    'drag-over': isDragOver(row - 1, col - 1),
-                    broken: getEquipmentInCell(row - 1, col - 1)?.state === false,
-                  }"
-                    @click="handleCellClick(row - 1, col - 1, $event)"
-                    @dragover.prevent="onDragOver(row - 1, col - 1)"
-                    @dragleave="onDragLeave"
-                    @drop="onDrop(row - 1, col - 1, $event)"
+                      broken: item.state === false,
+                      'is-wide': item.width > item.height,
+                      'is-tall': item.height >= item.width
+                    }"
+                    :style="getEquipmentStyle(item)"
+                    draggable="true"
+                    @dragstart.stop="onGridItemDragStart($event, item)"
+                    @dragend="onDragEnd"
                 >
                   <div
-                      v-if="getEquipmentInCell(row - 1, col - 1)"
-                      class="cell-equipment"
-                      draggable="true"
-                      @dragstart.stop="onGridItemDragStart($event, row - 1, col - 1)"
-                      @dragend="onDragEnd">
-                    <div
-                        class="cell-icon"
-                        :style="{ background: getEquipmentInCell(row - 1, col - 1).type.color }"
-                        v-html="getEquipmentInCell(row - 1, col - 1).type.icon"
-                    ></div>
-                    <div class="cell-label">{{ getEquipmentInCell(row - 1, col - 1).type.name }}</div>
+                      class="cell-icon"
+                      :style="{ background: equipmentTypeMap[item.type].color }"
+                      v-html="equipmentTypeMap[item.type].icon"
+                  ></div>
+
+                  <div class="cell-label">
+                    {{ equipmentTypeMap[item.type].name }}
                   </div>
 
                   <button
-                      v-if="getEquipmentInCell(row - 1, col - 1)"
                       class="remove-btn"
-                      @click.stop="removeEquipment(row - 1, col - 1)"
+                      @click.stop="removeEquipment(item)"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024"><path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
+                      <path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/>
+                    </svg>
                   </button>
                 </div>
-              </template>
+              </div>
             </div>
           </div>
         </div>
@@ -883,6 +1019,36 @@ export default {
   color: #64748b;
   margin-bottom: 12px;
   line-height: 1.45;
+}
+
+.size-picker {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.size-btn {
+  padding: 8px 12px;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.size-btn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.size-btn.active {
+  border-color: #3b82f6;
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .form-group {
@@ -1106,133 +1272,212 @@ export default {
 .grid-container {
   --cell-size: 80px;
   --icon-size: 38px;
-  --font-size: 11px;
-  --btn-size: 20px;   /* Размер кнопки удаления */
+  --font-size: 10px;
+  --btn-size: 20px;
   --cell-fw: 600;
+  --grid-gap: 8px;
 
-  display: inline-grid;
-  grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
-  gap: 8px;
+  position: relative;
+  display: inline-block;
   padding: 20px;
   background: #f8fafc;
   border-radius: 12px;
   border: 2px dashed #cbd5e1;
+  user-select: none;
 }
-
 
 .grid-container.density-compact {
   --cell-size: 60px;
   --icon-size: 30px;
-  --font-size: 10px;
+  --font-size: 9px;
   --btn-size: 18px;
   --cell-fw: 500;
-  gap: 6px;
+  --grid-gap: 6px;
 }
 
 .grid-container.density-tiny {
   --cell-size: 45px;
   --icon-size: 28px;
-  --font-size: 0px; /* Скрываем текст */
+  --font-size: 0px;
   --btn-size: 16px;
-  gap: 4px;
+  --grid-gap: 4px;
 }
 
 .grid-container.density-tiny .cell-label {
   display: none;
 }
 
-.grid-cell {
-  height: var(--cell-size);
-  width: var(--cell-size);
-  background: white;
-  border: 2px solid #e2e8f0;
+.grid-base,
+.grid-overlay {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
+  grid-template-rows: repeat(var(--grid-rows), var(--cell-size));
+  gap: var(--grid-gap);
+}
+
+.grid-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  pointer-events: none;
+}
+
+.grid-overlay .grid-equipment {
+  pointer-events: auto;
+}
+
+.grid-container.density-compact .grid-equipment {
+  padding: 4px;
+  gap: 4px;
   border-radius: 10px;
+}
+
+.grid-container.density-tiny .grid-equipment {
+  padding: 4px;
+  gap: 2px;
+  border-radius: 8px;
+}
+
+.grid-container.density-tiny .remove-btn {
+  top: 2px;
+  right: 2px;
+}
+
+.grid-cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  border-radius: 12px;
+  border: 1.5px dashed #cbd5e1;
+  background: #ffffff;
+  box-sizing: border-box;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.grid-cell:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.grid-cell.drag-over {
+  border-color: #3b82f6;
+  background: #dbeafe;
+}
+
+.grid-equipment {
+  position: relative;
+  z-index: 2;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  user-select: none;
+  gap: 6px;
+
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+
+  padding: 8px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+
+  cursor: grab;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.grid-cell:hover {
-  border-color: #3b82f6;
-  background: #f0f9ff;
+.grid-equipment:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  border-color: #94a3b8;
 }
 
-.grid-cell.occupied {
-  background: linear-gradient(135deg, #f0f9ff, #dbeafe);
-  border-color: #3b82f6;
+.grid-equipment:active {
+  cursor: grabbing;
 }
 
-.grid-cell.occupied.broken {
-  background: linear-gradient(135deg, rgba(254, 226, 226, 0.4), rgba(254, 202, 202, 0.4));
-  border-color: rgba(252, 165, 165, 0.5);
+.grid-equipment.broken {
+  background: #fef2f2;
+  border-color: #f87171;
 }
 
-.grid-cell.drag-over {
-  background: #dbeafe;
-  border-color: #3b82f6;
-  border-style: solid;
+.grid-equipment.is-wide {
+  flex-direction: row;
+  justify-content: center;
 }
 
-.cell-equipment {
-  display: flex;
+.grid-equipment.is-tall {
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
 }
 
 .cell-icon {
   width: var(--icon-size);
   height: var(--icon-size);
+  border-radius: 10px;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+
   color: white;
+  flex-shrink: 0;
 }
 
-.cell-icon :deep(svg) {
-  width: 80%;
-  height: 80%;
+
+.cell-icon :deep(svg),
+.cell-icon svg {
+  width: calc(var(--icon-size) * 0.7);
+  height: calc(var(--icon-size) * 0.7);
 }
+
 
 .cell-label {
   font-size: var(--font-size);
   font-weight: var(--cell-fw);
-  color: #334155;
+  line-height: 1.15;
   text-align: center;
-  max-width: 70px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: #334155;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .remove-btn {
   position: absolute;
   top: 4px;
   right: 4px;
+
   width: var(--btn-size);
   height: var(--btn-size);
-  background: #ef4444;
   border: none;
-  border-radius: 50%;
-  color: white;
-  cursor: pointer;
-  display: none;
+  border-radius: 999px;
+
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  transition: all 0.2s;
-  /* Центровка крестика */
-  line-height: 1;
+
+  background: rgba(15, 23, 42, 0.72);
+  color: white;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.grid-cell.occupied:hover .remove-btn {
-  display: flex;
+.grid-equipment:hover .remove-btn {
+  opacity: 1;
+}
+
+.remove-btn:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+.remove-btn svg {
+  width: 12px;
+  height: 12px;
 }
 
 .remove-btn:hover {
@@ -1305,11 +1550,17 @@ export default {
   }
 
   .back-btn {
-    width: 100%; justify-content: center;
+    width: 100%;
+    justify-content: center;
   }
 
   .left-panel {
     grid-template-columns: 1fr;
+  }
+
+  .grid-container {
+    --cell-size: 60px;
+    --icon-size: 32px;
   }
 
   .grid-container.density-tiny {
@@ -1322,21 +1573,14 @@ export default {
 
   .grid-header {
     flex-direction: column;
-    align-items: flex-start; gap: 12px;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .clear-grid-btn {
     width: 100%;
   }
 
-  .grid-cell {
-    width: 60px; height: 60px;
-  }
-
-  .cell-icon {
-    width: 32px;
-    height: 32px;
-  }
 }
 
 @media (max-width: 480px)
