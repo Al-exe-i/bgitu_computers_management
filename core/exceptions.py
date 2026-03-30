@@ -24,3 +24,7 @@ class HTTP404(HTTPException):
 class HTTP409(HTTPException):
     def __init__(self, detail: str = "Conflict"):
         super().__init__(status_code=409, detail=detail)
+
+
+class TokenException(ValueError):
+    pass

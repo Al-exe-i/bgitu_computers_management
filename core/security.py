@@ -5,6 +5,7 @@ from jwt import PyJWTError
 import jwt
 from argon2 import PasswordHasher
 from core.config import settings
+from core.exceptions import TokenException
 
 _password_hasher = PasswordHasher()
 
@@ -21,17 +22,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def generate_token(data: dict, token_type: Literal["access", "refresh"]) -> str:
     if token_type not in ("access", "refresh"):
-        raise ValueError("Invalid token type")
+        raise TokenException("Invalid token type")
 
     to_encode = data.copy()
+
     now = datetime.now(timezone.utc)
     key = settings.jwt.ACCESS_SECRET_KEY if token_type == "access" else settings.jwt.REFRESH_SECRET_KEY
+
     if token_type == "access":
         expire = now + timedelta(minutes=settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES)
     else:
         expire = now + timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
+
     to_encode.update({"exp": expire, "iat": now, "nbf": now, "type": token_type})
     encoded_jwt = jwt.encode(to_encode, key, algorithm=settings.jwt.ALGORITHM)
+
     return encoded_jwt
 
 
