@@ -1,4 +1,4 @@
-# backend/app/websockets/routes.py
+# /websockets/routes.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from websocket import ConnectionManager
 
@@ -11,7 +11,6 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
-            # Можно обрабатывать входящие сообщения
+            _ = await websocket.receive_text() # Можно обрабатывать входящие сообщения
     except WebSocketDisconnect:
         manager.disconnect(websocket)

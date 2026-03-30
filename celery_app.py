@@ -4,7 +4,6 @@ from celery.schedules import crontab
 
 from core.config import settings
 
-# Важно: путь "diplom" — это твой корневой пакет
 celery_app = Celery("diplom")
 
 # Broker / backend (Redis)
@@ -20,14 +19,13 @@ celery_app.conf.worker_prefetch_multiplier = 1
 celery_app.conf.task_acks_late = True
 
 # Авто-импорт тасок
-# Положим таски в diplom/tasks/*.py
 celery_app.conf.imports = ("tasks.sessions",)
 
 # Расписание Celery Beat
 celery_app.conf.beat_schedule = {
     "cleanup-user-sessions-daily": {
         "task": "tasks.sessions.cleanup_user_sessions",
-        # Каждый день в 03:10 UTC (подвинь как хочешь)
+        # Каждый день в 03:10 UTC
         "schedule": crontab(hour=3, minute=10),
         "args": (7,),  # retention_days = 7
     },

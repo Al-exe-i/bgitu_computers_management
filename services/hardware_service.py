@@ -13,7 +13,6 @@ from repositories.hardware_repo import HardwareRepository
 from repositories.hw_files_repo import HardwareFilesRepository
 from schemas.hardware import HardwareUpdate, HardwareGridItem
 from schemas.hardware_file import HardwareFileResponse
-from websocket.routes import manager
 
 
 class HardwareGridPort(Protocol):

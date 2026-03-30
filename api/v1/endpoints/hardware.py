@@ -131,7 +131,7 @@ async def stream_video(
     file_size = os.path.getsize(file_path)
     range_header = request.headers.get("Range")
 
-    CHUNK_SIZE = 1024 * 1024
+    chunk_size = 1024 * 1024
 
     start = 0
     end = file_size - 1
@@ -146,7 +146,7 @@ async def stream_video(
             if range_parts[1]:
                 end = int(range_parts[1])
             else:
-                end = min(start + CHUNK_SIZE - 1, file_size - 1)
+                end = min(start + chunk_size - 1, file_size - 1)
 
         except ValueError:
             raise HTTPException(status_code=400, detail="Bad Range header")
