@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import String, Enum, ForeignKey
+from sqlalchemy import String, Enum, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models import Audience
 from models.base import Base
@@ -23,9 +23,18 @@ class Hardware(IntIdPkMixin, Base):
     state: Mapped[bool] = mapped_column(default=True)
     description: Mapped[str | None] = mapped_column(String(255))
     type: Mapped[HardwareType] = mapped_column(Enum(HardwareType))
+
     x: Mapped[int]
     y: Mapped[int]
+    width: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    height: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
     audience_id: Mapped[int] = mapped_column(ForeignKey('audiences.id', ondelete='CASCADE'))
 
     audience: Mapped["Audience"] = relationship(back_populates="hardware")
-    files: Mapped[list[HardwareFile]] = relationship(back_populates="hardware", lazy='selectin')
+    files: Mapped[list[HardwareFile]] = relationship(
+        back_populates="hardware",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

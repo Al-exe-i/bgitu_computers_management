@@ -7,6 +7,9 @@ from models.mixins import IntIdPkMixin
 class HardwareFile(IntIdPkMixin, Base):
     file_path: Mapped[str]
     file_type: Mapped[str]
-    hardware_id: Mapped[int] = mapped_column(ForeignKey('hardwares.id', ondelete='CASCADE'))
+    hardware_id: Mapped[int] = mapped_column(
+        ForeignKey('hardwares.id', ondelete='CASCADE'),
+        nullable=False
+    )
 
     hardware: Mapped["Hardware"] = relationship(back_populates="files")
