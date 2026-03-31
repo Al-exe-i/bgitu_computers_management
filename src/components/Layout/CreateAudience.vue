@@ -188,12 +188,22 @@ export default {
 
       if (!this.selectedEquipmentId) return;
 
-      this.placeEquipment(
+      const width = this.selectedEquipmentSize.width;
+      const height = this.selectedEquipmentSize.height;
+
+      const { row: targetRow, col: targetCol } = this.resolveDropAnchorPosition(
           row,
           col,
+          width,
+          height
+      );
+
+      this.placeEquipment(
+          targetRow,
+          targetCol,
           this.selectedEquipmentId,
-          this.selectedEquipmentSize.width,
-          this.selectedEquipmentSize.height
+          width,
+          height
       );
     },
 
@@ -272,12 +282,22 @@ export default {
         const payload = JSON.parse(raw);
 
         if (payload.mode === 'new') {
-          this.placeEquipment(
+          const width = payload.width ?? 1;
+          const height = payload.height ?? 1;
+
+          const { row: targetRow, col: targetCol } = this.resolveDropAnchorPosition(
               row,
               col,
+              width,
+              height
+          );
+
+          this.placeEquipment(
+              targetRow,
+              targetCol,
               payload.equipmentType,
-              payload.width ?? 1,
-              payload.height ?? 1
+              width,
+              height
           );
           return;
         }
@@ -288,7 +308,14 @@ export default {
           );
           if (!item) return;
 
-          this.moveEquipment(item, row, col);
+          const { row: targetRow, col: targetCol } = this.resolveDropAnchorPosition(
+              row,
+              col,
+              item.width ?? 1,
+              item.height ?? 1
+          );
+
+          this.moveEquipment(item, targetRow, targetCol);
         }
       } finally {
         this.dragOverCell = null;
@@ -349,6 +376,13 @@ export default {
       this.equipmentItems = this.equipmentItems.filter(
           eq => (eq.localId ?? eq.dbId) !== id
       );
+    },
+
+    resolveDropAnchorPosition(row, col, width = 1, height = 1) {
+      return {
+        row: row - (height - 1),
+        col: col - (width - 1),
+      };
     },
 
     clearGrid() {
