@@ -637,6 +637,23 @@ html[data-theme='dark'] .page-viewer .grid-equipment:hover {
   box-shadow: 0 14px 28px rgba(2, 6, 23, 0.5) !important;
 }
 
+html[data-theme='dark'] .page-viewer .specs-card {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-title {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .page-viewer .spec-label {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .page-viewer .spec-value {
+  color: #e2e8f0 !important;
+}
+
 html[data-theme='dark'] .create-audience-page .grid-cell.drag-over {
   background: rgba(30, 64, 175, 0.45) !important;
   border-color: #93c5fd !important;
