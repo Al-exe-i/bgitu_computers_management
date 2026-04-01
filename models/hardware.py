@@ -1,5 +1,8 @@
 import enum
+from typing import Any
+
 from sqlalchemy import String, Enum, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models import Audience
 from models.base import Base
@@ -14,6 +17,7 @@ class HardwareType(enum.Enum):
     printer = "printer"
     switch = "switch"
     router = "router"
+    server = "server"
     other = "other"
 
 
@@ -28,6 +32,8 @@ class Hardware(IntIdPkMixin, Base):
     y: Mapped[int]
     width: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     height: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    specs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     audience_id: Mapped[int] = mapped_column(ForeignKey('audiences.id', ondelete='CASCADE'))
 

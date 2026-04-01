@@ -13,6 +13,7 @@ from repositories.hardware_repo import HardwareRepository
 from repositories.hw_files_repo import HardwareFilesRepository
 from schemas.hardware import HardwareUpdate, HardwareGridItem
 from schemas.hardware_file import HardwareFileResponse
+from utils.hw_specs import validate_specs
 
 
 class HardwareGridPort(Protocol):
@@ -29,22 +30,32 @@ class HardwareService:
         hardware = await self.repo.get_by_id(hardware_id)
         return hardware
 
-    async def update_status(self, hardware_id: int, schema: HardwareUpdate):
-        update_data: dict[str, Any] = schema.model_dump(exclude_unset=True)
+    async def update(self, hardware_id: int, schema: HardwareUpdate):
+        hardware = await self.repo.get_by_id(hardware_id)
+        if not hardware:
+            raise HTTP404("Hardware not found")
+
+        update_data = schema.model_dump(exclude_unset=True)
+
+        target_type = update_data.get("type", hardware.type)
+
+        if "specs" in update_data:
+            update_data["specs"] = validate_specs(target_type, update_data["specs"])
+        elif "type" in update_data:
+            update_data["specs"] = validate_specs(target_type, hardware.specs)
 
         if update_data.get("state"):
             update_data["description"] = None
 
-        updated_hw = await self.repo.update(hardware_id, update_data)
-        if not updated_hw:
-            raise HTTP404("Hardware not found")
-        return updated_hw
+        return await self.repo.update(hardware_id, update_data)
 
     async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]:
         return await self.repo.get_by_audience_id(audience_id)
 
     async def create_in_audience(self, audience_id: int, item: HardwareGridItem) -> Hardware:
-        hw = Hardware(**item.model_dump(exclude={"id"}), audience_id=audience_id)
+        data = item.model_dump(exclude={"id"})
+        data["specs"] = validate_specs(item.type, data.get("specs"))
+        hw = Hardware(**data, audience_id=audience_id)
         return await self.repo.create(hw)
 
     async def delete(self, hardware_id: int) -> None:

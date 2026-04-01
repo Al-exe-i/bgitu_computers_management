@@ -5,6 +5,7 @@ from repositories.audience_repo import AudienceRepository
 from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
 from schemas.hardware import HardwareGridItem
 from services.hardware_service import HardwareGridPort
+from utils.grid_utils import GridHelper
 
 
 class AudienceService:
@@ -26,7 +27,7 @@ class AudienceService:
         return audience
 
     async def create_audience(self, schema: AudienceCreate):
-        self._validate_grid(schema.hardware, schema.width, schema.height)
+        GridHelper.validate_grid(schema.hardware, schema.width, schema.height)
 
         audience_data = schema.model_dump(exclude={'hardware'})
         hardware_orm_list = [
@@ -51,7 +52,7 @@ class AudienceService:
         target_height = update_data.get("height", current_audience.height)
 
         if schema.hardware is not None:
-            self._validate_grid(schema.hardware, target_width, target_height)
+            GridHelper.validate_grid(schema.hardware, target_width, target_height)
 
         if update_data:
             for key, value in update_data.items():
@@ -84,63 +85,9 @@ class AudienceService:
             if db_item is None:
                 raise HTTP400(f"Hardware id={item.id} not found in audience {audience_id}")
 
-            self._apply_grid_item(db_item, item)
+            GridHelper.apply_grid_item(db_item, item)
             incoming_existing_ids.add(item.id)
 
         for hw_id in existing_map.keys():
             if hw_id not in incoming_existing_ids:
                 await self.hardware.delete(hw_id)
-
-    def _rectangles_intersect(self, a: HardwareGridItem, b: HardwareGridItem) -> bool:
-        return not (
-                a.x + a.width <= b.x or
-                b.x + b.width <= a.x or
-                a.y + a.height <= b.y or
-                b.y + b.height <= a.y
-        )
-
-    def _validate_item_bounds(self, item: HardwareGridItem, grid_width: int, grid_height: int) -> None:
-        if item.x < 0 or item.y < 0:
-            raise HTTP400("Hardware coordinates must be non-negative")
-
-        if item.x + item.width > grid_width:
-            raise HTTP400(
-                f"Hardware id={item.id or 'new'} exceeds audience width: "
-                f"x={item.x}, width={item.width}, audience_width={grid_width}"
-            )
-
-        if item.y + item.height > grid_height:
-            raise HTTP400(
-                f"Hardware id={item.id or 'new'} exceeds audience height: "
-                f"y={item.y}, height={item.height}, audience_height={grid_height}"
-            )
-
-    def _validate_grid(self, items: Sequence[HardwareGridItem], grid_width: int, grid_height: int) -> None:
-        seen_ids: set[int] = set()
-
-        for item in items:
-            self._validate_item_bounds(item, grid_width, grid_height)
-
-            if item.id is not None:
-                if item.id in seen_ids:
-                    raise HTTP400(f"Duplicate hardware id={item.id} in payload")
-                seen_ids.add(item.id)
-
-        for i in range(len(items)):
-            for j in range(i + 1, len(items)):
-                if self._rectangles_intersect(items[i], items[j]):
-                    raise HTTP400(
-                        f"Hardware items intersect: "
-                        f"{items[i].id or 'new'} and {items[j].id or 'new'}"
-                    )
-
-    def _apply_grid_item(self, db_item: Hardware, item: HardwareGridItem) -> None:
-        db_item.x = item.x
-        db_item.y = item.y
-        db_item.width = item.width
-        db_item.height = item.height
-        db_item.type = item.type
-        db_item.state = item.state
-        db_item.description = item.description
-        db_item.inv_number = item.inv_number
-        db_item.title = item.title

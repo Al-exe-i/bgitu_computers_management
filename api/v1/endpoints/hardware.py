@@ -53,7 +53,7 @@ async def add_hardware_file(
 
 
 @router.patch("/{hardware_id}", response_model=HardwareFullResponse)
-async def update_hardware_status(
+async def update_hardware(
         hardware_id: int,
         data: HardwareUpdate,
         service: hardware_service_dep,
@@ -62,16 +62,13 @@ async def update_hardware_status(
         audit: audit_log_service_dep,
         meta: request_meta_dep,
 ):
-    """
-    Обновить статус, комментарий или позицию конкретного оборудования.
-    """
     if data.state and user.role == UserRole.teacher:
         raise HTTP403("Teacher can't mark hardware as good state")
 
     if user.role == UserRole.teacher:
         data = HardwareUpdate(**data.model_dump(include={"state"}))
 
-    updated_hw = await service.update_status(hardware_id, data)
+    updated_hw = await service.update(hardware_id, data)
 
     await audit.log(
         user_id=user.id,

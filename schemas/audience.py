@@ -13,7 +13,7 @@ class AudienceBase(BaseModel):
 
 
 class AudienceCreate(AudienceBase):
-    hardware: list[HardwareCreate] = Field(default_factory=list)
+    hardware: list[HardwareGridItem] = Field(default_factory=list)
 
 
 class AudienceUpdate(BaseModel):

@@ -15,6 +15,8 @@ class HardwareBase(BaseModel):
     inv_number: str | None = Field(default=None, max_length=32)
     title: str | None = Field(default=None, max_length=64)
 
+    specs: dict = Field(default_factory=dict)
+
 
 class HardwareCreate(HardwareBase):
     pass
@@ -36,6 +38,8 @@ class HardwareUpdate(BaseModel):
     inv_number: str | None = Field(default=None, max_length=32)
     title: str | None = Field(default=None, max_length=64)
     files: list[HardwareFileResponse] | None = None
+
+    specs: dict | None = None
 
 
 class HardwareShortResponse(HardwareBase):
