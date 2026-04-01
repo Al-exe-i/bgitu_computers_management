@@ -16,9 +16,15 @@ const EQUIPMENT_TYPES = Object.freeze([
     color: 'linear-gradient(135deg, #3b82f6, #2563eb)'
   },
   {
+    id: 'server',
+    name: 'Сервер',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Сервер</title><path fill="currentColor" d="M20 3H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2M4 9V5h16v4zm16 4H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2M4 19v-4h16v4z"/><path fill="currentColor" d="M17 6h2v2h-2zm-3 0h2v2h-2zm3 10h2v2h-2zm-3 0h2v2h-2z"/></svg>',
+    color: 'linear-gradient(135deg, #0f766e, #14b8a6)'
+  },
+  {
     id: 'tv',
     name: 'Телевизор',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1920 1536"><title>Television SVG Icon</title><path fill="currentColor" d="M1792 1120V160q0-13-9.5-22.5T1760 128H160q-13 0-22.5 9.5T128 160v960q0 13 9.5 22.5t22.5 9.5h1600q13 0 22.5-9.5t9.5-22.5m128-960v960q0 66-47 113t-113 47h-736v128h352q14 0 23 9t9 23v64q0 14-9 23t-23 9H544q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h352v-128H160q-66 0-113-47T0 1120V160Q0 94 47 47T160 0h1600q66 0 113 47t47 113"/></svg>',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1920 1536"><title>Телевизор</title><path fill="currentColor" d="M1792 1120V160q0-13-9.5-22.5T1760 128H160q-13 0-22.5 9.5T128 160v960q0 13 9.5 22.5t22.5 9.5h1600q13 0 22.5-9.5t9.5-22.5m128-960v960q0 66-47 113t-113 47h-736v128h352q14 0 23 9t9 23v64q0 14-9 23t-23 9H544q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h352v-128H160q-66 0-113-47T0 1120V160Q0 94 47 47T160 0h1600q66 0 113 47t47 113"/></svg>',
     color: 'linear-gradient(135deg, #f97316, #ea580c)'
   },
   {
@@ -134,6 +140,7 @@ export default {
       const counts = {
         total: 0,
         computer: 0,
+        server: 0,
         tv: 0,
         projector: 0,
         printer: 0,
@@ -816,6 +823,10 @@ export default {
               <div class="stat-item">
                 <span class="stat-label">Компьютеров:</span>
                 <span class="stat-value">{{ stats.computer }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Серверов:</span>
+                <span class="stat-value">{{ stats.server }}</span>
               </div>
               <div class="stat-item">
                 <span class="stat-label">Телевизоров:</span>

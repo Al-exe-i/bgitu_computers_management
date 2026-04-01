@@ -37,6 +37,11 @@ export default {
           color: 'linear-gradient(135deg, #3b82f6, #2563eb)',
           icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>'
         },
+        server: {
+          name: 'Сервер',
+          color: 'linear-gradient(135deg, #0f766e, #14b8a6)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M20 3H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2M4 9V5h16v4zm16 4H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2M4 19v-4h16v4z"/><path fill="currentColor" d="M17 6h2v2h-2zm-3 0h2v2h-2zm3 10h2v2h-2zm-3 0h2v2h-2z"/></svg>'
+        },
         tv: {
           name: 'Телевизор',
           color: 'linear-gradient(135deg, #f97316, #ea580c)',
@@ -72,6 +77,20 @@ export default {
       specFieldMap: markRaw({
         computer: [
           { key: 'cpu_model', label: 'Процессор', type: 'text', placeholder: 'Например, Intel Core i5-10400' },
+          { key: 'cpu_frequency_ghz', label: 'Частота', type: 'float', min: 0, step: 0.1, suffix: 'ГГц' },
+          { key: 'cpu_cores', label: 'Ядра', type: 'int', min: 1, step: 1 },
+
+          { key: 'ram_amount', label: 'ОЗУ', type: 'int', min: 1, step: 1 },
+          { key: 'ram_unit', label: 'Ед. ОЗУ', type: 'select', options: ['mb', 'gb', 'tb'] },
+
+          { key: 'storage_amount', label: 'ПЗУ', type: 'int', min: 1, step: 1 },
+          { key: 'storage_unit', label: 'Ед. ПЗУ', type: 'select', options: ['mb', 'gb', 'tb'] },
+
+          { key: 'purchase_year', label: 'Год закупки', type: 'int', min: 2000, max: 2100, step: 1 },
+        ],
+
+        server: [
+          { key: 'cpu_model', label: 'Процессор', type: 'text', placeholder: 'Например, Intel Xeon Silver 4310' },
           { key: 'cpu_frequency_ghz', label: 'Частота', type: 'float', min: 0, step: 0.1, suffix: 'ГГц' },
           { key: 'cpu_cores', label: 'Ядра', type: 'int', min: 1, step: 1 },
 
@@ -132,7 +151,8 @@ export default {
         total: 0,
         working: 0,
         broken: 0,
-        computers: 0
+        computers: 0,
+        servers: 0
       };
 
       for (const eq of items) {
@@ -142,6 +162,10 @@ export default {
 
         if (eq.type === 'computer') {
           result.computers++;
+        }
+
+        if (eq.type === 'server') {
+          result.servers++;
         }
       }
 
@@ -233,7 +257,7 @@ export default {
     currentSpecGroups() {
       const type = this.selectedCell?.data?.type;
 
-      if (type === 'computer') {
+      if (type === 'computer' || type === 'server') {
         return [
           ['cpu_model'],
           ['cpu_frequency_ghz', 'cpu_cores'],
@@ -375,7 +399,7 @@ export default {
     specsTypeDescription() {
       const type = this.selectedCell?.data?.type;
 
-      if (type === 'computer') {
+      if (type === 'computer' || type === 'server') {
         return 'Процессор, оперативная память, накопитель и год закупки';
       }
 
