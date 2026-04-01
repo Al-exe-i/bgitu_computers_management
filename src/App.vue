@@ -638,20 +638,139 @@ html[data-theme='dark'] .page-viewer .grid-equipment:hover {
 }
 
 html[data-theme='dark'] .page-viewer .specs-card {
-  background: #0f172a !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.98)) !important;
   border-color: #334155 !important;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.34) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-modal-content {
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.2), transparent 34%),
+    linear-gradient(180deg, #0f172a 0%, #111827 100%) !important;
 }
 
 html[data-theme='dark'] .page-viewer .specs-title {
   color: #94a3b8 !important;
 }
 
-html[data-theme='dark'] .page-viewer .spec-label {
+html[data-theme='dark'] .page-viewer .specs-header-subtitle,
+html[data-theme='dark'] .page-viewer .specs-modal-description,
+html[data-theme='dark'] .page-viewer .specs-empty-text,
+html[data-theme='dark'] .page-viewer .specs-form-banner-text,
+html[data-theme='dark'] .page-viewer .specs-meta-label,
+html[data-theme='dark'] .page-viewer .spec-card-label,
+html[data-theme='dark'] .page-viewer .spec-suffix {
   color: #94a3b8 !important;
 }
 
-html[data-theme='dark'] .page-viewer .spec-value {
+html[data-theme='dark'] .page-viewer .specs-modal-heading,
+html[data-theme='dark'] .page-viewer .specs-modal-name,
+html[data-theme='dark'] .page-viewer .specs-meta-value,
+html[data-theme='dark'] .page-viewer .spec-card-value,
+html[data-theme='dark'] .page-viewer .specs-empty-title,
+html[data-theme='dark'] .page-viewer .specs-form-banner-title,
+html[data-theme='dark'] .page-viewer .spec-form-label,
+html[data-theme='dark'] .page-viewer .spec-input,
+html[data-theme='dark'] .page-viewer .bool-btn {
   color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-meta-pill,
+html[data-theme='dark'] .page-viewer .specs-modal-progress,
+html[data-theme='dark'] .page-viewer .spec-form-group,
+html[data-theme='dark'] .page-viewer .spec-card,
+html[data-theme='dark'] .page-viewer .specs-empty {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-modal-progress-head {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-modal-progress-track {
+  background: #1e3a8a !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-modal-progress-track span {
+  background: linear-gradient(135deg, #60a5fa, #2563eb) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-meta-icon,
+html[data-theme='dark'] .page-viewer .spec-card-icon {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.46), rgba(37, 99, 235, 0.3)) !important;
+  color: #bfdbfe !important;
+}
+
+html[data-theme='dark'] .page-viewer .spec-card-pair-divider {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.12), rgba(71, 85, 105, 0.9), rgba(96, 165, 250, 0.12)) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-form-banner {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.28), rgba(15, 23, 42, 0.82)) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-form-banner-icon {
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.34) !important;
+}
+
+html[data-theme='dark'] .page-viewer .spec-input,
+html[data-theme='dark'] .page-viewer .bool-btn {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+  border-color: #475569 !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-segment-btn {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-segment-btn.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(30, 64, 175, 0.32)) !important;
+  border-color: #60a5fa !important;
+  color: #dbeafe !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22) !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-clear-btn {
+  background: rgba(30, 41, 59, 0.9) !important;
+  border-color: #475569 !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-clear-btn.active {
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.96), rgba(30, 41, 59, 0.96)) !important;
+  border-color: #64748b !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .page-viewer .spec-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5l5 5l5-5' stroke='%2394a3b8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-btn-muted {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #94a3b8 !important;
+  border-color: #475569 !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-btn.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(30, 64, 175, 0.32)) !important;
+  border-color: #60a5fa !important;
+  color: #dbeafe !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22) !important;
+}
+
+html[data-theme='dark'] .page-viewer .bool-btn-muted.active {
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.96), rgba(30, 41, 59, 0.96)) !important;
+  border-color: #64748b !important;
+  color: #e2e8f0 !important;
+  box-shadow: none !important;
 }
 
 html[data-theme='dark'] .create-audience-page .grid-cell.drag-over {
@@ -824,6 +943,53 @@ html[data-theme='dark'] .page-viewer .modal-equipment-info {
 html[data-theme='dark'] .page-viewer .modal-equipment-details h3,
 html[data-theme='dark'] .page-viewer .modal-equipment-details > div > h3 {
   color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-btn {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8) !important;
+  border-color: #60a5fa !important;
+  color: #eff6ff !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-btn:hover {
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.28) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border-color: #334155 !important;
+  box-shadow: 0 10px 18px rgba(2, 6, 23, 0.22) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip-text {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip-dot {
+  background: #64748b !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip.is-partial {
+  background: rgba(30, 64, 175, 0.22) !important;
+  border-color: rgba(96, 165, 250, 0.42) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip.is-partial .specs-entry-chip-dot {
+  background: #60a5fa !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip.is-complete {
+  background: rgba(20, 83, 45, 0.34) !important;
+  border-color: rgba(74, 222, 128, 0.5) !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip.is-complete .specs-entry-chip-dot {
+  background: #4ade80 !important;
+}
+
+html[data-theme='dark'] .page-viewer .specs-entry-chip.is-empty {
+  background: rgba(30, 41, 59, 0.88) !important;
+  border-color: #475569 !important;
 }
 
 html[data-theme='dark'] .page-viewer .hw-section-title {

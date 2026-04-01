@@ -99,6 +99,7 @@ export default {
       specsEdit: false,
       specsDraft: {},
       specsSaving: false,
+      showSpecsModal: false,
 
       /* Раздел файлов оборудования в модалке */
       isDragOver: false,
@@ -244,8 +245,7 @@ export default {
 
       if (type === 'switch') {
         return [
-          ['ports_count'],
-          ['managed'],
+          ['ports_count', 'managed'],
         ];
       }
 
@@ -262,11 +262,143 @@ export default {
       return this.selectedCell ? this.getSpecsRows(this.selectedCell.data) : [];
     },
 
+    currentSpecsDisplayItems() {
+      if (!this.selectedCell?.data) return [];
+
+      const specs = this.selectedCell.data.specs ?? {};
+      const items = [];
+      const seen = new Set();
+
+      for (const group of this.currentSpecGroups) {
+        const isMemoryPair =
+            group.length === 2 &&
+            group[0].endsWith('_amount') &&
+            group[1].endsWith('_unit');
+
+        if (isMemoryPair) {
+          const [leftKey, rightKey] = group;
+          const leftField = this.currentSpecFieldMap[leftKey];
+          const rightField = this.currentSpecFieldMap[rightKey];
+          const leftRaw = specs[leftKey];
+          const rightRaw = specs[rightKey];
+          const leftValue =
+              leftRaw !== null && leftRaw !== undefined && leftRaw !== '' ? `${leftRaw}` : null;
+          const rightValue =
+              rightRaw !== null && rightRaw !== undefined && rightRaw !== '' ? String(rightRaw).toUpperCase() : null;
+
+          seen.add(leftKey);
+          seen.add(rightKey);
+
+          if (leftValue === null && rightValue === null) continue;
+
+          items.push({
+            key: `${leftKey}-${rightKey}`,
+            type: 'pair',
+            iconKey: leftKey,
+            leftLabel: leftField?.label ?? leftKey,
+            leftValue: leftValue ?? 'Не указано',
+            rightLabel: rightField?.label ?? rightKey,
+            rightValue: rightValue ?? 'Не указано'
+          });
+
+          continue;
+        }
+
+        for (const fieldKey of group) {
+          seen.add(fieldKey);
+
+          const field = this.currentSpecFieldMap[fieldKey];
+          if (!field) continue;
+
+          const value = this.formatSpecFieldValue(field, specs[fieldKey]);
+          if (value === null) continue;
+
+          items.push({
+            key: fieldKey,
+            type: 'single',
+            iconKey: fieldKey,
+            label: field.label,
+            value
+          });
+        }
+      }
+
+      for (const field of this.currentSpecFields) {
+        if (seen.has(field.key)) continue;
+
+        const value = this.formatSpecFieldValue(field, specs[field.key]);
+        if (value === null) continue;
+
+        items.push({
+          key: field.key,
+          type: 'single',
+          iconKey: field.key,
+          label: field.label,
+          value
+        });
+      }
+
+      return items;
+    },
+
+    selectedEquipmentDisplayName() {
+      const type = this.selectedCell?.data?.type;
+      return this.selectedCell?.data?.title || this.getEquipmentType(type)?.name || 'Оборудование';
+    },
+
+    specsFilledCount() {
+      return this.currentSpecsRows.length;
+    },
+
+    specsTotalCount() {
+      return this.currentSpecFields.length;
+    },
+
+    specsCompletionPercent() {
+      if (!this.specsTotalCount) return 0;
+      return Math.round((this.specsFilledCount / this.specsTotalCount) * 100);
+    },
+
+    specsEntryStateClass() {
+      if (!this.specsTotalCount || !this.specsFilledCount) return 'is-empty';
+      if (this.specsFilledCount === this.specsTotalCount) return 'is-complete';
+      return 'is-partial';
+    },
+
+    specsStatusLabel() {
+      if (!this.specsTotalCount) return 'Дополнительные поля недоступны';
+      if (!this.specsFilledCount) return 'Характеристики ещё не заполнены';
+      if (this.specsFilledCount === this.specsTotalCount) return 'Характеристики заполнены';
+      return `Заполнено ${this.specsFilledCount} из ${this.specsTotalCount} полей`;
+    },
+
+    specsTypeDescription() {
+      const type = this.selectedCell?.data?.type;
+
+      if (type === 'computer') {
+        return 'Процессор, оперативная память, накопитель и год закупки';
+      }
+
+      if (type === 'switch') {
+        return 'Порты, тип управления и базовые сетевые параметры устройства';
+      }
+
+      return 'Технические характеристики оборудования.';
+    },
+
   },
 
   methods: {
     getApiUrl,
     async getAudience({ keepModal = true } = {}) {
+      const modalState = keepModal && this.selectedCell
+          ? {
+            row: this.selectedCell.row,
+            col: this.selectedCell.col,
+            showSpecsModal: this.showSpecsModal
+          }
+          : null;
+
       try {
         const res = await api.get(`/audiences/${this.audienceId}`);
         const next = this.mapBackendToFrontend(res.data);
@@ -278,10 +410,15 @@ export default {
         this.audienceContext.setOffice(this.classroom.office_id);
 
         // если модалка открыта — можно просто переоткрыть на те же координаты
-        if (keepModal && this.selectedCell) {
-          const { row, col } = this.selectedCell;
+        if (modalState) {
+          const { row, col, showSpecsModal } = modalState;
           this.closeModal();
           this.openModal(row, col);
+
+          if (showSpecsModal && this.hasSpecsEditor) {
+            this.showSpecsModal = true;
+            this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
+          }
         }
       } catch (e) {
         this.loading = false;
@@ -355,27 +492,51 @@ export default {
       return `${amount} ${String(unit).toUpperCase()}`;
     },
 
+    formatSpecFieldValue(field, rawValue) {
+      if (rawValue === null || rawValue === undefined || rawValue === '') return null;
+
+      let value = rawValue;
+
+      if (field.type === 'boolean-labels') {
+        value = value ? field.trueLabel : field.falseLabel;
+      }
+
+      if (field.type === 'select') {
+        value = String(value).toUpperCase();
+      }
+
+      if (field.suffix) {
+        value = `${value} ${field.suffix}`;
+      }
+
+      return value;
+    },
+
+    getSpecIcon(key) {
+      const icons = {
+        cpu_model: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="16" height="16" x="4" y="4" rx="2" ry="2"/><path d="M9 9h6v6H9zm0-8v3m6-3v3M9 20v3m6-3v3m5-14h3m-3 5h3M1 9h3m-3 5h3"/></g></svg>',
+        cpu_frequency_ghz: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 19.364a9 9 0 1 1 12.728 0M16 9l-4 4"/></svg>',
+        cpu_cores: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.47L21 9.4l-4.5 4.38l1.06 6.2L12 17.1L6.44 20l1.06-6.2L3 9.4l6.3-.93z"/></svg>',
+        ram_amount: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="512" viewBox="0 0 640 512"><path fill="currentColor" d="M640 130.94V96c0-17.67-14.33-32-32-32H32C14.33 64 0 78.33 0 96v34.94c18.6 6.61 32 24.19 32 45.06s-13.4 38.45-32 45.06V320h640v-98.94c-18.6-6.61-32-24.19-32-45.06s13.4-38.45 32-45.06M224 256h-64V128h64zm128 0h-64V128h64zm128 0h-64V128h64zM0 448h64v-26.67c0-8.84 7.16-16 16-16s16 7.16 16 16V448h128v-26.67c0-8.84 7.16-16 16-16s16 7.16 16 16V448h128v-26.67c0-8.84 7.16-16 16-16s16 7.16 16 16V448h128v-26.67c0-8.84 7.16-16 16-16s16 7.16 16 16V448h64v-96H0z"/></svg>',
+        ram_unit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>',
+        storage_amount: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"></ellipse><path d="M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6"></path><path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3"></path></svg>',
+        storage_unit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 12h9M5 17h14"></path></svg>',
+        purchase_year: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg>',
+        ports_count: '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path fill="currentColor" d="M496 192h-48v-48c0-8.8-7.2-16-16-16h-48V80c0-8.8-7.2-16-16-16H144c-8.8 0-16 7.2-16 16v48H80c-8.8 0-16 7.2-16 16v48H16c-8.8 0-16 7.2-16 16v224c0 8.8 7.2 16 16 16h80V320h32v128h64V320h32v128h64V320h32v128h64V320h32v128h80c8.8 0 16-7.2 16-16V208c0-8.8-7.2-16-16-16"/></svg>',
+        managed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9c-4-1.5-7-4.5-7-9V7z"></path><path d="M9.5 12l1.7 1.7L14.8 10"></path></svg>'
+      };
+
+      return icons[key] || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>';
+    },
+
     getSpecsRows(item) {
       const specs = item?.specs ?? {};
       const fields = this.specFieldMap[item?.type] ?? [];
 
       return fields
           .map(field => {
-            let value = specs[field.key];
-
-            if (value === null || value === undefined || value === '') return null;
-
-            if (field.type === 'boolean-labels') {
-              value = value ? field.trueLabel : field.falseLabel;
-            }
-
-            if (field.type === 'select') {
-              value = String(value).toUpperCase();
-            }
-
-            if (field.suffix) {
-              value = `${value} ${field.suffix}`;
-            }
+            const value = this.formatSpecFieldValue(field, specs[field.key]);
+            if (value === null) return null;
 
             return {
               key: field.key,
@@ -431,6 +592,7 @@ export default {
 
       const payload = this.normalizeSpecsDraft();
       this.specsSaving = true;
+      this.wsSuspendedUntil = Date.now() + 1000;
 
       try {
         await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {
@@ -454,6 +616,19 @@ export default {
       this.specsEdit = false;
     },
 
+    openSpecsModal() {
+      if (!this.hasSpecsEditor) return;
+
+      this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
+      this.specsEdit = false;
+      this.showSpecsModal = true;
+    },
+
+    closeSpecsModal() {
+      this.showSpecsModal = false;
+      this.cancelSpecsEdit();
+    },
+
     openModal(row, col) {
       if (!this.authStore.isAuthenticated) return;
 
@@ -472,6 +647,7 @@ export default {
 
       this.specsEdit = false;
       this.specsDraft = JSON.parse(JSON.stringify(eq.specs ?? {}));
+      this.showSpecsModal = false;
     },
 
     closeModal() {
@@ -483,6 +659,7 @@ export default {
 
       this.specsEdit = false;
       this.specsDraft = {};
+      this.showSpecsModal = false;
     },
 
     async setWorkingStatus(status) {
@@ -528,6 +705,8 @@ export default {
 
       try
       {
+        this.wsSuspendedUntil = Date.now() + 1000;
+
         await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {
           [apiKey]: newValue
         });
@@ -1013,153 +1192,27 @@ export default {
                         d="M3.995 17.207V19.5a.5.5 0 0 0 .5.5h2.298a.5.5 0 0 0 .353-.146l9.448-9.448l-3-3l-9.452 9.448a.5.5 0 0 0-.147.353m10.837-11.04l3 3l1.46-1.46a1 1 0 0 0 0-1.414l-1.585-1.586a1 1 0 0 0-1.414 0z"/>
                 </svg>
               </div>
-
             </div>
-          </div>
 
-          <div v-if="hasSpecsEditor" class="specs-card">
-            <div class="specs-header">
-              <div class="specs-title">Характеристики</div>
-
-              <div v-if="havePermission" class="specs-actions">
-                <button
-                    v-if="!specsEdit"
-                    class="specs-btn specs-btn-secondary"
-                    @click="specsEdit = true"
-                >
-                  Изменить
-                </button>
-
-                <template v-else>
-                  <button
-                      class="specs-btn specs-btn-secondary"
-                      @click="cancelSpecsEdit"
-                      :disabled="specsSaving"
-                  >
-                    Отмена
-                  </button>
-
-                  <button
-                      class="specs-btn specs-btn-primary"
-                      @click="saveSpecs"
-                      :disabled="specsSaving"
-                  >
-                    {{ specsSaving ? 'Сохранение...' : 'Сохранить' }}
-                  </button>
-                </template>
+            <div v-if="hasSpecsEditor" class="specs-entry-group">
+              <div class="specs-entry-chip" :class="specsEntryStateClass">
+                <span class="specs-entry-chip-dot"></span>
+                <span class="specs-entry-chip-text">
+                  <span class="specs-entry-chip-count">{{ specsFilledCount }}/{{ specsTotalCount }}</span>
+                  <span class="specs-entry-chip-caption">заполнено</span>
+                </span>
               </div>
-            </div>
 
-            <div v-if="!specsEdit" class="specs-view">
-              <div
-                  v-for="row in currentSpecsRows"
-                  :key="row.key"
-                  class="spec-row"
+              <button
+                  type="button"
+                  class="specs-entry-btn"
+                  @click="openSpecsModal"
               >
-                <span class="spec-label">{{ row.label }}</span>
-                <span class="spec-value">{{ row.value }}</span>
-              </div>
-
-              <div v-if="currentSpecsRows.length === 0" class="specs-empty">
-                Характеристики пока не заполнены
-              </div>
-            </div>
-
-            <div v-else class="specs-form">
-              <div
-                  v-for="group in currentSpecGroups"
-                  :key="group.join('-')"
-                  class="spec-form-group"
-                  :class="{ 'spec-form-group-double': group.length === 2 }"
-              >
-                <div
-                    v-for="fieldKey in group"
-                    :key="fieldKey"
-                    class="spec-form-row"
-                >
-                  <label class="spec-form-label">
-                    {{ currentSpecFieldMap[fieldKey].label }}
-                  </label>
-
-                  <input
-                      v-if="currentSpecFieldMap[fieldKey].type === 'text'"
-                      v-model="specsDraft[fieldKey]"
-                      class="spec-input"
-                      type="text"
-                      :placeholder="currentSpecFieldMap[fieldKey].placeholder || ''"
-                  />
-
-                  <div
-                      v-else-if="currentSpecFieldMap[fieldKey].type === 'int' || currentSpecFieldMap[fieldKey].type === 'float'"
-                      class="spec-input-wrap"
-                  >
-                    <input
-                        v-model="specsDraft[fieldKey]"
-                        class="spec-input"
-                        type="number"
-                        :min="currentSpecFieldMap[fieldKey].min"
-                        :max="currentSpecFieldMap[fieldKey].max"
-                        :step="currentSpecFieldMap[fieldKey].step || 1"
-                    />
-                    <span
-                        v-if="currentSpecFieldMap[fieldKey].suffix"
-                        class="spec-suffix">
-                      {{ currentSpecFieldMap[fieldKey].suffix }}
-                    </span>
-                  </div>
-
-                  <select
-                      v-else-if="currentSpecFieldMap[fieldKey].type === 'select'"
-                      v-model="specsDraft[fieldKey]"
-                      class="spec-input spec-select"
-                      :disabled="
-                      (fieldKey === 'ram_unit' && !specsDraft.ram_amount) ||
-                      (fieldKey === 'storage_unit' && !specsDraft.storage_amount)
-                   "
-                  >
-                    <option value="">Не выбрано</option>
-                    <option
-                        v-for="option in currentSpecFieldMap[fieldKey].options"
-                        :key="option"
-                        :value="option"
-                    >
-                      {{ String(option).toUpperCase() }}
-                    </option>
-                  </select>
-
-                  <div
-                      v-else-if="currentSpecFieldMap[fieldKey].type === 'boolean-labels'"
-                      class="boolean-switch"
-                  >
-                    <button
-                        type="button"
-                        class="bool-btn"
-                        :class="{ active: specsDraft[fieldKey] === true }"
-                        @click="specsDraft[fieldKey] = true"
-                    >
-                      {{ currentSpecFieldMap[fieldKey].trueLabel }}
-                    </button>
-
-                    <button
-                        type="button"
-                        class="bool-btn"
-                        :class="{ active: specsDraft[fieldKey] === false }"
-                        @click="specsDraft[fieldKey] = false"
-                    >
-                      {{ currentSpecFieldMap[fieldKey].falseLabel }}
-                    </button>
-
-                    <button
-                        type="button"
-                        class="bool-btn bool-btn-muted"
-                        :class="{ active: specsDraft[fieldKey] === undefined || specsDraft[fieldKey] === null || specsDraft[fieldKey] === '' }"
-                        @click="delete specsDraft[fieldKey]"
-                    >
-                      Не указано
-                    </button>
-                  </div>
-                </div>
-              </div>
+                <span class="specs-entry-btn-label">Характеристики</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M10 17a1 1 0 0 1-.7-1.7l3.59-3.59L9.3 8.12a1 1 0 0 1 1.4-1.42l4.3 4.3a1 1 0 0 1 0 1.4l-4.3 4.3A1 1 0 0 1 10 17"/>
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -1254,6 +1307,347 @@ export default {
                 </div>
               </div>
             </Transition>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition>
+      <div
+          v-if="selectedCell && hasSpecsEditor && showSpecsModal"
+          class="modal active"
+          @click.self="closeSpecsModal"
+      >
+        <div class="modal-content specs-modal-content">
+          <div class="modal-close-upper">
+            <button @click="closeSpecsModal" class="close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="specs-modal-hero">
+            <div class="specs-modal-hero-main">
+              <div
+                  class="specs-modal-icon"
+                  :style="{ background: getEquipmentType(selectedCell.data.type).color }"
+                  v-html="getEquipmentType(selectedCell.data.type).icon"
+              ></div>
+
+              <div class="specs-modal-hero-copy">
+                <h2 class="specs-modal-heading">Характеристики</h2>
+                <div class="specs-modal-name">{{ selectedEquipmentDisplayName }}</div>
+                <p class="specs-modal-description">{{ specsTypeDescription }}</p>
+              </div>
+            </div>
+
+            <div class="specs-modal-meta">
+              <div class="specs-meta-pill">
+                <div class="specs-meta-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 7h16M4 12h16M4 17h10"></path>
+                  </svg>
+                </div>
+                <div class="specs-meta-copy">
+                  <span class="specs-meta-label">Тип</span>
+                  <span class="specs-meta-value">{{ getEquipmentType(selectedCell.data.type).name }}</span>
+                </div>
+              </div>
+
+              <div class="specs-meta-pill">
+                <div class="specs-meta-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="6" width="16" height="12" rx="2"></rect>
+                    <path d="M8 10h8M8 14h5"></path>
+                  </svg>
+                </div>
+                <div class="specs-meta-copy">
+                  <span class="specs-meta-label">Инвентарный №</span>
+                  <span class="specs-meta-value">{{ selectedCell.data.invNumber || 'н/д' }}</span>
+                </div>
+              </div>
+
+              <div class="specs-meta-pill">
+                <div class="specs-meta-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 3"></path>
+                  </svg>
+                </div>
+                <div class="specs-meta-copy">
+                  <span class="specs-meta-label">Заполнение</span>
+                  <span class="specs-meta-value">{{ specsFilledCount }}/{{ specsTotalCount }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="specs-modal-progress">
+              <div class="specs-modal-progress-head">
+                <span>{{ specsStatusLabel }}</span>
+                <span>{{ specsCompletionPercent }}%</span>
+              </div>
+
+              <div class="specs-modal-progress-track">
+                <span :style="{ width: `${specsCompletionPercent}%` }"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="specs-card specs-card-modal">
+            <div class="specs-header">
+              <div class="specs-header-copy">
+                <div class="specs-title">{{ specsEdit ? 'Поля для заполнения' : 'Обзор параметров' }}</div>
+                <div class="specs-header-subtitle">
+                  {{ specsEdit ? 'Редактирование характеристик выбранного устройства' : 'Актуальные технические данные по выбранному устройству' }}
+                </div>
+              </div>
+
+              <div v-if="havePermission" class="specs-actions">
+                <button
+                    v-if="!specsEdit"
+                    class="specs-btn specs-btn-secondary"
+                    @click="specsEdit = true"
+                >
+                  Изменить
+                </button>
+
+                <template v-else>
+                  <button
+                      class="specs-btn specs-btn-secondary"
+                      @click="cancelSpecsEdit"
+                      :disabled="specsSaving"
+                  >
+                    Отмена
+                  </button>
+
+                  <button
+                      class="specs-btn specs-btn-primary"
+                      @click="saveSpecs"
+                      :disabled="specsSaving"
+                  >
+                    {{ specsSaving ? 'Сохранение...' : 'Сохранить' }}
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <div v-if="!specsEdit" class="specs-view">
+              <div v-if="currentSpecsDisplayItems.length > 0" class="specs-grid">
+                <div
+                    v-for="item in currentSpecsDisplayItems"
+                    :key="item.key"
+                    class="spec-card"
+                    :class="{ 'spec-card-pair': item.type === 'pair' }"
+                >
+                  <div class="spec-card-icon" v-html="getSpecIcon(item.iconKey)"></div>
+
+                  <div v-if="item.type === 'pair'" class="spec-card-copy spec-card-copy-pair">
+                    <div class="spec-card-pair-col">
+                      <span class="spec-card-label">{{ item.leftLabel }}</span>
+                      <span class="spec-card-value">{{ item.leftValue }}</span>
+                    </div>
+
+                    <div class="spec-card-pair-divider"></div>
+
+                    <div class="spec-card-pair-col">
+                      <span class="spec-card-label">{{ item.rightLabel }}</span>
+                      <span class="spec-card-value">{{ item.rightValue }}</span>
+                    </div>
+                  </div>
+
+                  <div v-else class="spec-card-copy">
+                    <span class="spec-card-label">{{ item.label }}</span>
+                    <span class="spec-card-value">{{ item.value }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="specs-empty">
+                <div class="specs-empty-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2"></path>
+                    <path d="M14 3v5h5"></path>
+                    <path d="M9 13h6M9 17h4"></path>
+                  </svg>
+                </div>
+                <div class="specs-empty-title">Характеристики пока не заполнены</div>
+                <div class="specs-empty-text">
+                  Добавьте технические данные оборудования, чтобы карточка была полной и информативной.
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="specs-form">
+              <div class="specs-form-banner">
+                <div class="specs-form-banner-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1l1-4z"></path>
+                  </svg>
+                </div>
+
+                <div class="specs-form-banner-copy">
+                  <div class="specs-form-banner-title">Редактирование характеристик</div>
+                  <div class="specs-form-banner-text">
+                    Заполняйте только подтверждённые данные. Пустые поля можно оставить без значения.
+                  </div>
+                </div>
+              </div>
+
+              <div
+                  v-for="group in currentSpecGroups"
+                  :key="group.join('-')"
+                  class="spec-form-group"
+                  :class="{
+                    'spec-form-group-double': group.length === 2,
+                    'spec-form-group-switch': group.includes('ports_count') && group.includes('managed')
+                  }"
+              >
+                <div
+                    v-for="fieldKey in group"
+                    :key="fieldKey"
+                    class="spec-form-row"
+                    :class="{
+                      'spec-form-row-compact': fieldKey === 'ports_count',
+                      'spec-form-row-switch': fieldKey === 'managed'
+                    }"
+                >
+                  <label class="spec-form-label">
+                    {{ currentSpecFieldMap[fieldKey].label }}
+                  </label>
+
+                  <input
+                      v-if="currentSpecFieldMap[fieldKey].type === 'text'"
+                      v-model="specsDraft[fieldKey]"
+                      class="spec-input"
+                      type="text"
+                      :placeholder="currentSpecFieldMap[fieldKey].placeholder || ''"
+                  />
+
+                  <div
+                      v-else-if="currentSpecFieldMap[fieldKey].type === 'int' || currentSpecFieldMap[fieldKey].type === 'float'"
+                      class="spec-input-wrap"
+                  >
+                    <input
+                        v-model="specsDraft[fieldKey]"
+                        class="spec-input"
+                        :class="{
+                          'spec-input-with-suffix': currentSpecFieldMap[fieldKey].suffix,
+                          'spec-input-ports': fieldKey === 'ports_count'
+                        }"
+                        type="number"
+                        :min="currentSpecFieldMap[fieldKey].min"
+                        :max="currentSpecFieldMap[fieldKey].max"
+                        :step="currentSpecFieldMap[fieldKey].step || 1"
+                    />
+                    <span
+                        v-if="currentSpecFieldMap[fieldKey].suffix"
+                        class="spec-suffix">
+                      {{ currentSpecFieldMap[fieldKey].suffix }}
+                    </span>
+                  </div>
+
+                  <select
+                      v-else-if="currentSpecFieldMap[fieldKey].type === 'select'"
+                      v-model="specsDraft[fieldKey]"
+                      class="spec-input spec-select"
+                      :disabled="
+                      (fieldKey === 'ram_unit' && !specsDraft.ram_amount) ||
+                      (fieldKey === 'storage_unit' && !specsDraft.storage_amount)
+                   "
+                  >
+                    <option value="">Не выбрано</option>
+                    <option
+                        v-for="option in currentSpecFieldMap[fieldKey].options"
+                        :key="option"
+                        :value="option"
+                    >
+                      {{ String(option).toUpperCase() }}
+                    </option>
+                  </select>
+
+                  <div
+                      v-else-if="currentSpecFieldMap[fieldKey].type === 'boolean-labels'"
+                      class="boolean-switch"
+                      :class="{ 'boolean-switch-compact': fieldKey === 'managed' }"
+                  >
+                    <template v-if="fieldKey === 'managed'">
+                      <div class="bool-segmented">
+                        <button
+                            type="button"
+                            class="bool-segment-btn"
+                            :class="{ active: specsDraft[fieldKey] === true }"
+                            @click="specsDraft[fieldKey] = true"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3l7 4v5c0 4.5-3 7.5-7 9c-4-1.5-7-4.5-7-9V7z"></path>
+                            <path d="M9.5 12l1.7 1.7L14.8 10"></path>
+                          </svg>
+                          <span>{{ currentSpecFieldMap[fieldKey].trueLabel }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="bool-segment-btn"
+                            :class="{ active: specsDraft[fieldKey] === false }"
+                            @click="specsDraft[fieldKey] = false"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="4" y="7" width="16" height="10" rx="2"></rect>
+                            <path d="M8 12h8"></path>
+                          </svg>
+                          <span>{{ currentSpecFieldMap[fieldKey].falseLabel }}</span>
+                        </button>
+                      </div>
+
+                      <button
+                          type="button"
+                          class="bool-clear-btn"
+                          :class="{ active: specsDraft[fieldKey] === undefined || specsDraft[fieldKey] === null || specsDraft[fieldKey] === '' }"
+                          @click="delete specsDraft[fieldKey]"
+                          title="Очистить значение"
+                          aria-label="Очистить значение"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </template>
+
+                    <template v-else>
+                      <button
+                          type="button"
+                          class="bool-btn"
+                          :class="{ active: specsDraft[fieldKey] === true }"
+                          @click="specsDraft[fieldKey] = true"
+                      >
+                        {{ currentSpecFieldMap[fieldKey].trueLabel }}
+                      </button>
+
+                      <button
+                          type="button"
+                          class="bool-btn"
+                          :class="{ active: specsDraft[fieldKey] === false }"
+                          @click="specsDraft[fieldKey] = false"
+                      >
+                        {{ currentSpecFieldMap[fieldKey].falseLabel }}
+                      </button>
+
+                      <button
+                          type="button"
+                          class="bool-btn bool-btn-muted"
+                          :class="{ active: specsDraft[fieldKey] === undefined || specsDraft[fieldKey] === null || specsDraft[fieldKey] === '' }"
+                          @click="delete specsDraft[fieldKey]"
+                      >
+                        Не указано
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1996,6 +2390,14 @@ export default {
   font-weight: 600;
   color: #111827;
   margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-equipment-details {
+  flex: 1;
+  min-width: 0;
 }
 
 .modal-equipment-details div input {
@@ -2013,6 +2415,25 @@ export default {
 .modal-equipment-details div {
   display: flex;
   align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.modal-equipment-details h3,
+.modal-equipment-details p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.modal-equipment-details h3 {
+  flex: 0 6 auto;
+  max-width: 100%;
+}
+
+.modal-equipment-details p {
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 
 .modal-equipment-details :deep(svg) {
@@ -2028,12 +2449,285 @@ export default {
   opacity: 0.9;
 }
 
+.specs-entry-btn {
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.specs-entry-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.16);
+}
+
+.specs-entry-btn svg {
+  margin-left: 0;
+  opacity: 1;
+}
+
+.specs-entry-btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specs-entry-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  width: 176px;
+}
+
+.specs-entry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #dbeafe;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 18px rgba(148, 163, 184, 0.12);
+}
+
+.specs-entry-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+  flex-shrink: 0;
+}
+
+.specs-entry-chip-text {
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.specs-entry-chip-count {
+  font-weight: 800;
+}
+
+.specs-entry-chip-caption {
+  opacity: 0.82;
+}
+
+.specs-entry-chip.is-partial {
+  border-color: #bfdbfe;
+  background: rgba(239, 246, 255, 0.92);
+}
+
+.specs-entry-chip.is-partial .specs-entry-chip-dot {
+  background: #2563eb;
+}
+
+.specs-entry-chip.is-complete {
+  border-color: #86efac;
+  background: rgba(240, 253, 244, 0.94);
+}
+
+.specs-entry-chip.is-complete .specs-entry-chip-dot {
+  background: #16a34a;
+}
+
+.specs-entry-chip.is-empty {
+  border-color: #cbd5e1;
+  background: rgba(248, 250, 252, 0.94);
+}
+
 .specs-card {
   margin-bottom: 20px;
-  padding: 18px 20px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  padding: 22px;
+  background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.96)),
+      #f8fafc;
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.specs-card-modal {
+  margin-bottom: 0;
+}
+
+.specs-modal-content {
+  padding-top: 0;
+  max-width: 680px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background:
+      radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 34%),
+      linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.specs-modal-hero {
+  margin-bottom: 18px;
+  padding: 2px 0 0;
+}
+
+.specs-modal-hero-main {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.specs-modal-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.22);
+  flex-shrink: 0;
+}
+
+.specs-modal-icon :deep(svg) {
+  width: 34px;
+  height: 34px;
+}
+
+.specs-modal-hero-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.specs-modal-heading {
+  margin: 0;
+  color: #0f172a;
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.specs-modal-name {
+  margin-top: 8px;
+  color: #1e293b;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.specs-modal-description {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.specs-modal-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.specs-meta-pill {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 15px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  box-shadow: 0 10px 24px rgba(148, 163, 184, 0.12);
+  min-width: 0;
+}
+
+.specs-meta-icon {
+  width: 38px;
+  height: 38px;
   border-radius: 14px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.specs-meta-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.specs-meta-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.specs-meta-label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.specs-meta-value {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.specs-modal-progress {
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(219, 234, 254, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.specs-modal-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.specs-modal-progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  overflow: hidden;
+}
+
+.specs-modal-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
 }
 
 .specs-header {
@@ -2041,7 +2735,11 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.specs-header-copy {
+  min-width: 0;
 }
 
 .specs-title {
@@ -2050,6 +2748,13 @@ export default {
   color: #334155;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.specs-header-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .specs-actions {
@@ -2065,6 +2770,9 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .specs-btn-secondary {
@@ -2094,38 +2802,178 @@ export default {
 .specs-view {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
-.spec-row {
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.spec-card {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   align-items: flex-start;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 255, 0.88)),
+      #ffffff;
+  box-shadow: 0 10px 26px rgba(148, 163, 184, 0.14);
 }
 
-.spec-label {
+.spec-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.spec-card-icon :deep(svg) {
+  width: 22px;
+  height: 22px;
+}
+
+.spec-card-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.spec-card-copy-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.spec-card-pair-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.spec-card-pair-divider {
+  width: 1px;
+  background: linear-gradient(180deg, rgba(191, 219, 254, 0.15), rgba(148, 163, 184, 0.7), rgba(191, 219, 254, 0.15));
+  border-radius: 999px;
+}
+
+.spec-card-label {
   color: #64748b;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.spec-value {
+.spec-card-value {
   color: #0f172a;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: right;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .specs-empty {
-  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 34px 24px;
+  border-radius: 20px;
+  border: 1px dashed #bfdbfe;
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.78), rgba(248, 250, 252, 0.92));
+}
+
+.specs-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.specs-empty-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.specs-empty-title {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.specs-empty-text {
+  color: #64748b;
   font-size: 14px;
+  line-height: 1.6;
+  max-width: 380px;
 }
 
 .specs-form {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.specs-form-banner {
+  display: flex;
   gap: 14px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(239, 246, 255, 0.88));
+  border: 1px solid rgba(147, 197, 253, 0.9);
+}
+
+.specs-form-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+
+.specs-form-banner-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.specs-form-banner-title {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.specs-form-banner-text {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .spec-form-row {
@@ -2147,10 +2995,10 @@ export default {
 .spec-input {
   width: 100%;
   min-height: 44px;
-  padding: 10px 14px;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  background: white;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
   color: #0f172a;
   font-size: 14px;
   transition: all 0.2s ease;
@@ -2160,16 +3008,27 @@ export default {
 .spec-input:focus {
   outline: none;
   border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
 }
 
 .spec-select {
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 46px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5l5 5l5-5' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+}
+
+.spec-input-wrap .spec-input-with-suffix {
+  padding-right: 37px;
 }
 
 .spec-suffix {
   position: absolute;
-  right: 14px;
+  right: 0.8rem;
   top: 50%;
   transform: translateY(-50%);
   color: #64748b;
@@ -2180,13 +3039,99 @@ export default {
 .boolean-switch {
   display: inline-flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.boolean-switch-compact {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.bool-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.bool-segment-btn {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bool-segment-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.bool-segment-btn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bool-segment-btn.active {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-color: #60a5fa;
+  color: #1d4ed8;
+  box-shadow: 0 10px 20px rgba(96, 165, 250, 0.18);
+}
+
+.bool-clear-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.94);
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.bool-clear-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.bool-clear-btn.active {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.spec-input-ports {
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .bool-btn {
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
   padding: 10px 14px;
-  background: white;
+  background: rgba(255, 255, 255, 0.92);
   color: #334155;
   font-size: 14px;
   font-weight: 600;
@@ -2198,17 +3143,35 @@ export default {
   background: linear-gradient(135deg, #dbeafe, #bfdbfe);
   border-color: #60a5fa;
   color: #1d4ed8;
+  box-shadow: 0 10px 20px rgba(96, 165, 250, 0.18);
 }
 
 .spec-form-group {
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(226, 232, 240, 0.98);
 }
 
 .spec-form-group-double {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.spec-form-group-switch {
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: start;
+}
+
+.spec-form-row-compact {
+  max-width: 112px;
+}
+
+.spec-form-row-switch {
+  min-width: 0;
 }
 
 .bool-btn-muted {
@@ -2251,7 +3214,6 @@ export default {
   display: block;
   font-size: 13px;
   font-weight: 700;
-  color: #334155;
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2854,6 +3816,82 @@ export default {
     padding: 14px;
   }
 
+  .modal-equipment-info {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .specs-entry-btn {
+    width: 100%;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .specs-entry-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+
+  .specs-entry-chip {
+    align-self: center;
+    justify-self: start;
+  }
+
+  .specs-modal-hero-main {
+    flex-direction: column;
+  }
+
+  .specs-modal-meta,
+  .specs-grid,
+  .spec-form-group-double {
+    grid-template-columns: 1fr;
+  }
+
+  .spec-form-group-switch {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
+
+  .specs-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .specs-actions {
+    width: 100%;
+  }
+
+  .specs-actions .specs-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .boolean-switch-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .bool-clear-btn {
+    width: 100%;
+    height: 38px;
+  }
+
+  .spec-card-copy-pair {
+    grid-template-columns: minmax(0, 1fr) auto minmax(72px, auto);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .spec-card-pair-col:last-child {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .spec-card {
+    padding: 14px;
+  }
+
   .modal-close-upper {
     padding-top: 0;
   }
@@ -2869,6 +3907,65 @@ export default {
     --icon-div-size: calc(30px * var(--ui-scale));
     --icon-size: calc(18px * var(--ui-scale));
     --grid-gap: calc(4px * var(--ui-scale));
+  }
+
+  .specs-entry-group {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .specs-entry-chip {
+    padding: 5px 8px;
+  }
+
+  .specs-entry-chip-caption {
+    display: none;
+  }
+
+  .specs-entry-chip-text {
+    font-size: 11px;
+  }
+
+  .specs-entry-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .spec-form-group-switch {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .spec-form-row-compact {
+    max-width: 96px;
+  }
+
+  .bool-segment-btn {
+    min-height: 44px;
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  .spec-card-copy-pair {
+    gap: 8px;
+  }
+
+  .spec-card-pair-col {
+    gap: 4px;
+  }
+
+  .spec-card-label {
+    font-size: 11px;
+    letter-spacing: 0.03em;
+  }
+
+  .spec-card-value {
+    font-size: 14px;
+  }
+
+  .spec-card-pair-divider {
+    width: 1px;
+    height: 100%;
   }
 }
 </style>

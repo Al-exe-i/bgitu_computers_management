@@ -360,6 +360,7 @@ export default {
         description: null,
         inv_number: null,
         title: null,
+        specs: {},
         files: []
       };
 
@@ -428,6 +429,7 @@ export default {
             description: item.description ?? null,
             inv_number: item.inv_number ?? null,
             title: item.title ?? null,
+            specs: item.specs ?? {},
           }))
           .sort((a, b) => {
             const aKey = `${a.id ?? 'new'}-${a.x}-${a.y}-${a.type}`;
@@ -486,6 +488,7 @@ export default {
           description: hw.description ?? null,
           inv_number: hw.inv_number ?? null,
           title: hw.title ?? null,
+          specs: hw.specs ?? {},
           files: hw.files ?? []
         }));
 
@@ -519,7 +522,8 @@ export default {
         state: item.state ?? true,
         description: item.description ?? null,
         inv_number: item.inv_number ?? null,
-        title: item.title ?? null
+        title: item.title ?? null,
+        specs: item.specs ?? {}
       }));
     },
 
