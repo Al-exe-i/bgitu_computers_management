@@ -15,6 +15,7 @@ import SystemLayout from "@/components/Layout/Settings/System/SystemLayout.vue";
 import ManageUsers from "@/components/Layout/Settings/System/ManageUsers.vue";
 import ManageOffices from "@/components/Layout/Settings/System/ManageOffices.vue";
 import ManageAudiences from "@/components/Layout/Settings/System/ManageAudiences.vue";
+import ManageHardwareAnalytics from "@/components/Layout/Settings/System/ManageHardwareAnalytics.vue";
 import ManageAuditLogs from "@/components/Layout/Settings/System/ManageAuditLogs.vue";
 
 const adminGuard = async (to, from, next) => {
@@ -121,6 +122,13 @@ const routes = [
                         name: 'SystemAudiences',
                         component: ManageAudiences,
                         meta: { title: 'Управление аудиториями' }
+                    },
+
+                    {
+                        path: 'hardware-analytics',
+                        name: 'SystemHardwareAnalytics',
+                        component: ManageHardwareAnalytics,
+                        meta: { title: 'Аналитика оборудования' }
                     },
 
                     {
