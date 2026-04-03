@@ -21,6 +21,7 @@ export default {
       filterMode: "all",
       proxyFloors: null,
       searchField: ``,
+      audienceViewMode: "cards",
     }
   },
 
@@ -53,6 +54,11 @@ export default {
     hardwareHealthPercent() {
       if (!this.totalHardware) return 0
       return Math.round((this.workingHardwareCount / this.totalHardware) * 100)
+    },
+
+    canAddAudience() {
+      const user = this.authStore.user;
+      return this.authStore.isAuthenticated && user && user.role < 2;
     }
   },
   methods: {
@@ -122,7 +128,7 @@ export default {
           let matchesState = true;
           if (this.filterMode === 'working') {
             // Исправные: все компьютеры должны быть true
-            // (или если техники нет вообще - считаем исправной)
+            // (или если оборудования нет вообще - считаем исправной)
             matchesState = audience.hardware.every(hw => hw.state === true);
           } else if (this.filterMode === 'broken') {
             // Неисправные: хотя бы один комп false
@@ -154,6 +160,11 @@ export default {
     setFilterMode(filterMode)
     {
       this.filterMode = filterMode;
+    },
+
+    setAudienceViewMode(mode)
+    {
+      this.audienceViewMode = mode;
     },
 
     addNewAudience()
@@ -224,6 +235,13 @@ export default {
                 <svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1536" viewBox="0 0 1536 1536"><path fill="currentColor" d="M33 431q-18-9-25.5-19.5T0 383t7.5-28.5T33 335L670 17q39-19 98-17q59-2 98 17l637 318q18 9 25.5 19.5t7.5 28.5t-7.5 28.5T1503 431L866 749q-39 19-98 17q-59 2-98-17zm0 770q-18-9-25.5-19.5T0 1153t7.5-28.5T33 1105l160-80l477 238q40 19 98 16q58 3 98-16l477-238l160 80q18 9 25.5 19.5t7.5 28.5t-7.5 28.5t-25.5 19.5l-637 318q-40 19-98 16q-58 3-98-16zm0-384q-18-9-25.5-19.5T0 769t7.5-28.5T33 721l160-80l477 238q40 19 98 16q58 3 98-16l477-238l160 80q18 9 25.5 19.5t7.5 28.5t-7.5 28.5T1503 817l-637 318q-40 19-98 16q-58 3-98-16z"/></svg>
                 <span>Этажей: {{ floorCount }}</span>
               </div>
+
+              <button v-if="canAddAudience" class="add-classroom-btn add-classroom-btn-compact" @click="addNewAudience()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                Добавить аудиторию
+              </button>
 
             </div>
           </div>
@@ -304,9 +322,33 @@ export default {
         <button class="filter-btn" @click="setFilterMode(`working`)" :class="{active: this.filterMode === `working`}">Исправные</button>
         <button class="filter-btn" @click="setFilterMode(`broken`)" :class="{active: this.filterMode === `broken`}">С неисправностями</button>
       </div>
+
+      <div class="view-mode-switch" :class="{ 'is-dark': themeStore.isDark }">
+        <button class="mode-btn" :class="{ active: audienceViewMode === 'cards' }" @click="setAudienceViewMode('cards')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Card SVG Icon</title><path fill="currentColor" d="M17.999 17c1.103 0 2-.897 2-2V5c0-1.103-.897-2-2-2h-12c-1.103 0-2 .897-2 2v10c0 1.103.897 2 2 2zm-12-12h12l.002 10H5.999zm-2 14h16v2h-16z"/></svg>
+          Карточки
+        </button>
+        <button class="mode-btn" :class="{ active: audienceViewMode === 'compact' }" @click="setAudienceViewMode('compact')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 7h12"></path>
+            <path d="M8 12h12"></path>
+            <path d="M8 17h12"></path>
+            <circle cx="4" cy="7" r="1"></circle>
+            <circle cx="4" cy="12" r="1"></circle>
+            <circle cx="4" cy="17" r="1"></circle>
+          </svg>
+          Список
+        </button>
+      </div>
     </div>
 
-    <floor-section v-if="floors" v-for="floor in proxyFloors" :audiences="floor.audiences" :number="floor.number"></floor-section>
+    <floor-section
+      v-if="floors"
+      v-for="floor in proxyFloors"
+      :audiences="floor.audiences"
+      :number="floor.number"
+      :display-mode="audienceViewMode"
+    ></floor-section>
 
     <div
       v-if="!loading && office?.audiences?.length > 0 && proxyFloors && Object.keys(proxyFloors).length === 0"
@@ -322,8 +364,8 @@ export default {
         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"></path>
       </svg>
       <div class="empty-state-title">Аудиторий пока нет</div>
-      <div v-if="authStore.isAuthenticated && authStore?.user?.role === 1" class="empty-state-text">Добавьте первую аудиторию для этого корпуса</div>
-      <button v-if="authStore.isAuthenticated && authStore?.user?.role === 1" @click="addNewAudience" class="empty-state-btn">
+      <div v-if="canAddAudience" class="empty-state-text">Добавьте первую аудиторию для этого корпуса</div>
+      <button v-if="canAddAudience" @click="addNewAudience" class="empty-state-btn">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
         </svg>
@@ -840,6 +882,89 @@ body {
   flex-wrap: wrap;
 }
 
+.view-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(191, 219, 254, 0.9);
+}
+
+.mode-btn {
+  min-height: 40px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.mode-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.mode-btn:hover {
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.9);
+}
+
+.mode-btn.active {
+  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+  border-color: rgba(29, 78, 216, 0.22);
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+}
+
+.add-classroom-btn {
+  padding: 15px 30px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.add-classroom-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+}
+
+.add-classroom-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.add-classroom-btn-compact {
+  min-height: 40px;
+  padding: 10px 16px;
+  font-size: 14px;
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
+}
+
+.add-classroom-btn-compact svg {
+  width: 16px;
+  height: 16px;
+}
+
 .filter-btn {
   padding: 10px 20px;
   border: 2px solid #93c5fd;
@@ -877,6 +1002,26 @@ body {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #e2e8f0;
   border-color: #2563eb;
+}
+
+.view-mode-switch.is-dark {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+.view-mode-switch.is-dark .mode-btn {
+  color: #cbd5e1;
+}
+
+.view-mode-switch.is-dark .mode-btn:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.view-mode-switch.is-dark .mode-btn.active {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  box-shadow: none;
 }
 
 /* Empty State */
@@ -988,6 +1133,7 @@ body {
 
   .controls-panel {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .search-box {
@@ -997,6 +1143,37 @@ body {
   .filter-buttons {
     width: 100%;
     justify-content: center;
+  }
+
+  .view-mode-switch {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .mode-btn {
+    min-height: 36px;
+    min-width: 0;
+    padding: 8px 8px;
+    justify-content: center;
+    font-size: 13px;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .mode-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .add-classroom-btn {
+    width: 100%;
+  }
+
+  .add-classroom-btn-compact {
+    width: auto;
   }
 }
 
@@ -1033,6 +1210,32 @@ body {
 
   .stat-card {
     padding: 14px 15px;
+  }
+
+  .view-mode-switch {
+    padding: 4px;
+    border-radius: 14px;
+  }
+
+  .mode-btn {
+    min-height: 34px;
+    padding: 6px 8px;
+    justify-content: center;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .mode-btn svg {
+    display: none;
+  }
+
+  .add-classroom-btn-compact {
+    width: 100%;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 14px;
   }
 
 }

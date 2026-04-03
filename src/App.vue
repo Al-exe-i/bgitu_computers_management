@@ -435,6 +435,59 @@ html[data-theme='dark'] .floor-section .classroom-number {
   text-shadow: none !important;
 }
 
+html[data-theme='dark'] .floor-section .floor-subtitle {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme='dark'] .floor-section .classroom-card.compact-mode {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .floor-section .compact-chip {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96)) !important;
+  border-color: #334155 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .floor-section .classroom-row-title {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .floor-section .classroom-quick-stat,
+html[data-theme='dark'] .floor-section .classroom-row-arrow {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .floor-section .classroom-quick-stat svg,
+html[data-theme='dark'] .floor-section .classroom-row-arrow svg {
+  color: #93c5fd !important;
+}
+
+html[data-theme='dark'] .floor-section .classroom-status-badge.status-working {
+  background: rgba(20, 83, 45, 0.45) !important;
+  border-color: rgba(34, 197, 94, 0.28) !important;
+  color: #86efac !important;
+}
+
+html[data-theme='dark'] .floor-section .classroom-status-badge.status-broken {
+  background: rgba(127, 29, 29, 0.4) !important;
+  border-color: rgba(248, 113, 113, 0.28) !important;
+  color: #fca5a5 !important;
+}
+
+@media (max-width: 480px) {
+  html[data-theme='dark'] .floor-section .classroom-quick-stat,
+  html[data-theme='dark'] .floor-section .classroom-status-badge.status-working,
+  html[data-theme='dark'] .floor-section .classroom-status-badge.status-broken {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
 html[data-theme='dark'] .create-audience-page {
   background: linear-gradient(165deg, #020617, #0f172a 52%, #111827) !important;
 }

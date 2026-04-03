@@ -1,5 +1,4 @@
 <script>
-import {useAuthStore} from "@/stores/auth.js";
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 
@@ -13,6 +12,10 @@ export default {
     audiences: {
       type: Array,
       required: true,
+    },
+    displayMode: {
+      type: String,
+      default: "cards",
     },
   },
   data() {
@@ -61,26 +64,16 @@ export default {
         return `Всё исправно`
       else
         return `${faultyCnt} неисправно`
-    },
-    addNewAudience() {
-      router.push({name: "New Audience"})
     }
   },
   computed: {
-    authStore()
-    {
-      return useAuthStore()
-    },
-
     audienceContext()
     {
       return useAudienceContext()
     },
 
-    havePermission()
-    {
-        const user = this.authStore.user;
-        return this.authStore.isAuthenticated && user && user.role < 2;
+    isCompactMode() {
+      return this.displayMode === "compact";
     }
   }
 }
@@ -88,41 +81,73 @@ export default {
 
 <template>
   <div class="floor-section" :class="{collapsed: this.collapsed}">
-    <div class="floor-header">
+    <div class="floor-header" @click="this.collapsed = !this.collapsed">
       <div class="floor-number">{{ this.number }}</div>
-      <h2 class="floor-title">{{ this.numberToLiteral(this.number) }} этаж</h2>
-      <div @click="this.collapsed = !this.collapsed" class="collapse-icon">
+      <div class="floor-heading">
+        <h2 class="floor-title">{{ this.numberToLiteral(this.number) }} этаж</h2>
+      </div>
+      <div class="collapse-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M6 9l6 6 6-6"/>
         </svg>
       </div>
     </div>
-    <button v-if="havePermission" class="add-classroom-btn" @click="addNewAudience()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 5v14M5 12h14"></path>
-      </svg>
-      Добавить аудиторию
-    </button>
 
     <div class="classrooms-content">
 
-      <div class="classrooms-grid">
+      <div class="classrooms-grid" :class="{ 'compact-mode': isCompactMode }">
 
-        <div v-for="audience in audiences" class="classroom-card" @click="handleAudienceClick(audience.id, audience.office_id)">
-          <div class="classroom-number">{{ audience.id }}</div>
-          <div class="classroom-info">
-            <div class="info-item">
-              <div class="info-label">Оборудование</div>
-              <div class="info-value computers-count">{{ audience.totalHardware }}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Статус</div>
-              <div class="info-value">
-                <span class="status-indicator" :class="{'status-broken': audience.brokenHardware > 0, 'status-working': audience.brokenHardware === 0}"></span>
-                {{ audienceStatus(audience.brokenHardware) }}
+        <div
+          v-for="audience in audiences"
+          class="classroom-card"
+          :class="{ 'compact-mode': isCompactMode }"
+          @click="handleAudienceClick(audience.id, audience.office_id)"
+        >
+          <template v-if="isCompactMode">
+            <div class="classroom-number compact-chip">{{ audience.id }}</div>
+
+            <div class="classroom-row-copy">
+              <div class="classroom-row-title">Аудитория {{ audience.id }}</div>
+              <div class="classroom-row-meta">
+                <span class="classroom-quick-stat">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="5" rx="1.5"></rect>
+                    <rect x="3" y="10" width="18" height="5" rx="1.5"></rect>
+                    <rect x="3" y="16" width="18" height="5" rx="1.5"></rect>
+                  </svg>
+                  {{ audience.totalHardware }} ед.
+                </span>
+                <span class="classroom-status-badge" :class="{'status-broken': audience.brokenHardware > 0, 'status-working': audience.brokenHardware === 0}">
+                  <span class="status-indicator" :class="{'status-broken': audience.brokenHardware > 0, 'status-working': audience.brokenHardware === 0}"></span>
+                  {{ audienceStatus(audience.brokenHardware) }}
+                </span>
               </div>
             </div>
-          </div>
+
+            <span class="classroom-row-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="m12 5 7 7-7 7"></path>
+              </svg>
+            </span>
+          </template>
+
+          <template v-else>
+            <div class="classroom-number">{{ audience.id }}</div>
+            <div class="classroom-info">
+              <div class="info-item">
+                <div class="info-label">Оборудование</div>
+                <div class="info-value computers-count">{{ audience.totalHardware }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Статус</div>
+                <div class="info-value">
+                  <span class="status-indicator" :class="{'status-broken': audience.brokenHardware > 0, 'status-working': audience.brokenHardware === 0}"></span>
+                  {{ audienceStatus(audience.brokenHardware) }}
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
       </div>
@@ -204,6 +229,20 @@ export default {
   flex: 1;
 }
 
+.floor-heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.floor-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+}
+
 .collapse-icon {
   width: 40px;
   height: 40px;
@@ -219,33 +258,6 @@ export default {
   width: 24px;
   height: 24px;
   transition: transform 0.3s ease;
-}
-
-.add-classroom-btn {
-  margin: 0 30px 20px;
-  padding: 15px 30px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-}
-
-.add-classroom-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
-}
-
-.add-classroom-btn svg {
-  width: 20px;
-  height: 20px;
 }
 
 .floor-section.collapsed .collapse-icon svg {
@@ -266,16 +278,18 @@ export default {
   opacity: 0;
 }
 
-.floor-section.collapsed .add-classroom-btn
-{
-  display: none;
-}
-
 .classrooms-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 25px;
   padding-top: 1rem;
+}
+
+.classrooms-grid.compact-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 0.35rem;
 }
 
 .classroom-card {
@@ -300,12 +314,133 @@ export default {
   border-color: #3b82f6;
 }
 
+.classroom-card.compact-mode {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  text-align: left;
+  border-width: 1px;
+  border-color: #bfdbfe;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.classroom-card.compact-mode:hover {
+  transform: translateX(4px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+}
+
 .classroom-number {
   font-size: 36px;
   font-weight: 700;
   color: #1e40af;
   margin-bottom: 15px;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.classroom-card.compact-mode .classroom-number {
+  margin-bottom: 0;
+  text-shadow: none;
+}
+
+.compact-chip {
+  min-width: 74px;
+  min-height: 50px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #eff6ff, #dbeafe);
+  border: 1px solid rgba(147, 197, 253, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.classroom-row-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.classroom-row-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.classroom-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.classroom-quick-stat,
+.classroom-status-badge {
+  min-height: 26px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.classroom-quick-stat {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.classroom-quick-stat svg {
+  width: 13px;
+  height: 13px;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.classroom-status-badge {
+  border: 1px solid transparent;
+}
+
+.classroom-status-badge .status-indicator {
+  width: 8px;
+  height: 8px;
+  margin-right: 0;
+}
+
+.classroom-status-badge.status-working {
+  background: rgba(220, 252, 231, 0.9);
+  border-color: rgba(134, 239, 172, 0.85);
+  color: #166534;
+}
+
+.classroom-status-badge.status-broken {
+  background: rgba(254, 226, 226, 0.92);
+  border-color: rgba(252, 165, 165, 0.88);
+  color: #b91c1c;
+}
+
+.classroom-row-arrow {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #2563eb;
+  border: 1px solid #dbeafe;
+  flex-shrink: 0;
+}
+
+.classroom-row-arrow svg {
+  width: 16px;
+  height: 16px;
 }
 
 .classroom-info {
@@ -371,14 +506,22 @@ export default {
     grid-template-columns: 1fr;
   }
 
-  .floor-header {
-    flex-wrap: wrap;
+  .classrooms-grid.compact-mode {
+    gap: 8px;
   }
 
-  .add-classroom-btn
-  {
-    margin: 0 auto;
-    padding: 10px 3rem;
+  .classroom-card.compact-mode {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 11px;
+  }
+
+  .classroom-row-arrow {
+    display: none;
+  }
+
+  .floor-header {
+    flex-wrap: wrap;
   }
 
   .info-value {
@@ -391,12 +534,57 @@ export default {
     padding: 20px;
   }
 
+  .classroom-card.compact-mode {
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+  }
+
+  .compact-chip {
+    min-width: 0;
+    width: 58px;
+    min-height: 36px;
+    padding: 4px 8px;
+    border-radius: 12px;
+  }
+
+  .classroom-row-meta {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px 8px;
+  }
+
+  .classroom-quick-stat,
+  .classroom-status-badge {
+    justify-content: flex-start;
+    min-height: 20px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    border-radius: 0;
+  }
+
+  .classroom-row-title {
+    font-size: 14px;
+  }
+
   .classroom-number {
-    font-size: 28px;
+    font-size: 22px;
   }
 
   .info-value {
     font-size: 14px;
+  }
+
+  .classroom-quick-stat svg {
+    display: none;
+  }
+
+  .classroom-status-badge .status-indicator {
+    width: 7px;
+    height: 7px;
   }
 }
 
