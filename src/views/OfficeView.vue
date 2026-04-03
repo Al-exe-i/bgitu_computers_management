@@ -312,9 +312,7 @@ export default {
       v-if="!loading && office?.audiences?.length > 0 && proxyFloors && Object.keys(proxyFloors).length === 0"
       class="empty-state filtered-empty-state"
     >
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75h16.5m-16.5 0v16.5m16.5-16.5v16.5M8.25 8.25h7.5m-7.5 4.5h7.5m-7.5 4.5h4.5"></path>
-      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>File-not-found SVG Icon</title><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4.01l.01-.011M9 3H4v3m0 5v2m16-2v2M15 3h5v3M9 21H4v-3m11 3h5v-3"/></svg>
       <div class="empty-state-title">По выбранным фильтрам аудитории не найдены</div>
       <div class="empty-state-text">Измените параметры поиска или выберите другой фильтр</div>
     </div>
