@@ -1,6 +1,7 @@
 <script>
 export default {
   name: "SystemLayout",
+
   data() {
     return {
       navLinks: [
@@ -29,37 +30,144 @@ export default {
           label: 'Журнал действий',
           icon: '<svg viewBox="0 0 22 22"><path fill="currentColor" d="M15 8H8V6h7m-1 7H9v-2h5m4 10H4v-1H3v-3H2v-3h1v-2H2v-2h1V8H2V5h1V2h1V1h14v1h1v18h-1m-1-1V3H5v2h1v3H5v2h1v2H5v2h1v3H5v2Z"/></svg>'
         }
-      ]
+      ],
+      navPillRefs: {},
+      navIndicatorStyle: {
+        width: '0px',
+        height: '0px',
+        transform: 'translate3d(0, 0, 0)',
+        opacity: '0'
+      },
+      indicatorFrame: null
     };
+  },
+
+  computed: {
+    activeNavName() {
+      const match = this.navLinks.find(link => link.name === this.$route.name);
+      return match?.name || this.navLinks[0]?.name || null;
+    }
+  },
+
+  methods: {
+    setNavPillRef(name, element) {
+      if (element) {
+        this.navPillRefs[name] = element;
+        return;
+      }
+
+      delete this.navPillRefs[name];
+    },
+
+    queueIndicatorSync(scrollIntoView = false) {
+      if (this.indicatorFrame) {
+        cancelAnimationFrame(this.indicatorFrame);
+      }
+
+      this.indicatorFrame = requestAnimationFrame(() => {
+        this.updateActiveIndicator(scrollIntoView);
+      });
+    },
+
+    updateActiveIndicator(scrollIntoView = false) {
+      const navElement = this.$refs.systemNav;
+      const activeElement = this.activeNavName ? this.navPillRefs[this.activeNavName] : null;
+
+      if (!navElement || !activeElement) {
+        this.navIndicatorStyle = {
+          width: '0px',
+          height: '0px',
+          transform: 'translate3d(0, 0, 0)',
+          opacity: '0'
+        };
+        return;
+      }
+
+      const navRect = navElement.getBoundingClientRect();
+      const activeRect = activeElement.getBoundingClientRect();
+      const left = activeRect.left - navRect.left + navElement.scrollLeft;
+      const top = activeRect.top - navRect.top + navElement.scrollTop;
+
+      this.navIndicatorStyle = {
+        width: `${activeRect.width}px`,
+        height: `${activeRect.height}px`,
+        transform: `translate3d(${left}px, ${top}px, 0)`,
+        opacity: '1'
+      };
+
+      if (scrollIntoView && typeof window !== 'undefined' && window.innerWidth <= 768) {
+        activeElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+      }
+    },
+
+    handleResize() {
+      this.queueIndicatorSync();
+    }
+  },
+
+  watch: {
+    '$route.name'() {
+      this.$nextTick(() => {
+        this.queueIndicatorSync(true);
+      });
+    }
+  },
+
+  mounted() {
+    this.$nextTick(() => {
+      this.queueIndicatorSync();
+    });
+
+    window.addEventListener('resize', this.handleResize);
+  },
+
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleResize);
+
+    if (this.indicatorFrame) {
+      cancelAnimationFrame(this.indicatorFrame);
+    }
   }
 };
 </script>
 
 <template>
   <div class="system-container">
-    <!-- Навигация -->
-    <nav class="system-nav" aria-label="Системное меню">
+    <nav ref="systemNav" class="system-nav" aria-label="Системное меню">
+      <span class="nav-active-indicator" :style="navIndicatorStyle" aria-hidden="true"></span>
+
       <router-link
           v-for="link in navLinks"
           :key="link.name"
           :to="{ name: link.name }"
-          class="nav-pill"
-          active-class="is-active"
-          :title="link.label"
+          custom
+          v-slot="{ href, navigate }"
       >
-        <!-- v-html безопасно использовать здесь, так как мы сами контролируем SVG-строки -->
-        <span class="nav-icon" v-html="link.icon" aria-hidden="true"></span>
-        <span class="nav-label">{{ link.label }}</span>
+        <a
+            :href="href"
+            class="nav-pill"
+            :class="{ 'is-active': activeNavName === link.name }"
+            :title="link.label"
+            :aria-current="activeNavName === link.name ? 'page' : null"
+            :ref="element => setNavPillRef(link.name, element)"
+            @click="navigate"
+        >
+          <span class="nav-icon" v-html="link.icon" aria-hidden="true"></span>
+          <span class="nav-label">{{ link.label }}</span>
+        </a>
       </router-link>
     </nav>
 
-    <!-- Контент текущего раздела -->
     <main class="system-content">
       <router-view v-slot="{ Component }">
         <transition name="fade-slide" mode="out-in">
-          <!-- Обертка :key="...$route.name" заставляет Vue перерисовывать компонент,
-               чтобы анимация срабатывала всегда, даже между похожими роутами -->
-          <component :is="Component" :key="$route.name" />
+          <div class="system-view-shell" :key="$route.name">
+            <component :is="Component" />
+          </div>
         </transition>
       </router-view>
     </main>
@@ -67,7 +175,6 @@ export default {
 </template>
 
 <style scoped>
-/* --- Лэйаут --- */
 .system-container {
   display: flex;
   flex-direction: column;
@@ -75,28 +182,79 @@ export default {
 }
 
 .system-nav {
+  position: relative;
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background:
+      radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 38%),
+      radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.08), transparent 32%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+  isolation: isolate;
 }
 
-/* --- Вкладки (Pills) --- */
+.nav-active-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 58%, #0ea5e9 100%);
+  box-shadow:
+      0 14px 28px rgba(37, 99, 235, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  transition:
+      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.18s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .nav-pill {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 10px 18px;
   border-radius: 999px;
-  background-color: transparent;
+  background: transparent;
   color: #64748b;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   border: 1px solid transparent;
   text-decoration: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
+  transition:
+      color 0.28s ease,
+      transform 0.28s ease,
+      background-color 0.28s ease,
+      box-shadow 0.28s ease;
+  will-change: transform, color;
+}
+
+.nav-pill::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+
+.nav-icon,
+.nav-label {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.32s ease, opacity 0.32s ease;
 }
 
 .nav-icon :deep(svg) {
@@ -106,59 +264,101 @@ export default {
 }
 
 .nav-pill:hover:not(.is-active) {
-  background-color: #f1f5f9;
+  background: rgba(241, 245, 249, 0.88);
   color: #0f172a;
-}
-
-.nav-pill.is-active {
-  background-color: #3b82f6;
-  color: #ffffff;
-  border-color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
   transform: translateY(-1px);
 }
 
+.nav-pill:hover:not(.is-active) .nav-icon {
+  transform: translateY(-1px) scale(1.03);
+}
+
+.nav-pill.is-active {
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.nav-pill.is-active::before {
+  opacity: 1;
+}
+
+.nav-pill.is-active .nav-icon {
+  transform: scale(1.05);
+}
+
+.nav-pill.is-active .nav-label {
+  transform: translateX(1px);
+}
+
 .nav-pill:focus-visible {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.system-content {
+  position: relative;
+}
+
+.system-view-shell {
+  position: relative;
+  transform-origin: top center;
+  will-change: opacity, transform;
 }
 
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+      opacity 0.18s ease,
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fade-slide-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(10px);
+}
+
+.fade-slide-enter-to,
+.fade-slide-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .fade-slide-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
 }
 
-/* --- Адаптив --- */
 @media (max-width: 768px) {
   .system-nav {
-    /* На мобилках вкладки могут скроллиться вбок, если не влезают (как в Google Play) */
     flex-wrap: nowrap;
     overflow-x: auto;
-    scrollbar-width: none; /* Прячем скроллбар в Firefox */
-    -ms-overflow-style: none; /* Прячем в IE */
-    padding-top: 12px;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    justify-content: stretch;
+    gap: 6px;
+    padding: 5px;
+    border-radius: 18px;
   }
 
   .system-nav::-webkit-scrollbar {
-    display: none; /* Прячем скроллбар в Chrome/Safari */
+    display: none;
+  }
+
+  .nav-pill {
+    flex: 1 0 48px;
+    min-width: 48px;
+    justify-content: center;
+    padding: 11px;
+    gap: 0;
+    border-radius: 14px;
   }
 
   .nav-label {
     display: none;
   }
 
-  .nav-pill {
-    padding: 10px; /* Делаем область клика квадратной (круглой) для пальца */
-    border-radius: 50%;
+  .nav-active-indicator {
+    border-radius: 14px;
   }
 }
 </style>

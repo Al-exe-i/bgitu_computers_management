@@ -18,7 +18,14 @@ export default {
       isDropdownOpen: false,
       activeOfficeId: null,
       isOfficeDropdownOpen: false,
-      offices: []
+      officeSwitchRefs: {},
+      officeIndicatorStyle: {
+        width: '0px',
+        height: '0px',
+        transform: 'translate3d(0, 0, 0)',
+        opacity: '0'
+      },
+      officeIndicatorFrame: null
     }
   },
 
@@ -43,6 +50,30 @@ export default {
     // Проверка, выбран ли корпус из скрытых (чтобы подсветить кнопку "Еще")
     isHiddenOfficeActive() {
       return this.hiddenOffices.some(o => o.id === this.activeOfficeId);
+    },
+
+    isMoreButtonActive() {
+      return this.isHiddenOfficeActive || (this.isOfficeDropdownOpen && !this.activeOfficeId);
+    },
+
+    desktopActiveOfficeKey() {
+      if (this.visibleOffices.some(office => office.id === this.activeOfficeId)) {
+        return `office-${this.activeOfficeId}`;
+      }
+
+      if (this.isMoreButtonActive) {
+        return 'more';
+      }
+
+      return null;
+    },
+
+    activeOffice() {
+      return this.allOffices.find(office => office.id === this.activeOfficeId) || null;
+    },
+
+    activeOfficeLabel() {
+      return this.activeOffice ? `Корп. №${this.activeOffice.id}` : 'Выбрать корпус';
     },
 
     authStore()
@@ -121,6 +152,11 @@ export default {
       {
         this.isDropdownOpen = false
       }
+
+      if (!event.target.closest('.office-switch-shell'))
+      {
+        this.isOfficeDropdownOpen = false;
+      }
     },
 
     handleHomeClick()
@@ -148,6 +184,56 @@ export default {
       }
     },
 
+    setOfficeSwitchRef(key, element) {
+      if (element) {
+        this.officeSwitchRefs[key] = element;
+        return;
+      }
+
+      delete this.officeSwitchRefs[key];
+    },
+
+    queueOfficeIndicatorSync() {
+      if (this.officeIndicatorFrame) {
+        cancelAnimationFrame(this.officeIndicatorFrame);
+      }
+
+      this.officeIndicatorFrame = requestAnimationFrame(() => {
+        this.updateOfficeIndicator();
+      });
+    },
+
+    updateOfficeIndicator() {
+      const switchElement = this.$refs.officeSwitchDesktop;
+      const activeElement = this.desktopActiveOfficeKey ? this.officeSwitchRefs[this.desktopActiveOfficeKey] : null;
+
+      if (!switchElement || !activeElement) {
+        this.officeIndicatorStyle = {
+          width: '0px',
+          height: '0px',
+          transform: 'translate3d(0, 0, 0)',
+          opacity: '0'
+        };
+        return;
+      }
+
+      const switchRect = switchElement.getBoundingClientRect();
+      const activeRect = activeElement.getBoundingClientRect();
+      const left = activeRect.left - switchRect.left + switchElement.scrollLeft;
+      const top = activeRect.top - switchRect.top + switchElement.scrollTop;
+
+      this.officeIndicatorStyle = {
+        width: `${activeRect.width}px`,
+        height: `${activeRect.height}px`,
+        transform: `translate3d(${left}px, ${top}px, 0)`,
+        opacity: '1'
+      };
+    },
+
+    handleHeaderResize() {
+      this.queueOfficeIndicatorSync();
+    },
+
     getPermissionIcon(user)
     {
       if(user?.is_superuser) return suIcon;
@@ -169,16 +255,42 @@ export default {
     '$route'()
     {
       this.updateActiveOffice()
+      this.isOfficeDropdownOpen = false
+      this.$nextTick(() => {
+        this.queueOfficeIndicatorSync()
+      })
     },
 
     'audienceContext.officeId'()
     {
       this.updateActiveOffice()
+      this.$nextTick(() => {
+        this.queueOfficeIndicatorSync()
+      })
+    },
+
+    isOfficeDropdownOpen()
+    {
+      this.$nextTick(() => {
+        this.queueOfficeIndicatorSync()
+      })
+    },
+
+    allOffices()
+    {
+      this.$nextTick(() => {
+        this.queueOfficeIndicatorSync()
+      })
     }
   },
 
   mounted() {
     document.addEventListener('click', this.handleClickOutside)
+    window.addEventListener('resize', this.handleHeaderResize)
+    this.updateActiveOffice()
+    this.$nextTick(() => {
+      this.queueOfficeIndicatorSync()
+    })
     if (this.officeStore.list.length === 0)
     {
       this.officeStore.fetchOffices();
@@ -187,6 +299,10 @@ export default {
 
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
+    window.removeEventListener('resize', this.handleHeaderResize)
+    if (this.officeIndicatorFrame) {
+      cancelAnimationFrame(this.officeIndicatorFrame)
+    }
   }
 }
 </script>
@@ -207,7 +323,9 @@ export default {
       </div>
 
       <!-- Переключение между корпусами -->
-      <div class="office-switch" v-if="allOffices.length > 0">
+      <div class="office-switch-shell" v-if="allOffices.length > 0">
+        <div ref="officeSwitchDesktop" class="office-switch office-switch-desktop">
+          <span class="office-switch-indicator" :style="officeIndicatorStyle" aria-hidden="true"></span>
 
         <!--  Видимые кнопки (максимум 2) -->
         <button
@@ -216,6 +334,7 @@ export default {
             @click="handleOfficeClick(office.id)"
             class="office-btn"
             :class="{ active: activeOfficeId === office.id }"
+            :ref="element => setOfficeSwitchRef(`office-${office.id}`, element)"
         >
           {{ office.id }} корпус
         </button>
@@ -225,7 +344,8 @@ export default {
           <button
               @click="toggleOfficeDropdown"
               class="office-btn more-btn"
-              :class="{ active: isHiddenOfficeActive || isOfficeDropdownOpen }"
+              :class="{ active: isMoreButtonActive }"
+              :ref="element => setOfficeSwitchRef('more', element)"
           >
             Ещё
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -248,7 +368,53 @@ export default {
             </div>
           </transition>
         </div>
+        </div>
 
+        <div class="office-switch-mobile">
+          <button
+              type="button"
+              class="office-mobile-trigger"
+              :class="{ active: isOfficeDropdownOpen }"
+              @click="toggleOfficeDropdown"
+          >
+            <span class="office-mobile-icon" aria-hidden="true">
+              {{ activeOffice?.id ?? '—' }}
+            </span>
+            <span class="office-mobile-copy">
+              <span class="office-mobile-kicker">Корпус</span>
+              <span class="office-mobile-value">{{ activeOfficeLabel }}</span>
+            </span>
+            <svg class="office-mobile-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          <transition name="fade">
+            <div v-show="isOfficeDropdownOpen" class="office-mobile-dropdown">
+              <button
+                  v-for="office in allOffices"
+                  :key="office.id"
+                  type="button"
+                  class="office-mobile-option"
+                  :class="{ active: activeOfficeId === office.id }"
+                  @click="handleOfficeClick(office.id)"
+              >
+                <span class="office-mobile-option-mark" aria-hidden="true">
+                  {{ office.id }}
+                </span>
+                <span class="office-mobile-option-copy">
+                  <span class="office-mobile-option-title">К. №{{ office.id }}</span>
+                  <span v-if="office.address" class="office-mobile-option-subtitle">{{ office.address }}</span>
+                </span>
+                <span class="office-mobile-option-check" aria-hidden="true">
+                  <svg v-if="activeOfficeId === office.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.2 4.2L19 7"></path>
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </transition>
+        </div>
       </div>
 
       <!-- Профиль или кнопка авторизации -->
@@ -408,6 +574,7 @@ header {
 
 .more-offices-wrapper {
   position: relative;
+  z-index: 1;
 }
 
 .more-btn {
@@ -453,6 +620,8 @@ header {
 }
 
 .office-btn {
+  position: relative;
+  z-index: 1;
   padding: 12px 28px;
   border-radius: 10px;
   font-size: 15px;
@@ -466,8 +635,8 @@ header {
 
 .office-btn.active {
   color: white;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  background: transparent;
+  box-shadow: none;
 }
 
 .office-btn:not(.active):hover {
@@ -476,14 +645,198 @@ header {
 }
 
 .office-switch {
+  position: relative;
   display: flex;
   gap: 8px;
-  background: rgba(241, 245, 249, 0.8);
+  background:
+      radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.94));
   backdrop-filter: blur(10px);
   padding: 6px;
   border-radius: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   border: 1px solid rgba(226, 232, 240, 0.8);
+  isolation: isolate;
+}
+
+.office-switch-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 62%, #0ea5e9 100%);
+  box-shadow:
+      0 14px 28px rgba(37, 99, 235, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  transition:
+      transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.18s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.office-switch-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.office-switch-desktop {
+  display: flex;
+}
+
+.office-switch-mobile {
+  display: none;
+  position: relative;
+}
+
+.office-mobile-trigger {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  border-radius: 16px;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.96)),
+      linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(14, 165, 233, 0.08));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.office-mobile-trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba(147, 197, 253, 0.95);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.12);
+}
+
+.office-mobile-trigger.active {
+  border-color: rgba(96, 165, 250, 0.95);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.16);
+}
+
+.office-mobile-icon,
+.office-mobile-option-mark {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 9px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(224, 242, 254, 0.95));
+}
+
+.office-mobile-option-check svg,
+.office-mobile-chevron {
+  width: 18px;
+  height: 18px;
+}
+
+.office-mobile-copy,
+.office-mobile-option-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.office-mobile-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.office-mobile-value,
+.office-mobile-option-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.office-mobile-option-subtitle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.office-mobile-chevron {
+  flex-shrink: 0;
+  color: #64748b;
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.office-mobile-trigger.active .office-mobile-chevron {
+  color: #2563eb;
+  transform: rotate(180deg);
+}
+
+.office-mobile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.14);
+  z-index: 120;
+}
+
+.office-mobile-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.office-mobile-option:hover {
+  background: rgba(241, 245, 249, 0.92);
+  transform: translateY(-1px);
+}
+
+.office-mobile-option.active {
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.78), rgba(224, 242, 254, 0.82));
+}
+
+.office-mobile-option-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #2563eb;
 }
 
 .auth-container {
@@ -722,16 +1075,14 @@ header {
   transition: transform 0.1s;
 }
 
+
 @media (max-width: 768px)
 {
   .brand-text
   {
     display: none;
   }
-}
 
-@media (max-width: 768px)
-{
   .header-container {
     gap: 8px;
   }
@@ -740,18 +1091,53 @@ header {
     flex: 0 0 auto;
   }
 
-  .office-switch
-  {
-    margin-right: 8px;
-    padding: 5px;
+  .office-switch-shell {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 6px;
   }
 
-  .office-btn
-  {
-    font-size: 14px;
-    padding: 5px 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
+  .office-switch-desktop {
+    display: none;
+  }
+
+  .office-switch-mobile {
+    display: block;
+    width: 100%;
+  }
+
+  .office-mobile-trigger {
+    padding: 7px 10px;
+    border-radius: 15px;
+    gap: 8px;
+  }
+
+  .office-mobile-icon,
+  .office-mobile-option-mark {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 11px;
+    font-size: 12px;
+  }
+
+  .office-mobile-value,
+  .office-mobile-option-title {
+    font-size: 13px;
+  }
+
+  .office-mobile-option-subtitle {
+    font-size: 10px;
+  }
+
+  .office-mobile-dropdown {
+    top: calc(100% + 8px);
+    border-radius: 16px;
+    padding: 7px;
+  }
+
+  .office-mobile-option {
+    padding: 9px 10px;
   }
 
   .auth-container {
@@ -763,6 +1149,10 @@ header {
   .profile-name
   {
     display: none;
+  }
+
+  .profile-dropdown-content {
+    right: 50%;
   }
 
   .profile-trigger

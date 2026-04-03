@@ -103,6 +103,7 @@ html[data-theme='dark'] .floor-section,
 html[data-theme='dark'] .row-container,
 html[data-theme='dark'] .profile-dropdown-content,
 html[data-theme='dark'] .office-dropdown,
+html[data-theme='dark'] .office-mobile-dropdown,
 html[data-theme='dark'] .login-container,
 html[data-theme='dark'] .notification,
 html[data-theme='dark'] .workspace-modal-content,
@@ -119,6 +120,7 @@ html[data-theme='dark'] .session-item,
 html[data-theme='dark'] .icon-tabs,
 html[data-theme='dark'] .segmented-control,
 html[data-theme='dark'] .office-switch,
+html[data-theme='dark'] .office-mobile-trigger,
 html[data-theme='dark'] .collapse-icon,
 html[data-theme='dark'] .filters-container,
 html[data-theme='dark'] .filters-section,
@@ -285,6 +287,12 @@ html[data-theme='dark'] .office-switch .office-btn:not(.active) {
   color: #94a3b8 !important;
 }
 
+html[data-theme='dark'] .office-switch-indicator {
+  box-shadow:
+      0 16px 30px rgba(30, 64, 175, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
 html[data-theme='dark'] .office-btn:not(.active):hover,
 html[data-theme='dark'] .icon-tab:hover:not(.active),
 html[data-theme='dark'] .segment-btn:hover:not(.active),
@@ -311,27 +319,77 @@ html[data-theme='dark'] .office-dropdown-item.active {
   color: #93c5fd !important;
 }
 
+html[data-theme='dark'] .office-mobile-trigger {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.96)) !important;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.28) !important;
+}
+
+html[data-theme='dark'] .office-mobile-trigger.active {
+  border-color: rgba(96, 165, 250, 0.55) !important;
+  box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34) !important;
+}
+
+html[data-theme='dark'] .office-mobile-icon,
+html[data-theme='dark'] .office-mobile-option-mark {
+  background: rgba(37, 99, 235, 0.16) !important;
+  color: #93c5fd !important;
+}
+
+html[data-theme='dark'] .office-mobile-kicker,
+html[data-theme='dark'] .office-mobile-option-subtitle {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme='dark'] .office-mobile-value,
+html[data-theme='dark'] .office-mobile-option-title {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .office-mobile-chevron,
+html[data-theme='dark'] .office-mobile-option-check {
+  color: #93c5fd !important;
+}
+
+html[data-theme='dark'] .office-mobile-option:hover {
+  background: rgba(148, 163, 184, 0.14) !important;
+}
+
+html[data-theme='dark'] .office-mobile-option.active {
+  background: rgba(37, 99, 235, 0.18) !important;
+}
+
 html[data-theme='dark'] .system-nav {
-  border-bottom-color: var(--border) !important;
+  border-color: var(--border) !important;
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 36%),
+      radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.14), transparent 30%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.98)) !important;
+  box-shadow: 0 18px 38px rgba(2, 6, 23, 0.26) !important;
 }
 
 html[data-theme='dark'] .system-nav .nav-pill {
-  background: #0f172a !important;
-  border-color: #334155 !important;
+  background: transparent !important;
+  border-color: transparent !important;
   color: var(--text-secondary) !important;
 }
 
 html[data-theme='dark'] .system-nav .nav-pill:hover:not(.is-active) {
-  background: #1e293b !important;
-  border-color: #475569 !important;
+  background: rgba(148, 163, 184, 0.12) !important;
+  border-color: transparent !important;
   color: var(--text-primary) !important;
 }
 
 html[data-theme='dark'] .system-nav .nav-pill.is-active {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-  border-color: #2563eb !important;
+  background: transparent !important;
+  border-color: transparent !important;
   color: #e2e8f0 !important;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .nav-active-indicator {
+  box-shadow:
+      0 18px 34px rgba(30, 64, 175, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 html[data-theme='dark'] .system-content .card .user-email {

@@ -51,6 +51,10 @@ export default {
       return Math.max(this.totalHardware - this.brokenHardware, 0)
     },
 
+    hasHardwareStats() {
+      return this.totalHardware > 0
+    },
+
     hardwareHealthPercent() {
       if (!this.totalHardware) return 0
       return Math.round((this.workingHardwareCount / this.totalHardware) * 100)
@@ -124,7 +128,7 @@ export default {
         // Фильтруем аудитории на этаже
         const validAudiences = originalFloor.audiences.filter(audience => {
 
-          // 1. Проверка по состоянию (Filter Mode)
+          // Проверка по состоянию (Filter Mode)
           let matchesState = true;
           if (this.filterMode === 'working') {
             // Исправные: все компьютеры должны быть true
@@ -198,7 +202,6 @@ export default {
 </script>
 
 <template>
-  <h1 class="page-title">Список аудиторий</h1>
 
   <LoaderContainer v-if="loading"/>
 
@@ -208,12 +211,7 @@ export default {
         <div class="building-identity">
           <div class="building-symbol" aria-hidden="true">
             <div class="building-symbol-backdrop"></div>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 21h18"></path>
-              <path d="M6 21V7l6-4l6 4v14"></path>
-              <path d="M9 10h.01M9 13h.01M9 16h.01M15 10h.01M15 13h.01M15 16h.01"></path>
-              <path d="M11 21v-4h2v4"></path>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640"><path fill="currentColor" d="M335.9 84.2c-9.8-5.6-21.9-5.6-31.8 0l-224 128c-12.6 7.2-18.8 22-15.1 36S81.5 272 96 272h32v208l-51.2 38.4c-8.1 6-12.8 15.5-12.8 25.6c0 17.7 14.3 32 32 32h448c17.7 0 32-14.3 32-32c0-10.1-4.7-19.6-12.8-25.6L512 480V272h32c14.5 0 27.2-9.8 30.9-23.8s-2.5-28.8-15.1-36l-224-128zM464 272v208h-64V272zm-112 0v208h-64V272zm-112 0v208h-64V272zm80-112c17.7 0 32 14.3 32 32s-14.3 32-32 32s-32-14.3-32-32s14.3-32 32-32"/></svg>
             <span class="building-symbol-number">{{ office.id }}</span>
           </div>
 
@@ -250,14 +248,19 @@ export default {
         <div v-if="authStore.isAuthenticated" class="building-spotlight">
           <span class="building-spotlight-label">Состояние оборудования</span>
           <div class="building-spotlight-main">
-            <strong>{{ workingHardwareCount }}</strong>
-            <span>/ {{ totalHardware }}</span>
+            <template v-if="hasHardwareStats">
+              <strong>{{ workingHardwareCount }}</strong>
+              <span>/ {{ totalHardware }}</span>
+            </template>
+            <strong v-else>—</strong>
           </div>
-          <p class="building-spotlight-text">единиц оборудования исправны сейчас</p>
-          <div class="building-spotlight-track" aria-hidden="true">
+          <p class="building-spotlight-text">
+            {{ hasHardwareStats ? 'единиц оборудования исправны сейчас' : 'Статистика недоступна' }}
+          </p>
+          <div v-if="hasHardwareStats" class="building-spotlight-track" aria-hidden="true">
             <span class="building-spotlight-fill" :style="{ width: `${hardwareHealthPercent}%` }"></span>
           </div>
-          <span class="building-spotlight-footnote">{{ hardwareHealthPercent }}% работоспособности</span>
+          <span v-if="hasHardwareStats" class="building-spotlight-footnote">{{ hardwareHealthPercent }}% работоспособности</span>
         </div>
       </div>
 
@@ -365,12 +368,6 @@ export default {
       </svg>
       <div class="empty-state-title">Аудиторий пока нет</div>
       <div v-if="canAddAudience" class="empty-state-text">Добавьте первую аудиторию для этого корпуса</div>
-      <button v-if="canAddAudience" @click="addNewAudience" class="empty-state-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-        </svg>
-        Добавить аудиторию
-      </button>
     </div>
 
 
@@ -392,15 +389,6 @@ body {
   padding: 20px;
 }
 
-.page-title {
-  text-align: center;
-  font-size: 32px;
-  font-weight: 700;
-  color: #1e40af;
-  margin-bottom: 40px;
-  text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
-}
-
 .building-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -420,6 +408,7 @@ body {
   padding: 32px;
   border: 1px solid rgba(191, 219, 254, 0.85);
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  margin-top: 1rem;
 }
 
 .building-info::before,
@@ -517,6 +506,7 @@ body {
   font-size: 13px;
   font-weight: 800;
   box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
+  z-index: 1;
 }
 
 .building-copy {
