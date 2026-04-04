@@ -119,6 +119,10 @@ export default {
       specsDraft: {},
       specsSaving: false,
       showSpecsModal: false,
+      showStatusConfirmModal: false,
+      pendingWorkingStatus: null,
+      statusConfirmLoading: false,
+      skipStatusConfirmSession: false,
 
       /* Раздел файлов оборудования в модалке */
       isDragOver: false,
@@ -410,6 +414,74 @@ export default {
       return 'Технические характеристики оборудования.';
     },
 
+    statusConfirmTargetIsWorking() {
+      return this.pendingWorkingStatus === true;
+    },
+
+    statusConfirmTargetLabel() {
+      if (this.pendingWorkingStatus === true) return 'Исправно';
+      if (this.pendingWorkingStatus === false) return 'Неисправно';
+      return '';
+    },
+
+    statusConfirmCurrentLabel() {
+      return this.selectedCell?.data?.working ? 'Исправно' : 'Неисправно';
+    },
+
+    statusConfirmTitle() {
+      if (this.pendingWorkingStatus === true) {
+        return 'Подтвердить восстановление?';
+      }
+
+      if (this.pendingWorkingStatus === false) {
+        return 'Подтвердить отметку о неисправности?';
+      }
+
+      return 'Подтвердить изменение статуса';
+    },
+
+    statusConfirmDescription() {
+      if (!this.selectedCell?.data) return '';
+
+      if (this.pendingWorkingStatus === true) {
+        return `Оборудование «${this.selectedEquipmentDisplayName}» будет помечено как исправное и вернётся в рабочий статус`;
+      }
+
+      if (this.pendingWorkingStatus === false) {
+        return `Оборудование «${this.selectedEquipmentDisplayName}» будет отмечено как неисправное, это отразится в аудитории и статистике`;
+      }
+
+      return '';
+    },
+
+    statusConfirmHint() {
+      const comment = this.selectedCell?.data?.comment?.trim?.() ?? '';
+
+      if (this.pendingWorkingStatus === true) {
+        return comment
+            ? 'Текущий комментарий о проблеме будет очищен после подтверждения.'
+            : 'Статус сменится без дополнительных изменений.';
+      }
+
+      if (this.pendingWorkingStatus === false) {
+        return comment
+            ? 'Текущий комментарий будет сохранён вместе с новым статусом.'
+            : 'Комментарий не указан. При необходимости его можно добавить перед подтверждением.';
+      }
+
+      return '';
+    },
+
+    statusConfirmActionLabel() {
+      if (this.pendingWorkingStatus === true) return 'Подтвердить исправность';
+      if (this.pendingWorkingStatus === false) return 'Подтвердить неисправность';
+      return 'Подтвердить';
+    },
+
+    statusConfirmActionClass() {
+      return this.pendingWorkingStatus === true ? 'is-working' : 'is-broken';
+    },
+
   },
 
   methods: {
@@ -508,12 +580,6 @@ export default {
         'occupied',
         eq.working ? 'working' : 'broken'
       ];
-    },
-
-    formatMemory(amount, unit) {
-      if (amount == null) return null;
-      if (!unit) return `${amount}`;
-      return `${amount} ${String(unit).toUpperCase()}`;
     },
 
     formatSpecFieldValue(field, rawValue) {
@@ -672,9 +738,13 @@ export default {
       this.specsEdit = false;
       this.specsDraft = JSON.parse(JSON.stringify(eq.specs ?? {}));
       this.showSpecsModal = false;
+      this.showStatusConfirmModal = false;
+      this.pendingWorkingStatus = null;
+      this.statusConfirmLoading = false;
     },
 
     closeModal() {
+      this.closeStatusConfirmModal();
       this.selectedCell = null;
 
       this.invNumEdit = false;
@@ -684,6 +754,75 @@ export default {
       this.specsEdit = false;
       this.specsDraft = {};
       this.showSpecsModal = false;
+    },
+
+    async requestWorkingStatus(status) {
+      if (!this.selectedCell || this.selectedCell.data.working === status || this.statusConfirmLoading) return;
+
+      if (this.skipStatusConfirmSession) {
+        this.statusConfirmLoading = true;
+        await this.applyWorkingStatus(status);
+        this.statusConfirmLoading = false;
+        return;
+      }
+
+      this.pendingWorkingStatus = status;
+      this.showStatusConfirmModal = true;
+    },
+
+    closeStatusConfirmModal() {
+      if (this.statusConfirmLoading) return;
+
+      this.showStatusConfirmModal = false;
+      this.pendingWorkingStatus = null;
+    },
+
+    updateStatusConfirmSessionPreference() {
+      if (this.skipStatusConfirmSession) {
+        sessionStorage.setItem('hw_skip_status_confirm_session', 'true');
+        return;
+      }
+
+      sessionStorage.removeItem('hw_skip_status_confirm_session');
+    },
+
+    async confirmWorkingStatus() {
+      if (this.pendingWorkingStatus === null) return;
+
+      this.statusConfirmLoading = true;
+      const isUpdated = await this.applyWorkingStatus(this.pendingWorkingStatus);
+
+      if (isUpdated) {
+        this.showStatusConfirmModal = false;
+        this.pendingWorkingStatus = null;
+      }
+
+      this.statusConfirmLoading = false;
+    },
+
+    async applyWorkingStatus(status) {
+      if (!this.selectedCell) return false;
+
+      const description = status === true ? `` : this.selectedCell.data.comment;
+      this.wsSuspendedUntil = Date.now() + 1000;
+
+      try {
+        await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {
+          state: status,
+          description
+        });
+
+        this.selectedCell.data.working = status;
+
+        if (status) {
+          this.selectedCell.data.comment = ``;
+        }
+
+        return true;
+      } catch (err) {
+        this.notify.error(`РќРµ СѓРґР°Р»РѕСЃСЊ РёР·РјРµРЅРёС‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ С‚РµРєСѓС‰РµРіРѕ РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ!`);
+        return false;
+      }
     },
 
     async setWorkingStatus(status) {
@@ -1021,6 +1160,7 @@ export default {
   },
 
   mounted() {
+    this.skipStatusConfirmSession = sessionStorage.getItem('hw_skip_status_confirm_session') === 'true';
     this.getAudience();
     this.connectWebSocket();
   },
@@ -1171,8 +1311,8 @@ export default {
     </div>
 
     <Transition>
-      <div v-if="selectedCell" class="modal active" @click.self="closeModal">
-        <div class="modal-content">
+      <div v-if="selectedCell" class="modal active equipment-modal" @click.self="closeModal">
+        <div class="modal-content equipment-modal-content">
           <div class="modal-close-upper">
             <button @click="closeModal" class="close">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1199,13 +1339,13 @@ export default {
                 <svg v-if="havePermission" @click="hwTitleEdit = true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
               </div>
 
-              <div v-if="hwTitleEdit">
-                <input v-model="newHwTitle">
+              <div v-if="hwTitleEdit" class="modal-equipment-inline-edit is-title">
+                <input v-model="newHwTitle" class="modal-equipment-inline-input">
                 <svg @click="saveHwTitle" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
               </div>
 
-              <div v-if="invNumEdit">
-                <input v-model="newInv_no">
+              <div v-if="invNumEdit" class="modal-equipment-inline-edit is-inv">
+                <input v-model="newInv_no" class="modal-equipment-inline-input">
                 <svg @click="saveInv_no" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
               </div>
 
@@ -1257,16 +1397,16 @@ export default {
           <div class="action-btns">
             <button
                 class="action-btn fix-btn"
-                :disabled="selectedCell.data.working"
-                @click="setWorkingStatus(true)"
+                :disabled="selectedCell.data.working || statusConfirmLoading"
+                @click="requestWorkingStatus(true)"
                 v-if="havePermission"
             >
               Исправно
             </button>
             <button
                 class="action-btn break-btn"
-                :disabled="!selectedCell.data.working"
-                @click="setWorkingStatus(false)"
+                :disabled="!selectedCell.data.working || statusConfirmLoading"
+                @click="requestWorkingStatus(false)"
             >
               Неисправно
             </button>
@@ -1331,6 +1471,120 @@ export default {
                 </div>
               </div>
             </Transition>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition>
+      <div
+          v-if="selectedCell && showStatusConfirmModal"
+          class="status-confirm-overlay"
+          @click.self="closeStatusConfirmModal"
+      >
+        <div class="status-confirm-sheet" :class="statusConfirmActionClass">
+          <button
+              type="button"
+              class="status-confirm-close"
+              :disabled="statusConfirmLoading"
+              @click="closeStatusConfirmModal"
+              aria-label="Закрыть подтверждение"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="status-confirm-hero">
+            <div
+                class="status-confirm-icon"
+                :style="{ background: getEquipmentType(selectedCell.data.type).color }"
+                v-html="getEquipmentType(selectedCell.data.type).icon"
+            ></div>
+
+            <div class="status-confirm-copy">
+              <span class="status-confirm-kicker">{{ getEquipmentType(selectedCell.data.type).name }}</span>
+              <h3 class="status-confirm-title">{{ statusConfirmTitle }}</h3>
+              <p class="status-confirm-text">{{ statusConfirmDescription }}</p>
+            </div>
+          </div>
+
+          <div class="status-confirm-equipment">
+            <div class="status-confirm-equipment-name">{{ selectedEquipmentDisplayName }}</div>
+            <div class="status-confirm-equipment-meta">
+              <span>Ряд {{ selectedCell.row + 1 }}</span>
+              <span>Место {{ selectedCell.col + 1 }}</span>
+              <span>Инв. № {{ selectedCell.data.invNumber || 'н/д' }}</span>
+            </div>
+          </div>
+
+          <div class="status-confirm-flow">
+            <div class="status-confirm-state is-current">
+              <span class="status-confirm-state-label">Сейчас</span>
+              <strong>{{ statusConfirmCurrentLabel }}</strong>
+            </div>
+
+            <div class="status-confirm-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="m13 6l6 6l-6 6"></path>
+              </svg>
+            </div>
+
+            <div class="status-confirm-state is-target" :class="statusConfirmActionClass">
+              <span class="status-confirm-state-label">Станет</span>
+              <strong>{{ statusConfirmTargetLabel }}</strong>
+            </div>
+          </div>
+
+          <div class="status-confirm-note" :class="statusConfirmActionClass">
+            <div class="status-confirm-note-icon">
+              <svg v-if="statusConfirmTargetIsWorking" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"></path>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 8v5"></path>
+                <circle cx="12" cy="16.5" r="0.7" fill="currentColor" stroke="none"></circle>
+              </svg>
+            </div>
+            <p>{{ statusConfirmHint }}</p>
+          </div>
+
+          <label class="status-confirm-session-toggle">
+            <input
+                v-model="skipStatusConfirmSession"
+                type="checkbox"
+                @change="updateStatusConfirmSessionPreference"
+            >
+            <span class="status-confirm-session-switch" aria-hidden="true">
+              <span class="status-confirm-session-switch-thumb"></span>
+            </span>
+            <span class="status-confirm-session-copy">
+              <strong>Не требовать подтверждения в этой сессии</strong>
+              <span>Дальше состояние оборудования будет меняться сразу, без этого окна.</span>
+            </span>
+          </label>
+
+          <div class="status-confirm-actions">
+            <button
+                type="button"
+                class="status-confirm-btn is-cancel"
+                :disabled="statusConfirmLoading"
+                @click="closeStatusConfirmModal"
+            >
+              Отмена
+            </button>
+            <button
+                type="button"
+                class="status-confirm-btn is-submit"
+                :class="statusConfirmActionClass"
+                :disabled="statusConfirmLoading"
+                @click="confirmWorkingStatus"
+            >
+              {{ statusConfirmLoading ? 'Сохраняем...' : statusConfirmActionLabel }}
+            </button>
           </div>
         </div>
       </div>
@@ -3366,6 +3620,388 @@ export default {
   background: #e2e8f0;
 }
 
+.status-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.2s ease;
+}
+
+.status-confirm-sheet {
+  position: relative;
+  width: min(100%, 560px);
+  padding: 28px;
+  border-radius: 28px;
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+      radial-gradient(circle at 12% 14%, rgba(148, 163, 184, 0.1), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.2);
+  animation: scaleIn 0.2s ease;
+  overflow: hidden;
+}
+
+.status-confirm-sheet.is-working {
+  box-shadow:
+      0 32px 70px rgba(15, 23, 42, 0.2),
+      0 0 0 1px rgba(16, 185, 129, 0.06);
+}
+
+.status-confirm-sheet.is-broken {
+  box-shadow:
+      0 32px 70px rgba(15, 23, 42, 0.2),
+      0 0 0 1px rgba(239, 68, 68, 0.05);
+}
+
+.status-confirm-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-confirm-close:hover:not(:disabled) {
+  color: #0f172a;
+  background: white;
+}
+
+.status-confirm-close:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.status-confirm-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.status-confirm-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.status-confirm-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
+  flex-shrink: 0;
+}
+
+.status-confirm-icon :deep(svg) {
+  width: 30px;
+  height: 30px;
+}
+
+.status-confirm-copy {
+  min-width: 0;
+}
+
+.status-confirm-kicker {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.status-confirm-title {
+  margin: 0 0 8px;
+  padding-right: 48px;
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.status-confirm-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.status-confirm-equipment {
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(241, 245, 249, 0.82);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.status-confirm-equipment-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+
+.status-confirm-equipment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-confirm-equipment-meta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-confirm-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 18px 0;
+}
+
+.status-confirm-state {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.status-confirm-state-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.status-confirm-state strong {
+  font-size: 17px;
+  color: #0f172a;
+}
+
+.status-confirm-state.is-target.is-working {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(110, 231, 183, 0.12));
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.status-confirm-state.is-target.is-broken {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(251, 113, 133, 0.12));
+  border-color: rgba(239, 68, 68, 0.24);
+}
+
+.status-confirm-arrow {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(226, 232, 240, 0.75);
+  color: #64748b;
+}
+
+.status-confirm-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+.status-confirm-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.status-confirm-note.is-working {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(209, 250, 229, 0.94));
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.status-confirm-note.is-broken {
+  background: linear-gradient(135deg, rgba(255, 241, 242, 0.96), rgba(255, 228, 230, 0.94));
+  border-color: rgba(239, 68, 68, 0.16);
+}
+
+.status-confirm-note-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.status-confirm-note.is-working .status-confirm-note-icon {
+  color: #059669;
+}
+
+.status-confirm-note.is-broken .status-confirm-note-icon {
+  color: #dc2626;
+}
+
+.status-confirm-note-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.status-confirm-note p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.status-confirm-session-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  cursor: pointer;
+  user-select: none;
+}
+
+.status-confirm-session-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.status-confirm-session-switch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.status-confirm-session-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.16);
+  transition: transform 0.22s ease;
+}
+
+.status-confirm-session-toggle input:checked + .status-confirm-session-switch {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+}
+
+.status-confirm-session-toggle input:checked + .status-confirm-session-switch .status-confirm-session-switch-thumb {
+  transform: translateX(18px);
+}
+
+.status-confirm-session-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.status-confirm-session-copy strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.status-confirm-session-copy span {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.status-confirm-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.status-confirm-btn {
+  flex: 1;
+  min-height: 50px;
+  border-radius: 16px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.status-confirm-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+.status-confirm-btn.is-cancel {
+  background: #eef2f7;
+  color: #475569;
+}
+
+.status-confirm-btn.is-cancel:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.status-confirm-btn.is-submit {
+  color: white;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+
+.status-confirm-btn.is-submit.is-working {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.status-confirm-btn.is-submit.is-broken {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.status-confirm-btn.is-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
 /* Modal Transition */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
@@ -3843,6 +4479,194 @@ export default {
     display: none;
   }
 
+  .status-confirm-overlay {
+    align-items: center;
+    padding: 16px 12px;
+  }
+
+  .status-confirm-sheet {
+    width: min(100%, 440px);
+    max-width: 440px;
+    max-height: min(78vh, 680px);
+    overflow-y: auto;
+    padding: 18px 16px 14px;
+    border-radius: 24px;
+    scrollbar-width: none;
+  }
+
+  .status-confirm-sheet::-webkit-scrollbar {
+    display: none;
+  }
+
+  .status-confirm-close {
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .status-confirm-close svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .status-confirm-hero {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .status-confirm-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 18px;
+  }
+
+  .status-confirm-icon :deep(svg) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .status-confirm-kicker {
+    display: none;
+  }
+
+  .status-confirm-title {
+    font-size: 20px;
+    line-height: 1.08;
+    padding-right: 28px;
+    margin-bottom: 4px;
+  }
+
+  .status-confirm-text {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .status-confirm-equipment {
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .status-confirm-equipment-name {
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  .status-confirm-equipment-meta {
+    gap: 6px;
+  }
+
+  .status-confirm-equipment-meta span {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .status-confirm-flow {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .status-confirm-state {
+    padding: 12px 10px;
+    border-radius: 16px;
+    text-align: center;
+    align-items: center;
+  }
+
+  .status-confirm-state-label {
+    font-size: 10px;
+  }
+
+  .status-confirm-state strong {
+    font-size: 15px;
+  }
+
+  .status-confirm-arrow {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .status-confirm-arrow svg {
+    width: 16px;
+    height: 16px;
+    transform: none;
+  }
+
+  .status-confirm-note {
+    padding: 12px 14px;
+    gap: 10px;
+    border-radius: 16px;
+    margin-bottom: 14px;
+  }
+
+  .status-confirm-note-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 11px;
+  }
+
+  .status-confirm-note-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .status-confirm-note p {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .status-confirm-session-toggle {
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border-radius: 16px;
+  }
+
+  .status-confirm-session-switch {
+    width: 40px;
+    height: 24px;
+    margin-top: 1px;
+  }
+
+  .status-confirm-session-switch-thumb {
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .status-confirm-session-toggle input:checked + .status-confirm-session-switch .status-confirm-session-switch-thumb {
+    transform: translateX(16px);
+  }
+
+  .status-confirm-session-copy {
+    gap: 2px;
+  }
+
+  .status-confirm-session-copy strong {
+    font-size: 13px;
+  }
+
+  .status-confirm-session-copy span {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .status-confirm-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 10px;
+  }
+
+  .status-confirm-btn {
+    min-height: 44px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
   .grid-info {
     display: none;
   }
@@ -3871,9 +4695,121 @@ export default {
     padding: 14px;
   }
 
+  .equipment-modal {
+    padding: 12px;
+  }
+
+  .equipment-modal .modal-content {
+    width: min(100%, 460px);
+    max-width: 460px;
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 12px 14px 16px;
+    border-radius: 22px;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+  }
+
+  .equipment-modal .modal-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .equipment-modal .modal-close-upper {
+    padding-top: 0;
+    margin-bottom: 4px;
+  }
+
+  .equipment-modal .modal-close-upper button {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    border-radius: 12px;
+  }
+
+  .equipment-modal .modal-title {
+    font-size: 20px;
+    line-height: 1.08;
+    margin-bottom: 12px;
+  }
+
+  .equipment-modal .modal-subtitle {
+    font-size: 12px;
+  }
+
   .modal-equipment-info {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .equipment-modal .modal-equipment-info {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+    border-radius: 16px;
+  }
+
+  .equipment-modal .modal-equipment-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  .equipment-modal .modal-equipment-icon :deep(svg) {
+    width: 26px;
+    height: 26px;
+  }
+
+  .equipment-modal .modal-equipment-details h3 {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .equipment-modal .modal-equipment-details p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .equipment-modal .modal-equipment-details div input {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+
+  .equipment-modal .modal-equipment-inline-edit {
+    width: auto;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .equipment-modal .modal-equipment-inline-input {
+    width: clamp(148px, 62vw, 220px);
+    max-width: 100%;
+    flex: 0 1 auto;
+    min-height: 30px;
+    height: 30px;
+    padding: 2px 8px;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 8px;
+    border-width: 1px;
+    box-sizing: border-box;
+  }
+
+  .equipment-modal .modal-equipment-inline-edit.is-inv .modal-equipment-inline-input {
+    width: clamp(118px, 48vw, 176px);
+  }
+
+  .equipment-modal .modal-equipment-inline-edit :deep(svg) {
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
   }
 
   .specs-entry-btn {
@@ -3890,9 +4826,110 @@ export default {
     gap: 8px;
   }
 
+  .equipment-modal .specs-entry-group {
+    grid-column: 1 / -1;
+  }
+
   .specs-entry-chip {
     align-self: center;
     justify-self: start;
+  }
+
+  .equipment-modal .specs-entry-chip {
+    max-width: 100%;
+  }
+
+  .equipment-modal .specs-entry-btn {
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .equipment-modal .status-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    border-radius: 14px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .equipment-modal .form-group {
+    margin-bottom: 14px;
+  }
+
+  .equipment-modal .form-label {
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+
+  .equipment-modal .form-textarea {
+    min-height: 88px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
+  .equipment-modal .action-btns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .equipment-modal .action-btns > .action-btn:only-child {
+    grid-column: 1 / -1;
+  }
+
+  .equipment-modal .action-btn {
+    min-height: 44px;
+    padding: 12px 10px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
+  .equipment-modal .hw-files-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    min-height: 0;
+  }
+
+  .equipment-modal .hw-section-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .equipment-modal .hw-section-title {
+    font-size: 13px;
+  }
+
+  .equipment-modal .hw-add-btn-small {
+    padding: 5px 9px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .equipment-modal .hw-files-grid {
+    gap: 10px;
+    max-height: 156px;
+    margin-bottom: 10px;
+    padding: 6px 2px 0 0;
+  }
+
+  .equipment-modal .hw-file-card {
+    width: 88px;
+    height: 88px;
+    border-radius: 12px;
+  }
+
+  .equipment-modal .hw-no-files {
+    padding: 14px 0;
+    border-radius: 12px;
+    font-size: 12px;
   }
 
   .specs-modal-hero-main {
@@ -3957,6 +4994,70 @@ export default {
 }
 
 @media (max-width: 480px) {
+  .equipment-modal {
+    padding: 10px;
+  }
+
+  .equipment-modal .modal-content {
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 12px 12px 14px;
+    border-radius: 20px;
+  }
+
+  .equipment-modal .modal-title {
+    font-size: 18px;
+  }
+
+  .equipment-modal .modal-equipment-info {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .equipment-modal .modal-equipment-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .equipment-modal .modal-equipment-icon :deep(svg) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .equipment-modal .modal-equipment-inline-input {
+    width: clamp(136px, 58vw, 196px);
+    min-height: 28px;
+    height: 28px;
+    padding: 1px 7px;
+    font-size: 11px;
+    line-height: 1;
+    border-radius: 8px;
+  }
+
+  .equipment-modal .modal-equipment-inline-edit.is-inv .modal-equipment-inline-input {
+    width: clamp(112px, 44vw, 156px);
+  }
+
+  .equipment-modal .modal-equipment-inline-edit :deep(svg) {
+    width: 15px;
+    height: 15px;
+  }
+
+  .equipment-modal .status-badge {
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .equipment-modal .action-btn {
+    font-size: 13px;
+  }
+
+  .equipment-modal .hw-file-card {
+    width: 80px;
+    height: 80px;
+  }
+
   .equipment-grid {
     --cell-size: calc(55px * var(--ui-scale));
     --icon-div-size: calc(30px * var(--ui-scale));

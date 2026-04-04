@@ -245,6 +245,115 @@ html[data-theme='dark'] .hw-btn-cancel:hover {
   background: #334155 !important;
 }
 
+html[data-theme='dark'] .status-confirm-sheet {
+  background:
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 32%),
+      radial-gradient(circle at 12% 14%, rgba(148, 163, 184, 0.08), transparent 24%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98)) !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 32px 70px rgba(2, 6, 23, 0.42) !important;
+}
+
+html[data-theme='dark'] .status-confirm-close {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .status-confirm-close:hover {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .status-confirm-kicker,
+html[data-theme='dark'] .status-confirm-state-label {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .status-confirm-title,
+html[data-theme='dark'] .status-confirm-equipment-name,
+html[data-theme='dark'] .status-confirm-state strong {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .status-confirm-text,
+html[data-theme='dark'] .status-confirm-note p,
+html[data-theme='dark'] .status-confirm-equipment-meta span {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .status-confirm-equipment,
+html[data-theme='dark'] .status-confirm-state,
+html[data-theme='dark'] .status-confirm-arrow,
+html[data-theme='dark'] .status-confirm-note {
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .status-confirm-equipment,
+html[data-theme='dark'] .status-confirm-state.is-current {
+  background: rgba(15, 23, 42, 0.7) !important;
+}
+
+html[data-theme='dark'] .status-confirm-equipment-meta span {
+  background: rgba(30, 41, 59, 0.82) !important;
+}
+
+html[data-theme='dark'] .status-confirm-state.is-target.is-working {
+  background: linear-gradient(135deg, rgba(6, 95, 70, 0.4), rgba(16, 185, 129, 0.18)) !important;
+  border-color: rgba(52, 211, 153, 0.34) !important;
+}
+
+html[data-theme='dark'] .status-confirm-state.is-target.is-broken {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.38), rgba(239, 68, 68, 0.16)) !important;
+  border-color: rgba(248, 113, 113, 0.28) !important;
+}
+
+html[data-theme='dark'] .status-confirm-arrow {
+  background: rgba(30, 41, 59, 0.78) !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .status-confirm-note.is-working {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.44), rgba(16, 185, 129, 0.12)) !important;
+  border-color: rgba(52, 211, 153, 0.22) !important;
+}
+
+html[data-theme='dark'] .status-confirm-note.is-broken {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.42), rgba(239, 68, 68, 0.1)) !important;
+  border-color: rgba(248, 113, 113, 0.2) !important;
+}
+
+html[data-theme='dark'] .status-confirm-note-icon {
+  background: rgba(15, 23, 42, 0.62) !important;
+}
+
+html[data-theme='dark'] .status-confirm-session-toggle {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .status-confirm-session-switch {
+  background: #475569 !important;
+}
+
+html[data-theme='dark'] .status-confirm-session-copy strong {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .status-confirm-session-copy span {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .status-confirm-btn.is-cancel {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border: 1px solid #475569 !important;
+}
+
+html[data-theme='dark'] .status-confirm-btn.is-cancel:hover {
+  background: #334155 !important;
+}
+
 html[data-theme='dark'] .theme-toggle {
   background: var(--surface-soft) !important;
   border-color: var(--border) !important;
