@@ -80,7 +80,7 @@ const routes = [
         children: [
             {
                 path: '',
-                redirect: { name: 'SettingsProfile' } // По умолчанию открываем профиль
+                redirect: { name: 'SettingsSecurity' } // По умолчанию открываем настройки безопасности
             },
 
             {
