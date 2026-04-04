@@ -4474,6 +4474,12 @@ export default {
     justify-content: center;
   }
 
+  .equipment-label {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+
   .scale-type-btn,
   .scale-controls {
     display: none;
@@ -4943,7 +4949,8 @@ export default {
   }
 
   .spec-form-group-switch {
-    grid-template-columns: 108px minmax(0, 1fr);
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .specs-header {
@@ -4967,6 +4974,14 @@ export default {
   .bool-clear-btn {
     width: 100%;
     height: 38px;
+  }
+
+  .spec-form-row-compact {
+    max-width: 132px;
+  }
+
+  .spec-form-row-switch {
+    width: 100%;
   }
 
   .spec-card-copy-pair {
@@ -5088,18 +5103,22 @@ export default {
   }
 
   .spec-form-group-switch {
-    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 10px;
   }
 
   .spec-form-row-compact {
-    max-width: 96px;
+    max-width: 124px;
   }
 
   .bool-segment-btn {
     min-height: 44px;
     padding: 11px 12px;
     font-size: 13px;
+  }
+
+  .spec-form-row-switch {
+    width: 100%;
   }
 
   .spec-card-copy-pair {

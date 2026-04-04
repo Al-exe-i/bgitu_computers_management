@@ -19,6 +19,7 @@ export default {
       floors: null,
       loading: true,
       filterMode: "all",
+      isStatusDropdownOpen: false,
       proxyFloors: null,
       searchField: ``,
       audienceViewMode: "cards",
@@ -58,6 +59,33 @@ export default {
     hardwareHealthPercent() {
       if (!this.totalHardware) return 0
       return Math.round((this.workingHardwareCount / this.totalHardware) * 100)
+    },
+
+    statusFilterOptions() {
+      return [
+        {
+          value: 'all',
+          label: 'Все аудитории',
+          description: 'Без ограничения по состоянию',
+          tone: 'all'
+        },
+        {
+          value: 'working',
+          label: 'Исправные',
+          description: 'Только аудитории без неисправностей',
+          tone: 'working'
+        },
+        {
+          value: 'broken',
+          label: 'С неисправностями',
+          description: 'Есть хотя бы одна проблема',
+          tone: 'broken'
+        }
+      ]
+    },
+
+    activeStatusFilterOption() {
+      return this.statusFilterOptions.find(option => option.value === this.filterMode) ?? this.statusFilterOptions[0]
     },
 
     canAddAudience() {
@@ -166,6 +194,26 @@ export default {
       this.filterMode = filterMode;
     },
 
+    toggleStatusDropdown()
+    {
+      this.isStatusDropdownOpen = !this.isStatusDropdownOpen
+    },
+
+    selectStatusFilter(filterMode)
+    {
+      this.setFilterMode(filterMode)
+      this.isStatusDropdownOpen = false
+    },
+
+    handleStatusDropdownOutside(event)
+    {
+      const dropdown = this.$refs.statusFilterDropdown
+      if (!dropdown) return
+      if (!dropdown.contains(event.target)) {
+        this.isStatusDropdownOpen = false
+      }
+    },
+
     setAudienceViewMode(mode)
     {
       this.audienceViewMode = mode;
@@ -179,7 +227,12 @@ export default {
 
   mounted()
   {
+    document.addEventListener('click', this.handleStatusDropdownOutside)
     this.getOffice(this.officeNumber)
+  },
+
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleStatusDropdownOutside)
   },
 
   watch: {
@@ -190,6 +243,7 @@ export default {
 
     filterMode()
     {
+      this.isStatusDropdownOpen = false
       this.applyFilters();
     },
 
@@ -320,6 +374,85 @@ export default {
         </span>
         <input v-model="searchField" type="text" id="searchInput" placeholder="Поиск по номеру аудитории...">
       </div>
+
+      <div ref="statusFilterDropdown" class="status-filter-mobile" :class="{ 'is-dark': themeStore.isDark }">
+        <button
+          type="button"
+          class="status-filter-trigger"
+          :class="{ active: isStatusDropdownOpen }"
+          @click="toggleStatusDropdown"
+        >
+          <span class="status-filter-trigger-mark" :class="`is-${activeStatusFilterOption.tone}`" aria-hidden="true">
+            <svg v-if="activeStatusFilterOption.value === 'working'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="8"></circle>
+              <path stroke-linecap="round" stroke-linejoin="round" d="m8.8 12.3 2.2 2.2 4.3-4.6"></path>
+            </svg>
+            <svg v-else-if="activeStatusFilterOption.value === 'broken'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9.5v3.3m0 3.1h.01M10.3 4.88 2.95 17.63A2.25 2.25 0 0 0 4.9 21h14.2a2.25 2.25 0 0 0 1.95-3.37L13.7 4.88a1.95 1.95 0 0 0-3.4 0"></path>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" d="M8 7h11"></path>
+              <path stroke-linecap="round" d="M8 12h11"></path>
+              <path stroke-linecap="round" d="M8 17h11"></path>
+              <circle cx="4.5" cy="7" r="1"></circle>
+              <circle cx="4.5" cy="12" r="1"></circle>
+              <circle cx="4.5" cy="17" r="1"></circle>
+            </svg>
+          </span>
+
+          <span class="status-filter-trigger-copy">
+            <span class="status-filter-trigger-kicker">Фильтр исправности</span>
+            <span class="status-filter-trigger-value">{{ activeStatusFilterOption.label }}</span>
+          </span>
+
+          <svg class="status-filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <transition name="fade">
+          <div v-show="isStatusDropdownOpen" class="status-filter-dropdown">
+            <button
+              v-for="option in statusFilterOptions"
+              :key="option.value"
+              type="button"
+              class="status-filter-option"
+              :class="[{ active: filterMode === option.value }, `is-${option.tone}`]"
+              @click="selectStatusFilter(option.value)"
+            >
+              <span class="status-filter-option-mark" :class="`is-${option.tone}`" aria-hidden="true">
+                <svg v-if="option.value === 'working'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="8"></circle>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m8.8 12.3 2.2 2.2 4.3-4.6"></path>
+                </svg>
+                <svg v-else-if="option.value === 'broken'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9.5v3.3m0 3.1h.01M10.3 4.88 2.95 17.63A2.25 2.25 0 0 0 4.9 21h14.2a2.25 2.25 0 0 0 1.95-3.37L13.7 4.88a1.95 1.95 0 0 0-3.4 0"></path>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" d="M8 7h11"></path>
+                  <path stroke-linecap="round" d="M8 12h11"></path>
+                  <path stroke-linecap="round" d="M8 17h11"></path>
+                  <circle cx="4.5" cy="7" r="1"></circle>
+                  <circle cx="4.5" cy="12" r="1"></circle>
+                  <circle cx="4.5" cy="17" r="1"></circle>
+                </svg>
+              </span>
+
+              <span class="status-filter-option-copy">
+                <span class="status-filter-option-title">{{ option.label }}</span>
+                <span class="status-filter-option-subtitle">{{ option.description }}</span>
+              </span>
+
+              <span class="status-filter-option-check" aria-hidden="true">
+                <svg v-if="filterMode === option.value" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.2 4.2L19 7"></path>
+                </svg>
+              </span>
+            </button>
+          </div>
+        </transition>
+      </div>
+
       <div class="filter-buttons" :class="{ 'is-dark': themeStore.isDark }">
         <button class="filter-btn" @click="setFilterMode(`all`)" :class="{active: this.filterMode === `all`}">Все аудитории</button>
         <button class="filter-btn" @click="setFilterMode(`working`)" :class="{active: this.filterMode === `working`}">Исправные</button>
@@ -357,7 +490,7 @@ export default {
       v-if="!loading && office?.audiences?.length > 0 && proxyFloors && Object.keys(proxyFloors).length === 0"
       class="empty-state filtered-empty-state"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>File-not-found SVG Icon</title><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4.01l.01-.011M9 3H4v3m0 5v2m16-2v2M15 3h5v3M9 21H4v-3m11 3h5v-3"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4.01l.01-.011M9 3H4v3m0 5v2m16-2v2M15 3h5v3M9 21H4v-3m11 3h5v-3"/></svg>
       <div class="empty-state-title">По выбранным фильтрам аудитории не найдены</div>
       <div class="empty-state-text">Измените параметры поиска или выберите другой фильтр</div>
     </div>
@@ -872,6 +1005,223 @@ body {
   flex-wrap: wrap;
 }
 
+.status-filter-mobile {
+  display: none;
+  position: relative;
+}
+
+.status-filter-trigger {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.96)),
+    linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(14, 165, 233, 0.08));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.status-filter-trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba(147, 197, 253, 0.95);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.12);
+}
+
+.status-filter-trigger.active {
+  border-color: rgba(96, 165, 250, 0.95);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.16);
+}
+
+.status-filter-trigger-mark,
+.status-filter-option-mark {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.status-filter-trigger-mark svg,
+.status-filter-option-mark svg,
+.status-filter-option-check svg,
+.status-filter-chevron {
+  width: 18px;
+  height: 18px;
+}
+
+.status-filter-trigger-mark.is-all,
+.status-filter-option-mark.is-all {
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.96), rgba(241, 245, 249, 0.98));
+  color: #475569;
+}
+
+.status-filter-trigger-mark.is-working,
+.status-filter-option-mark.is-working {
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.98), rgba(240, 253, 244, 0.98));
+  color: #16a34a;
+}
+
+.status-filter-trigger-mark.is-broken,
+.status-filter-option-mark.is-broken {
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.98), rgba(255, 241, 242, 0.98));
+  color: #dc2626;
+}
+
+.status-filter-trigger-copy,
+.status-filter-option-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.status-filter-trigger-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.status-filter-trigger-value,
+.status-filter-option-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.status-filter-option-subtitle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.status-filter-chevron {
+  flex-shrink: 0;
+  color: #64748b;
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.status-filter-trigger.active .status-filter-chevron {
+  color: #2563eb;
+  transform: rotate(180deg);
+}
+
+.status-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.14);
+  z-index: 20;
+}
+
+.status-filter-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.status-filter-option:hover {
+  background: rgba(241, 245, 249, 0.92);
+  transform: translateY(-1px);
+}
+
+.status-filter-option.active.is-all {
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.96), rgba(248, 250, 252, 0.98));
+}
+
+.status-filter-option.active.is-working {
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.82), rgba(240, 253, 244, 0.92));
+}
+
+.status-filter-option.active.is-broken {
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.84), rgba(255, 241, 242, 0.94));
+}
+
+.status-filter-option-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.status-filter-mobile.is-dark .status-filter-trigger {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.94));
+  border-color: rgba(71, 85, 105, 0.95);
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.28);
+}
+
+.status-filter-mobile.is-dark .status-filter-trigger:hover {
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.status-filter-mobile.is-dark .status-filter-trigger-value,
+.status-filter-mobile.is-dark .status-filter-option-title {
+  color: #f8fafc;
+}
+
+.status-filter-mobile.is-dark .status-filter-trigger-kicker,
+.status-filter-mobile.is-dark .status-filter-option-subtitle,
+.status-filter-mobile.is-dark .status-filter-chevron {
+  color: #94a3b8;
+}
+
+.status-filter-mobile.is-dark .status-filter-dropdown {
+  background: rgba(15, 23, 42, 0.97);
+  border-color: rgba(51, 65, 85, 0.95);
+  box-shadow: 0 22px 44px rgba(2, 6, 23, 0.38);
+}
+
+.status-filter-mobile.is-dark .status-filter-option:hover {
+  background: rgba(30, 41, 59, 0.92);
+}
+
+.status-filter-mobile.is-dark .status-filter-option.active.is-all {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(51, 65, 85, 0.96));
+}
+
+.status-filter-mobile.is-dark .status-filter-option.active.is-working {
+  background: linear-gradient(135deg, rgba(20, 83, 45, 0.48), rgba(21, 128, 61, 0.26));
+}
+
+.status-filter-mobile.is-dark .status-filter-option.active.is-broken {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.42), rgba(153, 27, 27, 0.22));
+}
+
 .view-mode-switch {
   display: inline-flex;
   align-items: center;
@@ -1130,9 +1480,13 @@ body {
     width: 100%;
   }
 
-  .filter-buttons {
+  .status-filter-mobile {
+    display: block;
     width: 100%;
-    justify-content: center;
+  }
+
+  .filter-buttons {
+    display: none;
   }
 
   .view-mode-switch {
@@ -1205,6 +1559,38 @@ body {
   .view-mode-switch {
     padding: 4px;
     border-radius: 14px;
+  }
+
+  .status-filter-trigger {
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .status-filter-trigger-mark,
+  .status-filter-option-mark {
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 11px;
+  }
+
+  .status-filter-trigger-value,
+  .status-filter-option-title {
+    font-size: 13px;
+  }
+
+  .status-filter-option-subtitle {
+    font-size: 10px;
+  }
+
+  .status-filter-dropdown {
+    padding: 7px;
+    border-radius: 16px;
+  }
+
+  .status-filter-option {
+    padding: 9px 10px;
+    border-radius: 12px;
   }
 
   .mode-btn {
