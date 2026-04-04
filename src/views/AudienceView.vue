@@ -2046,16 +2046,28 @@ export default {
   padding-right: 1rem;
 
   input[type="range"] {
+    appearance: none;
     -webkit-appearance: none;
     width: 180px;
-    height: 6px;
-    background: #dbeafe;
-    border-radius: 3px;
+    height: 18px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
     outline: none;
     cursor: pointer;
   }
 
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #93c5fd 0%, #dbeafe 100%);
+  }
+
   input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
     -webkit-appearance: none;
     width: 18px;
     height: 18px;
@@ -2065,10 +2077,29 @@ export default {
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
+    margin-top: -6px;
   }
 
   input[type="range"]::-webkit-slider-thumb:hover {
     transform: scale(1.15);
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #93c5fd 0%, #dbeafe 100%);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
   }
 }
 

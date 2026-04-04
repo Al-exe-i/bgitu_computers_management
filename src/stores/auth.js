@@ -8,6 +8,8 @@ const plain = axios.create({
     withCredentials: true,
 });
 
+let fetchUserPromise = null;
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         user: null,
@@ -46,6 +48,11 @@ export const useAuthStore = defineStore('auth', {
         // FETCH USER
         async fetchUser()
         {
+            if (fetchUserPromise) {
+                return fetchUserPromise;
+            }
+
+            fetchUserPromise = (async () => {
             try
             {
                 const response = await api.get('/users/me');
@@ -58,7 +65,7 @@ export const useAuthStore = defineStore('auth', {
                     const photoRes = await api.get('/users/me/photo', { responseType: 'blob' });
                     this.user.photo = URL.createObjectURL(photoRes.data);
                 }
-                catch (e) { /* ignore 404 */ }
+                catch (e) { }
 
             }
             catch (error)
@@ -71,7 +78,11 @@ export const useAuthStore = defineStore('auth', {
             finally
             {
                 this.isInitialized = true;
+                fetchUserPromise = null;
             }
+            })();
+
+            return fetchUserPromise;
         },
 
         // REFRESH

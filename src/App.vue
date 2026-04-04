@@ -163,7 +163,7 @@ html[data-theme='dark'] .empty-state-text {
   color: var(--text-secondary) !important;
 }
 
-html[data-theme='dark'] input,
+html[data-theme='dark'] input:not([type='range']),
 html[data-theme='dark'] textarea,
 html[data-theme='dark'] select,
 html[data-theme='dark'] .form-input,
@@ -986,11 +986,18 @@ html[data-theme='dark'] .page-viewer .scale-controls {
 }
 
 html[data-theme='dark'] .page-viewer .scale-controls input[type="range"] {
-  background: #334155 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 999px !important;
+  height: 18px !important;
+  padding: 0 !important;
 }
 
 html[data-theme='dark'] .page-viewer .scale-controls input[type="range"]::-webkit-slider-runnable-track {
-  background: #334155 !important;
+  height: 6px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #3b82f6 0%, #334155 100%) !important;
 }
 
 html[data-theme='dark'] .page-viewer .scale-controls input[type="range"]::-webkit-slider-thumb {
@@ -1000,7 +1007,10 @@ html[data-theme='dark'] .page-viewer .scale-controls input[type="range"]::-webki
 }
 
 html[data-theme='dark'] .page-viewer .scale-controls input[type="range"]::-moz-range-track {
-  background: #334155 !important;
+  height: 6px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #3b82f6 0%, #334155 100%) !important;
 }
 
 html[data-theme='dark'] .page-viewer .scale-controls input[type="range"]::-moz-range-thumb {
