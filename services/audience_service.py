@@ -5,6 +5,7 @@ from repositories.audience_repo import AudienceRepository
 from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
 from schemas.hardware import HardwareGridItem
 from services.hardware_service import HardwareGridPort
+from utils.audience_landmarks import normalize_landmarks
 from utils.grid_utils import GridHelper
 
 
@@ -48,6 +49,9 @@ class AudienceService:
 
         update_data = schema.model_dump(exclude_unset=True, exclude={'hardware'})
 
+        if "landmarks" in update_data:
+            update_data["landmarks"] = normalize_landmarks(update_data["landmarks"])
+
         target_width = update_data.get("width", current_audience.width)
         target_height = update_data.get("height", current_audience.height)
 
@@ -63,10 +67,9 @@ class AudienceService:
             await self._sync_grid(audience_id, schema.hardware)
 
         await self.repo.session.flush()
-        await self.repo.session.refresh(current_audience)
-        return current_audience
+        return await self.repo.get_by_id(audience_id)
 
-    async def delete_audience(self, audience_id: int):
+    async def delete_audience(self, audience_id: int) -> None:
         await self.get_one(audience_id)
         await self.repo.delete(audience_id)
 

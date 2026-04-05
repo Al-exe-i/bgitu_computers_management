@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from schemas.hardware import HardwareCreate, HardwareFullResponse, HardwareShortResponse, HardwareGridItem
+from pydantic import BaseModel, Field, ConfigDict
+from schemas.hardware import HardwareFullResponse, HardwareShortResponse, HardwareGridItem
 
 
 class AudienceBase(BaseModel):
@@ -10,6 +10,7 @@ class AudienceBase(BaseModel):
     office_id: int = Field(description="ID офиса/здания/этажа")
     width: int = Field(gt=0, le=20, description="Ширина сетки")
     height: int = Field(gt=0, le=20, description="Высота сетки")
+    landmarks: dict | None = None
 
 
 class AudienceCreate(AudienceBase):
@@ -23,6 +24,7 @@ class AudienceUpdate(BaseModel):
     width: int | None = None
     height: int | None = None
     hardware: list[HardwareGridItem] | None = None
+    landmarks: dict | None = None
 
 
 class AudienceResponse(AudienceBase):
@@ -31,3 +33,11 @@ class AudienceResponse(AudienceBase):
 
 class AudienceShortResponse(AudienceBase):
     hardware: list[HardwareShortResponse] = Field(default_factory=list)
+
+class AudienceLandmarks(BaseModel):
+    north: str | None = Field(default=None, max_length=128)
+    south: str | None = Field(default=None, max_length=128)
+    west: str | None = Field(default=None, max_length=128)
+    east: str | None = Field(default=None, max_length=128)
+
+    model_config = ConfigDict(extra="forbid")

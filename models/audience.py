@@ -1,5 +1,6 @@
 from typing import List
 from sqlalchemy import ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.base import Base
 from .mixins import IntIdPkMixin
@@ -11,6 +12,8 @@ class Audience(IntIdPkMixin, Base):
     office_id: Mapped[int] = mapped_column(ForeignKey('offices.id', ondelete='CASCADE'))
     width: Mapped[int]
     height: Mapped[int]
+
+    landmarks: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False, default=dict)
 
     hardware: Mapped[List["Hardware"]] = relationship(
         back_populates="audience",
