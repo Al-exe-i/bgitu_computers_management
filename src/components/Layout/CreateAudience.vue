@@ -59,6 +59,29 @@ const EQUIPMENT_TYPES = Object.freeze([
   }
 ])
 
+const LANDMARK_LABELS = Object.freeze({
+  north: 'Север',
+  south: 'Юг',
+  west: 'Запад',
+  east: 'Восток',
+})
+
+function normalizeLandmarks(source = {}) {
+  return {
+    north: String(source?.north ?? source?.nord ?? '').trim(),
+    south: String(source?.south ?? '').trim(),
+    west: String(source?.west ?? '').trim(),
+    east: String(source?.east ?? '').trim(),
+  };
+}
+
+function buildLandmarksPayload(source = {}) {
+  const normalized = normalizeLandmarks(source);
+  const hasValue = Object.values(normalized).some(Boolean);
+
+  return hasValue ? normalized : {};
+}
+
 export default {
   name: 'CreateAudience',
   props: ['id'],
@@ -79,6 +102,9 @@ export default {
       suppressNextCellClick: false,
 
       equipmentItems: [],
+      landmarks: normalizeLandmarks(),
+      editingLandmark: null,
+      landmarkDraft: '',
 
       clearGridClicked: false,
       paramsCollapsed: false,
@@ -159,6 +185,10 @@ export default {
 
       counts.network = counts.switch + counts.router;
       return counts;
+    },
+
+    landmarkValues() {
+      return normalizeLandmarks(this.landmarks);
     },
 
     notify()
@@ -399,6 +429,41 @@ export default {
       }
     },
 
+    getLandmarkLabel(direction) {
+      return LANDMARK_LABELS[direction] ?? direction;
+    },
+
+    getLandmarkDisplayValue(direction) {
+      return this.landmarkValues[direction] || this.getLandmarkLabel(direction);
+    },
+
+    isLandmarkPlaceholder(direction) {
+      return !this.landmarkValues[direction];
+    },
+
+    openLandmarkEditor(direction) {
+      this.editingLandmark = direction;
+      this.landmarkDraft = this.landmarkValues[direction];
+    },
+
+    closeLandmarkEditor() {
+      this.editingLandmark = null;
+      this.landmarkDraft = '';
+    },
+
+    saveLandmarkDraft() {
+      if (!this.editingLandmark) {
+        return;
+      }
+
+      this.landmarks = {
+        ...this.landmarks,
+        [this.editingLandmark]: String(this.landmarkDraft ?? '').trim(),
+      };
+
+      this.closeLandmarkEditor();
+    },
+
     resetForm() {
       this.isHydrating = true;
 
@@ -413,9 +478,11 @@ export default {
       this.gridHeight = 4;
       this.officeNumber = 1;
       this.equipmentItems = [];
+      this.landmarks = normalizeLandmarks();
       this.selectedEquipmentId = null;
       this.selectedEquipmentSize = { width: 1, height: 1 };
       this.clearGridClicked = false;
+      this.closeLandmarkEditor();
 
       this.$nextTick(() => {
         this.captureInitialSnapshot();
@@ -450,6 +517,7 @@ export default {
         officeNumber: this.officeNumber,
         gridWidth: this.gridWidth,
         gridHeight: this.gridHeight,
+        landmarks: normalizeLandmarks(this.landmarks),
         hardware: normalizedItems,
       });
     },
@@ -482,6 +550,7 @@ export default {
         this.officeNumber = data.office_id;
         this.gridWidth = data.width;
         this.gridHeight = data.height;
+        this.landmarks = normalizeLandmarks(data.landmarks);
 
         this.equipmentItems = (data.hardware ?? []).map(hw => ({
           localId: `db-${hw.id}`,
@@ -498,6 +567,7 @@ export default {
           specs: hw.specs ?? {},
           files: hw.files ?? []
         }));
+        this.closeLandmarkEditor();
 
         await this.$nextTick(() => {
           this.captureInitialSnapshot();
@@ -570,7 +640,8 @@ export default {
         width: this.gridWidth,
         height: this.gridHeight,
         hardware: this.mapFrontendToBackend(validItems),
-        office_id: this.officeNumber
+        office_id: this.officeNumber,
+        landmarks: buildLandmarksPayload(this.landmarks)
       };
 
       if (this.isEditMode) {
@@ -640,6 +711,13 @@ export default {
 
     officeNumber() {
       this.recomputeUnsavedChanges();
+    },
+
+    landmarks: {
+      handler() {
+        this.recomputeUnsavedChanges();
+      },
+      deep: true
     },
 
     classroomNumber() {
@@ -870,60 +948,287 @@ export default {
               <div>Задайте размеры сетки</div>
             </div>
 
-            <div
-                v-else
-                class="grid-container"
-                :class="gridDensityClass"
-                :style="{ '--grid-cols': gridWidth, '--grid-rows': gridHeight }"
-            >
-              <div class="grid-base">
-                <template v-for="row in gridHeight" :key="`row-${row}`">
-                  <div
-                      v-for="col in gridWidth"
-                      :key="`cell-${row}-${col}`"
-                      class="grid-cell"
-                      :class="{ 'drag-over': isDragOver(row - 1, col - 1) }"
-                      @click="handleCellClick(row - 1, col - 1)"
-                      @dragover.prevent="onDragOver(row - 1, col - 1)"
-                      @dragleave="onDragLeave"
-                      @drop="onDrop(row - 1, col - 1, $event)"
-                  />
-                </template>
+            <div v-else class="grid-landmarks-shell">
+              <div
+                  class="grid-landmark-line is-north"
+                  :class="{ placeholder: isLandmarkPlaceholder('north') }"
+              >
+                <span class="grid-landmark-text">{{ getLandmarkDisplayValue('north') }}</span>
+                <button
+                    type="button"
+                    class="landmark-edit-btn"
+                    @click="openLandmarkEditor('north')"
+                    aria-label="Редактировать север"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z"/>
+                  </svg>
+                </button>
+
+                <div
+                    v-if="editingLandmark === 'north'"
+                    class="landmark-editor-popup is-horizontal is-north"
+                >
+                  <div class="landmark-editor-title">{{ getLandmarkLabel('north') }}</div>
+                  <div class="landmark-editor-row">
+                    <input
+                        v-model.trim="landmarkDraft"
+                        type="text"
+                        class="landmark-editor-input"
+                        :placeholder="getLandmarkLabel('north')"
+                        @keydown.enter.prevent="saveLandmarkDraft"
+                        @keydown.esc.prevent="closeLandmarkEditor"
+                    >
+                    <button
+                        type="button"
+                        class="landmark-editor-action is-confirm"
+                        @click="saveLandmarkDraft"
+                        aria-label="Сохранить ориентир"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 6 9 17l-5-5"/>
+                      </svg>
+                    </button>
+                    <button
+                        type="button"
+                        class="landmark-editor-action"
+                        @click="closeLandmarkEditor"
+                        aria-label="Отменить редактирование ориентира"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div class="grid-overlay">
-                <div
-                    v-for="item in visibleEquipmentItems"
-                    :key="item.localId || item.dbId"
-                    class="grid-equipment"
-                    :class="{
-                      broken: item.state === false,
-                      'is-wide': item.width > item.height,
-                      'is-tall': item.height >= item.width
-                    }"
-                    :style="getEquipmentStyle(item)"
-                    draggable="true"
-                    @dragstart.stop="onGridItemDragStart($event, item)"
-                    @dragend="onDragEnd"
-                >
+              <div class="grid-landmark-main">
+                <div class="grid-landmark-side is-west">
                   <div
-                      class="cell-icon"
-                      :style="{ background: equipmentTypeMap[item.type].color }"
-                      v-html="equipmentTypeMap[item.type].icon"
-                  ></div>
-
-                  <div class="cell-label">
-                    {{ equipmentTypeMap[item.type].name }}
+                      class="grid-landmark-side-stack"
+                      :class="{ placeholder: isLandmarkPlaceholder('west') }"
+                  >
+                    <span class="grid-landmark-side-text">{{ getLandmarkDisplayValue('west') }}</span>
+                    <button
+                        type="button"
+                        class="landmark-edit-btn is-side"
+                        @click="openLandmarkEditor('west')"
+                        aria-label="Редактировать запад"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z"/>
+                      </svg>
+                    </button>
                   </div>
 
-                  <button
-                      class="remove-btn"
-                      @click.stop="removeEquipment(item)"
+                  <div
+                      v-if="editingLandmark === 'west'"
+                      class="landmark-editor-popup is-side-popup is-west-popup"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
-                      <path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/>
-                    </svg>
-                  </button>
+                    <div class="landmark-editor-title">{{ getLandmarkLabel('west') }}</div>
+                    <div class="landmark-editor-row">
+                      <input
+                          v-model.trim="landmarkDraft"
+                          type="text"
+                          class="landmark-editor-input"
+                          :placeholder="getLandmarkLabel('west')"
+                          @keydown.enter.prevent="saveLandmarkDraft"
+                          @keydown.esc.prevent="closeLandmarkEditor"
+                      >
+                      <button
+                          type="button"
+                          class="landmark-editor-action is-confirm"
+                          @click="saveLandmarkDraft"
+                          aria-label="Сохранить ориентир"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M20 6 9 17l-5-5"/>
+                        </svg>
+                      </button>
+                      <button
+                          type="button"
+                          class="landmark-editor-action"
+                          @click="closeLandmarkEditor"
+                          aria-label="Отменить редактирование ориентира"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M18 6 6 18M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                    class="grid-container"
+                    :class="gridDensityClass"
+                    :style="{ '--grid-cols': gridWidth, '--grid-rows': gridHeight }"
+                >
+                  <div class="grid-base">
+                    <template v-for="row in gridHeight" :key="`row-${row}`">
+                      <div
+                          v-for="col in gridWidth"
+                          :key="`cell-${row}-${col}`"
+                          class="grid-cell"
+                          :class="{ 'drag-over': isDragOver(row - 1, col - 1) }"
+                          @click="handleCellClick(row - 1, col - 1)"
+                          @dragover.prevent="onDragOver(row - 1, col - 1)"
+                          @dragleave="onDragLeave"
+                          @drop="onDrop(row - 1, col - 1, $event)"
+                      />
+                    </template>
+                  </div>
+
+                  <div class="grid-overlay">
+                    <div
+                        v-for="item in visibleEquipmentItems"
+                        :key="item.localId || item.dbId"
+                        class="grid-equipment"
+                        :class="{
+                          broken: item.state === false,
+                          'is-wide': item.width > item.height,
+                          'is-tall': item.height >= item.width
+                        }"
+                        :style="getEquipmentStyle(item)"
+                        draggable="true"
+                        @dragstart.stop="onGridItemDragStart($event, item)"
+                        @dragend="onDragEnd"
+                    >
+                      <div
+                          class="cell-icon"
+                          :style="{ background: equipmentTypeMap[item.type].color }"
+                          v-html="equipmentTypeMap[item.type].icon"
+                      ></div>
+
+                      <div class="cell-label">
+                        {{ equipmentTypeMap[item.type].name }}
+                      </div>
+
+                      <button
+                          class="remove-btn"
+                          @click.stop="removeEquipment(item)"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
+                          <path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid-landmark-side is-east">
+                  <div
+                      class="grid-landmark-side-stack"
+                      :class="{ placeholder: isLandmarkPlaceholder('east') }"
+                  >
+                    <span class="grid-landmark-side-text">{{ getLandmarkDisplayValue('east') }}</span>
+                    <button
+                        type="button"
+                        class="landmark-edit-btn is-side"
+                        @click="openLandmarkEditor('east')"
+                        aria-label="Редактировать восток"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z"/>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div
+                      v-if="editingLandmark === 'east'"
+                      class="landmark-editor-popup is-side-popup is-east-popup"
+                  >
+                    <div class="landmark-editor-title">{{ getLandmarkLabel('east') }}</div>
+                    <div class="landmark-editor-row">
+                      <input
+                          v-model.trim="landmarkDraft"
+                          type="text"
+                          class="landmark-editor-input"
+                          :placeholder="getLandmarkLabel('east')"
+                          @keydown.enter.prevent="saveLandmarkDraft"
+                          @keydown.esc.prevent="closeLandmarkEditor"
+                      >
+                      <button
+                          type="button"
+                          class="landmark-editor-action is-confirm"
+                          @click="saveLandmarkDraft"
+                          aria-label="Сохранить ориентир"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M20 6 9 17l-5-5"/>
+                        </svg>
+                      </button>
+                      <button
+                          type="button"
+                          class="landmark-editor-action"
+                          @click="closeLandmarkEditor"
+                          aria-label="Отменить редактирование ориентира"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M18 6 6 18M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                  class="grid-landmark-line is-south"
+                  :class="{ placeholder: isLandmarkPlaceholder('south') }"
+              >
+                <span class="grid-landmark-text">{{ getLandmarkDisplayValue('south') }}</span>
+                <button
+                    type="button"
+                    class="landmark-edit-btn"
+                    @click="openLandmarkEditor('south')"
+                    aria-label="Редактировать юг"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z"/>
+                  </svg>
+                </button>
+
+                <div
+                    v-if="editingLandmark === 'south'"
+                    class="landmark-editor-popup is-horizontal is-south"
+                >
+                  <div class="landmark-editor-title">{{ getLandmarkLabel('south') }}</div>
+                  <div class="landmark-editor-row">
+                    <input
+                        v-model.trim="landmarkDraft"
+                        type="text"
+                        class="landmark-editor-input"
+                        :placeholder="getLandmarkLabel('south')"
+                        @keydown.enter.prevent="saveLandmarkDraft"
+                        @keydown.esc.prevent="closeLandmarkEditor"
+                    >
+                    <button
+                        type="button"
+                        class="landmark-editor-action is-confirm"
+                        @click="saveLandmarkDraft"
+                        aria-label="Сохранить ориентир"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 6 9 17l-5-5"/>
+                      </svg>
+                    </button>
+                    <button
+                        type="button"
+                        class="landmark-editor-action"
+                        @click="closeLandmarkEditor"
+                        aria-label="Отменить редактирование ориентира"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1150,6 +1455,213 @@ export default {
 
 .grid-wrapper {
   overflow-x: auto;
+  overflow-y: visible;
+}
+
+.grid-landmarks-shell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: max-content;
+  padding: 2px 0;
+}
+
+.grid-landmark-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.grid-landmark-main > .grid-container {
+  flex-shrink: 0;
+}
+
+.grid-landmark-line {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 24px;
+  color: #475569;
+}
+
+.grid-landmark-text,
+.grid-landmark-side-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: inherit;
+}
+
+.grid-landmark-line.placeholder,
+.grid-landmark-side-stack.placeholder {
+  color: #94a3b8;
+}
+
+.grid-landmark-side {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  color: #475569;
+}
+
+.grid-landmark-side-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-landmark-side-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  line-height: 1;
+}
+
+.grid-landmark-side.is-west .grid-landmark-side-text {
+  transform: rotate(180deg);
+}
+
+.landmark-edit-btn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.landmark-edit-btn:hover {
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.34);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.14);
+}
+
+.landmark-edit-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.landmark-edit-btn.is-side {
+  width: 20px;
+  height: 20px;
+}
+
+.landmark-editor-popup {
+  position: absolute;
+  z-index: 7;
+  min-width: 210px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.landmark-editor-popup.is-north {
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.landmark-editor-popup.is-south {
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.landmark-editor-popup.is-west-popup {
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+
+.landmark-editor-popup.is-east-popup {
+  top: 50%;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+
+.landmark-editor-title {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.landmark-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landmark-editor-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.landmark-editor-input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.58);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.landmark-editor-action {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.landmark-editor-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(100, 116, 139, 0.32);
+  color: #1e293b;
+}
+
+.landmark-editor-action.is-confirm {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.landmark-editor-action.is-confirm:hover {
+  color: #ffffff;
+}
+
+.landmark-editor-action svg {
+  width: 16px;
+  height: 16px;
 }
 
 .grid-size-inputs {
@@ -1630,6 +2142,46 @@ export default {
     width: 100%;
   }
 
+  .grid-landmarks-shell {
+    gap: 8px;
+  }
+
+  .grid-landmark-main {
+    gap: 10px;
+  }
+
+  .grid-landmark-line {
+    min-height: 22px;
+  }
+
+  .grid-landmark-text,
+  .grid-landmark-side-text {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .grid-landmark-side {
+    min-width: 34px;
+  }
+
+  .landmark-editor-popup {
+    min-width: 190px;
+    padding: 10px;
+  }
+
+  .landmark-editor-popup.is-west-popup,
+  .landmark-editor-popup.is-east-popup {
+    top: calc(100% + 10px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+
+  .landmark-editor-input,
+  .landmark-editor-action {
+    height: 32px;
+  }
+
 }
 
 @media (max-width: 480px)
@@ -1649,6 +2201,55 @@ export default {
   .cell-icon {
     width: 32px;
     height: 32px;
+  }
+
+  .grid-landmark-main {
+    gap: 8px;
+  }
+
+  .grid-landmark-text,
+  .grid-landmark-side-text {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  .grid-landmark-side {
+    min-width: 28px;
+  }
+
+  .landmark-edit-btn {
+    width: 20px;
+    height: 20px;
+  }
+
+  .landmark-edit-btn.is-side {
+    width: 18px;
+    height: 18px;
+  }
+
+  .landmark-editor-popup {
+    min-width: 170px;
+    padding: 9px;
+  }
+
+  .landmark-editor-title {
+    margin-bottom: 6px;
+    font-size: 10px;
+  }
+
+  .landmark-editor-row {
+    gap: 6px;
+  }
+
+  .landmark-editor-input {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .landmark-editor-action {
+    width: 30px;
+    height: 30px;
   }
 }
 </style>

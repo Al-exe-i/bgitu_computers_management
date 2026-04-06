@@ -6,7 +6,7 @@ import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {useAuthStore} from "@/stores/auth.js";
 import {getApiUrl, getWsUrl} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
-import { markRaw } from "vue";
+import {markRaw} from "vue";
 
 export default {
   name: 'AudienceView',
@@ -228,6 +228,23 @@ export default {
       };
     },
 
+    landmarkValues() {
+      const source = this.classroom?.landmarks ?? {};
+      const northValue =
+          typeof source.north === 'string'
+              ? source.north.trim()
+              : typeof source.nord === 'string'
+                  ? source.nord.trim()
+                  : '';
+
+      return {
+        north: northValue,
+        south: typeof source.south === 'string' ? source.south.trim() : '',
+        west: typeof source.west === 'string' ? source.west.trim() : '',
+        east: typeof source.east === 'string' ? source.east.trim() : ''
+      };
+    },
+
     occupiedMap() {
       const map = {};
       const items = this.classroom?.equipment ?? [];
@@ -430,7 +447,7 @@ export default {
 
     statusConfirmTitle() {
       if (this.pendingWorkingStatus === true) {
-        return 'Подтвердить восстановление?';
+        return 'Подтвердить исправление?';
       }
 
       if (this.pendingWorkingStatus === false) {
@@ -497,10 +514,8 @@ export default {
 
       try {
         const res = await api.get(`/audiences/${this.audienceId}`);
-        const next = this.mapBackendToFrontend(res.data);
-
         // аккуратно обновим classroom
-        this.classroom = next;
+        this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
 
         this.audienceContext.setOffice(this.classroom.office_id);
@@ -536,6 +551,8 @@ export default {
       return {
         number: data.id,
         floor: data.floor,
+
+        landmarks: data.landmarks,
 
         gridSize: {
           width: data.width,
@@ -1261,51 +1278,83 @@ export default {
           <p v-if="authStore.isAuthenticated" class="grid-info">Кликните по ячейке для деталей</p>
         </div>
 
-        <div class="grid-wrapper">
-          <div class="equipment-grid" :class="gridDensityClass" :style="gridStyle">
-            <div class="grid-stage">
-              <div class="grid-base">
-                <template v-for="row in classroom.gridSize.height" :key="`row-${row}`">
-                  <div
-                      v-for="col in classroom.gridSize.width"
-                      :key="`cell-${row}-${col}`"
-                      class="grid-cell"
-                      :class="getCellClasses(row - 1, col - 1)"
-                      @click="openModal(row - 1, col - 1)"
-                  />
-                </template>
-              </div>
+        <div class="grid-landmarks-shell">
+          <span
+              v-if="landmarkValues.north"
+              class="grid-landmark-line is-north"
+          >
+            {{ landmarkValues.north }}
+          </span>
 
-              <div class="grid-overlay">
-                <div
-                    v-for="item in classroom.equipment"
-                    :key="item.dbId"
-                    class="grid-equipment"
-                    :class="{
-                    broken: !item.working,
-                    working: item.working,
-                    'is-wide': item.width > item.height,
-                    'is-tall': item.height >= item.width
-                  }"
-                    :style="{
-                    gridColumn: `${item.x + 1} / span ${item.width}`,
-                    gridRow: `${item.y + 1} / span ${item.height}`
-                  }"
-                    @click.stop="openModal(item.y, item.x)"
-                >
-                  <div
-                      class="equipment-icon"
-                      :style="{ background: getEquipmentType(item.type).color }"
-                      v-html="getEquipmentType(item.type).icon"
-                  ></div>
+          <div class="grid-landmark-main">
+            <span
+                v-if="landmarkValues.west"
+                class="grid-landmark-side is-west"
+            >
+              {{ landmarkValues.west }}
+            </span>
 
-                  <div class="equipment-label">
-                    {{ getEquipmentType(item.type).name }}
+            <div class="grid-wrapper">
+              <div class="equipment-grid" :class="gridDensityClass" :style="gridStyle">
+                <div class="grid-stage">
+                  <div class="grid-base">
+                    <template v-for="row in classroom.gridSize.height" :key="`row-${row}`">
+                      <div
+                          v-for="col in classroom.gridSize.width"
+                          :key="`cell-${row}-${col}`"
+                          class="grid-cell"
+                          :class="getCellClasses(row - 1, col - 1)"
+                          @click="openModal(row - 1, col - 1)"
+                      />
+                    </template>
+                  </div>
+
+                  <div class="grid-overlay">
+                    <div
+                        v-for="item in classroom.equipment"
+                        :key="item.dbId"
+                        class="grid-equipment"
+                        :class="{
+                        broken: !item.working,
+                        working: item.working,
+                        'is-wide': item.width > item.height,
+                        'is-tall': item.height >= item.width
+                      }"
+                        :style="{
+                        gridColumn: `${item.x + 1} / span ${item.width}`,
+                        gridRow: `${item.y + 1} / span ${item.height}`
+                      }"
+                        @click.stop="openModal(item.y, item.x)"
+                    >
+                      <div
+                          class="equipment-icon"
+                          :style="{ background: getEquipmentType(item.type).color }"
+                          v-html="getEquipmentType(item.type).icon"
+                      ></div>
+
+                      <div class="equipment-label">
+                        {{ getEquipmentType(item.type).name }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <span
+                v-if="landmarkValues.east"
+                class="grid-landmark-side is-east"
+            >
+              {{ landmarkValues.east }}
+            </span>
           </div>
+
+          <span
+              v-if="landmarkValues.south"
+              class="grid-landmark-line is-south"
+          >
+            {{ landmarkValues.south }}
+          </span>
         </div>
       </div>
     </div>
@@ -2360,6 +2409,64 @@ export default {
 .grid-info {
   font-size: 14px;
   color: #64748b;
+}
+
+.grid-landmarks-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid-landmark-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.grid-landmark-main > .grid-wrapper {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.grid-landmark-side.is-west {
+  grid-column: 1;
+}
+
+.grid-landmark-side.is-east {
+  grid-column: 3;
+}
+
+.grid-landmark-line,
+.grid-landmark-side {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.grid-landmark-line {
+  display: block;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.grid-landmark-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  max-width: 22px;
+  min-height: 100%;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  overflow-wrap: anywhere;
+}
+
+.grid-landmark-side.is-west {
+  transform: rotate(180deg);
 }
 
 .grid-wrapper {
@@ -3835,10 +3942,10 @@ export default {
 
 .status-confirm-note {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 16px 18px;
-  border-radius: 20px;
+  padding: 6px 6px;
+  border-radius: 14px;
   margin-bottom: 20px;
   background: rgba(241, 245, 249, 0.95);
   border: 1px solid rgba(226, 232, 240, 0.95);
@@ -4697,6 +4804,30 @@ export default {
     padding: 20px;
   }
 
+  .grid-landmarks-shell {
+    gap: 8px;
+  }
+
+  .grid-landmark-main {
+    grid-template-columns: 18px minmax(0, 1fr) 18px;
+    gap: 8px;
+  }
+
+  .grid-landmark-main > .grid-wrapper {
+    grid-column: 2;
+  }
+
+  .grid-landmark-line,
+  .grid-landmark-side {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .grid-landmark-side {
+    min-width: 18px;
+    max-width: 18px;
+  }
+
   .modal-content {
     padding: 14px;
   }
@@ -5022,6 +5153,17 @@ export default {
 
   .equipment-modal .modal-title {
     font-size: 18px;
+  }
+
+  .grid-landmark-line,
+  .grid-landmark-side {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  .grid-landmark-side {
+    min-width: 16px;
+    max-width: 16px;
   }
 
   .equipment-modal .modal-equipment-info {

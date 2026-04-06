@@ -836,6 +836,66 @@ html[data-theme='dark'] .create-audience-page .size-btn.active {
 }
 
 /* AudienceView: карточка оборудования в overlay */
+html[data-theme='dark'] .create-audience-page .grid-landmark-line,
+html[data-theme='dark'] .create-audience-page .grid-landmark-side {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-edit-btn {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: rgba(71, 85, 105, 0.58) !important;
+  color: #cbd5e1 !important;
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.3) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-edit-btn:hover {
+  border-color: rgba(96, 165, 250, 0.5) !important;
+  color: #93c5fd !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-popup {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-color: #334155 !important;
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.48) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-title {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-input {
+  background: #0b1220 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-input::placeholder {
+  color: #64748b !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-input:focus {
+  border-color: #60a5fa !important;
+  background: #0f172a !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-action {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-action:hover {
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .create-audience-page .landmark-editor-action.is-confirm {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
 html[data-theme='dark'] .page-viewer .grid-equipment {
   background: #111827 !important;
   border: 2px solid #334155 !important;
@@ -1054,6 +1114,11 @@ html[data-theme='dark'] .page-viewer .grid-section {
 
 html[data-theme='dark'] .page-viewer .grid-title {
   color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .page-viewer .grid-landmark-line,
+html[data-theme='dark'] .page-viewer .grid-landmark-side {
+  color: #94a3b8 !important;
 }
 
 html[data-theme='dark'] .page-viewer .grid-info {
