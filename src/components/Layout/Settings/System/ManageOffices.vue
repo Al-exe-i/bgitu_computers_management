@@ -220,6 +220,7 @@ export default {
     </div>
 
     <!-- Модалка -->
+    <Teleport to="body">
     <transition name="modal">
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
@@ -273,6 +274,7 @@ export default {
         </div>
       </div>
     </transition>
+    </Teleport>
 
   </div>
 </template>

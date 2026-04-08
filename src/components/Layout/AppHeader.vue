@@ -425,25 +425,50 @@ export default {
       <!-- Профиль или кнопка авторизации -->
       <div class="auth-container">
         <button
+            type="button"
             class="theme-toggle"
+            :class="{ 'is-dark': themeStore.isDark }"
             :title="themeStore.isDark ? 'Светлая тема' : 'Тёмная тема'"
             :aria-label="themeStore.isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'"
+            :aria-pressed="themeStore.isDark ? 'true' : 'false'"
             @click="toggleTheme"
         >
-          <svg v-if="themeStore.isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
-          </svg>
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-side theme-toggle-side-sun">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="4.5"></circle>
+                <line x1="12" y1="2.5" x2="12" y2="4.5"></line>
+                <line x1="12" y1="19.5" x2="12" y2="21.5"></line>
+                <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line>
+                <line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line>
+                <line x1="2.5" y1="12" x2="4.5" y2="12"></line>
+                <line x1="19.5" y1="12" x2="21.5" y2="12"></line>
+                <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line>
+                <line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line>
+              </svg>
+            </span>
+            <span class="theme-toggle-side theme-toggle-side-moon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+              </svg>
+            </span>
+          </span>
+          <span class="theme-toggle-thumb" aria-hidden="true">
+            <svg class="theme-toggle-thumb-icon theme-toggle-thumb-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4.5"></circle>
+              <line x1="12" y1="2.5" x2="12" y2="4.5"></line>
+              <line x1="12" y1="19.5" x2="12" y2="21.5"></line>
+              <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line>
+              <line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line>
+              <line x1="2.5" y1="12" x2="4.5" y2="12"></line>
+              <line x1="19.5" y1="12" x2="21.5" y2="12"></line>
+              <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line>
+              <line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line>
+            </svg>
+            <svg class="theme-toggle-thumb-icon theme-toggle-thumb-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+            </svg>
+          </span>
         </button>
         <!-- Если авторизованы -->
         <div v-if="authStore.isAuthenticated" class="profile-dropdown">
@@ -853,29 +878,187 @@ header {
 }
 
 .theme-toggle {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  background: rgba(248, 250, 252, 0.9);
+  --toggle-width: 70px;
+  --toggle-height: 40px;
+  --toggle-padding: 4px;
+  --toggle-thumb-size: 30px;
+  position: relative;
+  width: var(--toggle-width);
+  height: var(--toggle-height);
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background:
+      radial-gradient(circle at 22% 24%, rgba(251, 191, 36, 0.28), transparent 44%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(240, 249, 255, 0.92));
   color: #334155;
-  display: flex;
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.25s ease;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 12px 28px rgba(148, 163, 184, 0.18),
+      0 2px 4px rgba(15, 23, 42, 0.08);
+  transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease, background 0.32s ease;
 }
 
-.theme-toggle svg {
-  width: 20px;
-  height: 20px;
+.theme-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 0;
 }
 
 .theme-toggle:hover {
   transform: translateY(-1px);
-  border-color: #93c5fd;
-  color: #1d4ed8;
-  background: #eff6ff;
+  border-color: rgba(96, 165, 250, 0.55);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 16px 36px rgba(59, 130, 246, 0.16),
+      0 4px 10px rgba(15, 23, 42, 0.1);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+.theme-toggle:focus-visible {
+  outline: none;
+  box-shadow:
+      0 0 0 4px rgba(59, 130, 246, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 12px 28px rgba(148, 163, 184, 0.2);
+}
+
+.theme-toggle-track {
+  position: absolute;
+  inset: 0;
+  padding: 0 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1;
+}
+
+.theme-toggle-side {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.28s ease, opacity 0.28s ease, transform 0.28s ease;
+}
+
+.theme-toggle-side svg,
+.theme-toggle-thumb-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.theme-toggle-side-sun {
+  color: #d97706;
+  opacity: 0.9;
+}
+
+.theme-toggle-side-moon {
+  color: #64748b;
+  opacity: 0.72;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: var(--toggle-padding);
+  left: var(--toggle-padding);
+  width: var(--toggle-thumb-size);
+  height: var(--toggle-thumb-size);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  color: #d97706;
+  display: grid;
+  place-items: center;
+  box-shadow:
+      0 10px 22px rgba(37, 99, 235, 0.14),
+      0 2px 6px rgba(15, 23, 42, 0.12);
+  z-index: 2;
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease, color 0.28s ease;
+}
+
+.theme-toggle-thumb-icon {
+  position: absolute;
+  transition: opacity 0.24s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.theme-toggle-thumb-sun {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+.theme-toggle-thumb-moon {
+  opacity: 0;
+  transform: rotate(-26deg) scale(0.58);
+}
+
+.theme-toggle.is-dark {
+  border-color: rgba(96, 165, 250, 0.3);
+  background:
+      radial-gradient(circle at 76% 26%, rgba(147, 197, 253, 0.26), transparent 40%),
+      linear-gradient(135deg, #0f172a, #172554 58%, #1e293b);
+  color: #dbeafe;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 14px 34px rgba(2, 6, 23, 0.4),
+      0 2px 5px rgba(15, 23, 42, 0.34);
+}
+
+.theme-toggle.is-dark::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+}
+
+.theme-toggle.is-dark:hover {
+  border-color: rgba(147, 197, 253, 0.46);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 16px 38px rgba(15, 23, 42, 0.46),
+      0 4px 10px rgba(15, 23, 42, 0.3);
+}
+
+.theme-toggle.is-dark .theme-toggle-side-sun {
+  color: rgba(251, 191, 36, 0.58);
+  opacity: 0.48;
+  transform: scale(0.94);
+}
+
+.theme-toggle.is-dark .theme-toggle-side-moon {
+  color: #bfdbfe;
+  opacity: 0.96;
+  transform: scale(1.04);
+}
+
+.theme-toggle.is-dark .theme-toggle-thumb {
+  transform: translateX(calc(var(--toggle-width) - var(--toggle-thumb-size) - (var(--toggle-padding) * 2)));
+  border-color: rgba(191, 219, 254, 0.2);
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+  color: #bfdbfe;
+  box-shadow:
+      0 12px 26px rgba(15, 23, 42, 0.42),
+      0 2px 6px rgba(2, 6, 23, 0.32);
+}
+
+.theme-toggle.is-dark .theme-toggle-thumb-sun {
+  opacity: 0;
+  transform: rotate(24deg) scale(0.6);
+}
+
+.theme-toggle.is-dark .theme-toggle-thumb-moon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
 }
 
 .login-btn {
@@ -1166,9 +1349,10 @@ header {
   }
 
   .theme-toggle {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    --toggle-width: 62px;
+    --toggle-height: 36px;
+    --toggle-padding: 3px;
+    --toggle-thumb-size: 28px;
   }
 }
 </style>

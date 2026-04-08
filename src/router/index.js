@@ -17,6 +17,8 @@ import ManageOffices from "@/components/Layout/Settings/System/ManageOffices.vue
 import ManageAudiences from "@/components/Layout/Settings/System/ManageAudiences.vue";
 import ManageHardwareAnalytics from "@/components/Layout/Settings/System/ManageHardwareAnalytics.vue";
 import ManageAuditLogs from "@/components/Layout/Settings/System/ManageAuditLogs.vue";
+import ManageInvites from "@/components/Layout/Settings/System/ManageInvites.vue";
+import InviteRegistrationView from "@/views/InviteRegistrationView.vue";
 
 const adminGuard = async (to, from, next) => {
     const authStore = useAuthStore();
@@ -68,6 +70,13 @@ const routes = [
     },
 
     {
+        path: '/register',
+        name: 'InviteRegister',
+        component: InviteRegistrationView,
+        meta: { title: 'Регистрация' }
+    },
+
+    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: NotFoundView
@@ -115,6 +124,13 @@ const routes = [
                         name: 'SystemUsers',
                         component: ManageUsers,
                         meta: { title: 'Управление пользователями' }
+                    },
+
+                    {
+                        path: 'invites',
+                        name: 'SystemInvites',
+                        component: ManageInvites,
+                        meta: { title: 'Пригласительные ссылки' }
                     },
 
                     {

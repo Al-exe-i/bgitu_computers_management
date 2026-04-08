@@ -1423,104 +1423,112 @@ export default {
       </div>
     </template>
 
-    <transition name="modal">
-      <div v-if="showDetailsModal && selectedItem" class="modal-overlay" @click.self="closeDetails">
-        <div class="modal-card">
-          <div class="modal-header">
-            <div class="modal-header-copy">
-              <div class="modal-topline">
-                <span class="type-pill" :class="getTypeTone(selectedItem.type)">
-                  {{ getTypeLabel(selectedItem.type) }}
-                </span>
-                <span class="state-pill" :class="selectedItem.state ? 'working' : 'broken'">
-                  {{ getStateLabel(selectedItem.state) }}
-                </span>
-              </div>
+    <Teleport to="body">
+      <transition name="modal">
+        <div
+          v-if="showDetailsModal && selectedItem"
+          class="modal-overlay analytics-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          @click.self="closeDetails"
+        >
+          <div class="modal-card">
+            <div class="modal-header">
+              <div class="modal-header-copy">
+                <div class="modal-topline">
+                  <span class="type-pill" :class="getTypeTone(selectedItem.type)">
+                    {{ getTypeLabel(selectedItem.type) }}
+                  </span>
+                  <span class="state-pill" :class="selectedItem.state ? 'working' : 'broken'">
+                    {{ getStateLabel(selectedItem.state) }}
+                  </span>
+                </div>
 
-              <h3 class="modal-title">{{ getItemTitle(selectedItem) }}</h3>
+                <h3 class="modal-title">{{ getItemTitle(selectedItem) }}</h3>
 
-              <div class="modal-subtitle-row">
-                <span class="code-badge">{{ getInvNumber(selectedItem) }}</span>
-                <span v-if="selectedItem.specs?.cpu_model" class="modal-secondary">
-                  {{ selectedItem.specs.cpu_model }}
-                </span>
-              </div>
-            </div>
-
-            <button class="close-btn" type="button" @click="closeDetails" aria-label="Закрыть">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 6 6 18"></path>
-                <path d="m6 6 12 12"></path>
-              </svg>
-            </button>
-          </div>
-
-          <div class="modal-body">
-            <div class="details-grid">
-              <div class="details-card">
-                <span class="details-label">Корпус</span>
-                <span class="details-value">{{ getOfficeText(selectedItem) }}</span>
-                <span v-if="selectedItem.office_address" class="details-hint">
-                  {{ selectedItem.office_address }}
-                </span>
-              </div>
-
-              <div class="details-card">
-                <span class="details-label">Этаж</span>
-                <span class="details-value">{{ selectedItem.floor ?? '—' }}</span>
-              </div>
-
-              <div class="details-card">
-                <span class="details-label">Аудитория</span>
-                <span class="details-value">{{ getAudienceText(selectedItem) }}</span>
-              </div>
-
-              <div class="details-card">
-                <span class="details-label">Расположение</span>
-                <span class="details-value">{{ getPlacementText(selectedItem) }}</span>
-              </div>
-            </div>
-
-            <div v-if="selectedItem.description" class="details-note">
-              <span class="details-label">Описание</span>
-              <span class="details-note-text">{{ selectedItem.description }}</span>
-            </div>
-
-            <div class="details-section">
-              <div class="section-row">
-                <div>
-                  <h4 class="modal-section-title">Характеристики</h4>
-                  <p class="subsection-subtitle">Расширенная информация по выбранному оборудованию</p>
+                <div class="modal-subtitle-row">
+                  <span class="code-badge">{{ getInvNumber(selectedItem) }}</span>
+                  <span v-if="selectedItem.specs?.cpu_model" class="modal-secondary">
+                    {{ selectedItem.specs.cpu_model }}
+                  </span>
                 </div>
               </div>
 
-              <div class="details-specs-grid">
-                <div
-                  v-for="entry in getDetailSpecsEntries(selectedItem)"
-                  :key="entry.label"
-                  class="detail-spec-card"
-                >
-                  <span class="details-label">{{ entry.label }}</span>
-                  <span class="details-value">{{ entry.value }}</span>
+              <button class="close-btn" type="button" @click="closeDetails" aria-label="Закрыть">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <div class="details-grid">
+                <div class="details-card">
+                  <span class="details-label">Корпус</span>
+                  <span class="details-value">{{ getOfficeText(selectedItem) }}</span>
+                  <span v-if="selectedItem.office_address" class="details-hint">
+                    {{ selectedItem.office_address }}
+                  </span>
+                </div>
+
+                <div class="details-card">
+                  <span class="details-label">Этаж</span>
+                  <span class="details-value">{{ selectedItem.floor ?? '—' }}</span>
+                </div>
+
+                <div class="details-card">
+                  <span class="details-label">Аудитория</span>
+                  <span class="details-value">{{ getAudienceText(selectedItem) }}</span>
+                </div>
+
+                <div class="details-card">
+                  <span class="details-label">Расположение</span>
+                  <span class="details-value">{{ getPlacementText(selectedItem) }}</span>
+                </div>
+              </div>
+
+              <div v-if="selectedItem.description" class="details-note">
+                <span class="details-label">Описание</span>
+                <span class="details-note-text">{{ selectedItem.description }}</span>
+              </div>
+
+              <div class="details-section">
+                <div class="section-row">
+                  <div>
+                    <h4 class="modal-section-title">Характеристики</h4>
+                    <p class="subsection-subtitle">Расширенная информация по выбранному оборудованию</p>
+                  </div>
+                </div>
+
+                <div class="details-specs-grid">
+                  <div
+                    v-for="entry in getDetailSpecsEntries(selectedItem)"
+                    :key="entry.label"
+                    class="detail-spec-card"
+                  >
+                    <span class="details-label">{{ entry.label }}</span>
+                    <span class="details-value">{{ entry.value }}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="modal-footer">
-            <button
-              v-if="selectedItem.audience_id !== null && selectedItem.audience_id !== undefined"
-              class="btn btn-secondary"
-              type="button"
-              @click="openAudience(selectedItem)"
-            >
-              К аудитории
-            </button>
-            <button class="btn btn-primary" type="button" @click="closeDetails">Закрыть</button>
+            <div class="modal-footer">
+              <button
+                v-if="selectedItem.audience_id !== null && selectedItem.audience_id !== undefined"
+                class="btn btn-secondary"
+                type="button"
+                @click="openAudience(selectedItem)"
+              >
+                К аудитории
+              </button>
+              <button class="btn btn-primary" type="button" @click="closeDetails">Закрыть</button>
+            </div>
           </div>
         </div>
-      </div>
-    </transition>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -3125,38 +3133,38 @@ html[data-theme='dark'] .analytics-card .facet-empty {
   color: #94a3b8;
 }
 
-html[data-theme='dark'] .analytics-card .modal-card,
-html[data-theme='dark'] .analytics-card .details-card,
-html[data-theme='dark'] .analytics-card .detail-spec-card,
-html[data-theme='dark'] .analytics-card .details-note {
+html[data-theme='dark'] .analytics-modal-overlay .modal-card,
+html[data-theme='dark'] .analytics-modal-overlay .details-card,
+html[data-theme='dark'] .analytics-modal-overlay .detail-spec-card,
+html[data-theme='dark'] .analytics-modal-overlay .details-note {
   background: #0f172a;
   border-color: #334155;
 }
 
-html[data-theme='dark'] .analytics-card .modal-header,
-html[data-theme='dark'] .analytics-card .modal-footer {
+html[data-theme='dark'] .analytics-modal-overlay .modal-header,
+html[data-theme='dark'] .analytics-modal-overlay .modal-footer {
   border-color: #334155;
 }
 
-html[data-theme='dark'] .analytics-card .modal-title,
-html[data-theme='dark'] .analytics-card .details-value,
-html[data-theme='dark'] .analytics-card .details-note-text {
+html[data-theme='dark'] .analytics-modal-overlay .modal-title,
+html[data-theme='dark'] .analytics-modal-overlay .details-value,
+html[data-theme='dark'] .analytics-modal-overlay .details-note-text {
   color: #e2e8f0;
 }
 
-html[data-theme='dark'] .analytics-card .modal-secondary,
-html[data-theme='dark'] .analytics-card .details-label,
-html[data-theme='dark'] .analytics-card .details-hint {
+html[data-theme='dark'] .analytics-modal-overlay .modal-secondary,
+html[data-theme='dark'] .analytics-modal-overlay .details-label,
+html[data-theme='dark'] .analytics-modal-overlay .details-hint {
   color: #94a3b8;
 }
 
-html[data-theme='dark'] .analytics-card .close-btn {
+html[data-theme='dark'] .analytics-modal-overlay .close-btn {
   background: #111827;
   border-color: #334155;
   color: #cbd5e1;
 }
 
-html[data-theme='dark'] .analytics-card .close-btn:hover {
+html[data-theme='dark'] .analytics-modal-overlay .close-btn:hover {
   background: rgba(37, 99, 235, 0.18);
   border-color: #60a5fa;
   color: #dbeafe;

@@ -1,4 +1,3 @@
-/*******************    💫 Codegeex Inline Diff    *******************/
 <script>
 import router from "@/router/index.js";
 import api from "@/services/api.js";

@@ -15,13 +15,36 @@ export default {
     }
   },
   methods: {
+    handleLoginModalClose() {
+      this.isLoginModalOpen = false;
+
+      if (this.$route?.query?.login) {
+        const nextQuery = { ...this.$route.query };
+        delete nextQuery.login;
+        this.$router.replace({ query: nextQuery });
+      }
+    },
+
+    syncLoginModalWithRoute() {
+      if (this.$route?.query?.login === '1') {
+        this.isLoginModalOpen = true;
+      }
+    }
+  },
+  watch: {
+    '$route.query.login': {
+      immediate: true,
+      handler() {
+        this.syncLoginModalWithRoute();
+      }
+    }
   }
 }
 </script>
 
 <template>
   <app-header @open-login="isLoginModalOpen = true"></app-header>
-  <login-modal :is-open="isLoginModalOpen" @close="this.isLoginModalOpen = false"></login-modal>
+  <login-modal :is-open="isLoginModalOpen" @close="handleLoginModalClose"></login-modal>
   <router-view></router-view>
   <NotificationsModal></NotificationsModal>
   <app-footer></app-footer>
@@ -354,16 +377,6 @@ html[data-theme='dark'] .status-confirm-btn.is-cancel:hover {
   background: #334155 !important;
 }
 
-html[data-theme='dark'] .theme-toggle {
-  background: var(--surface-soft) !important;
-  border-color: var(--border) !important;
-  color: var(--text-primary) !important;
-}
-
-html[data-theme='dark'] .theme-toggle:hover {
-  background: rgba(148, 163, 184, 0.15) !important;
-  color: #93c5fd !important;
-}
 
 html[data-theme='dark'] .profile-img {
   border-color: #475569 !important;
@@ -495,6 +508,42 @@ html[data-theme='dark'] .system-nav .nav-pill.is-active {
   box-shadow: none !important;
 }
 
+html[data-theme='dark'] .settings-layout .glass-effect {
+  background: rgba(15, 23, 42, 0.84) !important;
+}
+
+html[data-theme='dark'] .settings-layout .settings-tabs {
+  border: 1px solid #334155 !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.94)) !important;
+  box-shadow:
+      inset 0 1px 0 rgba(51, 65, 85, 0.34),
+      0 12px 24px rgba(2, 6, 23, 0.22) !important;
+}
+
+html[data-theme='dark'] .settings-layout .settings-tab {
+  background: transparent !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .settings-layout .settings-tab:hover:not(.active) {
+  background: rgba(51, 65, 85, 0.38) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .settings-layout .settings-tab.active {
+  background: transparent !important;
+  color: #bfdbfe !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .settings-layout .settings-tab-indicator {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(17, 24, 39, 0.98)) !important;
+  border: 1px solid #334155 !important;
+  box-shadow:
+      0 12px 24px rgba(2, 6, 23, 0.34),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
 html[data-theme='dark'] .nav-active-indicator {
   box-shadow:
       0 18px 34px rgba(30, 64, 175, 0.36),
@@ -523,6 +572,20 @@ html[data-theme='dark'] .system-content .card .card-header .btn-primary {
 html[data-theme='dark'] .system-content .card .card-header .btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
   border-color: #3b82f6 !important;
+}
+
+html[data-theme='dark'] .invite-admin-page .invite-panel,
+html[data-theme='dark'] .invite-admin-page .created-results {
+  background:
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 34%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(17, 24, 39, 0.96)) !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.2) !important;
+}
+
+html[data-theme='dark'] .invite-admin-page .created-result-card {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: #334155 !important;
 }
 
 html[data-theme='dark'] .security-card .actions-footer {
