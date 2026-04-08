@@ -848,6 +848,46 @@ html[data-theme='dark'] .create-audience-page .clear-grid-btn:hover {
   border-color: rgba(252, 165, 165, 0.58) !important;
 }
 
+html[data-theme='dark'] .create-audience-page .clear-grid-btn:disabled {
+  background: rgba(30, 41, 59, 0.78) !important;
+  border-color: #334155 !important;
+  color: #64748b !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-btn.is-armed {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.36), rgba(159, 18, 57, 0.24)) !important;
+  border-color: rgba(251, 113, 133, 0.52) !important;
+  color: #fecdd3 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-btn.is-danger {
+  background: linear-gradient(135deg, #dc2626, #be123c) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm {
+  background:
+      radial-gradient(circle at top left, rgba(244, 63, 94, 0.18), transparent 34%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96)) !important;
+  border-color: rgba(251, 113, 133, 0.28) !important;
+  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.42) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm-icon {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.48), rgba(159, 18, 57, 0.3)) !important;
+  color: #fda4af !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm-title {
+  color: #ffe4e6 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm-text {
+  color: #fbcfe8 !important;
+}
+
 html[data-theme='dark'] .create-audience-page .grid-container {
   background: #0b1220 !important;
   border-color: #334155 !important;

@@ -187,6 +187,20 @@ export default {
       return counts;
     },
 
+    canClearGrid() {
+      return this.equipmentItems.length > 0;
+    },
+
+    clearGridConfirmText() {
+      const count = this.equipmentItems.length;
+
+      if (!count) {
+        return 'Сетка уже пуста.';
+      }
+
+      return `Будут удалены все ${count} ед. оборудования из текущей схемы.`;
+    },
+
     landmarkValues() {
       return normalizeLandmarks(this.landmarks);
     },
@@ -424,9 +438,25 @@ export default {
     },
 
     clearGrid() {
-      if (this.clearGridClicked) {
-        this.equipmentItems = [];
+      if (!this.canClearGrid) {
+        return;
       }
+
+      this.clearGridClicked = !this.clearGridClicked;
+    },
+
+    cancelClearGrid() {
+      this.clearGridClicked = false;
+    },
+
+    confirmClearGrid() {
+      if (!this.canClearGrid) {
+        this.clearGridClicked = false;
+        return;
+      }
+
+      this.equipmentItems = [];
+      this.clearGridClicked = false;
     },
 
     getLandmarkLabel(direction) {
@@ -462,32 +492,6 @@ export default {
       };
 
       this.closeLandmarkEditor();
-    },
-
-    resetForm() {
-      this.isHydrating = true;
-
-      if (this.isEditMode) {
-        this.loadAudienceData();
-        return;
-      }
-
-      this.classroomNumber = null;
-      this.floorNumber = 1;
-      this.gridWidth = 6;
-      this.gridHeight = 4;
-      this.officeNumber = 1;
-      this.equipmentItems = [];
-      this.landmarks = normalizeLandmarks();
-      this.selectedEquipmentId = null;
-      this.selectedEquipmentSize = { width: 1, height: 1 };
-      this.clearGridClicked = false;
-      this.closeLandmarkEditor();
-
-      this.$nextTick(() => {
-        this.captureInitialSnapshot();
-        this.isHydrating = false;
-      });
     },
 
     buildAudienceSnapshot() {
@@ -923,13 +927,6 @@ export default {
                 <span class="stat-value">{{ stats.network }}</span>
               </div>
             </div>
-
-            <div class="action-buttons action-buttons-spaced">
-              <button class="btn btn-secondary" @click="resetForm">Сброс</button>
-              <button class="btn btn-primary" @click="saveClassroom">
-                {{ isEditMode ? 'Сохранить' : 'Создать' }}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -939,7 +936,67 @@ export default {
               <h3 class="panel-title panel-title-no-margin">Расстановка оборудования</h3>
               <p class="grid-info">Сетка {{ gridWidth }}×{{ gridHeight }}</p>
             </div>
-            <button class="clear-grid-btn" @click="clearGrid">{{ clearGridClicked ? 'Подтвердить' : 'Очистить всё' }}</button>
+            <div class="grid-header-actions">
+              <div class="grid-action-cluster">
+                <button
+                    type="button"
+                    class="clear-grid-btn"
+                    :class="{ 'is-armed': clearGridClicked }"
+                    :disabled="!canClearGrid"
+                    @click="clearGrid"
+                >
+                  Очистить всё
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary grid-save-btn"
+                    @click="saveClassroom"
+                >
+                  {{ isEditMode ? 'Сохранить' : 'Создать' }}
+                </button>
+              </div>
+
+              <transition name="clear-confirm">
+                <div
+                    v-if="clearGridClicked"
+                    class="clear-grid-confirm"
+                    role="alertdialog"
+                    aria-live="polite"
+                >
+                  <div class="clear-grid-confirm-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18"/>
+                      <path d="M8 6V4.8c0-.66.54-1.2 1.2-1.2h5.6c.66 0 1.2.54 1.2 1.2V6"/>
+                      <path d="M19 6l-1 13.2A2 2 0 0 1 16.01 21H7.99A2 2 0 0 1 6 19.2L5 6"/>
+                      <path d="M10 10.5v6"/>
+                      <path d="M14 10.5v6"/>
+                    </svg>
+                  </div>
+
+                  <div class="clear-grid-confirm-copy">
+                    <div class="clear-grid-confirm-title">Очистить схему аудитории?</div>
+                    <div class="clear-grid-confirm-text">{{ clearGridConfirmText }}</div>
+                  </div>
+
+                  <div class="clear-grid-confirm-actions">
+                    <button
+                        type="button"
+                        class="btn btn-secondary clear-grid-cancel"
+                        @click="cancelClearGrid"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                        type="button"
+                        class="clear-grid-btn is-danger"
+                        @click="confirmClearGrid"
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                </div>
+              </transition>
+            </div>
           </div>
 
           <div class="grid-wrapper">
@@ -1754,17 +1811,7 @@ export default {
   color: #1e40af;
 }
 
-.action-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.action-buttons-spaced {
-  margin-top: 16px;
-}
-
 .btn {
-  flex: 1;
   padding: 12px;
   border: none;
   border-radius: 10px;
@@ -1804,8 +1851,9 @@ export default {
 .grid-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 20px;
+  gap: 18px;
 }
 
 .grid-info {
@@ -1813,21 +1861,151 @@ export default {
   color: #64748b;
 }
 
+.grid-header-actions {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.grid-action-cluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.grid-save-btn {
+  min-width: 148px;
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.18);
+}
+
 .clear-grid-btn {
-  padding: 8px 16px;
-  background: #fef2f2;
-  color: #dc2626;
-  border: 2px solid #fecaca;
-  border-radius: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #fff7ed, #fff1f2);
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(244, 63, 94, 0.1);
+  transition: all 0.24s ease;
 }
 
 .clear-grid-btn:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #ffe4e6, #ffe4e6);
+  border-color: #fda4af;
+  box-shadow: 0 12px 26px rgba(244, 63, 94, 0.14);
+}
+
+.clear-grid-btn:disabled {
+  cursor: not-allowed;
+  background: #f8fafc;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  box-shadow: none;
+  transform: none;
+}
+
+.clear-grid-btn.is-armed {
+  background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+  border-color: #fb7185;
+  color: #9f1239;
+}
+
+.clear-grid-btn.is-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(220, 38, 38, 0.2);
+}
+
+.clear-grid-btn.is-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border-color: transparent;
+}
+
+.clear-grid-confirm {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(420px, calc(100vw - 64px));
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #fecdd3;
+  background:
+      radial-gradient(circle at top left, rgba(251, 113, 133, 0.16), transparent 34%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 241, 242, 0.96));
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.14);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  z-index: 8;
+}
+
+.clear-grid-confirm-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e11d48;
+  background: linear-gradient(135deg, rgba(255, 228, 230, 0.98), rgba(254, 205, 211, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.clear-grid-confirm-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.clear-grid-confirm-copy {
+  min-width: 0;
+}
+
+.clear-grid-confirm-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #881337;
+}
+
+.clear-grid-confirm-text {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #9f1239;
+}
+
+.clear-grid-confirm-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.clear-grid-cancel {
+  flex: 0 0 auto;
+  min-width: 104px;
+}
+
+.clear-confirm-enter-active,
+.clear-confirm-leave-active {
+  transition: opacity 0.2s ease, transform 0.24s ease;
+}
+
+.clear-confirm-enter-from,
+.clear-confirm-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
 }
 
 .grid-container {
@@ -2138,8 +2316,32 @@ export default {
     gap: 12px;
   }
 
-  .clear-grid-btn {
+  .grid-header-actions {
     width: 100%;
+    align-items: stretch;
+  }
+
+  .grid-action-cluster {
+    width: 100%;
+  }
+
+  .grid-action-cluster > .clear-grid-btn,
+  .grid-action-cluster > .grid-save-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .clear-grid-confirm {
+    position: static;
+    width: 100%;
+  }
+
+  .clear-grid-confirm-actions {
+    justify-content: stretch;
+  }
+
+  .clear-grid-confirm-actions > * {
+    flex: 1 1 0;
   }
 
   .grid-landmarks-shell {
