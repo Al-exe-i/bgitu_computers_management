@@ -17,7 +17,7 @@ class User(IntIdPkMixin, Base):
     surname: Mapped[str | None] = mapped_column(String(64))
     email: Mapped[str] = mapped_column(String(50), unique=True)
 
-    telegram_id: Mapped[str | None] = mapped_column(BigInteger, unique=True)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     telegram_id_confirmed: Mapped[bool] = mapped_column(default=False)
 
     password: Mapped[str] = mapped_column(String(500))

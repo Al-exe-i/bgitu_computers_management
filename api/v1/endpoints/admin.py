@@ -6,7 +6,9 @@ from core.config import settings
 from core.exceptions import HTTP403, HTTP404
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep
+from dependencies.invite import invite_service_dep
 from schemas.audit_log import AuditLogListResponse
+from schemas.invite import InviteCreateResult, InviteCreateOne, InviteCreateBatch, InviteListItem
 
 router = APIRouter(prefix="")
 
@@ -55,4 +57,46 @@ async def get_audit_log(
         offset=offset,
     )
     return {"items": items, "total": total}
+
+@router.post("/invites/one", response_model=InviteCreateResult)
+async def create_invite_one(
+    data: InviteCreateOne,
+    service: invite_service_dep,
+    user: admin_dep,
+):
+    return await service.create_one(created_by_user_id=user.id, schema=data)
+
+
+@router.post("/invites/batch", response_model=list[InviteCreateResult])
+async def create_invite_batch(
+    data: InviteCreateBatch,
+    service: invite_service_dep,
+    user: admin_dep,
+):
+    return await service.create_batch(created_by_user_id=user.id, schema=data)
+
+
+@router.get("/invites", response_model=list[InviteListItem])
+async def list_invites(
+    service: invite_service_dep,
+    user: admin_dep,
+):
+    return await service.list_all()
+
+
+@router.post("/invites/{invite_id}/revoke", response_model=InviteListItem)
+async def revoke_invite(
+    invite_id: int,
+    service: invite_service_dep,
+    user: admin_dep,
+):
+    return await service.revoke(invite_id)
+
+@router.delete("/invites/{invite_id}", status_code=204)
+async def delete_invite(
+    invite_id: int,
+    service: invite_service_dep,
+    admin: admin_dep,
+):
+    await service.delete(invite_id)
 

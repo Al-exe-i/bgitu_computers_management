@@ -7,9 +7,12 @@ from core.exceptions import HTTP401, HTTP404
 from core.security import verify_password, verify_token
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import user_dep
+from dependencies.invite import invite_service_dep
 from dependencies.request_meta import request_meta_dep
 from dependencies.user import user_service_dep
 from dependencies.user_session_service import user_session_service_dep
+from schemas.invite import InvitePreviewResponse, InvitePreviewRequest, RegisterByInviteResponse, \
+    RegisterByInviteRequest
 from schemas.user_session import UserSessionOut
 from utils.tokens import issue_access_token, issue_refresh_token, build_token_response
 
@@ -56,7 +59,7 @@ async def login_for_access_token(
 
 
 @router.post("/refresh")
-async def refresh_access_token(
+async def refresh_tokens(
         service: user_service_dep,
         sessions: user_session_service_dep,
         audit: audit_log_service_dep,
@@ -150,7 +153,7 @@ async def logout_user(
 
 
 @router.post("/logout_all")
-async def logout_all_user(
+async def logout_all_user_sessions(
         sessions: user_session_service_dep,
         audit: audit_log_service_dep,
         meta: request_meta_dep,
@@ -235,3 +238,26 @@ async def revoke_session(
         response.delete_cookie("access_token", path="/")
         response.delete_cookie("refresh_token", path="/api/v1/")
     return response
+
+
+@router.post("/auth/invite/preview", response_model=InvitePreviewResponse)
+async def preview_invite(
+    data: InvitePreviewRequest,
+    service: invite_service_dep,
+):
+    return await service.preview(data.token)
+
+
+@router.post("/auth/invite/register", response_model=RegisterByInviteResponse)
+async def register_by_invite(
+    data: RegisterByInviteRequest,
+    service: invite_service_dep,
+    user_service: user_service_dep,
+):
+    result = await service.register_by_invite(
+        data,
+        get_user_by_email=user_service.get_by_email,
+        create_user=user_service.create,
+    )
+
+    return result
