@@ -588,6 +588,77 @@ html[data-theme='dark'] .invite-admin-page .created-result-card {
   border-color: #334155 !important;
 }
 
+html[data-theme='dark'] .error-shell {
+  --error-card-border: #334155;
+  --error-card-bg:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 28%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.96));
+  --error-card-shadow:
+      0 28px 58px rgba(2, 6, 23, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --error-orb-bg: radial-gradient(circle, rgba(59, 130, 246, 0.12), transparent 70%);
+  --error-side-border: #334155;
+  --error-side-bg: linear-gradient(180deg, rgba(11, 18, 32, 0.9), rgba(15, 23, 42, 0.82));
+  --error-status-border: rgba(248, 113, 113, 0.2);
+  --error-status-bg: rgba(127, 29, 29, 0.24);
+  --error-status-text: #fecaca;
+  --error-icon-glow: linear-gradient(135deg, rgba(244, 63, 94, 0.18), rgba(59, 130, 246, 0.14));
+  --error-icon-border: rgba(248, 113, 113, 0.16);
+  --error-icon-bg: linear-gradient(135deg, rgba(127, 29, 29, 0.34), rgba(30, 41, 59, 0.96));
+  --error-icon-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 18px 34px rgba(2, 6, 23, 0.32);
+  --error-icon-color: #fda4af;
+  --error-kicker-color: #94a3b8;
+  --error-details-border: #334155;
+  --error-details-bg: rgba(15, 23, 42, 0.76);
+  --error-details-label: #94a3b8;
+  --error-details-text: #e2e8f0;
+}
+
+html[data-theme='dark'] .error-shell .error-title {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .error-shell .error-message {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .not-found-view {
+  --nf-surface:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.96));
+  --nf-surface-soft: rgba(15, 23, 42, 0.64);
+  --nf-border: rgba(71, 85, 105, 0.56);
+  --nf-border-strong: rgba(71, 85, 105, 0.8);
+  --nf-shadow:
+      0 28px 72px rgba(2, 6, 23, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --nf-code-fill: linear-gradient(135deg, #f8fafc 0%, #93c5fd 52%, #38bdf8 100%);
+  --nf-side-bg: rgba(15, 23, 42, 0.68);
+  --nf-side-icon-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(14, 165, 233, 0.18));
+  --nf-side-icon-text: #93c5fd;
+  --nf-tip-text: #cbd5e1;
+  --nf-path-bg: rgba(2, 6, 23, 0.34);
+  --nf-path-text: #e2e8f0;
+  --nf-primary-shadow: 0 16px 36px rgba(29, 78, 216, 0.28);
+}
+
+html[data-theme='dark'] .not-found-view .not-found-grid {
+  background-image:
+      linear-gradient(rgba(71, 85, 105, 0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(71, 85, 105, 0.18) 1px, transparent 1px);
+}
+
+html[data-theme='dark'] .not-found-view .nf-btn-secondary {
+  background: rgba(15, 23, 42, 0.72) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(71, 85, 105, 0.8) !important;
+}
+
+html[data-theme='dark'] .not-found-view .nf-btn-secondary:hover {
+  background: rgba(30, 41, 59, 0.92) !important;
+}
+
 html[data-theme='dark'] .security-card .actions-footer {
   border-top-color: #334155 !important;
 }

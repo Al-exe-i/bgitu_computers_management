@@ -1,328 +1,520 @@
 <script>
-import router from "@/router/index.js";
 export default {
   name: "NotFoundView",
+  computed: {
+    currentPath() {
+      const rawPath = String(this.$route?.fullPath || "/").trim();
+
+      if (rawPath.length <= 56) {
+        return rawPath;
+      }
+
+      return `${rawPath.slice(0, 53)}...`;
+    },
+  },
   methods: {
-    goHome()
-    {
-      router.push({name: "Home"})
-    }
-  }
-}
+    goHome() {
+      this.$router.push({name: "Home"});
+    },
+
+    goBack() {
+      if (window.history.length > 1) {
+        this.$router.back();
+        return;
+      }
+
+      this.goHome();
+    },
+  },
+};
 </script>
 
 <template>
-  <!-- Плавающие формы -->
-  <div class="floating-shapes">
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-  </div>
+  <section class="not-found-view">
+    <div class="not-found-ambient not-found-ambient-a" aria-hidden="true"></div>
+    <div class="not-found-ambient not-found-ambient-b" aria-hidden="true"></div>
+    <div class="not-found-grid" aria-hidden="true"></div>
 
-  <!-- Частицы -->
-  <div class="particles" id="particles">
-    <div v-for="i in 30" class="particle"
-         :style="{'left': Math.random() * 100 + `%`,
-         'animationDelay': Math.random() * 15 + `s`,
-         'animationDuration': (10 + Math.random() * 10) + `s`}"
-    >
+    <div class="not-found-shell">
+      <article class="not-found-card">
+        <div class="not-found-copy">
+          <div class="not-found-heading">
+            <div class="not-found-code">404</div>
+
+            <div class="not-found-text-block">
+              <h1 class="not-found-title">Страница не найдена</h1>
+              <p class="not-found-message">
+                Запрошенный раздел недоступен, был перемещён или адрес введён с ошибкой.
+              </p>
+            </div>
+          </div>
+
+          <div class="not-found-actions">
+            <button class="nf-btn nf-btn-primary" type="button" @click="goHome">
+              На главную
+            </button>
+            <button class="nf-btn nf-btn-secondary" type="button" @click="goBack">
+              Назад
+            </button>
+          </div>
+        </div>
+
+        <aside class="not-found-side">
+          <div class="not-found-side-card">
+            <span class="not-found-side-label">Адрес</span>
+            <code class="not-found-path">{{ currentPath }}</code>
+          </div>
+
+          <div class="not-found-tip-list">
+            <div class="not-found-tip">
+              <div class="not-found-tip-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M9.75 9.75A2.25 2.25 0 0 1 12 7.5h.01A2.24 2.24 0 0 1 14.25 9.74c0 1.3-.86 1.9-1.73 2.48-.83.56-1.77 1.19-1.77 2.53"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="M12 16.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </div>
+
+              <div class="not-found-tip-copy">
+                <strong>Проверьте адрес</strong>
+                <span>В ссылке может быть опечатка или устаревший путь.</span>
+              </div>
+            </div>
+
+            <div class="not-found-tip">
+              <div class="not-found-tip-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M4.5 12h15m-7.5-7.5L19.5 12 12 19.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </div>
+
+              <div class="not-found-tip-copy">
+                <strong>Вернитесь в рабочий раздел</strong>
+                <span>Используйте переход назад или вернитесь на главную страницу.</span>
+              </div>
+            </div>
+
+            <div class="not-found-tip">
+              <div class="not-found-tip-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M12 6v6l4 2m5-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </div>
+
+              <div class="not-found-tip-copy">
+                <strong>Если страница была здесь раньше</strong>
+                <span>Маршрут мог измениться после обновления системы.</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </article>
     </div>
-  </div>
-
-  <!-- Основной контент -->
-  <div class="container">
-
-    <div class="error-code">404</div>
-
-    <h1 class="error-title">Упс! Такой страницы нет</h1>
-
-    <p class="error-message">
-      Похоже, эта страница решила устроить себе внеплановый отпуск.
-      Или же мы случайно отключили не тот кабель... 🔌
-    </p>
-
-    <div class="action-buttons">
-      <button class="btn btn-secondary" @click="goHome()">
-        <span>Перейти на главную</span>
-      </button>
-    </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+.not-found-view {
+  --nf-surface:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.96));
+  --nf-surface-soft: rgba(255, 255, 255, 0.64);
+  --nf-border: rgba(148, 163, 184, 0.2);
+  --nf-border-strong: rgba(148, 163, 184, 0.28);
+  --nf-shadow:
+      0 24px 64px rgba(15, 23, 42, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.56);
+  --nf-code-fill: linear-gradient(135deg, #0f172a 0%, #1d4ed8 58%, #38bdf8 100%);
+  --nf-side-bg: rgba(248, 250, 252, 0.72);
+  --nf-side-icon-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(14, 165, 233, 0.12));
+  --nf-side-icon-text: #2563eb;
+  --nf-tip-text: #475569;
+  --nf-path-bg: rgba(15, 23, 42, 0.04);
+  --nf-path-text: #0f172a;
+  --nf-primary-shadow: 0 14px 32px rgba(37, 99, 235, 0.22);
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
   position: relative;
+  min-height: calc(100vh - 176px);
+  padding: clamp(32px, 6vw, 72px) 24px clamp(48px, 8vw, 88px);
+  overflow: clip;
 }
 
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.not-found-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1140px);
+  margin: 0 auto;
 }
 
-.floating-shapes {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.not-found-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.92fr);
+  gap: 22px;
+  padding: clamp(24px, 4vw, 40px);
+  border-radius: 34px;
+  border: 1px solid var(--nf-border);
+  background: var(--nf-surface);
+  box-shadow: var(--nf-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.not-found-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -72px -96px auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.12), transparent 68%);
   pointer-events: none;
-  overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
 }
 
-.shape {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  animation: float 20s infinite ease-in-out;
-  opacity: 0.3;
-}
-
-.shape:nth-child(1) {
-  width: 300px;
-  height: 300px;
-  background: #ff6b6b;
-  top: 10%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.shape:nth-child(2) {
-  width: 250px;
-  height: 250px;
-  background: #4ecdc4;
-  top: 60%;
-  right: 10%;
-  animation-delay: 3s;
-}
-
-.shape:nth-child(3) {
-  width: 200px;
-  height: 200px;
-  background: #ffe66d;
-  bottom: 20%;
-  left: 50%;
-  animation-delay: 6s;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) translateX(0) scale(1);
-  }
-  33% {
-    transform: translateY(-50px) translateX(50px) scale(1.1);
-  }
-  66% {
-    transform: translateY(50px) translateX(-50px) scale(0.9);
-  }
-}
-
-.container {
-  text-align: center;
-  padding: 40px;
-  position: relative;
-  z-index: 10;
-}
-
-.error-code {
-  font-size: 180px;
-  font-weight: 900;
-  color: white;
-  text-shadow:
-      0 0 20px rgba(255, 255, 255, 0.5),
-      0 0 40px rgba(255, 255, 255, 0.3),
-      0 10px 30px rgba(0, 0, 0, 0.3);
-  line-height: 1;
-  margin-bottom: 20px;
-  animation: glitch 3s infinite;
-  position: relative;
-}
-
-@keyframes glitch {
-  0%, 90%, 100% {
-    transform: translate(0);
-  }
-  92% {
-    transform: translate(-2px, 2px);
-  }
-  94% {
-    transform: translate(2px, -2px);
-  }
-  96% {
-    transform: translate(-2px, -2px);
-  }
-  98% {
-    transform: translate(2px, 2px);
-  }
-}
-
-
-.error-title {
-  font-size: 48px;
-  font-weight: 800;
-  color: white;
-  margin-bottom: 20px;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  animation: fadeInUp 0.8s ease;
-}
-
-.error-message {
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.95);
-  margin-bottom: 40px;
-  line-height: 1.6;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  animation: fadeInUp 0.8s ease 0.2s backwards;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Кнопки */
-.action-buttons {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
-  animation: fadeInUp 0.8s ease 0.4s backwards;
-}
-
-.btn {
-  padding: 16px 40px;
-  border-radius: 50px;
-  font-size: 18px;
-  font-weight: 700;
-  text-decoration: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.btn::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.btn:hover::before {
-  width: 300px;
-  height: 300px;
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-5px);
-  border-color: white;
-}
-
-.btn span {
+.not-found-copy,
+.not-found-side {
   position: relative;
   z-index: 1;
 }
 
-.particles {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.not-found-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.not-found-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(18px, 3vw, 26px);
+  align-items: start;
+}
+
+.not-found-code {
+  font-size: clamp(88px, 16vw, 164px);
+  line-height: 0.86;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  background: var(--nf-code-fill);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  user-select: none;
+}
+
+.not-found-text-block {
+  padding-top: 10px;
+}
+
+.not-found-title {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.04;
+  font-weight: 900;
+  color: var(--text-primary, #0f172a);
+}
+
+.not-found-message {
+  margin: 16px 0 0;
+  max-width: 560px;
+  font-size: 16px;
+  line-height: 1.72;
+  color: var(--text-secondary, #64748b);
+}
+
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.nf-btn {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
+}
+
+.nf-btn:hover {
+  transform: translateY(-1px);
+}
+
+.nf-btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #f8fafc;
+  box-shadow: var(--nf-primary-shadow);
+}
+
+.nf-btn-primary:hover {
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.28);
+}
+
+.nf-btn-secondary {
+  background: rgba(255, 255, 255, 0.58);
+  border-color: var(--nf-border-strong);
+  color: var(--text-primary, #0f172a);
+}
+
+.nf-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.not-found-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.not-found-side-card,
+.not-found-tip {
+  border-radius: 24px;
+  border: 1px solid var(--nf-border);
+  background: var(--nf-side-bg);
+}
+
+.not-found-side-card {
+  padding: 18px 20px;
+}
+
+.not-found-side-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #64748b);
+}
+
+.not-found-path {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--nf-path-bg);
+  color: var(--nf-path-text);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.not-found-tip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.not-found-tip {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.not-found-tip-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--nf-side-icon-bg);
+  color: var(--nf-side-icon-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.not-found-tip-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.not-found-tip-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.not-found-tip-copy strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+}
+
+.not-found-tip-copy span {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nf-tip-text);
+}
+
+.not-found-ambient,
+.not-found-grid {
+  position: absolute;
   pointer-events: none;
 }
 
-.particle {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: white;
+.not-found-ambient {
+  width: 320px;
+  height: 320px;
   border-radius: 50%;
-  opacity: 0.6;
-  animation: particleFloat 15s infinite linear;
+  filter: blur(12px);
+  opacity: 0.82;
 }
 
-@keyframes particleFloat {
-  0% {
-    transform: translateY(100vh) translateX(0) rotate(0deg);
-    opacity: 0;
+.not-found-ambient-a {
+  top: -120px;
+  left: max(-60px, 4vw);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.18), transparent 70%);
+}
+
+.not-found-ambient-b {
+  right: max(-80px, 2vw);
+  bottom: -120px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.14), transparent 72%);
+}
+
+.not-found-grid {
+  inset: 28px 24px 24px;
+  border-radius: 36px;
+  background-image:
+      linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 72%);
+}
+
+:global(html[data-theme='dark']) .not-found-view {
+  --nf-surface:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.96));
+  --nf-surface-soft: rgba(15, 23, 42, 0.64);
+  --nf-border: rgba(71, 85, 105, 0.56);
+  --nf-border-strong: rgba(71, 85, 105, 0.8);
+  --nf-shadow:
+      0 28px 72px rgba(2, 6, 23, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --nf-code-fill: linear-gradient(135deg, #f8fafc 0%, #93c5fd 52%, #38bdf8 100%);
+  --nf-side-bg: rgba(15, 23, 42, 0.68);
+  --nf-side-icon-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(14, 165, 233, 0.18));
+  --nf-side-icon-text: #93c5fd;
+  --nf-tip-text: #cbd5e1;
+  --nf-path-bg: rgba(2, 6, 23, 0.34);
+  --nf-path-text: #e2e8f0;
+  --nf-primary-shadow: 0 16px 36px rgba(29, 78, 216, 0.28);
+}
+
+:global(html[data-theme='dark']) .not-found-grid {
+  background-image:
+      linear-gradient(rgba(71, 85, 105, 0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(71, 85, 105, 0.18) 1px, transparent 1px);
+}
+
+:global(html[data-theme='dark']) .nf-btn-secondary {
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .nf-btn-secondary:hover {
+  background: rgba(30, 41, 59, 0.92);
+}
+
+@media (max-width: 980px) {
+  .not-found-card {
+    grid-template-columns: 1fr;
   }
-  10% {
-    opacity: 0.6;
-  }
-  90% {
-    opacity: 0.6;
-  }
-  100% {
-    transform: translateY(-100px) translateX(100px) rotate(360deg);
-    opacity: 0;
+
+  .not-found-side {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 768px) {
-  .error-code {
-    font-size: 120px;
+@media (max-width: 720px) {
+  .not-found-view {
+    min-height: auto;
+    padding: 26px 16px 52px;
   }
 
-  .error-title {
-    font-size: 32px;
+  .not-found-card {
+    padding: 20px;
+    border-radius: 26px;
   }
 
-  .error-message {
-    font-size: 16px;
-    padding: 0 20px;
+  .not-found-heading {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 
-  .btn {
-    padding: 14px 30px;
-    font-size: 16px;
+  .not-found-text-block {
+    padding-top: 0;
   }
 
-  .action-buttons {
+  .not-found-message {
+    font-size: 15px;
+  }
+
+  .not-found-actions {
     flex-direction: column;
-    align-items: stretch;
-    padding: 0 20px;
+  }
+
+  .nf-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .not-found-card {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .not-found-side-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .not-found-tip {
+    padding: 14px;
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 12px;
+    border-radius: 20px;
+  }
+
+  .not-found-tip-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .not-found-grid {
+    inset: 20px 12px 18px;
+    border-radius: 26px;
+    background-size: 26px 26px;
   }
 }
 </style>

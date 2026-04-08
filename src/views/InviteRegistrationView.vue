@@ -6,7 +6,8 @@ import {
   formatInviteDate,
   getInviteReasonText,
   getInviteRoleLabel,
-  isValidEmail
+  isValidEmail,
+  mapInviteApiError,
 } from "@/utils/invites.js";
 
 const INVITE_PREVIEW_ENDPOINT = "/auth/invite/preview";
@@ -145,7 +146,7 @@ export default {
           this.form.email = this.previewData.target_email;
         }
       } catch (error) {
-        this.previewError = error.response?.data?.detail || 'Не удалось проверить invite-ссылку';
+        this.previewError = mapInviteApiError(error, 'Не удалось проверить приглашение');
       } finally {
         this.previewLoading = false;
       }
@@ -197,7 +198,7 @@ export default {
         this.notify.success('Аккаунт создан. Теперь войдите в систему.');
         await router.push({ name: 'Home', query: { login: '1' } });
       } catch (error) {
-        const message = error.response?.data?.detail || 'Не удалось завершить регистрацию по приглашению';
+        const message = mapInviteApiError(error, 'Не удалось завершить регистрацию по приглашению');
         this.notify.error(message);
       } finally {
         this.registering = false;

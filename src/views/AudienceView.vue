@@ -533,6 +533,8 @@ export default {
         }
       } catch (e) {
         this.loading = false;
+        if(e?.status === 404)
+          this.notify.warning("Нет такой аудитории")
         await router.push(`/`);
       }
     },

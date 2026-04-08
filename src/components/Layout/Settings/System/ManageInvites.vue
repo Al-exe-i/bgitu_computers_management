@@ -11,6 +11,7 @@ import {
   getInviteStatus,
   getInviteStatusLabel,
   isValidEmail,
+  mapInviteApiError,
   normalizeInviteCreateResponse,
   normalizeInviteListResponse,
   normalizeInviteRoleValue,
@@ -177,7 +178,7 @@ export default {
         const response = await api.get(ADMIN_INVITES_BASE);
         this.invites = this.sortInvites(normalizeInviteListResponse(response.data));
       } catch (error) {
-        this.error = error.response?.data?.detail || 'Не удалось загрузить invite-ссылки';
+        this.error = mapInviteApiError(error, 'Не удалось загрузить пригласительные ссылки');
         this.notify.error(this.error);
       } finally {
         this.loading = false;
@@ -201,7 +202,7 @@ export default {
         this.resetOneForm();
         await this.fetchInvites();
       } catch (error) {
-        const message = error.response?.data?.detail || 'Не удалось создать invite-ссылку';
+        const message = mapInviteApiError(error, 'Не удалось создать пригласительную ссылку');
         this.notify.error(message);
       } finally {
         this.createOneLoading = false;
@@ -231,7 +232,7 @@ export default {
         this.resetBatchForm();
         await this.fetchInvites();
       } catch (error) {
-        const message = error.response?.data?.detail || 'Не удалось создать batch invite-ссылки';
+        const message = mapInviteApiError(error, 'Не удалось создать несколько пригласительных ссылок');
         this.notify.error(message);
       } finally {
         this.createBatchLoading = false;
@@ -258,7 +259,7 @@ export default {
         ));
         this.notify.success('Invite-ссылка отозвана');
       } catch (error) {
-        const message = error.response?.data?.detail || 'Не удалось отозвать invite-ссылку';
+        const message = mapInviteApiError(error, 'Не удалось отозвать пригласительную ссылку');
         this.notify.error(message);
       } finally {
         this.processingInviteId = null;
@@ -277,7 +278,7 @@ export default {
         this.invites = this.invites.filter(item => item.id !== invite.id);
         this.notify.success('Invite-ссылка удалена');
       } catch (error) {
-        const message = error.response?.data?.detail || 'Не удалось удалить invite-ссылку';
+        const message = mapInviteApiError(error, 'Не удалось удалить пригласительную ссылку');
         this.notify.error(message);
       } finally {
         this.processingInviteId = null;

@@ -101,6 +101,206 @@ export function normalizeInviteCreateResponse(data) {
   return [];
 }
 
+const INVITE_FIELD_LABELS = Object.freeze({
+  token: 'Приглашение',
+  email: 'Email',
+  target_email: 'Email',
+  emails: 'Список email-адресов',
+  target_role: 'Роль',
+  expires_at: 'Срок действия',
+  note: 'Примечание',
+  name: 'Имя',
+  surname: 'Фамилия',
+  password: 'Пароль',
+});
+
+function normalizeInviteErrorText(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function getInviteFieldLabel(field) {
+  return INVITE_FIELD_LABELS[String(field ?? '').trim()] ?? '';
+}
+
+function mapInviteKnownMessage(message) {
+  const normalized = normalizeInviteErrorText(message);
+
+  if (!normalized) return '';
+
+  if (
+    normalized.includes('invite not found') ||
+    normalized.includes('invalid invite') ||
+    normalized.includes('invalid token') ||
+    normalized.includes('invite_invalid')
+  ) return 'Приглашение не найдено';
+
+  if (normalized.includes('invite revoked')) return 'Приглашение отозвано';
+  if (normalized.includes('invite expired')) return 'Срок действия приглашения истёк';
+  if (normalized.includes('invite already used')) return 'Приглашение уже использовано';
+
+  if (
+    normalized.includes('this invite is assigned to another email') ||
+    normalized.includes('assigned to another email') ||
+    normalized.includes('for another email')
+  ) return 'Это приглашение предназначено для другого email';
+
+  if (
+    normalized.includes('user with this email already exists') ||
+    (normalized.includes('email') && normalized.includes('already exists'))
+  ) return 'Пользователь с таким email уже существует';
+
+  if (
+    normalized.includes('not authenticated') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('authentication') ||
+    normalized.includes('credentials') ||
+    normalized.includes('login required')
+  ) return 'Необходимо войти в систему';
+
+  if (
+    normalized.includes('permission') ||
+    normalized.includes('forbidden') ||
+    normalized.includes('access denied') ||
+    normalized.includes('not enough rights')
+  ) return 'Недостаточно прав для выполнения действия';
+
+  if (normalized.includes('valid email')) return 'Введите корректный email';
+  if (normalized.includes('expired')) return 'Срок действия приглашения истёк';
+  if (normalized.includes('revoked')) return 'Приглашение отозвано';
+  if (normalized.includes('already used') || normalized.includes('used')) return 'Приглашение уже использовано';
+  if (normalized.includes('another email')) return 'Это приглашение предназначено для другого email';
+  if (normalized.includes('not found') || normalized.includes('invalid')) return 'Приглашение не найдено';
+
+  return '';
+}
+
+function getInviteResponseDetail(data) {
+  if (!data) return null;
+
+  if (Array.isArray(data?.detail)) return data.detail;
+  if (typeof data?.detail === 'string') return data.detail;
+  if (Array.isArray(data?.errors)) return data.errors;
+  if (typeof data?.message === 'string') return data.message;
+  if (typeof data?.error === 'string') return data.error;
+  if (typeof data?.reason === 'string') return data.reason;
+  if (typeof data === 'string') return data;
+
+  return null;
+}
+
+function mapInviteValidationDetail(detail) {
+  const location = Array.isArray(detail?.loc) ? detail.loc : [];
+  const field = String(location[location.length - 1] ?? '').trim();
+  const label = getInviteFieldLabel(field);
+  const message = normalizeInviteErrorText(detail?.msg);
+  const type = normalizeInviteErrorText(detail?.type);
+  const minLength = Number(detail?.ctx?.min_length);
+
+  if (field === 'token') return 'Приглашение не найдено';
+
+  if (field === 'name') {
+    return message.includes('required') || type.includes('missing')
+      ? 'Введите имя'
+      : 'Проверьте поле «Имя».';
+  }
+
+  if (field === 'surname') {
+    return message.includes('required') || type.includes('missing')
+      ? 'Введите фамилию'
+      : 'Проверьте поле «Фамилия».';
+  }
+
+  if (field === 'email' || field === 'target_email') return 'Введите корректный email';
+  if (field === 'emails') return 'Проверьте список email-адресов';
+
+  if (field === 'password') {
+    if (Number.isFinite(minLength) && minLength > 0) {
+      return `Пароль должен быть не короче ${minLength} символов`;
+    }
+
+    return 'Введите корректный пароль';
+  }
+
+  if (field === 'target_role') return 'Выберите корректную роль';
+  if (field === 'expires_at') return 'Укажите корректную дату окончания действия приглашения';
+
+  if (message.includes('field required') || type.includes('missing')) {
+    return label ? `Заполните поле «${label}».` : 'Заполните обязательные поля.';
+  }
+
+  if (message.includes('valid email') || type.includes('email')) {
+    return 'Введите корректный email';
+  }
+
+  if (
+    message.includes('valid datetime') ||
+    message.includes('valid date') ||
+    type.includes('datetime') ||
+    type.includes('date')
+  ) {
+    return 'Укажите корректную дату окончания действия приглашения';
+  }
+
+  if (type.includes('too_short') || message.includes('at least')) {
+    if (Number.isFinite(minLength) && minLength > 0 && field === 'password') {
+      return `Пароль должен быть не короче ${minLength} символов`;
+    }
+
+    return label ? `Проверьте длину поля «${label}».` : 'Проверьте длину введённых данных.';
+  }
+
+  if (type.includes('enum') || type.includes('literal')) {
+    return label ? `Выберите корректное значение поля «${label}».` : 'Выберите корректное значение.';
+  }
+
+  return label ? `Проверьте поле «${label}».` : 'Проверьте корректность заполнения полей.';
+}
+
+function mapInviteStatusCode(status, fallbackMessage) {
+  if (status === 400) return fallbackMessage || 'Запрос отклонён. Проверьте данные приглашения.';
+  if (status === 401) return 'Необходимо войти в систему';
+  if (status === 403) return 'Недостаточно прав для выполнения действия';
+  if (status === 404) return 'Приглашение не найдено';
+  if (status === 409) return 'Возник конфликт данных. Проверьте email и состояние приглашения.';
+  if (status === 422) return 'Проверьте корректность заполнения полей формы.';
+  if (status >= 500) return 'На сервере произошла ошибка. Попробуйте позже.';
+
+  return fallbackMessage || 'Не удалось выполнить операцию с приглашением.';
+}
+
+export function mapInviteApiError(error, fallbackMessage = 'Не удалось выполнить операцию с приглашением.') {
+  const errorCode = normalizeInviteErrorText(error?.code);
+  const errorMessage = normalizeInviteErrorText(error?.message);
+
+  if (errorCode === 'econnaborted' || errorMessage.includes('timeout')) {
+    return 'Сервер отвечает слишком долго. Попробуйте ещё раз.';
+  }
+
+  if (!error?.response) {
+    if (error?.request || errorMessage.includes('network') || errorMessage.includes('failed to fetch')) {
+      return 'Не удалось связаться с сервером. Проверьте подключение к сети.';
+    }
+
+    return fallbackMessage;
+  }
+
+  const detail = getInviteResponseDetail(error.response.data);
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    return mapInviteValidationDetail(detail[0]);
+  }
+
+  if (typeof detail === 'string') {
+    const mappedDetail = mapInviteKnownMessage(detail);
+
+    if (mappedDetail) {
+      return mappedDetail;
+    }
+  }
+
+  return mapInviteStatusCode(error.response.status, fallbackMessage);
+}
+
 export function copyTextToClipboard(text) {
   if (!text) return Promise.reject(new Error('Nothing to copy'));
 
@@ -131,17 +331,8 @@ export function copyTextToClipboard(text) {
 }
 
 export function getInviteReasonText(reason) {
-  const normalized = String(reason ?? '').trim().toLowerCase();
-
-  if (!normalized) return 'Приглашение недоступно.';
-  if (normalized.includes('expired')) return 'Срок действия приглашения уже истек.';
-  if (normalized.includes('revoked')) return 'Это приглашение было отозвано администратором.';
-  if (normalized.includes('used')) return 'Это приглашение уже было использовано.';
-  if (normalized.includes('not found') || normalized.includes('invalid')) {
-    return 'Приглашение не найдено или ссылка повреждена.';
-  }
-
-  return reason;
+  const mappedReason = mapInviteKnownMessage(reason);
+  return mappedReason || 'Приглашение недоступно. Попросите администратора отправить новую ссылку.';
 }
 
 export function parseInviteEmails(rawValue) {
