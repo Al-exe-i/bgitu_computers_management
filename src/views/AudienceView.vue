@@ -514,7 +514,7 @@ export default {
 
       try {
         const res = await api.get(`/audiences/${this.audienceId}`);
-        // аккуратно обновим classroom
+
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
 

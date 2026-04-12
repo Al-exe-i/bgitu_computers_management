@@ -94,24 +94,6 @@ export default {
               <div class="not-found-tip-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path
-                    d="M4.5 12h15m-7.5-7.5L19.5 12 12 19.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="1.8"
-                  />
-                </svg>
-              </div>
-
-              <div class="not-found-tip-copy">
-                <strong>Вернитесь в рабочий раздел</strong>
-                <span>Используйте переход назад или вернитесь на главную страницу.</span>
-              </div>
-            </div>
-
-            <div class="not-found-tip">
-              <div class="not-found-tip-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
                     d="M12 6v6l4 2m5-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
                     stroke-linecap="round"
                     stroke-linejoin="round"

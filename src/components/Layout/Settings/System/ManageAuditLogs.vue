@@ -284,6 +284,7 @@ export default {
     </div>
 
     <!-- Details Modal -->
+    <Teleport to="body">
     <transition name="modal">
       <div v-if="showDetails && selected" class="modal-overlay" @click.self="closeDetails">
         <div class="modal-card">
@@ -338,6 +339,7 @@ export default {
         </div>
       </div>
     </transition>
+    </Teleport>
   </div>
 </template>
 

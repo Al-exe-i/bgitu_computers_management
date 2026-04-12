@@ -619,11 +619,7 @@ export default {
         </div>
 
         <div v-else class="state-box empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 12h8"></path>
-            <path d="M8 16h5"></path>
-            <path d="M15 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8l5-5h6a2 2 0 0 1 2 2v2"></path>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m.5.5l13 13M6 3l1.464-1.464a3.536 3.536 0 0 1 5 5L11 8m-3 3l-1.464 1.465a3.536 3.536 0 0 1-5-5L3 6m6-1L7 7M5 9l.5-.5"/></svg>
           <p>Invite-ссылок пока нет</p>
         </div>
       </div>

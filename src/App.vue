@@ -959,6 +959,64 @@ html[data-theme='dark'] .create-audience-page .clear-grid-confirm-text {
   color: #fbcfe8 !important;
 }
 
+html[data-theme='dark'] .create-audience-leave-modal {
+  background: rgba(2, 6, 23, 0.68) !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-card {
+  background:
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 32%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98)) !important;
+  border-color: rgba(250, 204, 21, 0.18) !important;
+  box-shadow:
+      0 28px 54px rgba(2, 6, 23, 0.44),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-close {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-close:hover {
+  background: rgba(30, 41, 59, 0.96) !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-icon {
+  background: linear-gradient(135deg, rgba(146, 64, 14, 0.38), rgba(180, 83, 9, 0.24)) !important;
+  color: #fcd34d !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-kicker {
+  color: #fbbf24 !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-title {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-text {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-actions {
+  border-top-color: #334155 !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-btn:hover {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
 html[data-theme='dark'] .create-audience-page .grid-container {
   background: #0b1220 !important;
   border-color: #334155 !important;

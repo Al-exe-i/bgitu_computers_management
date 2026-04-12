@@ -111,6 +111,10 @@ export default {
       loading: false,
 
       hasUnsavedChanges: false,
+      showUnsavedLeaveModal: false,
+      pendingLeaveTarget: '',
+      pendingLeaveMode: 'push',
+      bypassUnsavedLeaveGuard: false,
       isHydrating: false,
       initialSnapshot: '',
     };
@@ -685,6 +689,49 @@ export default {
       router.go(-1)
     },
 
+    openUnsavedLeaveModal(target, mode = 'push') {
+      this.pendingLeaveTarget = target || '';
+      this.pendingLeaveMode = mode;
+      this.showUnsavedLeaveModal = true;
+    },
+
+    closeUnsavedLeaveModal() {
+      this.showUnsavedLeaveModal = false;
+      this.pendingLeaveTarget = '';
+      this.pendingLeaveMode = 'push';
+    },
+
+    async confirmUnsavedLeave() {
+      const target = this.pendingLeaveTarget;
+      const mode = this.pendingLeaveMode;
+
+      this.showUnsavedLeaveModal = false;
+      this.pendingLeaveTarget = '';
+      this.pendingLeaveMode = 'push';
+
+      if (!target) {
+        return;
+      }
+
+      this.bypassUnsavedLeaveGuard = true;
+
+      try {
+        if (mode === 'back') {
+          this.$router.go(-1);
+          return;
+        }
+
+        if (mode === 'forward') {
+          this.$router.go(1);
+          return;
+        }
+
+        await this.$router.push(target);
+      } catch {
+        this.bypassUnsavedLeaveGuard = false;
+      }
+    },
+
     classroomNumberFilter() {
 
       if (!/^\d*[1-9]\d*$/.test(this.classroomNumber) || this.classroomNumber.length > 3)
@@ -740,17 +787,23 @@ export default {
 
   beforeRouteLeave(to, from, next)
   {
+    if (this.bypassUnsavedLeaveGuard)
+    {
+      next();
+      return;
+    }
+
     if (this.hasUnsavedChanges && !this.authStore.isLoggingOut)
     {
-      const answer = window.confirm('У вас есть несохраненные изменения. Вы уверены, что хотите уйти?');
-      if (answer)
-      {
-        next();
-      }
-      else
-      {
-        next(false);
-      }
+      const historyState = window.history.state ?? {};
+      const leaveMode = historyState.back === to.fullPath
+          ? 'back'
+          : historyState.forward === to.fullPath
+              ? 'forward'
+              : 'push';
+
+      this.openUnsavedLeaveModal(to.fullPath, leaveMode);
+      next(false);
     }
     else
     {
@@ -1294,6 +1347,65 @@ export default {
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <transition name="leave-guard-modal">
+      <div
+          v-if="showUnsavedLeaveModal"
+          class="leave-guard-overlay create-audience-leave-modal"
+          @click.self="closeUnsavedLeaveModal"
+      >
+        <div
+            class="leave-guard-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-audience-leave-title"
+        >
+          <button
+              type="button"
+              class="leave-guard-close"
+              @click="closeUnsavedLeaveModal"
+              aria-label="Закрыть окно подтверждения"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+
+          <div class="leave-guard-hero">
+            <div class="leave-guard-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10.5v3.75m-9.303 3.376C1.83 19.126 2.914 21 4.645 21h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 4.88c-.866-1.501-3.032-1.501-3.898 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z"/></svg>
+            </div>
+
+            <div class="leave-guard-copy">
+              <span class="leave-guard-kicker">Несохранённые изменения</span>
+              <h3 id="create-audience-leave-title" class="leave-guard-title">Уйти без сохранения?</h3>
+              <p class="leave-guard-text">
+                Изменения в параметрах аудитории, сетке и оборудовании будут потеряны.
+              </p>
+            </div>
+          </div>
+
+          <div class="leave-guard-actions">
+            <button
+                type="button"
+                class="btn btn-secondary leave-guard-btn"
+                @click="closeUnsavedLeaveModal"
+            >
+              Остаться
+            </button>
+            <button
+                type="button"
+                class="leave-guard-danger"
+                @click="confirmUnsavedLeave"
+            >
+              Уйти без сохранения
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
 </template>
 
 
@@ -2008,6 +2120,175 @@ export default {
   transform: translateY(-8px) scale(0.98);
 }
 
+.leave-guard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.leave-guard-card {
+  position: relative;
+  width: min(100%, 520px);
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 32%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  box-shadow:
+      0 28px 54px rgba(15, 23, 42, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+
+.leave-guard-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.74);
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.leave-guard-close:hover {
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.leave-guard-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.leave-guard-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-right: 42px;
+}
+
+.leave-guard-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(254, 240, 138, 0.42), rgba(251, 146, 60, 0.2));
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.leave-guard-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.leave-guard-copy {
+  min-width: 0;
+}
+
+.leave-guard-kicker {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #92400e;
+}
+
+.leave-guard-title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.08;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.leave-guard-text {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.leave-guard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(203, 213, 225, 0.72);
+}
+
+.leave-guard-btn,
+.leave-guard-danger {
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.leave-guard-btn {
+  min-width: 128px;
+}
+
+.leave-guard-danger {
+  padding: 0 18px;
+  border: 1px solid rgba(244, 63, 94, 0.18);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 14px 28px rgba(220, 38, 38, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.leave-guard-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(220, 38, 38, 0.24);
+  filter: saturate(1.05);
+}
+
+.leave-guard-modal-enter-active,
+.leave-guard-modal-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.leave-guard-modal-enter-active .leave-guard-card,
+.leave-guard-modal-leave-active .leave-guard-card {
+  transition: transform 0.24s ease, opacity 0.24s ease;
+}
+
+.leave-guard-modal-enter-from,
+.leave-guard-modal-leave-to {
+  opacity: 0;
+}
+
+.leave-guard-modal-enter-from .leave-guard-card,
+.leave-guard-modal-leave-to .leave-guard-card {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
 .grid-container {
   --cell-size: 80px;
   --icon-size: 38px;
@@ -2344,6 +2625,24 @@ export default {
     flex: 1 1 0;
   }
 
+  .leave-guard-overlay {
+    padding: 18px;
+  }
+
+  .leave-guard-card {
+    width: min(100%, 100%);
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .leave-guard-actions {
+    flex-direction: column;
+  }
+
+  .leave-guard-actions > * {
+    width: 100%;
+  }
+
   .grid-landmarks-shell {
     gap: 8px;
   }
@@ -2390,6 +2689,29 @@ export default {
 {
   .equipment-palette {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .leave-guard-card {
+    padding: 18px;
+  }
+
+  .leave-guard-hero {
+    gap: 12px;
+    padding-right: 32px;
+  }
+
+  .leave-guard-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+  }
+
+  .leave-guard-title {
+    font-size: 22px;
+  }
+
+  .leave-guard-text {
+    font-size: 13px;
   }
 
   .grid-cell {

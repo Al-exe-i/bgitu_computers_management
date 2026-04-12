@@ -1281,32 +1281,6 @@ export default {
           </button>
         </div>
 
-        <div v-if="items.length > 10 || hasMore" class="results-jump-controls" aria-label="Навигация по результатам">
-          <button
-            type="button"
-            class="jump-arrow-btn"
-            @click="scrollToResultsTop"
-            aria-label="Перейти к началу таблицы"
-            title="К началу таблицы"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m6 15 6-6 6 6"></path>
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            class="jump-arrow-btn"
-            @click="scrollToResultsBottom"
-            aria-label="Перейти к концу таблицы"
-            title="К концу таблицы"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m6 9 6 6 6-6"></path>
-            </svg>
-          </button>
-        </div>
-
         <div v-if="resultsError && items.length" class="alert-box error">
           {{ resultsError }}
         </div>
@@ -1422,6 +1396,38 @@ export default {
         <div ref="resultsBottomAnchor" class="results-anchor results-anchor-bottom"></div>
       </div>
     </template>
+
+    <Teleport to="body">
+      <div
+        v-if="items.length > 10 || hasMore"
+        class="results-jump-controls analytics-jump-controls"
+        aria-label="Навигация по результатам"
+      >
+        <button
+          type="button"
+          class="jump-arrow-btn"
+          @click="scrollToResultsTop"
+          aria-label="Перейти к началу таблицы"
+          title="К началу таблицы"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 15 6-6 6 6"></path>
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          class="jump-arrow-btn"
+          @click="scrollToResultsBottom"
+          aria-label="Перейти к концу таблицы"
+          title="К концу таблицы"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6"></path>
+          </svg>
+        </button>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <transition name="modal">
@@ -3213,19 +3219,19 @@ html[data-theme='dark'] .analytics-card .load-more-wrapper {
   border-color: #334155;
 }
 
-html[data-theme='dark'] .analytics-card .results-jump-controls {
+:global(html[data-theme='dark']) .analytics-jump-controls {
   background: rgba(15, 23, 42, 0.88);
   border-color: rgba(51, 65, 85, 0.92);
   box-shadow: 0 12px 28px rgba(2, 6, 23, 0.34);
 }
 
-html[data-theme='dark'] .analytics-card .jump-arrow-btn {
+:global(html[data-theme='dark']) .analytics-jump-controls .jump-arrow-btn {
   background: #0f172a;
   border-color: #334155;
   color: #cbd5e1;
 }
 
-html[data-theme='dark'] .analytics-card .jump-arrow-btn:hover {
+:global(html[data-theme='dark']) .analytics-jump-controls .jump-arrow-btn:hover {
   background: rgba(37, 99, 235, 0.18);
   border-color: #60a5fa;
   color: #dbeafe;

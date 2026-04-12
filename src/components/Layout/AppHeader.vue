@@ -1311,7 +1311,7 @@ header {
 
   .office-mobile-value,
   .office-mobile-option-title {
-    font-size: 13px;
+    font-size: 9px;
   }
 
   .office-mobile-option-subtitle {
