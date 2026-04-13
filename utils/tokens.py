@@ -24,7 +24,7 @@ def build_token_response(*, access_token: str, refresh_token: str) -> JSONRespon
         key="refresh_token",
         value=refresh_token,
         max_age=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        path="/api/v1/",
+        path="/",
         **cookie_params
     )
 

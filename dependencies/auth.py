@@ -26,9 +26,12 @@ async def _validate_token_and_get_user(
         sub: int = int(payload.get("sub"))
     except (TypeError, ValueError):
         raise credentials_exception
+
     user = await service.get(sub)
+
     if user is None:
         raise credentials_exception
+
     return user
 
 

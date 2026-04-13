@@ -203,7 +203,4 @@ class InviteService:
         if not invite:
             raise HTTP404("Invite not found")
 
-        if invite.used_at is not None:
-            raise HTTP400("Used invite cannot be deleted")
-
         await self.repo.delete(invite)
