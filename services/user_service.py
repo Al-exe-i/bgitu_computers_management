@@ -16,7 +16,7 @@ class UserService:
     async def get(self, user_id: int) -> UserOut:
         return await self.repo.get(user_id)
 
-    async def get_by_email(self, email: str) -> UserOut:
+    async def get_by_email(self, email: str) -> User:
         return await self.repo.get_by_email(email)
 
     async def update(self, user_id: int, data: UserUpdate) -> UserOut | None:

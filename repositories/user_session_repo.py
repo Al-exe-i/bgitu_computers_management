@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from models.user_session import UserSession
 
 
@@ -32,33 +34,27 @@ class UserSessionRepository:
         stmt = stmt.order_by(UserSession.last_used_at.desc().nullslast(), UserSession.created_at.desc())
         return (await self.db.execute(stmt)).scalars().all()
 
-
-    async def validate(self, *, sid: str, user_id: int, jti: str) -> bool:
+    async def get_active_by_refresh_token_hash(self, token_hash: str) -> UserSession | None:
         now = datetime.now(timezone.utc)
-        stmt = select(UserSession.id).where(
-            UserSession.sid == sid,
-            UserSession.user_id == user_id,
-            UserSession.refresh_jti == jti,
+        stmt = select(UserSession).where(
+            UserSession.refresh_token_hash == token_hash,
             UserSession.revoked_at.is_(None),
             UserSession.expires_at > now,
         )
         res = await self.db.execute(stmt)
-        return res.scalar_one_or_none() is not None
+        return res.scalar_one_or_none()
 
-    async def rotate_jti(self, *, sid: str, old_jti: str, new_jti: str) -> bool:
-        """
-        Атомарная ротация: обновится только если old_jti совпадает.
-        Это защищает от гонок и reuse.
-        """
+    async def rotate_refresh_token_hash(self, *, sid: str, old_hash: str, new_hash: str) -> bool:
         now = datetime.now(timezone.utc)
         stmt = (
             update(UserSession)
             .where(
                 UserSession.sid == sid,
-                UserSession.refresh_jti == old_jti,
+                UserSession.refresh_token_hash == old_hash,
                 UserSession.revoked_at.is_(None),
+                UserSession.expires_at > now,
             )
-            .values(refresh_jti=new_jti, last_used_at=now)
+            .values(refresh_token_hash=new_hash, last_used_at=now)
             .returning(UserSession.id)
         )
         res = await self.db.execute(stmt)
@@ -80,10 +76,10 @@ class UserSessionRepository:
             .where(
                 UserSession.sid == sid,
                 UserSession.user_id == user_id,
-                UserSession.revoked_at.is_(None)
+                UserSession.revoked_at.is_(None),
             )
             .values(revoked_at=now)
-            .returning(UserSession.id)  # Вернет ID, если запись найдена и обновлена
+            .returning(UserSession.id)
         )
         res = await self.db.execute(stmt)
         return res.scalar_one_or_none() is not None

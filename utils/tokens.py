@@ -1,6 +1,11 @@
+import hashlib
+from uuid import uuid4
+
 from fastapi.responses import JSONResponse
+
 from core.config import settings
-from core.security import generate_token
+from core.security import generate_access_token
+
 
 def build_token_response(*, access_token: str, refresh_token: str) -> JSONResponse:
     token_data = {"access_token": access_token, "token_type": "bearer", "status": "success"}
@@ -17,7 +22,7 @@ def build_token_response(*, access_token: str, refresh_token: str) -> JSONRespon
         value=access_token,
         max_age=settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
-        **cookie_params
+        **cookie_params,
     )
 
     response.set_cookie(
@@ -25,18 +30,19 @@ def build_token_response(*, access_token: str, refresh_token: str) -> JSONRespon
         value=refresh_token,
         max_age=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/",
-        **cookie_params
+        **cookie_params,
     )
 
     return response
 
 
 def issue_access_token(user_id: int) -> str:
-    return generate_token(data={"sub": str(user_id)}, token_type="access")
+    return generate_access_token(data={"sub": str(user_id)})
 
 
-def issue_refresh_token(user_id: int, sid: str, jti: str) -> str:
-    return generate_token(
-        data={"sub": str(user_id), "sid": sid, "jti": jti},
-        token_type="refresh",
-    )
+def new_refresh_token() -> str:
+    return str(uuid4())
+
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

@@ -1,9 +1,11 @@
 # dependencies/auth.py
-from typing import Annotated, Literal
-from fastapi import Depends, Cookie
+from typing import Annotated
+
+from fastapi import Cookie, Depends
 from fastapi.security import OAuth2PasswordBearer
-from core.exceptions import HTTP403, HTTP401
-from core.security import verify_token
+
+from core.exceptions import HTTP401, HTTP403
+from core.security import verify_access_token
 from dependencies.user import user_service_dep
 from models.user import User, UserRole
 from schemas.user import UserOut
@@ -12,24 +14,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token", auto_error=False)
 
 
 async def _validate_token_and_get_user(
-        token: str,
-        token_type: Literal["access", "refresh"],
-        service: user_service_dep
+    token: str,
+    service: user_service_dep,
 ) -> UserOut:
     credentials_exception = HTTP401("Couldn't validate credentials")
 
-    payload = verify_token(token, token_type)
-
+    payload = verify_access_token(token)
     if payload is None:
         raise credentials_exception
 
     try:
-        sub: int = int(payload.get("sub"))
+        sub = int(payload.get("sub"))
     except (TypeError, ValueError):
         raise credentials_exception
 
     user = await service.get(sub)
-
     if user is None:
         raise credentials_exception
 
@@ -37,16 +36,16 @@ async def _validate_token_and_get_user(
 
 
 async def get_current_user(
-        service: user_service_dep,
-        access_token_cookie: str | None = Cookie(None, alias="access_token"),
-        access_token_header: str | None = Depends(oauth2_scheme)
+    service: user_service_dep,
+    access_token_cookie: str | None = Cookie(None, alias="access_token"),
+    access_token_header: str | None = Depends(oauth2_scheme),
 ) -> UserOut:
     token = access_token_cookie if access_token_cookie else access_token_header
 
     if token is None:
         raise HTTP401("Not authenticated")
 
-    user = await _validate_token_and_get_user(token, "access", service)
+    user = await _validate_token_and_get_user(token, service)
     return user
 
 

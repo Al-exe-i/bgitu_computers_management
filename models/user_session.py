@@ -8,7 +8,7 @@ from models.mixins import IntIdPkMixin
 class UserSession(IntIdPkMixin, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     sid: Mapped[str] = mapped_column(String(36), unique=True, index=True)         # UUID
-    refresh_jti: Mapped[str] = mapped_column(String(36), index=True)              # текущий jti
+    refresh_token_hash: Mapped[str] = mapped_column(String(64), index=True)
 
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

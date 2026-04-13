@@ -1,8 +1,10 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+
+from core.config import settings
 from models.user_session import UserSession
 from repositories.user_session_repo import UserSessionRepository
-from core.config import settings
+from utils.tokens import hash_refresh_token
 
 
 class UserSessionService:
@@ -14,10 +16,6 @@ class UserSessionService:
         return str(uuid4())
 
     @staticmethod
-    def new_jti() -> str:
-        return str(uuid4())
-
-    @staticmethod
     def refresh_expires_at() -> datetime:
         return datetime.now(timezone.utc) + timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
 
@@ -26,25 +24,42 @@ class UserSessionService:
         *,
         user_id: int,
         sid: str,
-        refresh_jti: str,
+        refresh_token_hash: str,
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> UserSession:
         session_obj = UserSession(
             user_id=user_id,
             sid=sid,
-            refresh_jti=refresh_jti,
+            refresh_token_hash=refresh_token_hash,
             expires_at=self.refresh_expires_at(),
             ip=ip,
             user_agent=user_agent,
         )
         return await self.repo.create(session_obj)
 
-    async def validate(self, *, sid: str, user_id: int, jti: str) -> bool:
-        return await self.repo.validate(sid=sid, user_id=user_id, jti=jti)
+    async def get_active_by_refresh_token(self, refresh_token: str) -> UserSession | None:
+        return await self.repo.get_active_by_refresh_token_hash(hash_refresh_token(refresh_token))
 
-    async def rotate(self, *, sid: str, old_jti: str, new_jti: str) -> bool:
-        return await self.repo.rotate_jti(sid=sid, old_jti=old_jti, new_jti=new_jti)
+    async def rotate_refresh_token(
+        self,
+        *,
+        sid: str,
+        old_refresh_token: str,
+        new_refresh_token: str,
+    ) -> bool:
+        return await self.repo.rotate_refresh_token_hash(
+            sid=sid,
+            old_hash=hash_refresh_token(old_refresh_token),
+            new_hash=hash_refresh_token(new_refresh_token),
+        )
+
+    async def get_current_sid(self, refresh_token: str | None) -> str | None:
+        if not refresh_token:
+            return None
+
+        session = await self.get_active_by_refresh_token(refresh_token)
+        return session.sid if session else None
 
     async def revoke(self, sid: str) -> None:
         await self.repo.revoke(sid)

@@ -1,50 +1,58 @@
-# api/v1/endpoints/auth.py
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Cookie, Query
-from fastapi.security import OAuth2PasswordRequestForm
+
+from fastapi import APIRouter, Cookie, Depends, Query
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
+
 from core.exceptions import HTTP401, HTTP404
-from core.security import verify_password, verify_token
+from core.security import verify_password
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import user_dep
 from dependencies.invite import invite_service_dep
 from dependencies.request_meta import request_meta_dep
 from dependencies.user import user_service_dep
 from dependencies.user_session_service import user_session_service_dep
-from schemas.invite import InvitePreviewResponse, InvitePreviewRequest, RegisterByInviteResponse, \
-    RegisterByInviteRequest
+from schemas.invite import (
+    InvitePreviewRequest,
+    InvitePreviewResponse,
+    RegisterByInviteRequest,
+    RegisterByInviteResponse,
+)
 from schemas.user_session import UserSessionOut
-from utils.tokens import issue_access_token, issue_refresh_token, build_token_response
+from utils.tokens import (
+    build_token_response,
+    hash_refresh_token,
+    issue_access_token,
+    new_refresh_token,
+)
 
 router = APIRouter()
 
 
 @router.post("/token")
 async def login_for_access_token(
-        service: user_service_dep,
-        sessions: user_session_service_dep,
-        audit: audit_log_service_dep,
-        meta: request_meta_dep,
-        form_data: OAuth2PasswordRequestForm = Depends(),
+    service: user_service_dep,
+    sessions: user_session_service_dep,
+    audit: audit_log_service_dep,
+    meta: request_meta_dep,
+    form_data: OAuth2PasswordRequestForm = Depends(),
 ):
     user = await service.get_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user.password):
         raise HTTP401("Invalid credentials")
 
-    # создаём новую “сессию устройства”
     sid = sessions.new_sid()
-    jti = sessions.new_jti()
+    refresh_token = new_refresh_token()
 
     await sessions.create_session(
         user_id=user.id,
         sid=sid,
-        refresh_jti=jti,
+        refresh_token_hash=hash_refresh_token(refresh_token),
         ip=meta.get("ip"),
         user_agent=meta.get("user_agent"),
     )
 
-    access = issue_access_token(user.id)
-    refresh = issue_refresh_token(user.id, sid, jti)
+    access_token = issue_access_token(user.id)
 
     await audit.log(
         user_id=user.id,
@@ -55,86 +63,84 @@ async def login_for_access_token(
         **meta,
     )
 
-    return build_token_response(access_token=access, refresh_token=refresh)
+    return build_token_response(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
 
 
 @router.post("/refresh")
 async def refresh_tokens(
-        service: user_service_dep,
-        sessions: user_session_service_dep,
-        audit: audit_log_service_dep,
-        meta: request_meta_dep,
-        refresh_token: str | None = Cookie(None, alias="refresh_token"),
+    service: user_service_dep,
+    sessions: user_session_service_dep,
+    audit: audit_log_service_dep,
+    meta: request_meta_dep,
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     if not refresh_token:
         raise HTTP401("No refresh token provided")
 
-    payload = verify_token(refresh_token, "refresh")
-    if not payload:
+    session = await sessions.get_active_by_refresh_token(refresh_token)
+    if not session:
         raise HTTP401("Couldn't validate refresh token")
 
-    sub = payload.get("sub")
-    sid = payload.get("sid")
-    old_jti = payload.get("jti")
-
-    if not sub or not sid or not old_jti:
-        raise HTTP401("Invalid refresh token")
-
-    user = await service.get(int(sub))
+    user = await service.get(session.user_id)
     if not user:
+        await sessions.revoke(session.sid)
         raise HTTP401("User not found")
 
-    new_jti = sessions.new_jti()
-
-    rotated = await sessions.rotate(sid=sid, old_jti=old_jti, new_jti=new_jti)
+    new_token = new_refresh_token()
+    rotated = await sessions.rotate_refresh_token(
+        sid=session.sid,
+        old_refresh_token=refresh_token,
+        new_refresh_token=new_token,
+    )
     if not rotated:
-        # это reuse: старый refresh пытаются использовать повторно, отзываем
-        await sessions.revoke(sid)
+        await sessions.revoke(session.sid)
 
         await audit.log(
             user_id=user.id,
             action="auth.refresh_reuse",
             entity_type="user_session",
             entity_id=None,
-            payload={"sid": sid},
+            payload={"sid": session.sid},
             **meta,
         )
         raise HTTP401("Refresh token revoked")
 
-    access = issue_access_token(user.id)
-    refresh = issue_refresh_token(user.id, sid, new_jti)
+    access_token = issue_access_token(user.id)
 
     await audit.log(
         user_id=user.id,
         action="auth.refresh",
         entity_type="user_session",
         entity_id=None,
-        payload={"sid": sid},
+        payload={"sid": session.sid},
         **meta,
     )
 
-    return build_token_response(access_token=access, refresh_token=refresh)
+    return build_token_response(
+        access_token=access_token,
+        refresh_token=new_token,
+    )
 
 
 @router.post("/logout")
 async def logout_user(
-        sessions: user_session_service_dep,
-        audit: audit_log_service_dep,
-        meta: request_meta_dep,
-        refresh_token: str | None = Cookie(None, alias="refresh_token"),
+    sessions: user_session_service_dep,
+    audit: audit_log_service_dep,
+    meta: request_meta_dep,
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     sid = None
     user_id = None
 
     if refresh_token:
-        payload = verify_token(refresh_token, "refresh")
-        if payload:
-            sid = payload.get("sid")
-            sub = payload.get("sub")
-            if sid:
-                await sessions.revoke(sid)
-            if sub:
-                user_id = int(sub)
+        session = await sessions.get_active_by_refresh_token(refresh_token)
+        if session:
+            sid = session.sid
+            user_id = session.user_id
+            await sessions.revoke(session.sid)
 
     if user_id:
         await audit.log(
@@ -154,10 +160,10 @@ async def logout_user(
 
 @router.post("/logout_all")
 async def logout_all_user_sessions(
-        sessions: user_session_service_dep,
-        audit: audit_log_service_dep,
-        meta: request_meta_dep,
-        user: user_dep,
+    sessions: user_session_service_dep,
+    audit: audit_log_service_dep,
+    meta: request_meta_dep,
+    user: user_dep,
 ):
     user_id = user.id
 
@@ -185,23 +191,24 @@ async def get_my_sessions(
     include_inactive: bool = Query(False),
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
-    # current sid, чтобы подсветить текущую сессию
-    current_sid = None
-    if refresh_token:
-        payload = verify_token(refresh_token, "refresh")
-        if payload:
-            current_sid = payload.get("sid")
+    current_sid = await sessions.get_current_sid(refresh_token)
 
     now = datetime.now(timezone.utc)
     rows = await sessions.repo.list_by_user(user.id, include_inactive=include_inactive)
 
     result = []
-    for s in rows:
-        is_active = (s.revoked_at is None) and (s.expires_at > now)
-        is_current = (current_sid is not None and s.sid == current_sid)
-        result.append(UserSessionOut.model_validate(
-            {**s.__dict__, "is_active": is_active, "is_current": is_current}
-        ))
+    for session in rows:
+        is_active = (session.revoked_at is None) and (session.expires_at > now)
+        is_current = current_sid is not None and session.sid == current_sid
+        result.append(
+            UserSessionOut.model_validate(
+                {
+                    **session.__dict__,
+                    "is_active": is_active,
+                    "is_current": is_current,
+                }
+            )
+        )
     return result
 
 
@@ -214,6 +221,8 @@ async def revoke_session(
     meta: request_meta_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
+    current_sid = await sessions.get_current_sid(refresh_token)
+
     ok = await sessions.revoke_for_user(user.id, sid)
     if not ok:
         raise HTTP404("Session not found")
@@ -226,12 +235,6 @@ async def revoke_session(
         payload={"sid": sid},
         **meta,
     )
-
-    current_sid = None
-    if refresh_token:
-        payload = verify_token(refresh_token, "refresh")
-        if payload:
-            current_sid = payload.get("sid")
 
     response = JSONResponse({"status": "success"})
     if current_sid and current_sid == sid:
