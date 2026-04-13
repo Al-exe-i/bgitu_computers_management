@@ -33,7 +33,7 @@ class InviteRepository:
         return result.scalar_one_or_none()
 
     async def get_active_by_token_hash_for_update(self, token_hash: str) -> InviteLink | None:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
 
         stmt = (
             select(InviteLink)
@@ -49,7 +49,7 @@ class InviteRepository:
         return result.scalar_one_or_none()
 
     async def revoke(self, invite: InviteLink) -> InviteLink:
-        invite.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        invite.revoked_at = datetime.now(timezone.utc)
         await self.db.flush()
         await self.db.refresh(invite)
         return invite

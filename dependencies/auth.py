@@ -10,6 +10,7 @@ from schemas.user import UserOut
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token", auto_error=False)
 
+
 async def _validate_token_and_get_user(
         token: str,
         token_type: Literal["access", "refresh"],
@@ -48,6 +49,7 @@ async def get_current_user(
     user = await _validate_token_and_get_user(token, "access", service)
     return user
 
+
 async def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
@@ -58,6 +60,7 @@ async def get_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role.value > UserRole.admin.value:
         raise HTTP403("Not enough permissions")
     return current_user
+
 
 user_dep = Annotated[User, Depends(get_current_user)]
 superuser_dep = Annotated[User, Depends(get_current_superuser)]

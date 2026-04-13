@@ -148,7 +148,7 @@ async def logout_user(
 
     response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/api/v1/")
+    response.delete_cookie(key="refresh_token", path="/")
     return response
 
 
@@ -174,7 +174,7 @@ async def logout_all_user_sessions(
 
     response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/api/v1/")
+    response.delete_cookie(key="refresh_token", path="/")
     return response
 
 
@@ -236,7 +236,7 @@ async def revoke_session(
     response = JSONResponse({"status": "success"})
     if current_sid and current_sid == sid:
         response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/api/v1/")
+        response.delete_cookie("refresh_token", path="/")
     return response
 
 

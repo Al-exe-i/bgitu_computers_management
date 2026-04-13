@@ -16,7 +16,7 @@ router = APIRouter(prefix="")
 @router.get("/files/{file_path:path}")
 async def get_protected_file(
         file_path: str,
-        user=admin_dep
+        user: admin_dep
 ):
     base_dir = Path(settings.static.root).resolve()
 

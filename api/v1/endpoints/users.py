@@ -14,6 +14,7 @@ from dependencies.auth import superuser_dep, user_dep, admin_dep
 from dependencies.user import user_service_dep
 from models.user import UserRole
 from schemas.user import UserCreate, UserOut, UserUpdate, ChangePasswordSchema
+from utils.permissions import can_change_other_su
 
 router = APIRouter()
 
@@ -127,13 +128,18 @@ async def update_user(
         current_user: user_dep
 ):
     # Разрешить редактировать только себя, если не admin
-    if not current_user.role.admin and current_user.id != user_id:
+    if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
 
     if not user:
         raise HTTP404("User not found")
+
+    can_change_other_su(current_user, user)
+
+    if current_user.id == user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
+        user_in = UserUpdate(**user_in.model_dump(exclude={"role"}))
 
     updated_user = await service.update(user_id, user_in)
     return updated_user
@@ -146,8 +152,15 @@ async def upload_user_photo(
         current_user: user_dep,
         file: UploadFile = File(),
 ):
-    if not current_user.role.admin and current_user.id != user_id:
+    if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
+
+    user = await service.get(user_id)
+
+    if not user:
+        raise HTTP404("User not found")
+
+    can_change_other_su(current_user, user)
 
     if not file.content_type.startswith("image/"):
         raise HTTP400("File must be an image")
@@ -167,7 +180,6 @@ async def upload_user_photo(
 
     update_data = UserUpdate(photo=unique_filename)
 
-    user = await service.get(user_id)
     # Старую фотку надо удалить
     if user.photo:
         try:
@@ -186,12 +198,15 @@ async def delete_user_photo(
         service: user_service_dep,
         current_user: user_dep
 ):
-    if not current_user.role.admin and current_user.id != user_id:
+    if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
+
     if not user:
         raise HTTP404("User not found")
+
+    can_change_other_su(current_user, user)
 
     if user.photo:
         file_path = os.path.join(settings.static.avatars_dir, user.photo)
