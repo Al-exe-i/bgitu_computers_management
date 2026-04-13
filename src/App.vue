@@ -693,6 +693,155 @@ html[data-theme='dark'] .audit-card .btn-primary:hover:not(:disabled) {
   border-color: #3b82f6 !important;
 }
 
+html[data-theme='dark'] .audit-card .filters-section,
+html[data-theme='dark'] .audit-card .audit-list-shell,
+html[data-theme='dark'] .audit-card .audit-entry,
+html[data-theme='dark'] .audit-card .audit-disclosure,
+html[data-theme='dark'] .audit-card .audit-detail-card.compact {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-entry:hover {
+  background: #111827 !important;
+}
+
+html[data-theme='dark'] .audit-card .section-subtitle,
+html[data-theme='dark'] .audit-card .results-caption.muted,
+html[data-theme='dark'] .audit-card .audit-entry-time,
+html[data-theme='dark'] .audit-card .audit-entry-meta-item,
+html[data-theme='dark'] .audit-card .filter-group label,
+html[data-theme='dark'] .audit-card .meta-label,
+html[data-theme='dark'] .audit-card .search-icon {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .audit-card .section-title,
+html[data-theme='dark'] .audit-card .results-caption,
+html[data-theme='dark'] .audit-card .audit-entry-title,
+html[data-theme='dark'] .audit-card .audit-section-title,
+html[data-theme='dark'] .audit-card .audit-detail-value,
+html[data-theme='dark'] .audit-card .meta-value {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-entry-summary {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .audit-card .form-input,
+html[data-theme='dark'] .audit-card .pagination-bar {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .audit-card .pagination-title {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-entry-tag,
+html[data-theme='dark'] .audit-card .audit-action-code,
+html[data-theme='dark'] .audit-card .load-more-wrapper {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-entry-meta-item::before {
+  background: #475569 !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-action-chip.tone-success {
+  background: rgba(22, 101, 52, 0.28) !important;
+  border-color: rgba(74, 222, 128, 0.28) !important;
+  color: #bbf7d0 !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-action-chip.tone-warning {
+  background: rgba(133, 77, 14, 0.28) !important;
+  border-color: rgba(250, 204, 21, 0.24) !important;
+  color: #fde68a !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-action-chip.tone-danger {
+  background: rgba(153, 27, 27, 0.3) !important;
+  border-color: rgba(248, 113, 113, 0.28) !important;
+  color: #fecaca !important;
+}
+
+html[data-theme='dark'] .audit-card .audit-action-chip.tone-neutral {
+  background: rgba(51, 65, 85, 0.86) !important;
+  border-color: rgba(100, 116, 139, 0.8) !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .audit-modal-card,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-detail-card,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-disclosure {
+  background: #111827 !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .audit-modal-header,
+html[data-theme='dark'] .audit-log-modal-overlay .modal-footer {
+  background: #111827 !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .modal-title,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-section-title,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-detail-value,
+html[data-theme='dark'] .audit-log-modal-overlay .meta-value {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .modal-subtitle,
+html[data-theme='dark'] .audit-log-modal-overlay .meta-label,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-detail-label,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-disclosure summary,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-action-code {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .audit-action-code,
+html[data-theme='dark'] .audit-log-modal-overlay .audit-detail-card.compact {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .audit-disclosure-content {
+  border-top-color: #334155 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .close-btn {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .close-btn:hover {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .analytics-jump-controls {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.94)) !important;
+  border-color: #334155 !important;
+  box-shadow: 0 16px 32px rgba(2, 6, 23, 0.42) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+html[data-theme='dark'] .analytics-jump-controls .jump-arrow-btn {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+}
+
+html[data-theme='dark'] .analytics-jump-controls .jump-arrow-btn:hover {
+  background: rgba(37, 99, 235, 0.18) !important;
+  border-color: #60a5fa !important;
+  color: #dbeafe !important;
+}
+
 html[data-theme='dark'] .table-row:hover,
 html[data-theme='dark'] .clickable-row:hover {
   background-color: rgba(148, 163, 184, 0.12) !important;
