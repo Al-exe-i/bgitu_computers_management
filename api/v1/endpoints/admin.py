@@ -1,27 +1,31 @@
 from pathlib import Path
+
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
 from core.config import settings
 from core.exceptions import HTTP403, HTTP404
+from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep
 from dependencies.invite import invite_service_dep
 from schemas.audit_log import AuditLogListResponse
-from schemas.invite import InviteCreateResult, InviteCreateOne, InviteCreateBatch, InviteListItem
+from schemas.invite import InviteCreateBatch, InviteCreateOne, InviteCreateResult, InviteListItem
 
 router = APIRouter(prefix="")
 
 
+def _role_name(role) -> str | None:
+    return role.name if hasattr(role, "name") else role
+
+
 @router.get("/files/{file_path:path}")
 async def get_protected_file(
-        file_path: str,
-        user: admin_dep
+    file_path: str,
+    user: admin_dep,
 ):
     base_dir = Path(settings.static.root).resolve()
-
     safe_file_path = file_path.lstrip("/")
-
     requested_path = (base_dir / safe_file_path).resolve()
 
     try:
@@ -58,22 +62,50 @@ async def get_audit_log(
     )
     return {"items": items, "total": total}
 
+
 @router.post("/invites/one", response_model=InviteCreateResult)
 async def create_invite_one(
     data: InviteCreateOne,
     service: invite_service_dep,
-    user: admin_dep,
+    audit: admin_audit_actor_dep,
 ):
-    return await service.create_one(created_by_user_id=user.id, schema=data)
+    result = await service.create_one(created_by_user_id=audit.user.id, schema=data)
+
+    await audit.log(
+        action="invite.create",
+        entity_type="invite",
+        entity_id=result.id,
+        payload={
+            "target_email": result.target_email,
+            "target_role": _role_name(result.target_role),
+            "expires_at": result.expires_at.isoformat(),
+        },
+    )
+
+    return result
 
 
 @router.post("/invites/batch", response_model=list[InviteCreateResult])
 async def create_invite_batch(
     data: InviteCreateBatch,
     service: invite_service_dep,
-    user: admin_dep,
+    audit: admin_audit_actor_dep,
 ):
-    return await service.create_batch(created_by_user_id=user.id, schema=data)
+    result = await service.create_batch(created_by_user_id=audit.user.id, schema=data)
+
+    await audit.log(
+        action="invite.create_batch",
+        entity_type="invite",
+        payload={
+            "created_count": len(result),
+            "target_role": _role_name(data.target_role),
+            "targeted": bool(data.emails),
+            "targeted_emails_count": len(data.emails or []),
+            "expires_at": data.expires_at.isoformat(),
+        },
+    )
+
+    return result
 
 
 @router.get("/invites", response_model=list[InviteListItem])
@@ -88,15 +120,34 @@ async def list_invites(
 async def revoke_invite(
     invite_id: int,
     service: invite_service_dep,
-    user: admin_dep,
+    audit: admin_audit_actor_dep,
 ):
-    return await service.revoke(invite_id)
+    result = await service.revoke(invite_id)
+
+    await audit.log(
+        action="invite.revoke",
+        entity_type="invite",
+        entity_id=invite_id,
+        payload={
+            "target_email": result.target_email,
+            "target_role": _role_name(result.target_role),
+        },
+    )
+
+    return result
+
 
 @router.delete("/invites/{invite_id}", status_code=204)
 async def delete_invite(
     invite_id: int,
     service: invite_service_dep,
-    admin: admin_dep,
+    audit: admin_audit_actor_dep,
 ):
     await service.delete(invite_id)
 
+    await audit.log(
+        action="invite.delete",
+        entity_type="invite",
+        entity_id=invite_id,
+        payload={"invite_id": invite_id},
+    )

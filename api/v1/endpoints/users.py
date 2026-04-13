@@ -1,32 +1,54 @@
-# api/v1/endpoints/users.py
 import mimetypes
 import os
-import aiofiles
 import uuid
-from fastapi import APIRouter, status, UploadFile, File
+
+import aiofiles
+from fastapi import APIRouter, File, UploadFile, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
+
 from core.config import settings
-from core.exceptions import HTTP403, HTTP404, HTTP400, HTTP409
+from core.exceptions import HTTP400, HTTP403, HTTP404, HTTP409
 from core.security import verify_password
-from dependencies.auth import superuser_dep, user_dep, admin_dep
+from dependencies.audit_actor import (
+    admin_audit_actor_dep,
+    superuser_audit_actor_dep,
+    user_audit_actor_dep,
+)
+from dependencies.auth import admin_dep, user_dep
 from dependencies.user import user_service_dep
 from models.user import UserRole
-from schemas.user import UserCreate, UserOut, UserUpdate, ChangePasswordSchema
+from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
+from utils.audit import changed_fields
 from utils.permissions import can_change_other_su
 
 router = APIRouter()
 
 
+def _role_name(role) -> str | None:
+    return role.name if hasattr(role, "name") else role
+
+
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def create_user(
-        service: user_service_dep,
-        user_in: UserCreate,
-        current_user: admin_dep
+    service: user_service_dep,
+    user_in: UserCreate,
+    audit: admin_audit_actor_dep,
 ):
     try:
         user = await service.create(user_in)
+
+        await audit.log(
+            action="user.create",
+            entity_type="user",
+            entity_id=user.id,
+            payload={
+                "target_user_id": user.id,
+                "email": user.email,
+                "role": _role_name(user.role),
+            },
+        )
         return user
     except IntegrityError:
         raise HTTP409("User already exists")
@@ -39,15 +61,18 @@ async def read_current_user(current_user: user_dep):
 
 @router.get("/all", response_model=list[UserOut])
 async def get_all_users(
-        service: user_service_dep,
-        user: admin_dep
+    service: user_service_dep,
+    user: admin_dep,
 ):
-    users = await service.get_all()
-    return users
+    return await service.get_all()
 
 
 @router.get("/{user_id}", response_model=UserOut)
-async def read_user(service: user_service_dep, user_id: int, current_user: user_dep):
+async def read_user(
+    service: user_service_dep,
+    user_id: int,
+    current_user: user_dep,
+):
     if current_user.id != user_id and current_user.role != UserRole.admin:
         raise HTTP403("Not enough permissions")
     user = await service.get(user_id)
@@ -79,37 +104,40 @@ async def get_user_photo(user: user_dep):
 
 @router.post("/me/password", status_code=200)
 async def change_password(
-        data: ChangePasswordSchema,
-        service: user_service_dep,
-        current_user: user_dep
+    data: ChangePasswordSchema,
+    service: user_service_dep,
+    audit: user_audit_actor_dep,
 ):
-    """
-    Смена пароля с проверкой старого.
-    """
-
-    if not verify_password(data.current_password, current_user.password):
+    if not verify_password(data.current_password, audit.user.password):
         raise HTTP400("Неверный текущий пароль")
 
     if data.current_password == data.new_password:
         raise HTTP400("Новый пароль не должен совпадать со старым")
 
-    await service.update(current_user.id, UserUpdate(password=data.new_password))
+    await service.update(audit.user.id, UserUpdate(password=data.new_password))
+
+    await audit.log(
+        action="user.password_change",
+        entity_type="user",
+        entity_id=audit.user.id,
+        payload={"target_user_id": audit.user.id},
+    )
 
     return {"message": "Password updated successfully"}
 
 
 @router.delete("/{user_id}")
 async def delete_user(
-        service: user_service_dep,
-        user_id: int,
-        current_user: superuser_dep
+    service: user_service_dep,
+    user_id: int,
+    audit: superuser_audit_actor_dep,
 ):
     user = await service.get(user_id)
 
     if not user:
         raise HTTP404("User not found")
 
-    if current_user.id == user_id:
+    if audit.user.id == user_id:
         raise HTTP400("You can't delete yourself")
 
     if user.is_superuser:
@@ -117,22 +145,32 @@ async def delete_user(
 
     await service.delete(user_id)
 
+    await audit.log(
+        action="user.delete",
+        entity_type="user",
+        entity_id=user_id,
+        payload={
+            "target_user_id": user_id,
+            "email": user.email,
+            "role": _role_name(user.role),
+        },
+    )
+
     return {"msg": "User deleted successfully"}
 
 
 @router.patch("/{user_id}", response_model=UserOut)
 async def update_user(
-        service: user_service_dep,
-        user_id: int,
-        user_in: UserUpdate,
-        current_user: user_dep
+    service: user_service_dep,
+    user_id: int,
+    user_in: UserUpdate,
+    audit: user_audit_actor_dep,
 ):
-    # Разрешить редактировать только себя, если не admin
+    current_user = audit.user
     if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
-
     if not user:
         raise HTTP404("User not found")
 
@@ -142,21 +180,32 @@ async def update_user(
         user_in = UserUpdate(**user_in.model_dump(exclude={"role"}))
 
     updated_user = await service.update(user_id, user_in)
+
+    await audit.log(
+        action="user.update",
+        entity_type="user",
+        entity_id=user_id,
+        payload={
+            "target_user_id": user_id,
+            "changed_fields": changed_fields(user_in),
+        },
+    )
+
     return updated_user
 
 
 @router.post("/{user_id}/photo", response_model=UserOut)
 async def upload_user_photo(
-        user_id: int,
-        service: user_service_dep,
-        current_user: user_dep,
-        file: UploadFile = File(),
+    user_id: int,
+    service: user_service_dep,
+    audit: user_audit_actor_dep,
+    file: UploadFile = File(),
 ):
+    current_user = audit.user
     if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
-
     if not user:
         raise HTTP404("User not found")
 
@@ -165,10 +214,8 @@ async def upload_user_photo(
     if not file.content_type.startswith("image/"):
         raise HTTP400("File must be an image")
 
-    # Генерация уникального имени файла
     file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     unique_filename = f"{uuid.uuid4()}.{file_ext}"
-
     file_path = os.path.join(settings.static.avatars_dir, unique_filename)
 
     try:
@@ -180,42 +227,62 @@ async def upload_user_photo(
 
     update_data = UserUpdate(photo=unique_filename)
 
-    # Старую фотку надо удалить
     if user.photo:
         try:
             os.remove(os.path.join(settings.static.avatars_dir, user.photo))
-        except FileNotFoundError as e:
-            logger.error(f"Ошибка в {__name__}: {e}")
+        except FileNotFoundError as exc:
+            logger.error(f"Ошибка в {__name__}: {exc}")
 
     updated_user = await service.update(user_id, update_data)
+
+    await audit.log(
+        action="user.photo_upload",
+        entity_type="user",
+        entity_id=user_id,
+        payload={
+            "target_user_id": user_id,
+            "replaced_existing": bool(user.photo),
+        },
+    )
 
     return updated_user
 
 
 @router.delete("/{user_id}/photo", response_model=UserOut)
 async def delete_user_photo(
-        user_id: int,
-        service: user_service_dep,
-        current_user: user_dep
+    user_id: int,
+    service: user_service_dep,
+    audit: user_audit_actor_dep,
 ):
+    current_user = audit.user
     if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
-
     if not user:
         raise HTTP404("User not found")
 
     can_change_other_su(current_user, user)
+    had_photo = bool(user.photo)
 
     if user.photo:
         file_path = os.path.join(settings.static.avatars_dir, user.photo)
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-            except OSError as e:
-                logger.error(f"Ошибка в {__name__}: {e}")
+            except OSError as exc:
+                logger.error(f"Ошибка в {__name__}: {exc}")
 
     updated_user = await service.update(user_id, UserUpdate(photo=None))
+
+    await audit.log(
+        action="user.photo_delete",
+        entity_type="user",
+        entity_id=user_id,
+        payload={
+            "target_user_id": user_id,
+            "had_photo": had_photo,
+        },
+    )
 
     return updated_user

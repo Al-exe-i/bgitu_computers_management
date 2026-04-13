@@ -6,10 +6,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from core.exceptions import HTTP401, HTTP404
 from core.security import verify_password
-from dependencies.audit_log import audit_log_service_dep
-from dependencies.auth import user_dep
+from dependencies.audit_actor import audit_ctx_dep, user_audit_actor_dep
 from dependencies.invite import invite_service_dep
-from dependencies.request_meta import request_meta_dep
 from dependencies.user import user_service_dep
 from dependencies.user_session_service import user_session_service_dep
 from schemas.invite import (
@@ -33,8 +31,7 @@ router = APIRouter()
 async def login_for_access_token(
     service: user_service_dep,
     sessions: user_session_service_dep,
-    audit: audit_log_service_dep,
-    meta: request_meta_dep,
+    audit: audit_ctx_dep,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
     user = await service.get_by_email(form_data.username)
@@ -48,19 +45,18 @@ async def login_for_access_token(
         user_id=user.id,
         sid=sid,
         refresh_token_hash=hash_refresh_token(refresh_token),
-        ip=meta.get("ip"),
-        user_agent=meta.get("user_agent"),
+        ip=audit.meta.get("ip"),
+        user_agent=audit.meta.get("user_agent"),
     )
 
     access_token = issue_access_token(user.id)
 
     await audit.log(
-        user_id=user.id,
         action="auth.login",
         entity_type="user",
         entity_id=user.id,
         payload={"email": user.email, "sid": sid},
-        **meta,
+        user_id=user.id,
     )
 
     return build_token_response(
@@ -73,8 +69,7 @@ async def login_for_access_token(
 async def refresh_tokens(
     service: user_service_dep,
     sessions: user_session_service_dep,
-    audit: audit_log_service_dep,
-    meta: request_meta_dep,
+    audit: audit_ctx_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     if not refresh_token:
@@ -99,24 +94,22 @@ async def refresh_tokens(
         await sessions.revoke(session.sid)
 
         await audit.log(
-            user_id=user.id,
             action="auth.refresh_reuse",
             entity_type="user_session",
             entity_id=None,
             payload={"sid": session.sid},
-            **meta,
+            user_id=user.id,
         )
         raise HTTP401("Refresh token revoked")
 
     access_token = issue_access_token(user.id)
 
     await audit.log(
-        user_id=user.id,
         action="auth.refresh",
         entity_type="user_session",
         entity_id=None,
         payload={"sid": session.sid},
-        **meta,
+        user_id=user.id,
     )
 
     return build_token_response(
@@ -128,8 +121,7 @@ async def refresh_tokens(
 @router.post("/logout")
 async def logout_user(
     sessions: user_session_service_dep,
-    audit: audit_log_service_dep,
-    meta: request_meta_dep,
+    audit: audit_ctx_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     sid = None
@@ -144,12 +136,11 @@ async def logout_user(
 
     if user_id:
         await audit.log(
-            user_id=user_id,
             action="auth.logout",
             entity_type="user_session",
             entity_id=None,
             payload={"sid": sid},
-            **meta,
+            user_id=user_id,
         )
 
     response = JSONResponse(content={"message": "Successfully logged out"})
@@ -161,21 +152,17 @@ async def logout_user(
 @router.post("/logout_all")
 async def logout_all_user_sessions(
     sessions: user_session_service_dep,
-    audit: audit_log_service_dep,
-    meta: request_meta_dep,
-    user: user_dep,
+    audit: user_audit_actor_dep,
 ):
-    user_id = user.id
+    user_id = audit.user.id
 
     await sessions.revoke_all_for_user(user_id)
 
     await audit.log(
-        user_id=user_id,
         action="auth.logout_all",
         entity_type="user_session",
         entity_id=None,
         payload={"user_id": user_id},
-        **meta,
     )
 
     response = JSONResponse(content={"message": "Successfully logged out"})
@@ -187,14 +174,14 @@ async def logout_all_user_sessions(
 @router.get("/sessions", response_model=list[UserSessionOut])
 async def get_my_sessions(
     sessions: user_session_service_dep,
-    user: user_dep,
+    audit: user_audit_actor_dep,
     include_inactive: bool = Query(False),
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     current_sid = await sessions.get_current_sid(refresh_token)
 
     now = datetime.now(timezone.utc)
-    rows = await sessions.repo.list_by_user(user.id, include_inactive=include_inactive)
+    rows = await sessions.repo.list_by_user(audit.user.id, include_inactive=include_inactive)
 
     result = []
     for session in rows:
@@ -216,24 +203,20 @@ async def get_my_sessions(
 async def revoke_session(
     sid: str,
     sessions: user_session_service_dep,
-    user: user_dep,
-    audit: audit_log_service_dep,
-    meta: request_meta_dep,
+    audit: user_audit_actor_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     current_sid = await sessions.get_current_sid(refresh_token)
 
-    ok = await sessions.revoke_for_user(user.id, sid)
+    ok = await sessions.revoke_for_user(audit.user.id, sid)
     if not ok:
         raise HTTP404("Session not found")
 
     await audit.log(
-        user_id=user.id,
         action="auth.session_revoke",
         entity_type="user_session",
         entity_id=None,
         payload={"sid": sid},
-        **meta,
     )
 
     response = JSONResponse({"status": "success"})
@@ -256,11 +239,20 @@ async def register_by_invite(
     data: RegisterByInviteRequest,
     service: invite_service_dep,
     user_service: user_service_dep,
+    audit: audit_ctx_dep,
 ):
     result = await service.register_by_invite(
         data,
         get_user_by_email=user_service.get_by_email,
         create_user=user_service.create,
+    )
+
+    await audit.log(
+        action="auth.register_by_invite",
+        entity_type="user",
+        entity_id=result.user_id,
+        payload={"email": result.email, "role": result.role},
+        user_id=result.user_id,
     )
 
     return result
