@@ -15,7 +15,6 @@ dependencies = [
     "fastapi[standard]>=0.131.0",
     "inflection>=0.5.1",
     "loguru>=0.7.3",
-    "orjson>=3.11.7",
     "pydantic-settings>=2.13.1",
     "pyjwt[cryptography]>=2.11.0",
     "python-multipart>=0.0.22",

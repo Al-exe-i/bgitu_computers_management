@@ -20,7 +20,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # чтобы команды (uvicorn/alembic/pytest) находились без uv run
 ENV PATH="/backend/.venv/bin:$PATH"
 
-# код
 COPY . .
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
