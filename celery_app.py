@@ -6,8 +6,6 @@ from core.config import settings
 
 celery_app = Celery("diplom")
 
-# Broker / backend (Redis)
-# В docker-compose хост redis обычно "redis"
 celery_app.conf.broker_url = settings.celery.broker_url
 celery_app.conf.result_backend = settings.celery.result_backend
 

@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 from fastapi import APIRouter, Cookie, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from core.exceptions import HTTP401, HTTP404
@@ -120,6 +121,7 @@ async def refresh_tokens(
 
 @router.post("/logout")
 async def logout_user(
+    response: Response,
     sessions: user_session_service_dep,
     audit: audit_ctx_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
@@ -143,14 +145,15 @@ async def logout_user(
             user_id=user_id,
         )
 
-    response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
-    return response
+
+    return {"message": "Successfully logged out"}
 
 
 @router.post("/logout_all")
 async def logout_all_user_sessions(
+    response: Response,
     sessions: user_session_service_dep,
     audit: user_audit_actor_dep,
 ):
@@ -165,10 +168,10 @@ async def logout_all_user_sessions(
         payload={"user_id": user_id},
     )
 
-    response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
-    return response
+
+    return {"message": "Successfully logged out"}
 
 
 @router.get("/sessions", response_model=list[UserSessionOut])
@@ -199,9 +202,10 @@ async def get_my_sessions(
     return result
 
 
-@router.delete("/sessions/{sid}")
+@router.delete("/sessions/{sid}", status_code=HTTPStatus.NO_CONTENT)
 async def revoke_session(
     sid: str,
+    response: Response,
     sessions: user_session_service_dep,
     audit: user_audit_actor_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
@@ -219,11 +223,9 @@ async def revoke_session(
         payload={"sid": sid},
     )
 
-    response = JSONResponse({"status": "success"})
     if current_sid and current_sid == sid:
         response.delete_cookie("access_token", path="/")
         response.delete_cookie("refresh_token", path="/")
-    return response
 
 
 @router.post("/auth/invite/preview", response_model=InvitePreviewResponse)

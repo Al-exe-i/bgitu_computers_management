@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
     frontend_url: str = "http://localhost:5173"
+    PROJECT_NAME: str = "BGITU Computers Management"
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

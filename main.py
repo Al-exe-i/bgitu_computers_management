@@ -7,7 +7,10 @@ from core.logger import setup_logging
 from websocket.routes import router as ws_router
 
 setup_logging()
-app = FastAPI(debug=settings.DEBUG)
+app = FastAPI(
+    debug=settings.DEBUG,
+    title=settings.PROJECT_NAME,
+)
 
 app.add_middleware(
     CORSMiddleware,
