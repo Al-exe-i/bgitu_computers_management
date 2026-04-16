@@ -1,2 +1,11 @@
 .venv
 .env
+.env.docker
+.git
+.idea
+__pycache__/
+*.py[cod]
+.pytest_cache/
+logs/
+static/uploads/
+static/avatars/

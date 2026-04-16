@@ -1,5 +1,5 @@
 from pathlib import Path
-from pydantic import BaseModel, computed_field, PostgresDsn, model_validator
+from pydantic import BaseModel, Field, computed_field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
     frontend_url: str = "http://localhost:5173"
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+        ]
+    )
     PROJECT_NAME: str = "BGITU Computers Management"
 
     model_config = SettingsConfigDict(
