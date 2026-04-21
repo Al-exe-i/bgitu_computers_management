@@ -4,6 +4,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, Cookie, Depends, Query
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
+from loguru import logger
 
 from core.exceptions import HTTP401, HTTP404
 from core.security import verify_password
@@ -37,6 +38,12 @@ async def login_for_access_token(
 ):
     user = await service.get_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user.password):
+        logger.warning(
+            "Login failed for email={} ip={} user_agent={}",
+            form_data.username,
+            audit.meta.get("ip"),
+            audit.meta.get("user_agent"),
+        )
         raise HTTP401("Invalid credentials")
 
     sid = sessions.new_sid()
@@ -59,6 +66,12 @@ async def login_for_access_token(
         payload={"email": user.email, "sid": sid},
         user_id=user.id,
     )
+    logger.info(
+        "Login succeeded for user_id={} sid={} ip={}",
+        user.id,
+        sid,
+        audit.meta.get("ip"),
+    )
 
     return build_token_response(
         access_token=access_token,
@@ -74,15 +87,30 @@ async def refresh_tokens(
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     if not refresh_token:
+        logger.warning(
+            "Refresh rejected: no refresh token provided ip={} user_agent={}",
+            audit.meta.get("ip"),
+            audit.meta.get("user_agent"),
+        )
         raise HTTP401("No refresh token provided")
 
     session = await sessions.get_active_by_refresh_token(refresh_token)
     if not session:
+        logger.warning(
+            "Refresh rejected: session not found ip={} user_agent={}",
+            audit.meta.get("ip"),
+            audit.meta.get("user_agent"),
+        )
         raise HTTP401("Couldn't validate refresh token")
 
     user = await service.get(session.user_id)
     if not user:
         await sessions.revoke(session.sid)
+        logger.warning(
+            "Refresh rejected: user_id={} not found for sid={}",
+            session.user_id,
+            session.sid,
+        )
         raise HTTP401("User not found")
 
     new_token = new_refresh_token()
@@ -101,6 +129,11 @@ async def refresh_tokens(
             payload={"sid": session.sid},
             user_id=user.id,
         )
+        logger.warning(
+            "Refresh token reuse detected for user_id={} sid={}",
+            user.id,
+            session.sid,
+        )
         raise HTTP401("Refresh token revoked")
 
     access_token = issue_access_token(user.id)
@@ -111,6 +144,11 @@ async def refresh_tokens(
         entity_id=None,
         payload={"sid": session.sid},
         user_id=user.id,
+    )
+    logger.info(
+        "Refresh succeeded for user_id={} sid={}",
+        user.id,
+        session.sid,
     )
 
     return build_token_response(
@@ -135,6 +173,18 @@ async def logout_user(
             sid = session.sid
             user_id = session.user_id
             await sessions.revoke(session.sid)
+        else:
+            logger.warning(
+                "Logout requested with unknown refresh token ip={} user_agent={}",
+                audit.meta.get("ip"),
+                audit.meta.get("user_agent"),
+            )
+    else:
+        logger.debug(
+            "Logout requested without refresh token ip={} user_agent={}",
+            audit.meta.get("ip"),
+            audit.meta.get("user_agent"),
+        )
 
     if user_id:
         await audit.log(
@@ -144,6 +194,7 @@ async def logout_user(
             payload={"sid": sid},
             user_id=user_id,
         )
+        logger.info("Logout succeeded for user_id={} sid={}", user_id, sid)
 
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
@@ -160,6 +211,7 @@ async def logout_all_user_sessions(
     user_id = audit.user.id
 
     await sessions.revoke_all_for_user(user_id)
+    logger.info("Logout all sessions for user_id={}", user_id)
 
     await audit.log(
         action="auth.logout_all",
@@ -214,6 +266,11 @@ async def revoke_session(
 
     ok = await sessions.revoke_for_user(audit.user.id, sid)
     if not ok:
+        logger.warning(
+            "Session revoke failed for user_id={} sid={}",
+            audit.user.id,
+            sid,
+        )
         raise HTTP404("Session not found")
 
     await audit.log(
@@ -222,6 +279,7 @@ async def revoke_session(
         entity_id=None,
         payload={"sid": sid},
     )
+    logger.info("Session revoked for user_id={} sid={}", audit.user.id, sid)
 
     if current_sid and current_sid == sid:
         response.delete_cookie("access_token", path="/")

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from core.exceptions import HTTP400, HTTP404, HTTP409
+from loguru import logger
 from models.invite_link import InviteLink
 from repositories.invite_repo import InviteRepository
 from schemas.invite import (
@@ -132,17 +133,21 @@ class InviteService:
         invite = await self.repo.get_by_token_hash(token_hash)
 
         if not invite:
+            logger.warning("Invite preview failed: invite not found")
             return InvitePreviewResponse(valid=False, reason="Invite not found")
 
         now = datetime.now(timezone.utc)
 
         if invite.revoked_at is not None:
+            logger.warning("Invite preview failed: invite_id={} revoked", invite.id)
             return InvitePreviewResponse(valid=False, reason="Invite revoked")
 
         if invite.used_at is not None:
+            logger.warning("Invite preview failed: invite_id={} already used", invite.id)
             return InvitePreviewResponse(valid=False, reason="Invite already used")
 
         if invite.expires_at <= now:
+            logger.warning("Invite preview failed: invite_id={} expired", invite.id)
             return InvitePreviewResponse(valid=False, reason="Invite expired")
 
         return InvitePreviewResponse(
@@ -166,13 +171,25 @@ class InviteService:
 
         invite = await self.repo.get_active_by_token_hash_for_update(token_hash)
         if not invite:
+            logger.warning("Register by invite failed: invite is invalid or inactive for email={}", schema.email)
             raise HTTP400("Invite is invalid, expired, revoked or already used")
 
         if invite.target_email and invite.target_email.lower() != schema.email.lower():
+            logger.warning(
+                "Register by invite failed: invite_id={} assigned to another email target_email={} requested_email={}",
+                invite.id,
+                invite.target_email,
+                schema.email,
+            )
             raise HTTP400("This invite is assigned to another email")
 
         existing_user = await get_user_by_email(schema.email)
         if existing_user is not None:
+            logger.warning(
+                "Register by invite failed: email already exists invite_id={} email={}",
+                invite.id,
+                schema.email,
+            )
             raise HTTP409("User with this email already exists")
 
         new_user_schema: UserCreate = UserCreate(
@@ -191,6 +208,12 @@ class InviteService:
         invite.used_by_user_id = created_user.id
 
         await self.repo.db.flush()
+        logger.info(
+            "Invite consumed: invite_id={} user_id={} email={}",
+            invite.id,
+            created_user.id,
+            created_user.email,
+        )
 
         return RegisterByInviteResponse(
             user_id=created_user.id,
@@ -201,6 +224,8 @@ class InviteService:
     async def delete(self, invite_id: int) -> None:
         invite = await self.repo.get_by_id(invite_id)
         if not invite:
+            logger.warning("Invite delete failed: invite_id={} not found", invite_id)
             raise HTTP404("Invite not found")
 
         await self.repo.delete(invite)
+        logger.info("Invite deleted: invite_id={}", invite_id)

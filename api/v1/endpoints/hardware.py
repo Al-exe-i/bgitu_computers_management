@@ -2,6 +2,7 @@ import os
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
+from loguru import logger
 
 from core.exceptions import HTTP403, HTTP404
 from db.session import session_dep
@@ -33,6 +34,13 @@ async def add_hardware_file(
         raise HTTP404("Hardware doesn't exist")
 
     result: list[HardwareFileResponse] = await service.update_files(hardware_id, files, db)
+    logger.info(
+        "Hardware files processed: hardware_id={} audience_id={} requested={} saved={}",
+        hardware_id,
+        hardware.audience_id,
+        len(files),
+        len(result),
+    )
 
     await audit.log(
         action="hardware.file_add",
@@ -59,6 +67,11 @@ async def update_hardware(
     realtime: realtime_dep,
 ):
     if data.state and audit.user.role == UserRole.teacher:
+        logger.warning(
+            "Hardware update rejected: teacher tried to mark good state user_id={} hardware_id={}",
+            audit.user.id,
+            hardware_id,
+        )
         raise HTTP403("Teacher can't mark hardware as good state")
 
     if audit.user.role == UserRole.teacher:
@@ -108,6 +121,7 @@ async def stream_video(
     file_path = db_file.file_path
 
     if not os.path.exists(file_path):
+        logger.warning("Video stream file not found on disk: file_id={} path={}", file_id, file_path)
         raise HTTPException(status_code=404, detail="File not found")
 
     content_type = db_file.file_type
@@ -118,6 +132,12 @@ async def stream_video(
         if mime_type and mime_type.startswith("video/"):
             content_type = mime_type
         else:
+            logger.warning(
+                "Video stream rejected: file_id={} content_type={} path={}",
+                file_id,
+                db_file.file_type,
+                file_path,
+            )
             raise HTTPException(status_code=415, detail="Not a video file")
 
     file_size = os.path.getsize(file_path)
@@ -141,9 +161,20 @@ async def stream_video(
                 end = min(start + chunk_size - 1, file_size - 1)
 
         except ValueError:
+            logger.warning(
+                "Video stream rejected: bad range header file_id={} range={}",
+                file_id,
+                range_header,
+            )
             raise HTTPException(status_code=400, detail="Bad Range header")
 
     if start >= file_size:
+        logger.warning(
+            "Video stream rejected: unsatisfied range file_id={} start={} file_size={}",
+            file_id,
+            start,
+            file_size,
+        )
         raise HTTPException(status_code=416, detail="Range not satisfiable")
 
     end = min(end, file_size - 1)
@@ -186,6 +217,7 @@ async def delete_hardware_file(
     realtime: realtime_dep,
 ):
     audience_id = await service.delete_file(file_id)
+    logger.info("Hardware file deleted: file_id={} audience_id={}", file_id, audience_id)
 
     await audit.log(
         action="hardware.file_delete",

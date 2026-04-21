@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
+from loguru import logger
 
 from core.config import settings
 from core.exceptions import HTTP403, HTTP404
@@ -31,9 +32,15 @@ async def get_protected_file(
     try:
         requested_path.relative_to(base_dir)
     except ValueError:
+        logger.warning(
+            "Protected file access denied: requested_path={} base_dir={}",
+            requested_path,
+            base_dir,
+        )
         raise HTTP403("Access Denied")
 
     if not requested_path.is_file():
+        logger.warning("Protected file not found: {}", requested_path)
         raise HTTP404("File Not Found")
 
     return FileResponse(requested_path)

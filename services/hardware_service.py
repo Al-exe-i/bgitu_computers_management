@@ -4,6 +4,7 @@ import aiofiles
 import uuid
 import os
 from fastapi import UploadFile
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from core.exceptions import HTTP404
@@ -72,10 +73,26 @@ class HardwareService:
         audience_id = (await self.get(hardware_id)).audience_id
 
         for file in files:
-            if not (file.content_type.startswith("image/") or file.content_type.startswith("video/")):
+            content_type = file.content_type or ""
+            if not (content_type.startswith("image/") or content_type.startswith("video/")):
+                logger.warning(
+                    "Hardware file skipped due to unsupported content type: hardware_id={} audience_id={} filename={} content_type={}",
+                    hardware_id,
+                    audience_id,
+                    file.filename,
+                    content_type,
+                )
                 continue
 
-            if file.size > 20 * 1024 * 1024:
+            file_size = file.size or 0
+            if file_size > 20 * 1024 * 1024:
+                logger.warning(
+                    "Hardware file skipped due to size limit: hardware_id={} audience_id={} filename={} size={}",
+                    hardware_id,
+                    audience_id,
+                    file.filename,
+                    file_size,
+                )
                 continue
 
             ext = os.path.splitext(file.filename)[1]
@@ -96,6 +113,13 @@ class HardwareService:
             created = await files_repo.create(db_file)
             created_files.append(HardwareFileResponse.model_validate(created, from_attributes=True))
             await db.flush()
+            logger.info(
+                "Hardware file stored: hardware_id={} audience_id={} file_id={} filename={}",
+                hardware_id,
+                audience_id,
+                created.id,
+                file.filename,
+            )
         return created_files
 
     async def get_file_for_stream(self, file_id: int):
@@ -103,9 +127,15 @@ class HardwareService:
         db_file = await repo.get_by_id(file_id)
 
         if not db_file:
+            logger.warning("Hardware file record not found: file_id={}", file_id)
             raise HTTP404("File record not found")
 
         if not os.path.exists(db_file.file_path):
+            logger.warning(
+                "Hardware file missing on disk: file_id={} path={}",
+                file_id,
+                db_file.file_path,
+            )
             raise HTTP404("File missing on disk")
 
         return db_file
@@ -115,14 +145,32 @@ class HardwareService:
 
         db_file = await files_repo.get_by_id(file_id)
         if not db_file:
+            logger.warning("Hardware file delete failed: file_id={} not found", file_id)
             raise HTTP404("Файл не найден")
 
         if os.path.exists(db_file.file_path):
             os.remove(db_file.file_path)
+            logger.info(
+                "Hardware file removed from disk: file_id={} path={}",
+                file_id,
+                db_file.file_path,
+            )
+        else:
+            logger.warning(
+                "Hardware file missing on disk during delete: file_id={} path={}",
+                file_id,
+                db_file.file_path,
+            )
 
         hw = await self.get(db_file.hardware_id)
         audience_id = hw.audience_id
 
         await files_repo.delete(file_id)
+        logger.info(
+            "Hardware file record deleted: file_id={} hardware_id={} audience_id={}",
+            file_id,
+            db_file.hardware_id,
+            audience_id,
+        )
 
         return audience_id

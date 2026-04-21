@@ -38,6 +38,7 @@ async def create_user(
 ):
     try:
         user = await service.create(user_in)
+        logger.info("User created: user_id={} email={}", user.id, user.email)
 
         await audit.log(
             action="user.create",
@@ -51,6 +52,7 @@ async def create_user(
         )
         return user
     except IntegrityError:
+        logger.warning("User creation failed due to duplicate email={}", user_in.email)
         raise HTTP409("User already exists")
 
 
@@ -74,9 +76,15 @@ async def read_user(
     current_user: user_dep,
 ):
     if current_user.id != user_id and current_user.role != UserRole.admin:
+        logger.warning(
+            "User read rejected: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
         raise HTTP403("Not enough permissions")
     user = await service.get(user_id)
     if not user:
+        logger.warning("User read failed: target_user_id={} not found", user_id)
         raise HTTP404("User not found")
     return user
 
@@ -84,11 +92,13 @@ async def read_user(
 @router.get("/me/photo")
 async def get_user_photo(user: user_dep):
     if not user.photo:
+        logger.warning("User photo not found: user_id={} no photo assigned", user.id)
         raise HTTP404("Photo not found")
 
     file_path = os.path.join(settings.static.avatars_dir, user.photo)
 
     if not os.path.exists(file_path):
+        logger.warning("User photo missing on disk: user_id={} path={}", user.id, file_path)
         raise HTTP404("Photo not found")
 
     media_type, _ = mimetypes.guess_type(file_path)
@@ -109,12 +119,15 @@ async def change_password(
     audit: user_audit_actor_dep,
 ):
     if not verify_password(data.current_password, audit.user.password):
+        logger.warning("Password change rejected: invalid current password for user_id={}", audit.user.id)
         raise HTTP400("Неверный текущий пароль")
 
     if data.current_password == data.new_password:
+        logger.warning("Password change rejected: new password equals old for user_id={}", audit.user.id)
         raise HTTP400("Новый пароль не должен совпадать со старым")
 
     await service.update(audit.user.id, UserUpdate(password=data.new_password))
+    logger.info("Password changed for user_id={}", audit.user.id)
 
     await audit.log(
         action="user.password_change",
@@ -135,15 +148,23 @@ async def delete_user(
     user = await service.get(user_id)
 
     if not user:
+        logger.warning("User deletion failed: target_user_id={} not found", user_id)
         raise HTTP404("User not found")
 
     if audit.user.id == user_id:
+        logger.warning("User deletion rejected: self-delete attempt user_id={}", user_id)
         raise HTTP400("You can't delete yourself")
 
     if user.is_superuser:
+        logger.warning(
+            "User deletion rejected: target_user_id={} is superuser actor_id={}",
+            user_id,
+            audit.user.id,
+        )
         raise HTTP400("You can't delete superuser")
 
     await service.delete(user_id)
+    logger.info("User deleted: actor_id={} target_user_id={}", audit.user.id, user_id)
 
     await audit.log(
         action="user.delete",
@@ -168,18 +189,38 @@ async def update_user(
 ):
     current_user = audit.user
     if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
+        logger.warning(
+            "User update rejected: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
     if not user:
+        logger.warning("User update failed: target_user_id={} not found", user_id)
         raise HTTP404("User not found")
 
-    can_change_other_su(current_user, user)
+    try:
+        can_change_other_su(current_user, user)
+    except HTTP403:
+        logger.warning(
+            "User update rejected by superuser protection: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
+        raise
 
     if current_user.id == user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
         user_in = UserUpdate(**user_in.model_dump(exclude={"role"}))
 
     updated_user = await service.update(user_id, user_in)
+    logger.info(
+        "User updated: actor_id={} target_user_id={} changed_fields={}",
+        current_user.id,
+        user_id,
+        changed_fields(user_in),
+    )
 
     await audit.log(
         action="user.update",
@@ -203,15 +244,35 @@ async def upload_user_photo(
 ):
     current_user = audit.user
     if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
+        logger.warning(
+            "User photo upload rejected: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
     if not user:
+        logger.warning("User photo upload failed: target_user_id={} not found", user_id)
         raise HTTP404("User not found")
 
-    can_change_other_su(current_user, user)
+    try:
+        can_change_other_su(current_user, user)
+    except HTTP403:
+        logger.warning(
+            "User photo upload rejected by superuser protection: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
+        raise
 
     if not file.content_type.startswith("image/"):
+        logger.warning(
+            "User photo upload rejected: invalid content type user_id={} filename={} content_type={}",
+            user_id,
+            file.filename,
+            file.content_type,
+        )
         raise HTTP400("File must be an image")
 
     file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
@@ -244,6 +305,12 @@ async def upload_user_photo(
             "replaced_existing": bool(user.photo),
         },
     )
+    logger.info(
+        "User photo uploaded: actor_id={} target_user_id={} replaced_existing={}",
+        current_user.id,
+        user_id,
+        bool(user.photo),
+    )
 
     return updated_user
 
@@ -256,13 +323,27 @@ async def delete_user_photo(
 ):
     current_user = audit.user
     if current_user.id != user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
+        logger.warning(
+            "User photo delete rejected: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
         raise HTTP403("Not enough permissions")
 
     user = await service.get(user_id)
     if not user:
+        logger.warning("User photo delete failed: target_user_id={} not found", user_id)
         raise HTTP404("User not found")
 
-    can_change_other_su(current_user, user)
+    try:
+        can_change_other_su(current_user, user)
+    except HTTP403:
+        logger.warning(
+            "User photo delete rejected by superuser protection: actor_id={} target_user_id={}",
+            current_user.id,
+            user_id,
+        )
+        raise
     had_photo = bool(user.photo)
 
     if user.photo:
@@ -283,6 +364,12 @@ async def delete_user_photo(
             "target_user_id": user_id,
             "had_photo": had_photo,
         },
+    )
+    logger.info(
+        "User photo deleted: actor_id={} target_user_id={} had_photo={}",
+        current_user.id,
+        user_id,
+        had_photo,
     )
 
     return updated_user
