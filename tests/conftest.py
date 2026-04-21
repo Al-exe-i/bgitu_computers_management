@@ -1,0 +1,15 @@
+import os
+
+
+ENV_DEFAULTS = {
+    "BGITU__DB__USERNAME": "test_user",
+    "BGITU__DB__PASSWORD": "test_password",
+    "BGITU__DB__DATABASE": "test_db",
+    "BGITU__JWT__ACCESS_SECRET_KEY": "test-secret-key",
+    "BGITU__CELERY__BROKER_URL": "redis://localhost:6379/0",
+    "BGITU__CELERY__RESULT_BACKEND": "redis://localhost:6379/1",
+}
+
+
+for key, value in ENV_DEFAULTS.items():
+    os.environ.setdefault(key, value)
