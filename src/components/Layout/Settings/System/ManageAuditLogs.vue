@@ -958,8 +958,10 @@ export default {
                 <p class="modal-subtitle">{{ selectedPresentation.summary }}</p>
               </div>
 
-              <button class="close-btn" type="button" @click="closeDetails" aria-label="Закрыть">
-                ✕
+              <button class="audit-modal-close" type="button" @click="closeDetails" aria-label="Закрыть">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/>
+                </svg>
               </button>
             </div>
 
@@ -1571,19 +1573,30 @@ export default {
   color: #64748b;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #94a3b8;
+.audit-modal-close {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.72);
+  color: #64748b;
   cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 4px;
+  transition: all 0.2s ease;
+  padding: 0;
   flex-shrink: 0;
 }
 
-.close-btn:hover {
+.audit-modal-close:hover {
+  background: #ffffff;
   color: #0f172a;
+}
+
+.audit-modal-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .audit-modal-body {
@@ -1898,11 +1911,14 @@ export default {
   border-top-color: #334155;
 }
 
-:global(html[data-theme='dark']) .audit-log-modal-overlay .close-btn {
+:global(html[data-theme='dark']) .audit-log-modal-overlay .audit-modal-close {
+  background: rgba(15, 23, 42, 0.82);
+  border-color: #334155;
   color: #94a3b8;
 }
 
-:global(html[data-theme='dark']) .audit-log-modal-overlay .close-btn:hover {
+:global(html[data-theme='dark']) .audit-log-modal-overlay .audit-modal-close:hover {
+  background: rgba(30, 41, 59, 0.96);
   color: #f8fafc;
 }
 
@@ -1932,7 +1948,7 @@ export default {
     flex-direction: column;
   }
 
-  .close-btn {
+  .audit-modal-close {
     align-self: flex-end;
   }
 }

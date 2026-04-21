@@ -575,25 +575,16 @@ export default {
               </svg>
             </button>
 
-          <div class="session-confirm-icon">
-            <svg v-if="pendingSessionAction?.type === 'all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-              <path d="M7 20h10"></path>
-              <path d="M12 16v4"></path>
-              <path d="M16 10l3 3l-3 3"></path>
-              <path d="M10 16H7a2 2 0 0 1-2-2V9"></path>
-            </svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-              <path d="M7 20h10"></path>
-              <path d="M12 16v4"></path>
-              <path d="M14 10l3 3l-3 3"></path>
-              <path d="M11 13H6"></path>
-            </svg>
+          <div class="session-confirm-hero">
+            <div class="session-confirm-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M2 5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-7v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H4a2 2 0 0 1-2-2zm18 11V5H4v11z"/></svg>
+            </div>
+            <div class="session-confirm-head">
+              <h3 class="session-confirm-title">{{ sessionConfirmTitle }}</h3>
+            </div>
           </div>
 
           <div class="session-confirm-body">
-            <h3 class="session-confirm-title">{{ sessionConfirmTitle }}</h3>
             <p class="session-confirm-text">{{ sessionConfirmDescription }}</p>
 
             <div class="session-confirm-meta">
@@ -1272,12 +1263,23 @@ export default {
   height: 28px;
 }
 
+.session-confirm-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 48px;
+}
+
+.session-confirm-head {
+  min-width: 0;
+}
+
 .session-confirm-body {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .session-confirm-title {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
@@ -1458,6 +1460,11 @@ export default {
   .session-confirm-card {
     padding: 22px 18px 18px;
     border-radius: 20px;
+  }
+
+  .session-confirm-hero {
+    padding-right: 40px;
+    align-items: flex-start;
   }
 
   .session-confirm-meta-item {
