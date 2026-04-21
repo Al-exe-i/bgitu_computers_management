@@ -5,6 +5,11 @@ router = APIRouter()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    realtime = websocket.app.state.realtime
+    if not realtime.config.enabled:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="WebSocket is disabled")
+        return
+
     audience_raw = websocket.query_params.get("audience_id")
     audience_id: int | None = None
 
@@ -15,7 +20,6 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid audience_id")
             return
 
-    realtime = websocket.app.state.realtime
     connection_id = await realtime.connect(
         websocket,
         audience_id=audience_id,

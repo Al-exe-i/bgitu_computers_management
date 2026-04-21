@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "BGITU Computers Management"
 
     model_config = SettingsConfigDict(
-        env_file=(".env.docker",),
+        env_file=(".env",),
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="BGITU__",

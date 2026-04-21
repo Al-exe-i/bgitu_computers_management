@@ -24,7 +24,7 @@ class RealtimeService:
         self.registry: RedisConnectionRegistry | None = None
         self.bus: RedisEventBus | None = None
 
-        if self.config.transport == "redis":
+        if self.config.enabled and self.config.transport == "redis":
             registry_redis = Redis.from_url(self.config.redis_url, decode_responses=True)
             self.registry = RedisConnectionRegistry(
                 registry_redis,
@@ -46,6 +46,10 @@ class RealtimeService:
         return f"{socket.gethostname()}-{os.getpid()}-{uuid4().hex[:8]}"
 
     async def start(self) -> None:
+        if not self.config.enabled:
+            logger.info("Realtime service is disabled")
+            return
+
         if self.registry is None or self.bus is None:
             logger.info("Realtime service started in {} mode", self.config.transport)
             return
@@ -77,6 +81,10 @@ class RealtimeService:
         logger.info("Realtime service started in redis mode with instance_id={}", self.instance_id)
 
     async def stop(self) -> None:
+        if not self.config.enabled:
+            logger.info("Realtime service is disabled; stop skipped")
+            return
+
         tasks = [
             self._subscriber_task,
             self._instance_heartbeat_task,
@@ -113,6 +121,9 @@ class RealtimeService:
         ip: str | None,
         user_agent: str | None,
     ) -> str:
+        if not self.config.enabled:
+            raise RuntimeError("Realtime service is disabled")
+
         connection_id = str(uuid4())
         state = await self.manager.accept(
             connection_id=connection_id,
@@ -135,6 +146,9 @@ class RealtimeService:
         return connection_id
 
     async def disconnect(self, connection_id: str) -> None:
+        if not self.config.enabled:
+            return
+
         state = await self.manager.remove(connection_id)
         if state is None:
             return
@@ -143,6 +157,9 @@ class RealtimeService:
         logger.debug("WebSocket disconnected: connection_id={}", connection_id)
 
     async def heartbeat(self, connection_id: str) -> None:
+        if not self.config.enabled:
+            return
+
         state = await self.manager.touch(connection_id)
         if state is None or self.registry is None:
             return
@@ -154,6 +171,9 @@ class RealtimeService:
         )
 
     async def publish_audience_updated(self, audience_id: int) -> None:
+        if not self.config.enabled:
+            return
+
         if self.bus is not None:
             await self.bus.publish_audience_updated(audience_id)
             return
