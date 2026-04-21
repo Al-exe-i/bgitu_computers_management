@@ -222,8 +222,8 @@ export default {
     <!-- Модалка -->
     <Teleport to="body">
     <transition name="modal">
-      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-content">
+      <div v-if="showModal" class="modal-overlay system-offices-modal-overlay" @click.self="closeModal">
+        <div class="modal-content system-offices-modal-content">
 
           <div class="modal-header">
             <h3>{{ isEditMode ? 'Редактирование корпуса' : 'Новый корпус' }}</h3>
@@ -263,8 +263,19 @@ export default {
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" @click="closeModal" :disabled="isSaving">Отмена</button>
-              <button type="submit" class="btn btn-primary" :disabled="officeAlreadyExists || isSaving">
+              <button
+                type="button"
+                class="btn btn-secondary modal-action-btn modal-action-btn-cancel"
+                @click="closeModal"
+                :disabled="isSaving"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary modal-action-btn modal-action-btn-submit"
+                :disabled="officeAlreadyExists || isSaving"
+              >
                 <span v-if="isSaving" class="spinner-small spinner-white"></span>
                 {{ isSaving ? 'Сохранение...' : 'Сохранить' }}
               </button>
@@ -633,6 +644,10 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 28px;
+}
+
+.modal-action-btn {
+  min-width: 148px;
 }
 
 html[data-theme='dark'] .modal-content {

@@ -940,12 +940,16 @@ export default {
     },
     /* WebSocket */
     connectWebSocket() {
+      if (!this.classroom?.number) {
+        return;
+      }
+
       if (this.ws) {
         this.ws.onclose = null;
         this.ws.close();
       }
 
-      this.ws = new WebSocket(getWsUrl());
+      this.ws = new WebSocket(`${getWsUrl()}?audience_id=${this.classroom.number}`);
 
       this.ws.onopen = () => {
         this.wsConnected = true;
@@ -1178,9 +1182,9 @@ export default {
 
   },
 
-  mounted() {
+  async mounted() {
     this.skipStatusConfirmSession = sessionStorage.getItem('hw_skip_status_confirm_session') === 'true';
-    this.getAudience();
+    await this.getAudience();
     this.connectWebSocket();
   },
 
@@ -1441,7 +1445,7 @@ export default {
                 v-model="selectedCell.data.comment"
                 class="form-textarea"
                 placeholder="Опишите проблему или состояние оборудования..."
-                :disabled="!havePermission || !selectedCell.data.working"
+                :disabled="!selectedCell.data.working"
             ></textarea>
           </div>
 

@@ -1588,10 +1588,13 @@ export default {
 
 .audit-modal-body {
   padding: 24px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overscroll-behavior: contain;
 }
 
 .meta-grid {
@@ -1684,6 +1687,9 @@ export default {
 }
 
 .audit-disclosure summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 14px 16px;
   cursor: pointer;
   font-size: 14px;
@@ -1698,7 +1704,8 @@ export default {
 
 .audit-disclosure summary::after {
   content: "▾";
-  float: right;
+  margin-left: auto;
+  flex-shrink: 0;
   color: #94a3b8;
   transition: transform 0.2s ease;
 }
@@ -1726,7 +1733,7 @@ export default {
   font-family: ui-monospace, monospace;
   font-size: 13px;
   line-height: 1.55;
-  overflow-x: auto;
+  overflow: auto;
   max-height: 420px;
 }
 

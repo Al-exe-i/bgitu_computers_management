@@ -1523,13 +1523,19 @@ export default {
             <div class="modal-footer">
               <button
                 v-if="selectedItem.audience_id !== null && selectedItem.audience_id !== undefined"
-                class="btn btn-secondary"
+                class="btn btn-secondary analytics-modal-action-btn analytics-modal-action-btn-secondary"
                 type="button"
                 @click="openAudience(selectedItem)"
               >
                 К аудитории
               </button>
-              <button class="btn btn-primary" type="button" @click="closeDetails">Закрыть</button>
+              <button
+                class="btn btn-primary analytics-modal-action-btn analytics-modal-action-btn-primary"
+                type="button"
+                @click="closeDetails"
+              >
+                Закрыть
+              </button>
             </div>
           </div>
         </div>
@@ -2801,6 +2807,10 @@ export default {
   border-bottom: none;
 }
 
+.analytics-modal-action-btn {
+  min-width: 138px;
+}
+
 .type-tone-computer {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.2);
@@ -3174,6 +3184,40 @@ html[data-theme='dark'] .analytics-modal-overlay .close-btn:hover {
   background: rgba(37, 99, 235, 0.18);
   border-color: #60a5fa;
   color: #dbeafe;
+}
+
+html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-secondary {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(22, 34, 52, 0.9));
+  border: 1px solid rgba(71, 85, 105, 0.9);
+  color: #cbd5e1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 12px 24px rgba(2, 6, 23, 0.2);
+}
+
+html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(22, 34, 52, 0.96), rgba(30, 41, 59, 0.94));
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #e2e8f0;
+}
+
+html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-primary {
+  background: linear-gradient(135deg, #0f766e, #0f5f8a);
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  color: #f8fafc;
+  box-shadow:
+    0 14px 28px rgba(8, 47, 73, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0d9488, #0369a1);
+  border-color: rgba(125, 211, 252, 0.24);
+}
+
+html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-primary:disabled,
+html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-secondary:disabled {
+  box-shadow: none;
 }
 
 html[data-theme='dark'] .analytics-card .code-badge {

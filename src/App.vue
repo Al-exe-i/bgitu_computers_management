@@ -258,6 +258,87 @@ html[data-theme='dark'] .modal-close-upper button:hover {
   color: #e2e8f0 !important;
 }
 
+html[data-theme='dark'] .system-users-modal-overlay .close-btn,
+html[data-theme='dark'] .audit-log-modal-overlay .close-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .system-users-modal-overlay .close-btn:hover,
+html[data-theme='dark'] .audit-log-modal-overlay .close-btn:hover {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border: none !important;
+}
+
+html[data-theme='dark'] .system-users-modal-content .modal-action-btn-cancel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.88)) !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 10px 22px rgba(2, 6, 23, 0.22) !important;
+}
+
+html[data-theme='dark'] .system-users-modal-content .modal-action-btn-cancel:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(51, 65, 85, 0.92)) !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .system-users-modal-content .modal-action-btn-submit {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+  color: #ffffff !important;
+  box-shadow:
+      0 14px 28px rgba(29, 78, 216, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-theme='dark'] .system-users-modal-content .modal-action-btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  border-color: rgba(147, 197, 253, 0.34) !important;
+}
+
+html[data-theme='dark'] .system-users-modal-content .modal-action-btn-submit:disabled,
+html[data-theme='dark'] .system-users-modal-content .modal-action-btn-cancel:disabled {
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .system-offices-modal-content .modal-action-btn-cancel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.88)) !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 10px 22px rgba(2, 6, 23, 0.22) !important;
+}
+
+html[data-theme='dark'] .system-offices-modal-content .modal-action-btn-cancel:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(51, 65, 85, 0.92)) !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .system-offices-modal-content .modal-action-btn-submit {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+  color: #ffffff !important;
+  box-shadow:
+      0 14px 28px rgba(29, 78, 216, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-theme='dark'] .system-offices-modal-content .modal-action-btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  border-color: rgba(147, 197, 253, 0.34) !important;
+}
+
+html[data-theme='dark'] .system-offices-modal-content .modal-action-btn-submit:disabled,
+html[data-theme='dark'] .system-offices-modal-content .modal-action-btn-cancel:disabled {
+  box-shadow: none !important;
+}
+
 html[data-theme='dark'] .hw-btn-cancel {
   background: #1e293b !important;
   color: #cbd5e1 !important;

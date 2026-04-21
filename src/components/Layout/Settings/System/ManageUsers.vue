@@ -292,8 +292,8 @@ export default {
     <!-- Модалка добавления (с Vue transition) -->
     <Teleport to="body">
     <transition name="modal">
-      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-content">
+      <div v-if="showModal" class="modal-overlay system-users-modal-overlay" @click.self="closeModal">
+        <div class="modal-content system-users-modal-content">
 
           <div class="modal-header">
             <h3>Создать пользователя</h3>
@@ -339,8 +339,19 @@ export default {
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" @click="closeModal" :disabled="createLoading">Отмена</button>
-              <button type="submit" class="btn btn-primary" :disabled="createLoading">
+              <button
+                type="button"
+                class="btn btn-secondary modal-action-btn modal-action-btn-cancel"
+                @click="closeModal"
+                :disabled="createLoading"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary modal-action-btn modal-action-btn-submit"
+                :disabled="createLoading"
+              >
                 <span v-if="createLoading" class="spinner-small spinner-white"></span>
                 {{ createLoading ? 'Создание...' : 'Создать аккаунт' }}
               </button>
@@ -791,6 +802,10 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 28px;
+}
+
+.modal-action-btn {
+  min-width: 148px;
 }
 
 /* --- Спиннеры --- */
