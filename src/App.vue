@@ -744,6 +744,273 @@ html[data-theme='dark'] .security-card .actions-footer {
   border-top-color: #334155 !important;
 }
 
+html[data-theme='dark'] .security-settings-card {
+  background: var(--security-card-bg) !important;
+  border-color: var(--security-card-border) !important;
+  box-shadow: var(--security-shadow) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .security-tabs {
+  background: var(--security-tab-bg) !important;
+  border-color: var(--security-soft-border) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .security-tab:hover:not(.active) {
+  background: var(--security-tab-hover) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .security-settings-card .security-tab.active {
+  background: var(--security-tab-active) !important;
+  color: var(--security-tab-active-text) !important;
+  box-shadow:
+      0 14px 28px rgba(2, 6, 23, 0.28),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .alert-box.info {
+  background: linear-gradient(135deg, rgba(3, 105, 161, 0.16), rgba(15, 23, 42, 0.82)) !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .security-settings-card .alert-box.warning {
+  background: linear-gradient(135deg, rgba(133, 77, 14, 0.22), rgba(15, 23, 42, 0.82)) !important;
+  border-color: rgba(245, 158, 11, 0.24) !important;
+  color: #fcd34d !important;
+}
+
+html[data-theme='dark'] .security-settings-card .sessions-stat-chip,
+html[data-theme='dark'] .security-settings-card .session-item,
+html[data-theme='dark'] .security-settings-card .sessions-empty-state {
+  background: var(--security-session-bg) !important;
+  border-color: var(--security-session-border) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .session-item.is-current {
+  background: var(--security-session-current-bg) !important;
+  border-color: var(--security-session-current-border) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .session-icon {
+  background: var(--security-session-icon-bg) !important;
+  color: var(--security-session-icon-color) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .session-item.is-current .session-icon {
+  background: var(--security-session-current-icon-bg) !important;
+  color: var(--security-session-current-icon-color) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .logout-link {
+  background: var(--security-danger-soft-bg) !important;
+  border-color: var(--security-danger-soft-border) !important;
+  color: var(--security-danger-soft-text) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .logout-link:hover:not(:disabled) {
+  background: rgba(153, 27, 27, 0.34) !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
+  color: #fecdd3 !important;
+}
+
+html[data-theme='dark'] .security-settings-card .session-danger-btn {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.82), rgba(190, 24, 93, 0.82)) !important;
+  border-color: rgba(244, 63, 94, 0.22) !important;
+  color: #fff1f2 !important;
+  box-shadow: 0 16px 30px rgba(127, 29, 29, 0.26) !important;
+}
+
+html[data-theme='dark'] .security-settings-card .session-danger-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(153, 27, 27, 0.92), rgba(225, 29, 72, 0.88)) !important;
+  border-color: rgba(251, 113, 133, 0.28) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .security-settings-card {
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 30%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98)) !important;
+  border: 1px solid #334155 !important;
+  box-shadow:
+      0 28px 64px rgba(2, 6, 23, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .section-title,
+html[data-theme='dark'] .security-settings-root .session-device,
+html[data-theme='dark'] .security-settings-root .sessions-empty-state strong {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .security-settings-root .section-subtitle,
+html[data-theme='dark'] .security-settings-root .form-group label,
+html[data-theme='dark'] .security-settings-root .password-strength-title,
+html[data-theme='dark'] .security-settings-root .password-strength-label,
+html[data-theme='dark'] .security-settings-root .session-details,
+html[data-theme='dark'] .security-settings-root .sessions-stat-chip,
+html[data-theme='dark'] .security-settings-root .sessions-empty-state,
+html[data-theme='dark'] .security-settings-root .loading-state,
+html[data-theme='dark'] .security-settings-root .security-tab {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .security-tabs {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid #334155 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .security-tab:hover:not(.active) {
+  background: rgba(51, 65, 85, 0.74) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .security-tab.active {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(17, 24, 39, 0.98)) !important;
+  color: #bfdbfe !important;
+  box-shadow:
+      0 14px 28px rgba(2, 6, 23, 0.28),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .alert-box.info {
+  background: linear-gradient(135deg, rgba(3, 105, 161, 0.16), rgba(15, 23, 42, 0.82)) !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .alert-box.warning {
+  background: linear-gradient(135deg, rgba(133, 77, 14, 0.22), rgba(15, 23, 42, 0.82)) !important;
+  border-color: rgba(245, 158, 11, 0.24) !important;
+  color: #fcd34d !important;
+}
+
+html[data-theme='dark'] .security-settings-root .sessions-stat-chip,
+html[data-theme='dark'] .security-settings-root .session-item,
+html[data-theme='dark'] .security-settings-root .sessions-empty-state {
+  background:
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.1), transparent 32%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(17, 24, 39, 0.92)) !important;
+  border-color: rgba(51, 65, 85, 0.95) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .session-item:hover {
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+      linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(30, 41, 59, 0.94)) !important;
+  border-color: #475569 !important;
+  box-shadow: 0 18px 28px rgba(2, 6, 23, 0.24) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .session-item.is-current {
+  background:
+      radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 30%),
+      linear-gradient(180deg, rgba(6, 78, 59, 0.28), rgba(15, 23, 42, 0.92)) !important;
+  border-color: rgba(34, 197, 94, 0.34) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .session-icon {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #93c5fd !important;
+}
+
+html[data-theme='dark'] .security-settings-root .session-item.is-current .session-icon {
+  background: rgba(6, 78, 59, 0.72) !important;
+  color: #86efac !important;
+}
+
+html[data-theme='dark'] .security-settings-root .sessions-empty-state {
+  border-style: dashed !important;
+}
+
+html[data-theme='dark'] .security-settings-root .eye-btn {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .eye-btn:hover {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .security-settings-root .btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+  box-shadow:
+      0 14px 28px rgba(29, 78, 216, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  border-color: rgba(147, 197, 253, 0.34) !important;
+}
+
+html[data-theme='dark'] .security-settings-root .btn-primary:disabled,
+html[data-theme='dark'] .security-settings-root .btn-danger:disabled {
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .session-confirm-overlay {
+  background: rgba(2, 6, 23, 0.64) !important;
+}
+
+html[data-theme='dark'] .session-confirm-card {
+  background:
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 32%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98)) !important;
+  border-color: #334155 !important;
+  box-shadow:
+      0 34px 72px rgba(2, 6, 23, 0.48),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .session-confirm-title,
+html[data-theme='dark'] .session-confirm-meta-value {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .session-confirm-text {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .session-confirm-meta-label {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .session-confirm-icon {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.42), rgba(30, 41, 59, 0.94)) !important;
+  color: #fecaca !important;
+}
+
+html[data-theme='dark'] .session-confirm-meta-item {
+  background: rgba(15, 23, 42, 0.76) !important;
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .session-confirm-close {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .session-confirm-close:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.96) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .session-confirm-btn.is-cancel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.88)) !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .session-confirm-btn.is-cancel:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(51, 65, 85, 0.94)) !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
 html[data-theme='dark'] .security-card .password-strength-title {
   color: #94a3b8 !important;
 }
