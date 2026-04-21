@@ -13,3 +13,6 @@ ENV_DEFAULTS = {
 
 for key, value in ENV_DEFAULTS.items():
     os.environ.setdefault(key, value)
+
+os.environ["BGITU__WEBSOCKET__ENABLED"] = "1"
+os.environ["BGITU__WEBSOCKET__TRANSPORT"] = "inmemory"

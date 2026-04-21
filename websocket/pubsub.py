@@ -56,7 +56,7 @@ class RedisEventBus:
             finally:
                 if self._pubsub is not None:
                     try:
-                        await self._pubsub.close()
+                        await self._pubsub.aclose()
                     except Exception:
                         pass
                     self._pubsub = None
@@ -71,7 +71,7 @@ class RedisEventBus:
         self._closed = True
         if self._pubsub is not None:
             try:
-                await self._pubsub.close()
+                await self._pubsub.aclose()
             except Exception:
                 pass
             self._pubsub = None
