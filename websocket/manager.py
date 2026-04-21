@@ -1,26 +1,122 @@
+import asyncio
+from dataclasses import dataclass
+from datetime import datetime, timezone
+
 from fastapi import WebSocket
 
 
-class ConnectionManager:
+@dataclass(slots=True)
+class LocalConnectionState:
+    connection_id: str
+    websocket: WebSocket
+    audience_id: int | None
+    user_id: int | None
+    connected_at: datetime
+    last_seen: datetime
+
+
+class LocalConnectionManager:
     def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
+        self._connections: dict[str, LocalConnectionState] = {}
+        self._audience_to_connections: dict[int | None, set[str]] = {}
+        self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket) -> None:
+    async def accept(
+        self,
+        *,
+        connection_id: str,
+        websocket: WebSocket,
+        audience_id: int | None,
+        user_id: int | None,
+    ) -> LocalConnectionState:
         await websocket.accept()
-        self.active_connections.append(websocket)
 
-    def disconnect(self, websocket: WebSocket) -> None:
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+        now = datetime.now(timezone.utc)
+        state = LocalConnectionState(
+            connection_id=connection_id,
+            websocket=websocket,
+            audience_id=audience_id,
+            user_id=user_id,
+            connected_at=now,
+            last_seen=now,
+        )
 
-    async def broadcast(self, message: dict) -> None:
-        disconnected = []
+        async with self._lock:
+            self._connections[connection_id] = state
+            self._audience_to_connections.setdefault(audience_id, set()).add(connection_id)
 
-        for connection in self.active_connections[:]:
+        return state
+
+    async def remove(self, connection_id: str) -> LocalConnectionState | None:
+        async with self._lock:
+            state = self._connections.pop(connection_id, None)
+            if state is None:
+                return None
+
+            audience_connections = self._audience_to_connections.get(state.audience_id)
+            if audience_connections is not None:
+                audience_connections.discard(connection_id)
+                if not audience_connections:
+                    self._audience_to_connections.pop(state.audience_id, None)
+
+            return state
+
+    async def touch(self, connection_id: str) -> LocalConnectionState | None:
+        async with self._lock:
+            state = self._connections.get(connection_id)
+            if state is None:
+                return None
+
+            state.last_seen = datetime.now(timezone.utc)
+            return state
+
+    async def snapshot(self) -> list[LocalConnectionState]:
+        async with self._lock:
+            return list(self._connections.values())
+
+    async def send_json(self, connection_id: str, payload: dict) -> LocalConnectionState | None:
+        async with self._lock:
+            state = self._connections.get(connection_id)
+
+        if state is None:
+            return None
+
+        try:
+            await state.websocket.send_json(payload)
+            return None
+        except Exception:
+            return await self.remove(connection_id)
+
+    async def broadcast_audience(self, audience_id: int, payload: dict) -> list[LocalConnectionState]:
+        async with self._lock:
+            targets = set(self._audience_to_connections.get(None, set()))
+            targets.update(self._audience_to_connections.get(audience_id, set()))
+
+        dropped: list[LocalConnectionState] = []
+        for connection_id in targets:
+            removed = await self.send_json(connection_id, payload)
+            if removed is not None:
+                dropped.append(removed)
+
+        return dropped
+
+    async def close_all(self) -> list[LocalConnectionState]:
+        states = await self.snapshot()
+        removed: list[LocalConnectionState] = []
+
+        for state in states:
+            popped = await self.remove(state.connection_id)
+            if popped is None:
+                continue
+
             try:
-                await connection.send_json(message)
+                await popped.websocket.close()
             except Exception:
-                disconnected.append(connection)
+                pass
 
-        for connection in disconnected:
-            self.disconnect(connection)
+            removed.append(popped)
+
+        return removed
+
+
+ConnectionManager = LocalConnectionManager

@@ -1,4 +1,6 @@
 from pathlib import Path
+from typing import Literal
+
 from pydantic import BaseModel, Field, computed_field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -74,6 +76,18 @@ class CeleryConfig(BaseModel):
     timezone: str = "UTC"
 
 
+class WebSocketConfig(BaseModel):
+    enabled: bool = True
+    transport: Literal["inmemory", "redis"] = "inmemory"
+    redis_url: str = "redis://localhost:6379/2"
+    pubsub_channel: str = "ws:broadcast"
+    instance_ttl_seconds: int = 30
+    connection_ttl_seconds: int = 30
+    heartbeat_interval_seconds: int = 10
+    cleanup_interval_seconds: int = 30
+    instance_id: str | None = None
+
+
 class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
@@ -82,6 +96,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
+    websocket: WebSocketConfig = WebSocketConfig()
     frontend_url: str = "http://localhost:5173"
     cors_origins: list[str] = Field(
         default_factory=lambda: [
@@ -94,7 +109,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "BGITU Computers Management"
 
     model_config = SettingsConfigDict(
-        env_file=(".env",),
+        env_file=(".env.docker",),
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="BGITU__",

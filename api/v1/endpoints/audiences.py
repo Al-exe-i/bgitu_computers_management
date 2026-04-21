@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from core.exceptions import HTTP409
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.audiences import audiences_service_dep
+from dependencies.realtime import realtime_dep
 from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
 from utils.audit import clean_sensitive
 from utils.broadcast import broadcast_audience_updated
@@ -17,6 +18,7 @@ async def create_audience(
     service: audiences_service_dep,
     audit: admin_audit_actor_dep,
     background_tasks: BackgroundTasks,
+    realtime: realtime_dep,
 ):
     try:
         created = await service.create_audience(data)
@@ -33,7 +35,7 @@ async def create_audience(
             payload=payload,
         )
 
-        broadcast_audience_updated(background_tasks, created.id)
+        broadcast_audience_updated(background_tasks, realtime, created.id)
 
         return created
     except IntegrityError:
@@ -62,6 +64,7 @@ async def update_audience(
     service: audiences_service_dep,
     audit: admin_audit_actor_dep,
     background_tasks: BackgroundTasks,
+    realtime: realtime_dep,
 ):
     updated = await service.update_audience(audience_id, data)
 
@@ -77,7 +80,7 @@ async def update_audience(
         payload=payload,
     )
 
-    broadcast_audience_updated(background_tasks, audience_id)
+    broadcast_audience_updated(background_tasks, realtime, audience_id)
     return updated
 
 
@@ -87,6 +90,7 @@ async def delete_audience(
     service: audiences_service_dep,
     audit: admin_audit_actor_dep,
     background_tasks: BackgroundTasks,
+    realtime: realtime_dep,
 ):
     await service.delete_audience(audience_id)
 
@@ -97,4 +101,4 @@ async def delete_audience(
         payload=None,
     )
 
-    broadcast_audience_updated(background_tasks, audience_id)
+    broadcast_audience_updated(background_tasks, realtime, audience_id)

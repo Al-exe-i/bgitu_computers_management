@@ -8,6 +8,7 @@ from db.session import session_dep
 from dependencies.audit_actor import admin_audit_actor_dep, user_audit_actor_dep
 from dependencies.auth import user_dep
 from dependencies.hardware import hardware_service_dep
+from dependencies.realtime import realtime_dep
 from models.user import UserRole
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from schemas.hardware_file import HardwareFileResponse
@@ -25,6 +26,7 @@ async def add_hardware_file(
     db: session_dep,
     background_tasks: BackgroundTasks,
     audit: admin_audit_actor_dep,
+    realtime: realtime_dep,
 ):
     hardware = await service.get(hardware_id)
     if not hardware:
@@ -43,7 +45,7 @@ async def add_hardware_file(
         },
     )
 
-    broadcast_audience_updated(background_tasks, hardware.audience_id)
+    broadcast_audience_updated(background_tasks, realtime, hardware.audience_id)
     return {"status": "success", "files": result}
 
 
@@ -54,6 +56,7 @@ async def update_hardware(
     service: hardware_service_dep,
     background_tasks: BackgroundTasks,
     audit: user_audit_actor_dep,
+    realtime: realtime_dep,
 ):
     if data.state and audit.user.role == UserRole.teacher:
         raise HTTP403("Teacher can't mark hardware as good state")
@@ -73,7 +76,7 @@ async def update_hardware(
         },
     )
 
-    broadcast_audience_updated(background_tasks, updated_hw.audience_id)
+    broadcast_audience_updated(background_tasks, realtime, updated_hw.audience_id)
     return updated_hw
 
 
@@ -180,6 +183,7 @@ async def delete_hardware_file(
     service: hardware_service_dep,
     background_tasks: BackgroundTasks,
     audit: admin_audit_actor_dep,
+    realtime: realtime_dep,
 ):
     audience_id = await service.delete_file(file_id)
 
@@ -190,5 +194,5 @@ async def delete_hardware_file(
         payload={"audience_id": audience_id},
     )
 
-    broadcast_audience_updated(background_tasks, audience_id)
+    broadcast_audience_updated(background_tasks, realtime, audience_id)
     return {"status": "success"}

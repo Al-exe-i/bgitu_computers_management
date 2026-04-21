@@ -1,3 +1,4 @@
-from .manager import ConnectionManager
+from .manager import ConnectionManager, LocalConnectionManager
+from .service import RealtimeService
 
-__all__ = [ConnectionManager, ]
+__all__ = ["ConnectionManager", "LocalConnectionManager", "RealtimeService"]

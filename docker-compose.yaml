@@ -57,6 +57,11 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
+  redis_gui:
+    image: redis/redisinsight
+    ports:
+      - "5540:5540"
+
   celery_worker:
     build: .
     container_name: diplom_celery_worker

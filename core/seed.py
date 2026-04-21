@@ -7,12 +7,12 @@ from core.config import settings
 from core.security import get_password_hash
 
 OFFICES = [
-    {"id": 1, "address": os.getenv("SEED_OFFICE_1", "Office #1")},
-    {"id": 2, "address": os.getenv("SEED_OFFICE_2", "Office #2")},
+    {"id": 1, "address": os.getenv("SEED_OFFICE_1", "Корпус №1")},
+    {"id": 2, "address": os.getenv("SEED_OFFICE_2", "Корпус №2")},
 ]
 
 USER = {
-    "email": "admin@example.com",
+    "email": "admin",
     "password": get_password_hash("admin"),
     "is_superuser": True,
     "role": "admin",
@@ -28,7 +28,7 @@ async def main():
             text("""
                 INSERT INTO offices (id, address)
                 VALUES (:id, :address)
-                ON CONFLICT (id) DO UPDATE SET address = EXCLUDED.address
+                ON CONFLICT (id) DO NOTHING
             """),
             OFFICES,
         )
