@@ -82,5 +82,18 @@ services:
       - redis
     restart: unless-stopped
 
+  telegram_bot:
+    build: .
+    container_name: diplom_telegram_bot
+    command: python -m telegram_bot.main
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - telegram
+
 volumes:
   postgres_data:

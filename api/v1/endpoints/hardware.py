@@ -15,6 +15,7 @@ from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from schemas.hardware_file import HardwareFileResponse
 from utils.audit import clean_sensitive
 from utils.broadcast import broadcast_audience_updated
+from utils.telegram_notifications import enqueue_hardware_state_notification
 
 router = APIRouter()
 
@@ -66,6 +67,10 @@ async def update_hardware(
     audit: user_audit_actor_dep,
     realtime: realtime_dep,
 ):
+    current_hw = await service.get(hardware_id)
+    if not current_hw:
+        raise HTTP404("Hardware not found")
+
     if data.state and audit.user.role == UserRole.teacher:
         logger.warning(
             "Hardware update rejected: teacher tried to mark good state user_id={} hardware_id={}",
@@ -77,6 +82,7 @@ async def update_hardware(
     if audit.user.role == UserRole.teacher:
         data = HardwareUpdate(**data.model_dump(include={"state"}))
 
+    previous_state = current_hw.state
     updated_hw = await service.update(hardware_id, data)
 
     await audit.log(
@@ -90,6 +96,11 @@ async def update_hardware(
     )
 
     broadcast_audience_updated(background_tasks, realtime, updated_hw.audience_id)
+    enqueue_hardware_state_notification(
+        background_tasks,
+        previous_state=previous_state,
+        hardware=updated_hw,
+    )
     return updated_hw
 
 

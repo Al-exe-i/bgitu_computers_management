@@ -17,7 +17,7 @@ celery_app.conf.worker_prefetch_multiplier = 1
 celery_app.conf.task_acks_late = True
 
 # Авто-импорт тасок
-celery_app.conf.imports = ("tasks.sessions",)
+celery_app.conf.imports = ("tasks.sessions", "tasks.notifications")
 
 # Расписание Celery Beat
 celery_app.conf.beat_schedule = {

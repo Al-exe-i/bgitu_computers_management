@@ -88,6 +88,13 @@ class WebSocketConfig(BaseModel):
     instance_id: str | None = None
 
 
+class TelegramConfig(BaseModel):
+    enabled: bool = False
+    bot_token: str | None = None
+    bot_username: str | None = None
+    link_token_ttl_minutes: int = 15
+
+
 class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
@@ -97,6 +104,7 @@ class Settings(BaseSettings):
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
     websocket: WebSocketConfig = WebSocketConfig()
+    telegram: TelegramConfig = TelegramConfig()
     frontend_url: str = "http://localhost:5173"
     cors_origins: list[str] = Field(
         default_factory=lambda: [

@@ -208,3 +208,33 @@ const ws = new WebSocket(`ws://localhost:8000/ws?audience_id=${audienceId}`);
 - `/ws` не принимает подключения
 - realtime-события из HTTP endpoints не публикуются
 - Redis-клиенты для WebSocket не создаются
+## Telegram bot
+
+В проект добавлен отдельный процесс `telegram_bot`, который живёт в этом же репозитории и использует те же модели, конфиг и базу данных.
+
+Сейчас бот умеет:
+
+- обрабатывать `/start`
+- подтверждать привязку Telegram через deep link вида `https://t.me/<bot>?start=link_<token>`
+- показывать `/help`
+
+Минимальные переменные окружения:
+
+- `BGITU__TELEGRAM__ENABLED=1`
+- `BGITU__TELEGRAM__BOT_TOKEN=<telegram bot token>`
+- `BGITU__TELEGRAM__BOT_USERNAME=<bot username without @>`
+- `BGITU__TELEGRAM__LINK_TOKEN_TTL_MINUTES=15`
+
+Локальный запуск:
+
+```powershell
+uv run python -m telegram_bot.main
+```
+
+Запуск через Docker Compose:
+
+```powershell
+docker compose --profile telegram up --build telegram_bot
+```
+
+По умолчанию сервис `telegram_bot` вынесен в отдельный profile и не стартует автоматически.
