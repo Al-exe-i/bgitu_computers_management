@@ -28,11 +28,11 @@ def test_render_status_text_for_linked_account() -> None:
 
     text = render_status_text(snapshot)
 
-    assert "Telegram привязан." in text
+    assert "✅ Telegram привязан." in text
     assert "teacher@example.com" in text
     assert "Иванов Иван" in text
     assert "преподаватель" in text
-    assert "Активных подписок: 1" in text
+    assert "🔔 Активных подписок: 1" in text
 
 
 def test_render_subscriptions_text_lists_human_readable_items() -> None:
@@ -51,8 +51,8 @@ def test_render_subscriptions_text_lists_human_readable_items() -> None:
 
     text = render_subscriptions_text(snapshot)
 
-    assert "Активные подписки:" in text
-    assert "Корпус 3" in text
+    assert "🔔 Активные подписки:" in text
+    assert "🏢 Корпус 3" in text
     assert "восстановление оборудования" in text
     assert "дневная сводка" in text
 

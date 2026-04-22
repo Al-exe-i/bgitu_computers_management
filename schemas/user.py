@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from models.user import UserRole
@@ -7,7 +7,7 @@ from models.user import UserRole
 class UserBase(BaseModel):
     name: str | None = None
     surname: str | None = None
-    telegram_id: str | None = None
+    telegram_id: int | None = None
     telegram_id_confirmed: bool = Field(default=False)
     photo: str | None = None
     role: UserRole

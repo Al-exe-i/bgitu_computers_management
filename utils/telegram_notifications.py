@@ -4,7 +4,10 @@ from fastapi import BackgroundTasks
 
 from core.config import settings
 from schemas.telegram import TelegramEventType
-from tasks.notifications import send_hardware_state_notification
+from tasks.notifications import (
+    send_auth_security_notification,
+    send_hardware_state_notification,
+)
 
 
 class HardwareStatePayload(Protocol):
@@ -13,6 +16,8 @@ class HardwareStatePayload(Protocol):
     state: bool
     title: str | None
     inv_number: str | None
+    x: int
+    y: int
 
 
 def enqueue_hardware_state_notification(
@@ -40,4 +45,26 @@ def enqueue_hardware_state_notification(
         event_type=event_type.value,
         title=hardware.title,
         inv_number=hardware.inv_number,
+        x=hardware.x,
+        y=hardware.y,
+    )
+
+
+def enqueue_auth_security_notification(
+    background_tasks: BackgroundTasks,
+    *,
+    user_id: int,
+    event_name: str,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> None:
+    if not settings.telegram.enabled:
+        return
+
+    background_tasks.add_task(
+        send_auth_security_notification.delay,
+        user_id=user_id,
+        event_name=event_name,
+        ip=ip,
+        user_agent=user_agent,
     )

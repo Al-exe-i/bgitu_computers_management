@@ -52,10 +52,13 @@ def test_build_hardware_state_message_formats_fault_event() -> None:
         event_type=TelegramEventType.hardware_fault,
         title="Рабочая станция",
         inv_number="INV-55",
+        x=6,
+        y=2,
     )
 
-    assert "отмечена неисправность" in message
-    assert "Аудитория: 215" in message
-    assert "ID оборудования: 42" in message
-    assert "Название: Рабочая станция" in message
-    assert "Инвентарный номер: INV-55" in message
+    assert "🚨" in message
+    assert "🏫 Аудитория: 215" in message
+    assert "🖥 ID оборудования: 42" in message
+    assert "📍 Расположение: ряд 3, место 7" in message
+    assert "🏷 Название: Рабочая станция" in message
+    assert "🔢 Инвентарный номер: INV-55" in message

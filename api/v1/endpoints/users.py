@@ -3,7 +3,7 @@ import os
 import uuid
 
 import aiofiles
-from fastapi import APIRouter, File, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +22,7 @@ from models.user import UserRole
 from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
 from utils.audit import changed_fields
 from utils.permissions import can_change_other_su
+from utils.telegram_notifications import enqueue_auth_security_notification
 
 router = APIRouter()
 
@@ -117,6 +118,7 @@ async def change_password(
     data: ChangePasswordSchema,
     service: user_service_dep,
     audit: user_audit_actor_dep,
+    background_tasks: BackgroundTasks,
 ):
     if not verify_password(data.current_password, audit.user.password):
         logger.warning("Password change rejected: invalid current password for user_id={}", audit.user.id)
@@ -134,6 +136,13 @@ async def change_password(
         entity_type="user",
         entity_id=audit.user.id,
         payload={"target_user_id": audit.user.id},
+    )
+    enqueue_auth_security_notification(
+        background_tasks,
+        user_id=audit.user.id,
+        event_name="Изменён пароль аккаунта",
+        ip=audit.meta.get("ip"),
+        user_agent=audit.meta.get("user_agent"),
     )
 
     return {"message": "Password updated successfully"}

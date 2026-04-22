@@ -39,6 +39,17 @@ class TelegramNotificationService:
             scopes=scopes,
         )
 
+    async def get_user_event_recipient_ids(
+        self,
+        *,
+        user_id: int,
+        event_type: TelegramEventType,
+    ) -> list[int]:
+        return await self.subscription_repo.list_recipient_telegram_ids(
+            event_type=event_type.value,
+            scopes=[(TelegramScopeType.user.value, user_id)],
+        )
+
     def build_hardware_state_message(
         self,
         *,
@@ -47,22 +58,44 @@ class TelegramNotificationService:
         event_type: TelegramEventType,
         title: str | None = None,
         inv_number: str | None = None,
+        x: int | None = None,
+        y: int | None = None,
     ) -> str:
         if event_type == TelegramEventType.hardware_fault:
-            header = "Изменение по оборудованию: отмечена неисправность"
+            header = "🚨 Обнаружена неисправность оборудования"
         elif event_type == TelegramEventType.hardware_recovered:
-            header = "Изменение по оборудованию: оборудование отмечено исправным"
+            header = "✅ Оборудование снова отмечено исправным"
         else:
             raise ValueError(f"Unsupported telegram event type: {event_type}")
 
         lines = [
             header,
-            f"Аудитория: {audience_id}",
-            f"ID оборудования: {hardware_id}",
+            f"🏫 Аудитория: {audience_id}",
+            f"🖥 ID оборудования: {hardware_id}",
         ]
+        if x is not None and y is not None:
+            lines.append(f"📍 Расположение: ряд {y + 1}, место {x + 1}")
         if title:
-            lines.append(f"Название: {title}")
+            lines.append(f"🏷 Название: {title}")
         if inv_number:
-            lines.append(f"Инвентарный номер: {inv_number}")
+            lines.append(f"🔢 Инвентарный номер: {inv_number}")
+
+        return "\n".join(lines)
+
+    def build_auth_security_message(
+        self,
+        *,
+        event_name: str,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> str:
+        lines = [
+            "🛡 Событие безопасности аккаунта",
+            event_name,
+        ]
+        if ip:
+            lines.append(f"🌐 IP: {ip}")
+        if user_agent:
+            lines.append(f"💻 User-Agent: {user_agent}")
 
         return "\n".join(lines)

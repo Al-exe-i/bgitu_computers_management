@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
 
-from fastapi import APIRouter, Cookie, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Query
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from loguru import logger
@@ -25,12 +25,14 @@ from utils.tokens import (
     issue_access_token,
     new_refresh_token,
 )
+from utils.telegram_notifications import enqueue_auth_security_notification
 
 router = APIRouter()
 
 
 @router.post("/token")
 async def login_for_access_token(
+    background_tasks: BackgroundTasks,
     service: user_service_dep,
     sessions: user_session_service_dep,
     audit: audit_ctx_dep,
@@ -65,6 +67,13 @@ async def login_for_access_token(
         entity_id=user.id,
         payload={"email": user.email, "sid": sid},
         user_id=user.id,
+    )
+    enqueue_auth_security_notification(
+        background_tasks,
+        user_id=user.id,
+        event_name="Выполнен вход в аккаунт",
+        ip=audit.meta.get("ip"),
+        user_agent=audit.meta.get("user_agent"),
     )
     logger.info(
         "Login succeeded for user_id={} sid={} ip={}",
@@ -204,6 +213,7 @@ async def logout_user(
 
 @router.post("/logout_all")
 async def logout_all_user_sessions(
+    background_tasks: BackgroundTasks,
     response: Response,
     sessions: user_session_service_dep,
     audit: user_audit_actor_dep,
@@ -218,6 +228,13 @@ async def logout_all_user_sessions(
         entity_type="user_session",
         entity_id=None,
         payload={"user_id": user_id},
+    )
+    enqueue_auth_security_notification(
+        background_tasks,
+        user_id=user_id,
+        event_name="Выполнен выход на всех устройствах",
+        ip=audit.meta.get("ip"),
+        user_agent=audit.meta.get("user_agent"),
     )
 
     response.delete_cookie(key="access_token", path="/")

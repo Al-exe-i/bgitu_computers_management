@@ -1,10 +1,10 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
-BUTTON_MENU = "Главное меню"
-BUTTON_STATUS = "Мой статус"
-BUTTON_SUBSCRIPTIONS = "Мои подписки"
-BUTTON_LINK = "Как подключить"
-BUTTON_HELP = "Помощь"
+BUTTON_MENU = "📋 Главное меню"
+BUTTON_STATUS = "🔗 Мой статус"
+BUTTON_SUBSCRIPTIONS = "🔔 Мои подписки"
+BUTTON_LINK = "🧭 Как подключить"
+BUTTON_HELP = "❓ Помощь"
 
 
 def build_main_menu_keyboard() -> ReplyKeyboardMarkup:

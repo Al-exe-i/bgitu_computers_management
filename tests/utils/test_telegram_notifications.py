@@ -16,6 +16,8 @@ def test_enqueue_hardware_state_notification_adds_fault_task(monkeypatch) -> Non
         state=False,
         title="Монитор",
         inv_number="MON-1",
+        x=4,
+        y=2,
     )
 
     enqueue_hardware_state_notification(
@@ -33,6 +35,8 @@ def test_enqueue_hardware_state_notification_adds_fault_task(monkeypatch) -> Non
         "event_type": "hardware_fault",
         "title": "Монитор",
         "inv_number": "MON-1",
+        "x": 4,
+        "y": 2,
     }
 
 
@@ -45,6 +49,8 @@ def test_enqueue_hardware_state_notification_skips_when_state_is_unchanged(monke
         state=True,
         title="Монитор",
         inv_number="MON-1",
+        x=4,
+        y=2,
     )
 
     enqueue_hardware_state_notification(

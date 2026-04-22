@@ -1,10 +1,10 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from celery import shared_task
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
+from celery_app import celery_app
 from core.config import settings
 from models.user_session import UserSession
 
@@ -48,7 +48,7 @@ async def _cleanup_user_sessions_async(retention_days: int) -> dict:
         }
 
 
-@shared_task(name="tasks.sessions.cleanup_user_sessions")
+@celery_app.task(name="tasks.sessions.cleanup_user_sessions")
 def cleanup_user_sessions(retention_days: int = 7) -> dict:
     """
     Celery task: cleanup user sessions.

@@ -80,6 +80,7 @@ class TelegramSubscriptionRepository:
 
         stmt = (
             select(User.telegram_id)
+            .select_from(TelegramSubscription)
             .join(User, User.id == TelegramSubscription.user_id)
             .where(
                 TelegramSubscription.enabled.is_(True),
