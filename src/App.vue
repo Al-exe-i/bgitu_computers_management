@@ -1170,6 +1170,17 @@ html[data-theme='dark'] .audit-log-modal-overlay .close-btn:hover {
   color: #f8fafc !important;
 }
 
+html[data-theme='dark'] .audit-log-modal-overlay .audit-modal-close {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border: 1px solid #334155 !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .audit-log-modal-overlay .audit-modal-close:hover {
+  background: rgba(30, 41, 59, 0.96) !important;
+  color: #f8fafc !important;
+}
+
 html[data-theme='dark'] .analytics-jump-controls {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.94)) !important;
   border-color: #334155 !important;
