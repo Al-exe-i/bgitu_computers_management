@@ -4,6 +4,7 @@ from aiogram import Bot, Dispatcher
 from loguru import logger
 
 from core.config import settings
+from telegram_bot.commands import build_default_commands
 from telegram_bot.router import build_router
 
 
@@ -17,6 +18,7 @@ async def run_polling() -> None:
     bot = Bot(token=settings.telegram.bot_token)
     dispatcher = Dispatcher()
     dispatcher.include_router(build_router())
+    await bot.set_my_commands(build_default_commands())
 
     logger.info("Telegram bot polling started")
     try:
