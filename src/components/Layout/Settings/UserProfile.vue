@@ -2,21 +2,25 @@
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import api from "@/services/api";
+import TelegramSection from "@/components/Layout/Settings/TelegramSection.vue";
 
 export default {
   name: "UserProfile",
 
+  components: {
+    TelegramSection
+  },
+
   data() {
     return {
-      // Крутится ли спиннер на кнопке сохранения
+      activeSection: "profile",
+      telegramSectionMounted: false,
       isSaving: false,
-      // Крутится ли спиннер на самой аватарке
       isAvatarUploading: false,
-
       form: {
-        email: '',
-        name: '',
-        surname: ''
+        email: "",
+        name: "",
+        surname: ""
       }
     };
   },
@@ -35,121 +39,123 @@ export default {
     },
 
     userInitials() {
-      // Если мы выходим из аккаунта, юзера уже может не быть, страхуемся от ошибок
-      if (this.authStore.isLoggingOut || !this.authStore.user?.email) return '';
-
-      // Берем первые две буквы от email и делаем их большими (например, ADmin -> AD)
+      if (this.authStore.isLoggingOut || !this.authStore.user?.email) return "";
       return this.authStore.user.email.substring(0, 2).toUpperCase();
     },
 
-    // Эта вычисляемая штука проверяет, поменял ли пользователь что-то в форме
-    // Мы используем её, чтобы заблокировать кнопку "Сохранить", если изменений нет
     hasChanges() {
       const user = this.authStore.user;
       if (!user) return false;
 
-      const currentName = user.name || '';
-      const currentSurname = user.surname || '';
+      const currentName = user.name || "";
+      const currentSurname = user.surname || "";
 
       return this.form.name !== currentName || this.form.surname !== currentSurname;
+    },
+
+    activeSectionTitle() {
+      return this.activeSection === "telegram" ? "Telegram" : "Личная информация";
+    },
+
+    activeSectionSubtitle() {
+      return this.activeSection === "telegram"
+        ? "Привязка Telegram и управление подписками на события оборудования."
+        : "Управляйте своими личными данными и фотографией профиля.";
     }
   },
 
   watch: {
-    // Внимательно следим за данными пользователя в сторе.
-    // Это нужно на случай, если при открытии страницы юзер еще не загрузился с бэкенда.
-    // Как только данные появятся, мы сразу подставим их в форму.
-    'authStore.user': {
-      immediate: true, // Срабатывает сразу при создании компонента
+    "authStore.user": {
+      immediate: true,
       handler(newUser) {
-        if (newUser) {
-          this.form.email = newUser.email || '';
-          this.form.name = newUser.name || '';
-          this.form.surname = newUser.surname || '';
-        }
+        if (!newUser) return;
+
+        this.form.email = newUser.email || "";
+        this.form.name = newUser.name || "";
+        this.form.surname = newUser.surname || "";
       }
     }
   },
 
   methods: {
     getRoleName(role) {
-      if (this.authStore.user?.is_superuser) return 'Суперпользователь';
-      if (role === 1) return 'Администратор';
-      if (role === 2) return 'Преподаватель';
-      return 'Пользователь';
+      if (this.authStore.user?.is_superuser) return "Суперпользователь";
+      if (role === 1) return "Администратор";
+      if (role === 2) return "Преподаватель";
+      return "Пользователь";
+    },
+
+    switchSection(section) {
+      this.activeSection = section;
+
+      if (section === "telegram") {
+        this.telegramSectionMounted = true;
+      }
     },
 
     triggerAvatarUpload() {
-      // Имитируем клик по скрытому инпуту файла, когда юзер жмет на кружочек с аватаркой
       this.$refs.avatarInput.click();
     },
 
     async handleAvatarUpload(event) {
       const file = event.target.files[0];
-      if (!file) return; // Если юзер открыл окно выбора файла и нажал "Отмена"
+      if (!file) return;
 
       this.isAvatarUploading = true;
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
       try {
         const userId = this.authStore.user.id;
 
-        // Отправляем фотку на сервер
         await api.post(`/users/${userId}/photo`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: { "Content-Type": "multipart/form-data" }
         });
 
-        // Просим стор стянуть свежие данные пользователя (чтобы аватарка обновилась везде)
         await this.authStore.fetchUser();
-        this.notify.success('Фотография успешно обновлена');
-      } catch (e) {
-        this.notify.error('Не удалось загрузить фотографию');
+        this.notify.success("Фотография успешно обновлена");
+      } catch (error) {
+        this.notify.error("Не удалось загрузить фотографию");
       } finally {
         this.isAvatarUploading = false;
-        // Очищаем инпут, чтобы можно было загрузить тот же файл еще раз, если потребуется
-        event.target.value = '';
+        event.target.value = "";
       }
     },
 
     async saveProfile() {
-      // Двойная защита: если ничего не изменилось, просто не даем отправить запрос
       if (!this.hasChanges) return;
 
       this.isSaving = true;
+
       try {
         const userId = this.authStore.user.id;
 
-        const payload = {
+        await api.patch(`/users/${userId}`, {
           name: this.form.name,
-          surname: this.form.surname,
-        };
+          surname: this.form.surname
+        });
 
-        // Отправляем изменения патчем (обновляем только то, что передали)
-        await api.patch(`/users/${userId}`, payload);
-
-        // Обновляем стор, чтобы новое имя загорелось в хедере и других местах
         await this.authStore.fetchUser();
-        this.notify.success('Профиль успешно сохранен');
-      } catch (e) {
-        const errorMsg = e.response?.data?.detail || 'Не удалось сохранить изменения';
-        this.notify.error(errorMsg);
-        console.error('Ошибка сохранения профиля:', e);
+        this.notify.success("Профиль успешно сохранён");
+      } catch (error) {
+        const errorMessage = error.response?.data?.detail || "Не удалось сохранить изменения";
+        this.notify.error(errorMessage);
+        console.error("Ошибка сохранения профиля:", error);
       } finally {
         this.isSaving = false;
       }
     },
 
     async handleDeleteAvatar() {
-      if (!confirm('Вы уверены, что хотите удалить фото профиля?')) return;
+      if (!confirm("Вы уверены, что хотите удалить фото профиля?")) return;
 
       try {
         const userId = this.authStore.user.id;
         await api.delete(`/users/${userId}/photo`);
         await this.authStore.fetchUser();
-        this.notify.info('Фотография удалена');
-      } catch (e) {
-        this.notify.error('Произошла ошибка при удалении фото');
+        this.notify.info("Фотография удалена");
+      } catch (error) {
+        this.notify.error("Произошла ошибка при удалении фото");
       }
     }
   }
@@ -159,91 +165,158 @@ export default {
 <template>
   <div class="profile-card">
     <div class="card-header">
-      <h2 class="section-title">Личная информация</h2>
-      <p class="section-subtitle">Управляйте своими личными данными и фотографией профиля.</p>
+      <div class="card-heading">
+        <h2 class="section-title">{{ activeSectionTitle }}</h2>
+        <p class="section-subtitle">{{ activeSectionSubtitle }}</p>
+      </div>
+
+      <div class="profile-section-switch" role="tablist" aria-label="Разделы профиля">
+        <button
+          type="button"
+          class="profile-section-btn"
+          :class="{ active: activeSection === 'profile' }"
+          :aria-selected="activeSection === 'profile'"
+          @click="switchSection('profile')"
+        >
+          Профиль
+        </button>
+        <button
+          type="button"
+          class="profile-section-btn"
+          :class="{ active: activeSection === 'telegram' }"
+          :aria-selected="activeSection === 'telegram'"
+          @click="switchSection('telegram')"
+        >
+          Telegram
+        </button>
+      </div>
     </div>
 
-    <!-- Верхний блок с аватаркой и почтой -->
-    <div class="profile-header">
+    <section v-show="activeSection === 'profile'" class="profile-panel">
+      <div class="profile-header">
+        <div class="avatar-container">
+          <div
+            class="avatar-wrapper"
+            :class="{ 'is-loading': isAvatarUploading }"
+            @click="triggerAvatarUpload"
+          >
+            <img v-if="userPhoto" :src="userPhoto" alt="Avatar" class="avatar-img">
+            <div v-else class="avatar-placeholder">{{ userInitials }}</div>
 
-      <div class="avatar-container">
-        <!-- Сам кружок с фоткой (кликабельный) -->
-        <div class="avatar-wrapper" @click="triggerAvatarUpload" :class="{ 'is-loading': isAvatarUploading }">
+            <div class="avatar-overlay">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
 
-          <img v-if="userPhoto" :src="userPhoto" alt="Avatar" class="avatar-img">
-          <div v-else class="avatar-placeholder">{{ userInitials }}</div>
-
-          <!-- Темная плашка с иконкой фотика при наведении -->
-          <div class="avatar-overlay">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            <div v-if="isAvatarUploading" class="avatar-loading-overlay">
+              <span class="spinner"></span>
+            </div>
           </div>
 
-          <!-- Спиннер, который крутится, пока фотка летит на бэкенд -->
-          <div v-if="isAvatarUploading" class="avatar-loading-overlay">
-            <span class="spinner"></span>
-          </div>
-        </div>
-
-        <!-- Кнопка удаления фотки (показываем только если фотка вообще есть) -->
-        <button
+          <button
             v-if="userPhoto && !isAvatarUploading"
             class="delete-avatar-btn"
-            @click.stop="handleDeleteAvatar"
             title="Удалить фото"
+            @click.stop="handleDeleteAvatar"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="profile-meta">
+          <h3 class="user-email">{{ authStore.user?.email || "Загрузка..." }}</h3>
+          <span class="role-badge">{{ getRoleName(authStore.user?.role) }}</span>
+        </div>
+
+        <input
+          ref="avatarInput"
+          type="file"
+          accept="image/png, image/jpeg, image/webp"
+          hidden
+          @change="handleAvatarUpload"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-        </button>
       </div>
 
-      <div class="profile-meta">
-        <h3 class="user-email">{{ authStore.user?.email || 'Загрузка...' }}</h3>
-        <span class="role-badge">{{ getRoleName(authStore.user?.role) }}</span>
-      </div>
-
-      <!-- Скрытый инпут, через который мы забираем файл из системы -->
-      <input type="file" ref="avatarInput" accept="image/png, image/jpeg, image/webp" hidden @change="handleAvatarUpload">
-    </div>
-
-    <!-- Форма редактирования -->
-    <form @submit.prevent="saveProfile" class="profile-form">
-
-      <!-- Логин вынесли на всю ширину, так как его нельзя менять -->
-      <div class="form-group full-width">
-        <label>Email (Логин)</label>
-        <div class="input-with-icon">
-          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          <input type="email" v-model="form.email" disabled class="form-input disabled" title="Email нельзя изменить">
-        </div>
-      </div>
-
-      <!-- Сетка в две колонки для имени и фамилии -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Имя</label>
-          <input type="text" v-model="form.name" class="form-input" placeholder="Введите имя">
+      <form class="profile-form" @submit.prevent="saveProfile">
+        <div class="form-group full-width">
+          <label>Email (логин)</label>
+          <div class="input-with-icon">
+            <svg
+              class="input-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <input
+              v-model="form.email"
+              type="email"
+              class="form-input disabled"
+              disabled
+              title="Email нельзя изменить"
+            >
+          </div>
         </div>
 
-        <div class="form-group">
-          <label>Фамилия</label>
-          <input type="text" v-model="form.surname" class="form-input" placeholder="Введите фамилию">
-        </div>
-      </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Имя</label>
+            <input
+              v-model="form.name"
+              type="text"
+              class="form-input"
+              placeholder="Введите имя"
+            >
+          </div>
 
-      <div class="form-actions">
-        <!-- Кнопка выключается, если идет сохранение или если пользователь ничего не поменял -->
-        <button type="submit" class="btn-save" :disabled="isSaving || !hasChanges">
-          <span v-if="isSaving" class="spinner button-spinner"></span>
-          {{ isSaving ? 'Сохранение...' : 'Сохранить изменения' }}
-        </button>
-      </div>
-    </form>
+          <div class="form-group">
+            <label>Фамилия</label>
+            <input
+              v-model="form.surname"
+              type="text"
+              class="form-input"
+              placeholder="Введите фамилию"
+            >
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-save" :disabled="isSaving || !hasChanges">
+            <span v-if="isSaving" class="spinner button-spinner"></span>
+            {{ isSaving ? "Сохранение..." : "Сохранить изменения" }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section
+      v-if="telegramSectionMounted"
+      v-show="activeSection === 'telegram'"
+      class="profile-panel"
+    >
+      <TelegramSection :show-header="false" />
+    </section>
   </div>
 </template>
 
 <style scoped>
-/* --- Базовая карточка --- */
 .profile-card {
   background: #ffffff;
   padding: 32px;
@@ -255,11 +328,71 @@ export default {
   color: #0f172a;
 }
 
-.card-header { margin-bottom: 28px; }
-.section-title { margin: 0 0 6px 0; font-size: 20px; font-weight: 600; }
-.section-subtitle { margin: 0; font-size: 14px; color: #64748b; }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
 
-/* --- Блок с аватаром и инфой --- */
+.card-heading {
+  min-width: 0;
+}
+
+.section-title {
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.section-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.profile-section-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.profile-section-btn {
+  min-height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-section-btn:hover {
+  color: #334155;
+}
+
+.profile-section-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.profile-panel {
+  min-width: 0;
+}
+
 .profile-header {
   display: flex;
   align-items: center;
@@ -287,14 +420,14 @@ export default {
   cursor: pointer;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 3px solid #ffffff;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .avatar-wrapper:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
 .avatar-wrapper.is-loading {
@@ -315,7 +448,6 @@ export default {
   letter-spacing: 1px;
 }
 
-/* Плашка, которая выезжает при наведении на фотку */
 .avatar-overlay {
   position: absolute;
   inset: 0;
@@ -327,10 +459,16 @@ export default {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
-.avatar-overlay svg { width: 28px; height: 28px; }
-.avatar-wrapper:hover .avatar-overlay { opacity: 1; }
 
-/* Затемнение и спиннер на момент загрузки фотки */
+.avatar-overlay svg {
+  width: 28px;
+  height: 28px;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}
+
 .avatar-loading-overlay {
   position: absolute;
   inset: 0;
@@ -341,7 +479,6 @@ export default {
   z-index: 2;
 }
 
-/* Маленькая красная кнопка для удаления фотки */
 .delete-avatar-btn {
   position: absolute;
   bottom: 0;
@@ -356,12 +493,17 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   z-index: 10;
   padding: 0;
 }
-.delete-avatar-btn svg { width: 14px; height: 14px; }
+
+.delete-avatar-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .delete-avatar-btn:hover {
   background-color: #fee2e2;
   border-color: #fecaca;
@@ -375,16 +517,30 @@ export default {
   gap: 8px;
   align-items: flex-start;
 }
-.user-email { margin: 0; font-size: 18px; font-weight: 600; color: #0f172a; word-break: break-all; }
+
+.user-email {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-all;
+}
+
 .role-badge {
-  background: #eff6ff; color: #2563eb;
-  padding: 4px 10px; border-radius: 6px;
-  font-size: 12px; font-weight: 600;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   display: inline-block;
 }
 
-/* --- Форма --- */
-.profile-form { display: flex; flex-direction: column; gap: 20px; }
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
 .form-row {
   display: grid;
@@ -392,13 +548,30 @@ export default {
   gap: 20px;
 }
 
-.form-group { display: flex; flex-direction: column; gap: 8px; }
-.form-group label { font-size: 13px; font-weight: 600; color: #475569; }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-.input-with-icon { position: relative; display: flex; align-items: center; }
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .input-icon {
-  position: absolute; left: 12px;
-  width: 16px; height: 16px; color: #94a3b8;
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
 }
 
 .form-input {
@@ -413,7 +586,9 @@ export default {
   box-sizing: border-box;
 }
 
-.input-with-icon .form-input { padding-left: 36px; }
+.input-with-icon .form-input {
+  padding-left: 36px;
+}
 
 .form-input:focus {
   outline: none;
@@ -422,62 +597,146 @@ export default {
 }
 
 .form-input.disabled {
-  background: #f8fafc; color: #64748b;
-  border-color: #e2e8f0; cursor: not-allowed;
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
 }
 
-/* --- Кнопка Сохранить --- */
-.form-actions { margin-top: 12px; }
+.form-actions {
+  margin-top: 12px;
+}
 
 .btn-save {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  background: #0f172a; color: white; border: none;
-  padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #0f172a;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.btn-save:hover:not(:disabled) { background: #334155; transform: translateY(-1px); }
-.btn-save:active:not(:disabled) { transform: translateY(0); }
-.btn-save:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
 
-html[data-theme='dark'] .btn-save:not(:disabled) {
+.btn-save:hover:not(:disabled) {
+  background: #334155;
+  transform: translateY(-1px);
+}
+
+.btn-save:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-save:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+html[data-theme="dark"] .btn-save:not(:disabled) {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   border: 1px solid #2563eb;
   color: #e2e8f0;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.3);
 }
 
-html[data-theme='dark'] .btn-save:hover:not(:disabled) {
+html[data-theme="dark"] .btn-save:hover:not(:disabled) {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   border-color: #3b82f6;
 }
 
-html[data-theme='dark'] .btn-save:disabled {
+html[data-theme="dark"] .btn-save:disabled {
   background: #334155;
   border: 1px solid #475569;
   color: #94a3b8;
   box-shadow: none;
 }
 
-/* --- Крутилка-спиннер --- */
+html[data-theme="dark"] .profile-section-switch {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .profile-section-btn {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .profile-section-btn:hover {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .profile-section-btn.active {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(17, 24, 39, 0.98));
+  color: #e2e8f0;
+  box-shadow:
+    0 12px 22px rgba(2, 6, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .spinner {
-  width: 24px; height: 24px;
+  width: 24px;
+  height: 24px;
   border: 3px solid rgba(59, 130, 246, 0.3);
   border-radius: 50%;
   border-top-color: #3b82f6;
   animation: spin 0.8s linear infinite;
 }
-.button-spinner {
-  width: 16px; height: 16px; border-width: 2px;
-  border-color: rgba(255, 255, 255, 0.3); border-top-color: white;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* --- Адаптив --- */
+.button-spinner {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 480px) {
-  .profile-card { padding: 24px; }
-  .form-row { grid-template-columns: 1fr; gap: 20px; }
-  .profile-header { flex-direction: column; text-align: center; gap: 16px; align-items: center; }
-  .profile-meta { align-items: center; }
-  .btn-save { width: 100%; }
+  .profile-card {
+    padding: 24px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .profile-section-switch {
+    width: 100%;
+  }
+
+  .profile-section-btn {
+    flex: 1;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .profile-meta {
+    align-items: center;
+  }
+
+  .btn-save {
+    width: 100%;
+  }
 }
 </style>
