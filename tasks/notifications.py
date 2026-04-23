@@ -6,11 +6,11 @@ from loguru import logger
 from celery_app import celery_app
 from core.config import settings
 from core.exceptions import HTTP404
+from db.session import session_factory
 from repositories.audience_repo import AudienceRepository
 from repositories.telegram_subscription_repo import TelegramSubscriptionRepository
 from schemas.telegram import TelegramEventType
 from services.telegram_notification_service import TelegramNotificationService
-from tasks.sessions import _make_sessionmaker
 
 
 async def _send_hardware_state_notification_async(
@@ -49,7 +49,6 @@ async def _send_hardware_state_notification_async(
         )
         return {"sent": 0, "failed": 0, "event_type": event_type}
 
-    session_factory = _make_sessionmaker()
     async with session_factory() as session:
         service = TelegramNotificationService(
             TelegramSubscriptionRepository(session),
@@ -166,7 +165,6 @@ async def _send_auth_security_notification_async(
         )
         return {"sent": 0, "failed": 0, "event_type": event_type}
 
-    session_factory = _make_sessionmaker()
     async with session_factory() as session:
         service = TelegramNotificationService(
             TelegramSubscriptionRepository(session),

@@ -2,35 +2,24 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from celery_app import celery_app
-from core.config import settings
+from db.session import session_factory
 from models.user_session import UserSession
-
-
-def _make_sessionmaker() -> async_sessionmaker[AsyncSession]:
-    engine = create_async_engine(
-        str(settings.db.url),
-        echo=False,
-        pool_pre_ping=True,
-    )
-    return async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 
 
 async def _cleanup_user_sessions_async(retention_days: int) -> dict:
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=retention_days)
 
-    session_factory = _make_sessionmaker()
 
     async with session_factory() as session:
-        # 1) удаляем истёкшие (expires_at < now)
+        # удаляем истёкшие (expires_at < now)
         res_expired = await session.execute(
             delete(UserSession).where(UserSession.expires_at < now)
         )
 
-        # 2) удаляем revoked старше cutoff
+        # удаляем revoked старше cutoff
         res_revoked_old = await session.execute(
             delete(UserSession).where(
                 UserSession.revoked_at.is_not(None),
