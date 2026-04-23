@@ -12,6 +12,7 @@ class TelegramBotSubscriptionSnapshot:
     event_type: str
     delivery_mode: str
     enabled: bool
+    id: int | None = None
 
 
 @dataclass(slots=True)
@@ -41,6 +42,7 @@ class TelegramBotAccountFacade:
                 role=user.role.name,
                 subscriptions=[
                     TelegramBotSubscriptionSnapshot(
+                        id=subscription.id,
                         scope_type=subscription.scope_type,
                         scope_id=subscription.scope_id,
                         event_type=subscription.event_type,

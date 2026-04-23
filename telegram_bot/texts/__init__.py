@@ -9,6 +9,12 @@ from .messages import (
 )
 from .render import (
     render_link_instructions_text,
+    render_event_label,
+    render_scope_label,
+    render_subscription_delete_text,
+    render_subscription_event_choice_text,
+    render_subscription_result_text,
+    render_subscription_scope_choice_text,
     render_status_text,
     render_subscriptions_text,
     render_welcome_text,
@@ -22,8 +28,14 @@ __all__ = [
     "LINK_INVALID_TEXT",
     "LINK_SUCCESS_TEXT",
     "MENU_TEXT",
+    "render_event_label",
     "render_link_instructions_text",
+    "render_scope_label",
     "render_status_text",
+    "render_subscription_delete_text",
+    "render_subscription_event_choice_text",
+    "render_subscription_result_text",
+    "render_subscription_scope_choice_text",
     "render_subscriptions_text",
     "render_welcome_text",
 ]

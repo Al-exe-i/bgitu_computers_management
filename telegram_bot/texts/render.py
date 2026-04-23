@@ -53,7 +53,7 @@ def render_subscriptions_text(snapshot: TelegramBotAccountSnapshot) -> str:
     if not active_subscriptions:
         return (
             "🔕 Активных Telegram-подписок пока нет.\n\n"
-            "Их можно создать в профиле на сайте."
+            "Создайте первую подписку кнопками ниже."
         )
 
     lines = ["🔔 Активные подписки:"]
@@ -63,8 +63,73 @@ def render_subscriptions_text(snapshot: TelegramBotAccountSnapshot) -> str:
             f"   {_render_event(item.event_type)} • {_render_delivery_mode(item.delivery_mode)}"
         )
     lines.append("")
-    lines.append("⚙️ Управление подписками пока доступно на сайте.")
+    lines.append("⚙️ Управлять подписками можно кнопками ниже.")
     return "\n".join(lines)
+
+
+def render_subscription_event_choice_text(*, scope_label: str) -> str:
+    return (
+        f"➕ Новая подписка: {scope_label}\n\n"
+        "Выберите тип уведомления."
+    )
+
+
+def render_subscription_scope_choice_text(
+    *,
+    scope_label: str,
+    event_label: str,
+    page: int,
+    total_pages: int,
+) -> str:
+    return (
+        f"➕ {scope_label}: {event_label}\n\n"
+        f"Выберите объект из списка.\n"
+        f"Страница {page} из {total_pages}."
+    )
+
+
+def render_subscription_delete_text(
+    *,
+    active_count: int,
+    page: int,
+    total_pages: int,
+) -> str:
+    if active_count == 0:
+        return "🗑 Активных подписок для удаления нет."
+
+    return (
+        "🗑 Удаление подписки\n\n"
+        "Выберите подписку, которую нужно отключить.\n"
+        f"Страница {page} из {total_pages}."
+    )
+
+
+def render_subscription_result_text(result: str) -> str:
+    return {
+        "created": "Подписка добавлена",
+        "exists": "Такая подписка уже есть",
+        "deleted": "Подписка удалена",
+        "enabled": "Уведомления безопасности включены",
+        "disabled": "Уведомления безопасности выключены",
+        "not_linked": "Сначала привяжите Telegram к аккаунту",
+        "not_found": "Подписка уже отсутствует",
+        "invalid": "Не удалось выполнить действие",
+    }.get(result, "Не удалось выполнить действие")
+
+
+def render_scope_label(scope_type: str) -> str:
+    return {
+        "audience": "Подписка на аудиторию",
+        "office": "Подписка на корпус",
+    }.get(scope_type, scope_type)
+
+
+def render_event_label(event_type: str) -> str:
+    return {
+        "hardware_fault": "неисправность оборудования",
+        "hardware_recovered": "восстановление оборудования",
+        "auth_security": "события безопасности аккаунта",
+    }.get(event_type, event_type)
 
 
 def _render_role(role: str | None) -> str:

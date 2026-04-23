@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from aiogram.exceptions import TelegramBadRequest
 
-from telegram_bot.handlers.menu import _safe_edit_text
+from telegram_bot.handlers.common import safe_edit_text
 from telegram_bot.keyboards.main_menu import build_help_inline_keyboard
 
 
@@ -36,7 +36,7 @@ def test_safe_edit_text_swallows_message_not_modified() -> None:
     )
 
     asyncio.run(
-        _safe_edit_text(
+        safe_edit_text(
             callback,
             text="status",
             reply_markup=build_help_inline_keyboard(frontend_url="https://example.com"),
@@ -51,7 +51,7 @@ def test_safe_edit_text_keeps_success_answer() -> None:
     callback = FakeCallback(FakeMessage())
 
     asyncio.run(
-        _safe_edit_text(
+        safe_edit_text(
             callback,
             text="status",
             reply_markup=build_help_inline_keyboard(frontend_url="https://example.com"),

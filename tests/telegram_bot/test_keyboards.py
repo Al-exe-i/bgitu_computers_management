@@ -1,4 +1,5 @@
 from telegram_bot.keyboards.main_menu import (
+    build_subscriptions_inline_keyboard,
     build_link_inline_keyboard,
     build_status_inline_keyboard,
     is_telegram_safe_url,
@@ -26,7 +27,7 @@ def test_build_status_inline_keyboard_omits_invalid_site_button() -> None:
 
     assert all(button.url is None for button in buttons)
     assert any(button.callback_data == "menu:status" for button in buttons)
-    assert any(button.callback_data == "menu:subscriptions" for button in buttons)
+    assert any(button.callback_data == "subs:home" for button in buttons)
 
 
 def test_build_link_inline_keyboard_keeps_public_site_button() -> None:
@@ -35,3 +36,10 @@ def test_build_link_inline_keyboard_keeps_public_site_button() -> None:
     buttons = [button for row in keyboard.inline_keyboard for button in row]
 
     assert any(button.url == "https://example.com" for button in buttons)
+
+
+def test_build_subscriptions_inline_keyboard_reflects_security_state() -> None:
+    keyboard = build_subscriptions_inline_keyboard(auth_security_enabled=True)
+    buttons = [button for row in keyboard.inline_keyboard for button in row]
+
+    assert any(button.callback_data == "subs:sec" and "включена" in button.text for button in buttons)

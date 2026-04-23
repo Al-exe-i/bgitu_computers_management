@@ -70,6 +70,11 @@ class AudienceRepository:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def list_short(self) -> Sequence[Audience]:
+        stmt = select(Audience).order_by(Audience.office_id, Audience.floor, Audience.id)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def delete(self, audience_id: int) -> None:
         stmt = delete(Audience).where(Audience.id == audience_id)
         await self.session.execute(stmt)
