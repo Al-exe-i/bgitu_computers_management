@@ -40,18 +40,33 @@ def test_get_user_event_recipient_ids_uses_user_scope() -> None:
     asyncio.run(scenario())
 
 
-def test_build_auth_security_message_includes_details() -> None:
+def test_build_auth_security_message_formats_login_event() -> None:
     service = TelegramNotificationService(
         FakeTelegramSubscriptionRepo(),
         FakeAudienceRepo(),
     )
 
     message = service.build_auth_security_message(
-        event_name="Login detected",
+        event_name="Выполнен вход в аккаунт",
         ip="127.0.0.1",
         user_agent="pytest",
     )
 
-    assert "Login detected" in message
-    assert "IP: 127.0.0.1" in message
-    assert "User-Agent: pytest" in message
+    assert "🔐 Выполнен вход в аккаунт" in message
+    assert "В аккаунт выполнен новый вход." in message
+    assert "🌐 IP: 127.0.0.1" in message
+    assert "💻 Устройство: pytest" in message
+
+
+def test_build_auth_security_message_formats_password_change_event() -> None:
+    service = TelegramNotificationService(
+        FakeTelegramSubscriptionRepo(),
+        FakeAudienceRepo(),
+    )
+
+    message = service.build_auth_security_message(
+        event_name="Изменён пароль аккаунта",
+    )
+
+    assert "🔑 Изменён пароль аккаунта" in message
+    assert "Пароль вашего аккаунта был изменён." in message

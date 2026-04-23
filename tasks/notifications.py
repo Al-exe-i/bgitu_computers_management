@@ -1,16 +1,207 @@
 import asyncio
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from uuid import uuid4
 
 from aiogram import Bot
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+)
 from loguru import logger
 
 from celery_app import celery_app
 from core.config import settings
 from core.exceptions import HTTP404
-from db.session import session_factory
+from models.telegram_notification_delivery_log import TelegramNotificationDeliveryLog
 from repositories.audience_repo import AudienceRepository
+from repositories.telegram_notification_delivery_log_repo import (
+    TelegramNotificationDeliveryLogRepository,
+)
 from repositories.telegram_subscription_repo import TelegramSubscriptionRepository
 from schemas.telegram import TelegramEventType
 from services.telegram_notification_service import TelegramNotificationService
+from tasks.sessions import open_task_session
+
+TELEGRAM_SEND_MAX_ATTEMPTS = 3
+TELEGRAM_SEND_BASE_DELAY_SECONDS = 1.0
+
+
+@dataclass(slots=True)
+class TelegramDeliveryResult:
+    telegram_id: int
+    delivered: bool
+    attempts: int
+    error_type: str | None = None
+    error_message: str | None = None
+
+
+def _truncate_error_message(value: str | None, limit: int = 500) -> str | None:
+    if value is None:
+        return None
+    return value[:limit]
+
+
+async def _send_message_with_retry(
+    bot: Bot,
+    *,
+    chat_id: int,
+    text: str,
+    notification_id: str,
+    event_type: str,
+    max_attempts: int = TELEGRAM_SEND_MAX_ATTEMPTS,
+    base_delay_seconds: float = TELEGRAM_SEND_BASE_DELAY_SECONDS,
+) -> TelegramDeliveryResult:
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await bot.send_message(chat_id=chat_id, text=text)
+            logger.info(
+                "Telegram delivery succeeded: notification_id={} event_type={} chat_id={} attempt={}/{}",
+                notification_id,
+                event_type,
+                chat_id,
+                attempt,
+                max_attempts,
+            )
+            return TelegramDeliveryResult(
+                telegram_id=chat_id,
+                delivered=True,
+                attempts=attempt,
+            )
+        except TelegramRetryAfter as exc:
+            if attempt >= max_attempts:
+                logger.warning(
+                    "Telegram delivery failed after retry-after exhaustion: notification_id={} event_type={} chat_id={} retry_after={} attempt={}/{} error={}",
+                    notification_id,
+                    event_type,
+                    chat_id,
+                    exc.retry_after,
+                    attempt,
+                    max_attempts,
+                    str(exc),
+                )
+                return TelegramDeliveryResult(
+                    telegram_id=chat_id,
+                    delivered=False,
+                    attempts=attempt,
+                    error_type=type(exc).__name__,
+                    error_message=_truncate_error_message(str(exc)),
+                )
+
+            delay = max(float(exc.retry_after), base_delay_seconds)
+            logger.warning(
+                "Telegram delivery retry scheduled due to rate limit: notification_id={} event_type={} chat_id={} retry_in={}s attempt={}/{} error={}",
+                notification_id,
+                event_type,
+                chat_id,
+                delay,
+                attempt,
+                max_attempts,
+                str(exc),
+            )
+            await asyncio.sleep(delay)
+        except TelegramNetworkError as exc:
+            if attempt >= max_attempts:
+                logger.warning(
+                    "Telegram delivery failed after network retries: notification_id={} event_type={} chat_id={} attempt={}/{} error={}",
+                    notification_id,
+                    event_type,
+                    chat_id,
+                    attempt,
+                    max_attempts,
+                    str(exc),
+                )
+                return TelegramDeliveryResult(
+                    telegram_id=chat_id,
+                    delivered=False,
+                    attempts=attempt,
+                    error_type=type(exc).__name__,
+                    error_message=_truncate_error_message(str(exc)),
+                )
+
+            delay = base_delay_seconds * (2 ** (attempt - 1))
+            logger.warning(
+                "Telegram delivery retry scheduled due to network error: notification_id={} event_type={} chat_id={} retry_in={}s attempt={}/{} error={}",
+                notification_id,
+                event_type,
+                chat_id,
+                delay,
+                attempt,
+                max_attempts,
+                str(exc),
+            )
+            await asyncio.sleep(delay)
+        except (TelegramForbiddenError, TelegramBadRequest) as exc:
+            logger.warning(
+                "Telegram delivery permanently failed: notification_id={} event_type={} chat_id={} error={}",
+                notification_id,
+                event_type,
+                chat_id,
+                str(exc),
+            )
+            return TelegramDeliveryResult(
+                telegram_id=chat_id,
+                delivered=False,
+                attempts=attempt,
+                error_type=type(exc).__name__,
+                error_message=_truncate_error_message(str(exc)),
+            )
+        except Exception:
+            logger.exception(
+                "Telegram delivery failed with unexpected error: notification_id={} event_type={} chat_id={}",
+                notification_id,
+                event_type,
+                chat_id,
+            )
+            return TelegramDeliveryResult(
+                telegram_id=chat_id,
+                delivered=False,
+                attempts=attempt,
+                error_type="UnexpectedError",
+                error_message=None,
+            )
+
+    return TelegramDeliveryResult(
+        telegram_id=chat_id,
+        delivered=False,
+        attempts=max_attempts,
+        error_type="UnknownError",
+        error_message="Telegram delivery exited without a terminal state",
+    )
+
+
+async def _persist_delivery_results(
+    *,
+    notification_id: str,
+    event_type: str,
+    payload: dict,
+    results: list[TelegramDeliveryResult],
+) -> None:
+    if not results:
+        return
+
+    logged_at = datetime.now(timezone.utc)
+    delivery_logs = [
+        TelegramNotificationDeliveryLog(
+            notification_id=notification_id,
+            event_type=event_type,
+            telegram_id=result.telegram_id,
+            status="delivered" if result.delivered else "failed",
+            attempts=result.attempts,
+            error_type=result.error_type,
+            error_message=result.error_message,
+            delivered_at=logged_at if result.delivered else None,
+            payload=dict(payload),
+        )
+        for result in results
+    ]
+
+    async with open_task_session() as session:
+        repo = TelegramNotificationDeliveryLogRepository(session)
+        await repo.create_many(delivery_logs)
+        await session.commit()
 
 
 async def _send_hardware_state_notification_async(
@@ -18,7 +209,9 @@ async def _send_hardware_state_notification_async(
     hardware_id: int,
     audience_id: int,
     event_type: str,
+    hardware_type: str | None = None,
     title: str | None = None,
+    description: str | None = None,
     inv_number: str | None = None,
     x: int | None = None,
     y: int | None = None,
@@ -49,7 +242,7 @@ async def _send_hardware_state_notification_async(
         )
         return {"sent": 0, "failed": 0, "event_type": event_type}
 
-    async with session_factory() as session:
+    async with open_task_session() as session:
         service = TelegramNotificationService(
             TelegramSubscriptionRepository(session),
             AudienceRepository(session),
@@ -80,7 +273,9 @@ async def _send_hardware_state_notification_async(
             hardware_id=hardware_id,
             audience_id=audience_id,
             event_type=telegram_event_type,
+            hardware_type=hardware_type,
             title=title,
+            description=description,
             inv_number=inv_number,
             x=x,
             y=y,
@@ -89,24 +284,60 @@ async def _send_hardware_state_notification_async(
     bot = Bot(token=settings.telegram.bot_token)
     sent = 0
     failed = 0
+    notification_id = uuid4().hex
+    delivery_results: list[TelegramDeliveryResult] = []
     try:
+        logger.info(
+            "Telegram hardware notification started: notification_id={} event_type={} hardware_id={} audience_id={}",
+            notification_id,
+            event_type,
+            hardware_id,
+            audience_id,
+        )
         for telegram_id in recipient_ids:
-            try:
-                await bot.send_message(chat_id=telegram_id, text=message)
+            delivery_result = await _send_message_with_retry(
+                bot,
+                chat_id=telegram_id,
+                text=message,
+                notification_id=notification_id,
+                event_type=event_type,
+            )
+            delivery_results.append(delivery_result)
+            if delivery_result.delivered:
                 sent += 1
-            except Exception:
+            else:
                 failed += 1
-                logger.exception(
-                    "Telegram notification send failed: telegram_id={} event_type={} hardware_id={}",
-                    telegram_id,
-                    event_type,
-                    hardware_id,
-                )
     finally:
         await bot.session.close()
 
+    try:
+        await _persist_delivery_results(
+            notification_id=notification_id,
+            event_type=event_type,
+            payload={
+                "hardware_id": hardware_id,
+                "audience_id": audience_id,
+                "hardware_type": hardware_type,
+                "title": title,
+                "description": description,
+                "inv_number": inv_number,
+                "x": x,
+                "y": y,
+            },
+            results=delivery_results,
+        )
+    except Exception:
+        logger.exception(
+            "Telegram delivery log persistence failed: notification_id={} event_type={} hardware_id={} audience_id={}",
+            notification_id,
+            event_type,
+            hardware_id,
+            audience_id,
+        )
+
     logger.info(
-        "Telegram notification processed: event_type={} hardware_id={} audience_id={} recipients={} sent={} failed={}",
+        "Telegram notification processed: notification_id={} event_type={} hardware_id={} audience_id={} recipients={} sent={} failed={}",
+        notification_id,
         event_type,
         hardware_id,
         audience_id,
@@ -122,7 +353,9 @@ def send_hardware_state_notification(
     hardware_id: int,
     audience_id: int,
     event_type: str,
+    hardware_type: str | None = None,
     title: str | None = None,
+    description: str | None = None,
     inv_number: str | None = None,
     x: int | None = None,
     y: int | None = None,
@@ -132,7 +365,9 @@ def send_hardware_state_notification(
             hardware_id=hardware_id,
             audience_id=audience_id,
             event_type=event_type,
+            hardware_type=hardware_type,
             title=title,
+            description=description,
             inv_number=inv_number,
             x=x,
             y=y,
@@ -165,7 +400,7 @@ async def _send_auth_security_notification_async(
         )
         return {"sent": 0, "failed": 0, "event_type": event_type}
 
-    async with session_factory() as session:
+    async with open_task_session() as session:
         service = TelegramNotificationService(
             TelegramSubscriptionRepository(session),
             AudienceRepository(session),
@@ -191,24 +426,55 @@ async def _send_auth_security_notification_async(
     bot = Bot(token=settings.telegram.bot_token)
     sent = 0
     failed = 0
+    notification_id = uuid4().hex
+    delivery_results: list[TelegramDeliveryResult] = []
     try:
+        logger.info(
+            "Telegram auth security notification started: notification_id={} user_id={} event_name={}",
+            notification_id,
+            user_id,
+            event_name,
+        )
         for telegram_id in recipient_ids:
-            try:
-                await bot.send_message(chat_id=telegram_id, text=message)
+            delivery_result = await _send_message_with_retry(
+                bot,
+                chat_id=telegram_id,
+                text=message,
+                notification_id=notification_id,
+                event_type=event_type,
+            )
+            delivery_results.append(delivery_result)
+            if delivery_result.delivered:
                 sent += 1
-            except Exception:
+            else:
                 failed += 1
-                logger.exception(
-                    "Telegram auth security notification send failed: telegram_id={} user_id={} event_name={}",
-                    telegram_id,
-                    user_id,
-                    event_name,
-                )
     finally:
         await bot.session.close()
 
+    try:
+        await _persist_delivery_results(
+            notification_id=notification_id,
+            event_type=event_type,
+            payload={
+                "user_id": user_id,
+                "event_name": event_name,
+                "ip": ip,
+                "user_agent": user_agent,
+            },
+            results=delivery_results,
+        )
+    except Exception:
+        logger.exception(
+            "Telegram delivery log persistence failed: notification_id={} event_type={} user_id={} event_name={}",
+            notification_id,
+            event_type,
+            user_id,
+            event_name,
+        )
+
     logger.info(
-        "Telegram auth security notification processed: user_id={} event_name={} recipients={} sent={} failed={}",
+        "Telegram auth security notification processed: notification_id={} user_id={} event_name={} recipients={} sent={} failed={}",
+        notification_id,
         user_id,
         event_name,
         len(recipient_ids),

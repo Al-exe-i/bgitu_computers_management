@@ -28,7 +28,7 @@ def test_render_status_text_for_linked_account() -> None:
 
     text = render_status_text(snapshot)
 
-    assert "✅ Telegram привязан." in text
+    assert "✅ Telegram подключён" in text
     assert "teacher@example.com" in text
     assert "Иванов Иван" in text
     assert "преподаватель" in text

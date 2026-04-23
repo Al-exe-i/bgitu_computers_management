@@ -50,15 +50,19 @@ def test_build_hardware_state_message_formats_fault_event() -> None:
         hardware_id=42,
         audience_id=215,
         event_type=TelegramEventType.hardware_fault,
+        hardware_type="computer",
         title="Рабочая станция",
+        description="Не включается после подачи питания",
         inv_number="INV-55",
         x=6,
         y=2,
     )
 
-    assert "🚨" in message
+    assert "🚨 Обнаружена неисправность оборудования" in message
     assert "🏫 Аудитория: 215" in message
     assert "🖥 ID оборудования: 42" in message
+    assert "🧩 Тип: компьютер" in message
     assert "📍 Расположение: ряд 3, место 7" in message
     assert "🏷 Название: Рабочая станция" in message
+    assert "💬 Комментарий: Не включается после подачи питания" in message
     assert "🔢 Инвентарный номер: INV-55" in message

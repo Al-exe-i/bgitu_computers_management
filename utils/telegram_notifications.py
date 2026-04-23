@@ -14,7 +14,9 @@ class HardwareStatePayload(Protocol):
     id: int
     audience_id: int
     state: bool
+    type: object
     title: str | None
+    description: str | None
     inv_number: str | None
     x: int
     y: int
@@ -43,7 +45,9 @@ def enqueue_hardware_state_notification(
         hardware_id=hardware.id,
         audience_id=hardware.audience_id,
         event_type=event_type.value,
+        hardware_type=getattr(hardware.type, "value", hardware.type),
         title=hardware.title,
+        description=hardware.description,
         inv_number=hardware.inv_number,
         x=hardware.x,
         y=hardware.y,

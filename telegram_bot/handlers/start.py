@@ -3,7 +3,11 @@ from aiogram.filters import CommandObject, CommandStart
 from aiogram.types import Message
 from loguru import logger
 
-from telegram_bot.keyboards import build_main_menu_keyboard
+from core.config import settings
+from telegram_bot.keyboards import (
+    build_main_menu_keyboard,
+    build_status_inline_keyboard,
+)
 from telegram_bot.services import TelegramBotLinkFacade
 from telegram_bot.texts import (
     GENERIC_ERROR_TEXT,
@@ -58,4 +62,14 @@ async def start_handler(message: Message, command: CommandObject) -> None:
         return
 
     logger.info("Telegram link confirmed via bot: telegram_id={}", message.from_user.id)
-    await message.answer(LINK_SUCCESS_TEXT, reply_markup=build_main_menu_keyboard())
+    await message.answer(
+        LINK_SUCCESS_TEXT,
+        reply_markup=build_status_inline_keyboard(
+            frontend_url=settings.frontend_url,
+            is_linked=True,
+        ),
+    )
+    await message.answer(
+        "Навигация закреплена в нижнем меню.",
+        reply_markup=build_main_menu_keyboard(),
+    )

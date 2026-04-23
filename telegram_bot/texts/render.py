@@ -4,18 +4,18 @@ from telegram_bot.services import TelegramBotAccountSnapshot, TelegramBotSubscri
 def render_welcome_text() -> str:
     return (
         "👋 Это Telegram-бот системы учёта оборудования БГИТУ.\n\n"
-        "Если вы открыли его из сайта, привязка аккаунта подтверждается автоматически. "
-        "После этого можно получать уведомления о важных изменениях.\n\n"
-        "Откройте меню ниже, чтобы посмотреть доступные действия."
+        "Если вы открыли его из профиля на сайте, привязка аккаунта подтверждается "
+        "через команду /start с токеном. После этого бот сможет присылать важные "
+        "уведомления по оборудованию и безопасности аккаунта."
     )
 
 
 def render_link_instructions_text(*, frontend_url: str, bot_username: str | None) -> str:
     lines = [
         "🧭 Как подключить Telegram к аккаунту:",
-        "1. Войдите на сайт и откройте профиль.",
-        "2. Сгенерируйте ссылку для привязки Telegram.",
-        "3. Откройте её или отправьте боту команду /start link_<token>.",
+        "1. Откройте профиль на сайте.",
+        "2. Нажмите кнопку подключения Telegram.",
+        "3. Откройте ссылку из профиля или отправьте боту команду /start link_<token>.",
         "",
         f"🌐 Сайт: {frontend_url}",
     ]
@@ -27,16 +27,17 @@ def render_link_instructions_text(*, frontend_url: str, bot_username: str | None
 def render_status_text(snapshot: TelegramBotAccountSnapshot) -> str:
     if not snapshot.is_linked:
         return (
-            "🔌 Этот Telegram-аккаунт пока не привязан.\n\n"
-            "Откройте сайт, перейдите в профиль и сгенерируйте ссылку для привязки."
+            "🔌 Telegram пока не подключён.\n\n"
+            "Откройте профиль на сайте, сгенерируйте ссылку для привязки и вернитесь в бот."
         )
 
+    active_count = sum(1 for item in snapshot.subscriptions if item.enabled)
     lines = [
-        "✅ Telegram привязан.",
+        "✅ Telegram подключён",
         f"📧 Email: {snapshot.email or 'не указан'}",
         f"👤 Пользователь: {snapshot.full_name or 'не указан'}",
         f"🛡 Роль: {_render_role(snapshot.role)}",
-        f"🔔 Активных подписок: {sum(1 for item in snapshot.subscriptions if item.enabled)}",
+        f"🔔 Активных подписок: {active_count}",
     ]
     return "\n".join(lines)
 
@@ -44,25 +45,25 @@ def render_status_text(snapshot: TelegramBotAccountSnapshot) -> str:
 def render_subscriptions_text(snapshot: TelegramBotAccountSnapshot) -> str:
     if not snapshot.is_linked:
         return (
-            "🔌 Сначала привяжите Telegram к аккаунту на сайте, "
-            "после этого здесь появятся ваши подписки."
+            "🔌 Сначала привяжите Telegram к аккаунту на сайте. "
+            "После этого здесь появятся ваши уведомления."
         )
 
     active_subscriptions = [item for item in snapshot.subscriptions if item.enabled]
     if not active_subscriptions:
         return (
-            "🔕 У вас пока нет активных Telegram-подписок.\n\n"
+            "🔕 Активных Telegram-подписок пока нет.\n\n"
             "Их можно создать в профиле на сайте."
         )
 
     lines = ["🔔 Активные подписки:"]
     for index, item in enumerate(active_subscriptions, start=1):
         lines.append(
-            f"{index}. {_render_scope(item)} -> {_render_event(item.event_type)} "
-            f"({_render_delivery_mode(item.delivery_mode)})"
+            f"{index}. {_render_scope(item)}\n"
+            f"   {_render_event(item.event_type)} • {_render_delivery_mode(item.delivery_mode)}"
         )
     lines.append("")
-    lines.append("⚙ Управление подписками пока доступно на сайте.")
+    lines.append("⚙️ Управление подписками пока доступно на сайте.")
     return "\n".join(lines)
 
 
@@ -79,7 +80,7 @@ def _render_scope(subscription: TelegramBotSubscriptionSnapshot) -> str:
     if subscription.scope_type == "office":
         return f"🏢 Корпус {subscription.scope_id}"
     if subscription.scope_type == "user":
-        return "👤 Личные уведомления"
+        return "👤 Безопасность аккаунта"
     return f"{subscription.scope_type} {subscription.scope_id}"
 
 
