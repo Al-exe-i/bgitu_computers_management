@@ -7,6 +7,12 @@ import {useAuthStore} from "@/stores/auth.js";
 import {getApiUrl, getWsUrl} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {markRaw} from "vue";
+import {
+  createTelegramSubscription as createTelegramSubscriptionRequest,
+  deleteTelegramSubscription as deleteTelegramSubscriptionRequest,
+  getTelegramStatus,
+  getTelegramSubscriptions
+} from "@/services/telegram.js";
 
 export default {
   name: 'AudienceView',
@@ -124,6 +130,26 @@ export default {
       statusConfirmLoading: false,
       skipStatusConfirmSession: false,
 
+      /* Telegram-подписки аудитории */
+      telegramStatus: null,
+      telegramSubscriptions: [],
+      telegramSubscriptionsLoading: false,
+      telegramSubscriptionsError: '',
+      telegramSubscriptionMutationKeys: [],
+      showAudienceTelegramPopover: false,
+      telegramEventOptions: markRaw([
+        {
+          value: 'hardware_fault',
+          label: 'Неисправность',
+          description: 'Когда оборудование стало неисправным.'
+        },
+        {
+          value: 'hardware_recovered',
+          label: 'Восстановление',
+          description: 'Когда оборудование снова исправно.'
+        }
+      ]),
+
       /* Раздел файлов оборудования в модалке */
       isDragOver: false,
       showConfirmModal: false,
@@ -186,6 +212,53 @@ export default {
 
     audienceContext() {
       return useAudienceContext()
+    },
+
+    currentAuthUserKey() {
+      if (!this.authStore.isAuthenticated) return 'guest';
+      return this.authStore.user?.id ? `user:${this.authStore.user.id}` : 'authenticated';
+    },
+
+    showAudienceTelegramControl() {
+      return this.authStore.isAuthenticated && !!this.classroom;
+    },
+
+    isTelegramConnected() {
+      return !!this.telegramStatus?.telegram_id_confirmed;
+    },
+
+    audienceTelegramSubscriptions() {
+      if (!this.classroom?.number) return [];
+
+      return this.telegramSubscriptions.filter((subscription) =>
+          subscription.scope_type === 'audience' &&
+          Number(subscription.scope_id) === Number(this.classroom.number)
+      );
+    },
+
+    officeTelegramSubscriptions() {
+      if (!this.classroom?.office_id) return [];
+
+      return this.telegramSubscriptions.filter((subscription) =>
+          subscription.scope_type === 'office' &&
+          Number(subscription.scope_id) === Number(this.classroom.office_id)
+      );
+    },
+
+    hasOfficeTelegramSubscriptions() {
+      return this.officeTelegramSubscriptions.length > 0;
+    },
+
+    officeTelegramEventLabels() {
+      const labels = this.officeTelegramSubscriptions
+          .map((subscription) => this.getTelegramEventLabel(subscription.event_type))
+          .filter(Boolean);
+
+      return [...new Set(labels)].join(', ');
+    },
+
+    activeAudienceTelegramCount() {
+      return this.audienceTelegramSubscriptions.length;
     },
 
     currentPreviewFile() {
@@ -501,8 +574,253 @@ export default {
 
   },
 
+  watch: {
+    currentAuthUserKey() {
+      this.resetAudienceTelegramState();
+
+      if (this.authStore.isAuthenticated && this.classroom?.number) {
+        this.loadAudienceTelegramSubscriptions({ silent: true });
+      }
+    }
+  },
+
   methods: {
     getApiUrl,
+
+    resetAudienceTelegramState() {
+      this.telegramStatus = null;
+      this.telegramSubscriptions = [];
+      this.telegramSubscriptionsError = '';
+      this.telegramSubscriptionsLoading = false;
+      this.telegramSubscriptionMutationKeys = [];
+      this.showAudienceTelegramPopover = false;
+    },
+
+    async toggleAudienceTelegramPopover() {
+      this.showAudienceTelegramPopover = !this.showAudienceTelegramPopover;
+
+      if (this.showAudienceTelegramPopover && this.authStore.isAuthenticated) {
+        await this.loadAudienceTelegramSubscriptions({ silent: true });
+      }
+    },
+
+    closeAudienceTelegramPopover() {
+      this.showAudienceTelegramPopover = false;
+    },
+
+    handleAudienceTelegramOutsideClick(event) {
+      if (!this.showAudienceTelegramPopover) return;
+
+      const popoverRoot = this.$refs.audienceTelegramPopover;
+      if (popoverRoot && !popoverRoot.contains(event.target)) {
+        this.closeAudienceTelegramPopover();
+      }
+    },
+
+    openTelegramProfileSettings() {
+      this.closeAudienceTelegramPopover();
+      router.push({ name: 'SettingsProfile', query: { section: 'telegram' } });
+    },
+
+    getTelegramErrorMessage(error, fallbackMessage) {
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+      const message = typeof detail === 'string' ? detail : '';
+
+      if (error?.code === 'ECONNABORTED') {
+        return 'Сервер Telegram не ответил вовремя. Повторите действие ещё раз.';
+      }
+
+      if (!error?.response) {
+        return 'Не удалось связаться с сервером. Проверьте подключение и повторите попытку.';
+      }
+
+      if (status === 401) {
+        return 'Необходимо повторно войти в систему.';
+      }
+
+      if (status === 403) {
+        return 'Недостаточно прав для работы с Telegram-подписками.';
+      }
+
+      if (status === 404) {
+        return 'Telegram-подписка не найдена.';
+      }
+
+      if (status === 409) {
+        if (message.toLowerCase().includes('already exists')) {
+          return 'Такая подписка уже включена.';
+        }
+
+        return 'Это действие нельзя выполнить в текущем состоянии.';
+      }
+
+      if (status === 422) {
+        return 'Не удалось применить Telegram-подписку для этой аудитории.';
+      }
+
+      return fallbackMessage;
+    },
+
+    getTelegramEventLabel(eventType) {
+      if (eventType === 'hardware_recovered') return 'восстановление';
+      return 'неисправность';
+    },
+
+    getTelegramSubscriptionKey(eventType) {
+      return `audience:${Number(this.classroom?.number)}:${eventType}`;
+    },
+
+    findAudienceTelegramSubscription(eventType) {
+      return this.audienceTelegramSubscriptions.find(
+          (subscription) => subscription.event_type === eventType
+      ) || null;
+    },
+
+    findOfficeTelegramSubscription(eventType) {
+      return this.officeTelegramSubscriptions.find(
+          (subscription) => subscription.event_type === eventType
+      ) || null;
+    },
+
+    isAudienceTelegramEventActive(eventType) {
+      return !!this.findAudienceTelegramSubscription(eventType);
+    },
+
+    isOfficeTelegramEventActive(eventType) {
+      return !!this.findOfficeTelegramSubscription(eventType);
+    },
+
+    isAudienceTelegramEventBusy(eventType) {
+      return this.telegramSubscriptionMutationKeys.includes(
+          this.getTelegramSubscriptionKey(eventType)
+      );
+    },
+
+    async loadAudienceTelegramSubscriptions({ silent = false } = {}) {
+      if (!this.authStore.isAuthenticated || !this.classroom?.number) {
+        this.resetAudienceTelegramState();
+        return;
+      }
+
+      this.telegramSubscriptionsLoading = true;
+      const requestUserKey = this.currentAuthUserKey;
+      const requestAudienceId = Number(this.classroom.number);
+
+      try {
+        const statusResponse = await getTelegramStatus();
+
+        if (
+            requestUserKey !== this.currentAuthUserKey ||
+            requestAudienceId !== Number(this.classroom?.number)
+        ) {
+          return;
+        }
+
+        const status = statusResponse.data || {};
+
+        this.telegramStatus = {
+          telegram_id: status.telegram_id || null,
+          telegram_id_confirmed: !!status.telegram_id_confirmed
+        };
+
+        if (this.telegramStatus.telegram_id_confirmed) {
+          const subscriptionsResponse = await getTelegramSubscriptions();
+
+          if (
+              requestUserKey !== this.currentAuthUserKey ||
+              requestAudienceId !== Number(this.classroom?.number)
+          ) {
+            return;
+          }
+
+          this.telegramSubscriptions = Array.isArray(subscriptionsResponse.data)
+              ? subscriptionsResponse.data
+              : [];
+        } else {
+          this.telegramSubscriptions = [];
+        }
+
+        this.telegramSubscriptionsError = '';
+      } catch (error) {
+        if (
+            requestUserKey !== this.currentAuthUserKey ||
+            requestAudienceId !== Number(this.classroom?.number)
+        ) {
+          return;
+        }
+
+        const message = this.getTelegramErrorMessage(
+            error,
+            'Не удалось загрузить Telegram-подписки аудитории.'
+        );
+
+        this.telegramSubscriptionsError = message;
+
+        if (!silent) {
+          this.notify.error(message);
+        }
+      } finally {
+        if (
+            requestUserKey === this.currentAuthUserKey &&
+            requestAudienceId === Number(this.classroom?.number)
+        ) {
+          this.telegramSubscriptionsLoading = false;
+        }
+      }
+    },
+
+    async toggleAudienceTelegramSubscription(eventType) {
+      if (!this.isTelegramConnected || !this.classroom?.number) {
+        this.notify.warning('Сначала подключите Telegram в профиле.');
+        return;
+      }
+
+      const loadingKey = this.getTelegramSubscriptionKey(eventType);
+      if (this.telegramSubscriptionMutationKeys.includes(loadingKey)) return;
+
+      this.telegramSubscriptionMutationKeys = [
+        ...this.telegramSubscriptionMutationKeys,
+        loadingKey
+      ];
+      this.telegramSubscriptionsError = '';
+
+      try {
+        const existingSubscription = this.findAudienceTelegramSubscription(eventType);
+
+        if (existingSubscription?.id) {
+          await deleteTelegramSubscriptionRequest(existingSubscription.id);
+        } else {
+          await createTelegramSubscriptionRequest({
+            scope_type: 'audience',
+            scope_id: Number(this.classroom.number),
+            event_type: eventType,
+            delivery_mode: 'immediate'
+          });
+        }
+
+        await this.loadAudienceTelegramSubscriptions({ silent: true });
+
+        const eventLabel = this.getTelegramEventLabel(eventType);
+        if (existingSubscription?.id) {
+          this.notify.info(`Подписка на ${eventLabel} в аудитории отключена.`);
+        } else {
+          this.notify.success(`Подписка на ${eventLabel} в аудитории включена.`);
+        }
+      } catch (error) {
+        const message = this.getTelegramErrorMessage(
+            error,
+            'Не удалось изменить Telegram-подписку аудитории.'
+        );
+        this.telegramSubscriptionsError = message;
+        this.notify.error(message);
+      } finally {
+        this.telegramSubscriptionMutationKeys = this.telegramSubscriptionMutationKeys.filter(
+            (item) => item !== loadingKey
+        );
+      }
+    },
+
     async getAudience({ keepModal = true } = {}) {
       const modalState = keepModal && this.selectedCell
           ? {
@@ -1185,10 +1503,13 @@ export default {
   async mounted() {
     this.skipStatusConfirmSession = sessionStorage.getItem('hw_skip_status_confirm_session') === 'true';
     await this.getAudience();
+    this.loadAudienceTelegramSubscriptions({ silent: true });
+    document.addEventListener('click', this.handleAudienceTelegramOutsideClick);
     this.connectWebSocket();
   },
 
   beforeUnmount() {
+    document.removeEventListener('click', this.handleAudienceTelegramOutsideClick);
     this.closeWebSocket()
     this.audienceContext.clear()
   }
@@ -1217,14 +1538,136 @@ export default {
         </div>
 
 
-        <div v-if="havePermission" class="header-actions">
-          <button class="header-btn edit-btn" @click="editClassroom">
+        <div v-if="authStore.isAuthenticated || havePermission" class="header-actions">
+          <div
+              v-if="showAudienceTelegramControl"
+              ref="audienceTelegramPopover"
+              class="audience-telegram-control"
+              @click.stop
+          >
+            <button
+                type="button"
+                class="header-btn audience-telegram-trigger"
+                :class="{ active: showAudienceTelegramPopover || activeAudienceTelegramCount > 0 }"
+                @click="toggleAudienceTelegramPopover"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <span>Подписки</span>
+              <span v-if="activeAudienceTelegramCount" class="audience-telegram-trigger-count">
+                {{ activeAudienceTelegramCount }}
+              </span>
+            </button>
+
+            <div v-if="showAudienceTelegramPopover" class="audience-telegram-panel">
+              <div class="audience-telegram-head">
+                <div class="audience-telegram-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                </div>
+                <div class="audience-telegram-copy">
+                  <h2>Подписки на изменения</h2>
+                  <p v-if="isTelegramConnected">
+                    Аудитория №{{ classroom.number }}
+                  </p>
+                  <p v-else>
+                    Telegram не подключён
+                  </p>
+                </div>
+                <button
+                    type="button"
+                    class="audience-telegram-close"
+                    aria-label="Закрыть подписки"
+                    title="Закрыть"
+                    @click="closeAudienceTelegramPopover"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div v-if="telegramSubscriptionsError" class="audience-telegram-alert">
+                {{ telegramSubscriptionsError }}
+              </div>
+
+              <div v-if="telegramSubscriptionsLoading" class="audience-telegram-loading">
+                <span class="audience-telegram-spinner"></span>
+                <span>Загрузка...</span>
+              </div>
+
+              <div v-else-if="isTelegramConnected" class="audience-telegram-body">
+                <div class="audience-telegram-events">
+                  <label
+                      v-for="option in telegramEventOptions"
+                      :key="option.value"
+                      class="audience-telegram-event"
+                      :class="{
+                        active: isAudienceTelegramEventActive(option.value),
+                        covered: isOfficeTelegramEventActive(option.value),
+                        loading: isAudienceTelegramEventBusy(option.value)
+                      }"
+                  >
+                    <input
+                        type="checkbox"
+                        class="audience-telegram-checkbox"
+                        :checked="isAudienceTelegramEventActive(option.value)"
+                        :disabled="isAudienceTelegramEventBusy(option.value)"
+                        @change="toggleAudienceTelegramSubscription(option.value)"
+                    >
+                    <span class="audience-telegram-marker">
+                      <span
+                          v-if="isAudienceTelegramEventBusy(option.value)"
+                          class="audience-telegram-spinner small"
+                      ></span>
+                      <svg
+                          v-else-if="isAudienceTelegramEventActive(option.value)"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.4"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span class="audience-telegram-event-copy">
+                      <strong>{{ option.label }}</strong>
+                      <span>{{ option.description }}</span>
+                      <em v-if="isOfficeTelegramEventActive(option.value)">
+                        Активно через корпус
+                      </em>
+                    </span>
+                  </label>
+                </div>
+
+                <p v-if="hasOfficeTelegramSubscriptions" class="audience-telegram-office-note">
+                  Корпус №{{ classroom.office_id }} уже отправляет:
+                  {{ officeTelegramEventLabels }}.
+                </p>
+              </div>
+
+              <div v-else class="audience-telegram-empty">
+                <p>Подключите Telegram в профиле, чтобы получать уведомления по этой аудитории.</p>
+                <button type="button" @click="openTelegramProfileSettings">
+                  Открыть профиль
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button v-if="havePermission" class="header-btn edit-btn" @click="editClassroom">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Редактировать
           </button>
-          <button class="header-btn delete-btn" @click="dropClassroomModalShow = true">
+          <button v-if="havePermission" class="header-btn delete-btn" @click="dropClassroomModalShow = true">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -2078,13 +2521,20 @@ export default {
 }
 
 .page-viewer.workspace .top-header,
-.page-viewer.workspace .stats-section {
+.page-viewer.workspace .stats-section,
+.page-viewer.workspace .audience-telegram-panel {
   display: none;
 }
 
 @keyframes gradientShift {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .container {
@@ -2239,6 +2689,388 @@ export default {
 /* Statistics */
 .stats-section {
   margin-bottom: 30px;
+}
+
+.audience-telegram-control {
+  position: relative;
+  display: inline-flex;
+}
+
+.audience-telegram-trigger {
+  position: relative;
+  border: 2px solid rgba(37, 99, 235, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  color: #1d4ed8;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.audience-telegram-trigger:hover,
+.audience-telegram-trigger.active {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border-color: rgba(37, 99, 235, 0.46);
+  color: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
+}
+
+.audience-telegram-trigger.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: transparent;
+  color: #fff;
+}
+
+.audience-telegram-trigger-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.audience-telegram-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: min(390px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 30%),
+      linear-gradient(180deg, var(--surface-muted), var(--surface));
+  box-shadow: var(--shadow-elev);
+}
+
+.audience-telegram-head {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 10px;
+}
+
+.audience-telegram-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #2563eb;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(14, 165, 233, 0.1));
+}
+
+.audience-telegram-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.audience-telegram-copy {
+  min-width: 0;
+}
+
+.audience-telegram-copy h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.audience-telegram-copy p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.audience-telegram-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.audience-telegram-close:hover {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.24);
+  color: #2563eb;
+}
+
+.audience-telegram-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+.audience-telegram-alert {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  background: rgba(254, 242, 242, 0.9);
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.audience-telegram-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.audience-telegram-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.audience-telegram-spinner.small {
+  width: 14px;
+  height: 14px;
+}
+
+.audience-telegram-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.audience-telegram-events {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.audience-telegram-event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.audience-telegram-event:hover:not(.loading) {
+  transform: translateY(-1px);
+  border-color: rgba(59, 130, 246, 0.34);
+}
+
+.audience-telegram-event.active {
+  border-color: rgba(37, 99, 235, 0.34);
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 34%),
+      var(--surface);
+  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.08);
+}
+
+.audience-telegram-event.covered:not(.active) {
+  border-style: dashed;
+}
+
+.audience-telegram-event.loading {
+  cursor: wait;
+}
+
+.audience-telegram-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.audience-telegram-marker {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-soft);
+  color: #2563eb;
+}
+
+.audience-telegram-marker svg {
+  width: 14px;
+  height: 14px;
+}
+
+.audience-telegram-event.active .audience-telegram-marker {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(37, 99, 235, 0.38);
+}
+
+.audience-telegram-event-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.audience-telegram-event-copy strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.audience-telegram-event-copy span,
+.audience-telegram-event-copy em {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.audience-telegram-event-copy em {
+  font-style: normal;
+  color: #2563eb;
+}
+
+.audience-telegram-office-note {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.audience-telegram-empty {
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--surface-soft);
+}
+
+.audience-telegram-empty p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.audience-telegram-empty button {
+  margin-top: 10px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-panel {
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 30%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(17, 24, 39, 0.96));
+  border-color: #334155;
+  box-shadow: 0 24px 42px rgba(2, 6, 23, 0.3);
+}
+
+:global(html[data-theme='dark']) .audience-telegram-icon {
+  color: #93c5fd;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(14, 165, 233, 0.12));
+}
+
+:global(html[data-theme='dark']) .audience-telegram-trigger {
+  background: rgba(15, 23, 42, 0.76);
+  border-color: rgba(96, 165, 250, 0.28);
+  color: #bfdbfe;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.2);
+}
+
+:global(html[data-theme='dark']) .audience-telegram-trigger:hover,
+:global(html[data-theme='dark']) .audience-telegram-trigger.active {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.48), rgba(37, 99, 235, 0.28));
+  border-color: rgba(96, 165, 250, 0.34);
+  color: #dbeafe;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
+}
+
+:global(html[data-theme='dark']) .audience-telegram-trigger.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: rgba(96, 165, 250, 0.34);
+  color: #fff;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-trigger-count {
+  background: rgba(15, 23, 42, 0.88);
+  color: #bfdbfe;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-close {
+  background: rgba(15, 23, 42, 0.88);
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-close:hover {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-alert {
+  background: rgba(127, 29, 29, 0.24);
+  border-color: rgba(248, 113, 113, 0.22);
+  color: #fecaca;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-event,
+:global(html[data-theme='dark']) .audience-telegram-office-note,
+:global(html[data-theme='dark']) .audience-telegram-empty {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: #334155;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-event.active {
+  background:
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 34%),
+      rgba(15, 23, 42, 0.96);
+  border-color: rgba(96, 165, 250, 0.32);
+  box-shadow: 0 16px 26px rgba(2, 6, 23, 0.24);
+}
+
+:global(html[data-theme='dark']) .audience-telegram-marker {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: #475569;
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-event.active .audience-telegram-marker {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(96, 165, 250, 0.36);
+}
+
+:global(html[data-theme='dark']) .audience-telegram-event-copy em {
+  color: #93c5fd;
 }
 
 .stats-grid {
@@ -4585,6 +5417,75 @@ export default {
   .header-btn {
     flex: 1;
     justify-content: center;
+  }
+
+  .audience-telegram-control {
+    flex: 0 0 auto;
+  }
+
+  .audience-telegram-trigger {
+    width: 44px;
+    min-width: 44px;
+    min-height: 40px;
+    padding: 10px;
+    white-space: nowrap;
+  }
+
+  .audience-telegram-trigger > span:not(.audience-telegram-trigger-count) {
+    display: none;
+  }
+
+  .audience-telegram-trigger-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .audience-telegram-panel {
+    position: fixed;
+    top: 96px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    padding: 14px;
+    border-radius: 16px;
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+  }
+
+  .audience-telegram-head {
+    grid-template-columns: 40px minmax(0, 1fr) 32px;
+    align-items: center;
+  }
+
+  .audience-telegram-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .audience-telegram-events {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .audience-telegram-event {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .audience-telegram-event-copy strong {
+    font-size: 13px;
+  }
+
+  .audience-telegram-event-copy span,
+  .audience-telegram-event-copy em,
+  .audience-telegram-office-note {
+    font-size: 11px;
   }
 
   .equipment-label {

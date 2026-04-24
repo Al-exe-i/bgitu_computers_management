@@ -74,6 +74,15 @@ export default {
         this.form.name = newUser.name || "";
         this.form.surname = newUser.surname || "";
       }
+    },
+
+    "$route.query.section": {
+      immediate: true,
+      handler(section) {
+        if (section === "telegram") {
+          this.switchSection("telegram");
+        }
+      }
     }
   },
 
