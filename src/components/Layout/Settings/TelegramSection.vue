@@ -910,8 +910,8 @@ export default {
               <button
                 type="button"
                 class="telegram-remove-btn"
-                title="Удалить подписку"
-                aria-label="Удалить подписку"
+                :title="deletingSubscriptionIds.includes(subscription.id) ? 'Удаление подписки' : 'Удалить подписку'"
+                :aria-label="deletingSubscriptionIds.includes(subscription.id) ? 'Удаление подписки' : 'Удалить подписку'"
                 :disabled="deletingSubscriptionIds.includes(subscription.id)"
                 @click="deleteTelegramSubscriptionById(subscription.id)"
               >
@@ -919,7 +919,7 @@ export default {
                   v-if="deletingSubscriptionIds.includes(subscription.id)"
                   class="telegram-spinner small danger"
                 ></span>
-                {{ deletingSubscriptionIds.includes(subscription.id) ? "Удаление..." : "Удалить" }}
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><path fill="currentColor" d="M21.499 19.994L32.755 8.727a1.064 1.064 0 0 0-.001-1.502c-.398-.396-1.099-.398-1.501.002L20 18.494L8.743 7.224c-.4-.395-1.101-.393-1.499.002a1.05 1.05 0 0 0-.309.751c0 .284.11.55.309.747L18.5 19.993L7.245 31.263a1.064 1.064 0 0 0 .003 1.503c.193.191.466.301.748.301h.006c.283-.001.556-.112.745-.305L20 21.495l11.257 11.27c.199.198.465.308.747.308a1.06 1.06 0 0 0 1.061-1.061c0-.283-.11-.55-.31-.747z"/></svg>
               </button>
             </article>
           </div>
@@ -1466,9 +1466,9 @@ export default {
 }
 
 .telegram-subscription-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: start;
   gap: 10px;
   padding: 12px;
   border-radius: 12px;
@@ -1511,19 +1511,24 @@ export default {
 
 .telegram-remove-btn {
   flex-shrink: 0;
-  align-self: flex-start;
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  align-self: start;
+  justify-self: end;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 10px;
   line-height: 1;
-  white-space: nowrap;
   box-shadow: none;
 }
 
 .telegram-remove-btn:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+.telegram-remove-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .telegram-form {
@@ -1723,7 +1728,6 @@ export default {
 
 @media (max-width: 860px) {
   .telegram-status-card,
-  .telegram-subscription-item,
   .telegram-security-card {
     flex-direction: column;
   }
@@ -1737,7 +1741,8 @@ export default {
   }
 
   .telegram-remove-btn {
-    align-self: flex-end;
+    align-self: start;
+    justify-self: end;
   }
 
   .telegram-security-toggle {
@@ -1783,8 +1788,52 @@ export default {
   }
 
   .telegram-remove-btn {
-    width: auto;
-    min-width: 0;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 9px;
+  }
+
+  .telegram-subscriptions {
+    gap: 6px;
+    max-height: min(42vh, 320px);
+    padding-right: 4px;
+  }
+
+  .telegram-subscription-item {
+    grid-template-columns: minmax(0, 1fr) 30px;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .telegram-subscription-tags {
+    gap: 4px;
+    margin-bottom: 5px;
+  }
+
+  .telegram-subscription-item .telegram-tag {
+    min-height: 21px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .telegram-subscription-title {
+    font-size: 13px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .telegram-subscription-meta {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .telegram-remove-btn svg {
+    width: 14px;
+    height: 14px;
   }
 
   .telegram-waiting-head,
