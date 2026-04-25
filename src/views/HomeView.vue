@@ -36,19 +36,15 @@ export default {
 
     async fetchOfficesData() {
       try {
-        // Получаем список всех корпусов
-        const res = await api.get('/offices/all_short'); // Ожидаем [{id: 1, address: '...'}, ...]
-        const officesList = res.data;
+        const res = await api.get('/offices/all_short');
+        const officesList = Array.isArray(res.data) ? res.data : [];
 
-        //  Для каждого корпуса запрашиваем статистику поломок
-        // (Оптимизация: лучше сделать 1 запрос на бэкенд /offices/stats, но пока так)
-        const statsPromises = officesList.map(office =>
-            api.get(`/offices/faulty_computers/${office.id}`)
-                .then(r => ({ ...office, faultyCount: r.data.count }))
-                .catch(() => ({ ...office, faultyCount: 0 })) // Если ошибка, считаем 0
-        );
-
-        this.offices = await Promise.all(statsPromises);
+        this.offices = officesList.map((office) => ({
+          ...office,
+          faultyCount: Number.isFinite(Number(office.faulty_hw_count))
+              ? Number(office.faulty_hw_count)
+              : 0,
+        }));
         this.loading = false;
 
         // Подключаем сокет только после первой успешной загрузки
