@@ -165,18 +165,6 @@ export default {
       return `Страница ${this.page} из ${this.pageCount}`;
     },
 
-    resultsCaption() {
-      if (!Number.isFinite(Number(this.total)) || this.total == null) {
-        return `Показано ${this.logs.length} из ${this.total}`;
-      }
-
-      if (!this.logs.length) {
-        return "Записей пока нет";
-      }
-
-      return `Показано ${this.logs.length} записей`;
-    },
-
     activeFiltersCount() {
       return Object.keys(buildFilterParams(this.appliedFilters)).length;
     },
@@ -227,86 +215,6 @@ export default {
   },
 
   methods: {
-    buildParams() {
-      const offset = (this.page - 1) * this.pageSize;
-      const params = { limit: this.pageSize, offset };
-
-      Object.entries(this.filters).forEach(([key, value]) => {
-        const normalized = String(value ?? "").trim();
-        if (normalized !== "") {
-          params[key] = normalized;
-        }
-      });
-
-      return params;
-    },
-
-    async fetchLogs({ reset = false } = {}) {
-      if (this.loading) return;
-
-      this.loading = true;
-      this.error = null;
-
-      try {
-        if (reset) {
-          this.page = 1;
-          this.hasMore = true;
-        }
-
-        const response = await api.get(AUDIT_ENDPOINT, {
-          params: this.buildParams(),
-        });
-
-        const { items, total } = formatAuditListResponse(response.data);
-
-        if (reset) {
-          this.logs = items;
-        } else {
-          this.logs.push(...items);
-        }
-
-        this.total = total;
-        this.hasMore = total != null
-          ? this.logs.length < total
-          : items.length === this.pageSize;
-      } catch (error) {
-        const message = error.response?.data?.detail || "Не удалось загрузить журнал действий";
-        this.error = message;
-        this.notify.error(message);
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    refreshLogs() {
-      this.fetchLogs({ reset: true });
-    },
-
-    applyFilters() {
-      clearTimeout(this._timer);
-      this._timer = setTimeout(() => {
-        this.fetchLogs({ reset: true });
-      }, 300);
-    },
-
-    clearFilters() {
-      this.filters = {
-        q: "",
-        action: "",
-        entity_type: "",
-        entity_id: "",
-        user_id: "",
-      };
-      this.fetchLogs({ reset: true });
-    },
-
-    loadMore() {
-      if (!this.hasMore || this.loading) return;
-
-      this.page += 1;
-      this.fetchLogs({ reset: false });
-    },
-
     openDetails(item) {
       this.selected = item;
       this.showDetails = true;

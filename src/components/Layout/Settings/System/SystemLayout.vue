@@ -1,6 +1,9 @@
 <script>
+import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
+
 export default {
   name: "SystemLayout",
+  components: { TrustedSvgIcon },
 
   data() {
     return {
@@ -161,7 +164,9 @@ export default {
             :ref="element => setNavPillRef(link.name, element)"
             @click="navigate"
         >
-          <span class="nav-icon" v-html="link.icon" aria-hidden="true"></span>
+          <span class="nav-icon" aria-hidden="true">
+            <TrustedSvgIcon :svg="link.icon" />
+          </span>
           <span class="nav-label">{{ link.label }}</span>
         </a>
       </router-link>

@@ -2,23 +2,24 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import OfficeView from "@/views/OfficeView.vue";
-import AudienceView from "@/views/AudienceView.vue";
-import HomeView from "@/views/HomeView.vue";
-import NotFoundView from "@/views/NotFoundView.vue";
-import CreateAudience from "@/components/Layout/CreateAudience.vue";
 import {useNotificationsStore} from "@/stores/notifications.js";
-import SettingsLayout from "@/components/Layout/Settings/SettingsLayout.vue";
-import UserProfile from "@/components/Layout/Settings/UserProfile.vue";
-import SecuritySettings from "@/components/Layout/Settings/SecuritySettings.vue";
-import SystemLayout from "@/components/Layout/Settings/System/SystemLayout.vue";
-import ManageUsers from "@/components/Layout/Settings/System/ManageUsers.vue";
-import ManageOffices from "@/components/Layout/Settings/System/ManageOffices.vue";
-import ManageAudiences from "@/components/Layout/Settings/System/ManageAudiences.vue";
-import ManageHardwareAnalytics from "@/components/Layout/Settings/System/ManageHardwareAnalytics.vue";
-import ManageAuditLogs from "@/components/Layout/Settings/System/ManageAuditLogs.vue";
-import ManageInvites from "@/components/Layout/Settings/System/ManageInvites.vue";
-import InviteRegistrationView from "@/views/InviteRegistrationView.vue";
+
+const HomeView = () => import("@/views/HomeView.vue");
+const OfficeView = () => import("@/views/OfficeView.vue");
+const AudienceView = () => import("@/views/AudienceView.vue");
+const NotFoundView = () => import("@/views/NotFoundView.vue");
+const InviteRegistrationView = () => import("@/views/InviteRegistrationView.vue");
+const CreateAudience = () => import("@/components/Layout/CreateAudience.vue");
+const SettingsLayout = () => import("@/components/Layout/Settings/SettingsLayout.vue");
+const UserProfile = () => import("@/components/Layout/Settings/UserProfile.vue");
+const SecuritySettings = () => import("@/components/Layout/Settings/SecuritySettings.vue");
+const SystemLayout = () => import("@/components/Layout/Settings/System/SystemLayout.vue");
+const ManageUsers = () => import("@/components/Layout/Settings/System/ManageUsers.vue");
+const ManageOffices = () => import("@/components/Layout/Settings/System/ManageOffices.vue");
+const ManageAudiences = () => import("@/components/Layout/Settings/System/ManageAudiences.vue");
+const ManageInvites = () => import("@/components/Layout/Settings/System/ManageInvites.vue");
+const ManageHardwareAnalytics = () => import("@/components/Layout/Settings/System/ManageHardwareAnalytics.vue");
+const ManageAuditLogs = () => import("@/components/Layout/Settings/System/ManageAuditLogs.vue");
 
 const adminGuard = async (to, from, next) => {
     const authStore = useAuthStore();

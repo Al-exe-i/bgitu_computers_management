@@ -428,7 +428,7 @@ export default {
 .font-mono {
   font-family: ui-monospace, monospace;
   font-size: 13px;
-  color: #334155;
+  color: #94a3b8;
 }
 
 /* --- Таблица --- */

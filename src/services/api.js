@@ -9,6 +9,11 @@ const api = axios.create({
 // глобальный lock на refresh
 let refreshPromise = null;
 
+const SKIP_REFRESH_URLS = ['/token', '/refresh', '/logout', '/logout_all'];
+
+const shouldSkipRefresh = (url = '') =>
+    SKIP_REFRESH_URLS.some((item) => url.includes(item));
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -17,15 +22,7 @@ api.interceptors.response.use(
         const status = error.response?.status;
         if (status !== 401) return Promise.reject(error);
 
-        // не пытаемся refresh логин
-        if (originalRequest?.url?.includes('/token')) {
-            return Promise.reject(error);
-        }
-
-        // если 401 на самом refresh — значит сессия умерла
-        if (originalRequest?.url?.includes('/refresh')) {
-            const authStore = useAuthStore();
-            await authStore.logout();
+        if (shouldSkipRefresh(originalRequest?.url)) {
             return Promise.reject(error);
         }
 

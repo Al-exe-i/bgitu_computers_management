@@ -4,6 +4,7 @@ import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {useAuthStore} from "@/stores/auth.js";
+import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 
 const EQUIPMENT_TYPES = Object.freeze([
   {
@@ -84,6 +85,7 @@ function buildLandmarksPayload(source = {}) {
 
 export default {
   name: 'CreateAudience',
+  components: { TrustedSvgIcon },
   props: ['id'],
   data() {
     return {
@@ -942,7 +944,9 @@ export default {
                   @dragstart="onDragStart($event, eq)"
                   @dragend="onDragEnd"
               >
-                <div class="equipment-icon" :style="{ background: eq.color }" v-html="eq.icon"></div>
+                <div class="equipment-icon" :style="{ background: eq.color }">
+                  <TrustedSvgIcon :svg="eq.icon" />
+                </div>
                 <div class="equipment-name">{{ eq.name }}</div>
               </div>
             </div>
@@ -1210,8 +1214,9 @@ export default {
                       <div
                           class="cell-icon"
                           :style="{ background: equipmentTypeMap[item.type].color }"
-                          v-html="equipmentTypeMap[item.type].icon"
-                      ></div>
+                      >
+                        <TrustedSvgIcon :svg="equipmentTypeMap[item.type].icon" />
+                      </div>
 
                       <div class="cell-label">
                         {{ equipmentTypeMap[item.type].name }}
@@ -1887,7 +1892,7 @@ export default {
   will-change: transform;
 }
 
-/* Глубокий селектор для SVG внутри v-html, если scoped мешает */
+/* Глубокий селектор для SVG внутри безопасной обертки, если scoped мешает */
 .equipment-icon:deep(svg) {
   width: 28px;
   height: 28px;

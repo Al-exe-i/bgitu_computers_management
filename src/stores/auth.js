@@ -56,6 +56,9 @@ export const useAuthStore = defineStore('auth', {
             try
             {
                 const response = await api.get('/users/me');
+                if (this.user?.photo) {
+                    URL.revokeObjectURL(this.user.photo);
+                }
                 this.user = response.data;
                 this.isAuthenticated = true;
 
@@ -70,6 +73,9 @@ export const useAuthStore = defineStore('auth', {
             }
             catch (error)
             {
+                if (this.user?.photo) {
+                    URL.revokeObjectURL(this.user.photo);
+                }
                 this.user = null;
                 this.isAuthenticated = false;
                 // Не кидаем ошибку, чтобы не ломать приложение при старте
@@ -98,10 +104,10 @@ export const useAuthStore = defineStore('auth', {
             try
             {
                 if(all) {
-                    await api.post('/logout_all');
+                    await plain.post('/logout_all');
                 }
                 else {
-                    await api.post('/logout');
+                    await plain.post('/logout');
                 }
 
             }

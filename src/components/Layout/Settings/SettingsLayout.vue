@@ -1,8 +1,10 @@
 <script>
 import { useAuthStore } from "@/stores/auth.js";
+import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 
 export default {
   name: "SettingsLayout",
+  components: { TrustedSvgIcon },
 
   data() {
     return {
@@ -163,7 +165,9 @@ export default {
             :title="tab.label"
             :aria-label="tab.label"
           >
-            <span class="tab-icon-wrapper" v-html="tab.icon"></span>
+            <span class="tab-icon-wrapper">
+              <TrustedSvgIcon :svg="tab.icon" />
+            </span>
           </router-link>
         </nav>
       </div>

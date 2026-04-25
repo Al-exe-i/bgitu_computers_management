@@ -3,6 +3,7 @@ import api from "@/services/api.js";
 import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
+import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 import {useAuthStore} from "@/stores/auth.js";
 import {getApiUrl, getWsUrl} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
@@ -14,9 +15,12 @@ import {
   getTelegramSubscriptions
 } from "@/services/telegram.js";
 
+const MAX_HW_FILE_SIZE = 100 * 1024 * 1024;
+const ALLOWED_HW_FILE_TYPES = ['image/', 'video/'];
+
 export default {
   name: 'AudienceView',
-  components: { LoaderContainer},
+  components: { LoaderContainer, TrustedSvgIcon},
   props: ['audienceId'],
   data() {
     return {
@@ -167,6 +171,8 @@ export default {
       wsReconnectAttempts: 0,
       maxReconnectAttempts: 3,
       reconnectDelay: 3000,
+      reconnectTimer: null,
+      isUnmounted: false,
 
       /* Preview */
       previewIndex: null
@@ -1258,8 +1264,13 @@ export default {
     },
     /* WebSocket */
     connectWebSocket() {
-      if (!this.classroom?.number) {
+      if (this.isUnmounted || !this.classroom?.number) {
         return;
+      }
+
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
       }
 
       if (this.ws) {
@@ -1284,6 +1295,8 @@ export default {
       };
 
       this.ws.onclose = () => {
+        if (this.isUnmounted) return;
+
         this.wsConnected = false;
 
         if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
@@ -1292,7 +1305,10 @@ export default {
 
           this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
 
-          setTimeout(() => this.connectWebSocket(), delay);
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.connectWebSocket();
+          }, delay);
         } else {
           this.wsError = true;
           this.notify.error("Не удалось восстановить соединение с сервером");
@@ -1303,18 +1319,60 @@ export default {
 
     closeWebSocket()
     {
+      clearTimeout(this.refreshTimer)
+      this.refreshTimer = null;
+
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+
       if(this.ws)
       {
-        clearTimeout(this.refreshTimer)
         this.ws.onclose = null;
         this.wsConnected = false;
         this.ws.close()
       }
     },
     /* Файлы оборудования */
+    validateHardwareFiles(files) {
+      const validFiles = [];
+      const rejectedByType = [];
+      const rejectedBySize = [];
+
+      for (const file of files) {
+        const hasAllowedType = ALLOWED_HW_FILE_TYPES.some((prefix) => file.type?.startsWith(prefix));
+
+        if (!hasAllowedType) {
+          rejectedByType.push(file.name);
+          continue;
+        }
+
+        if (file.size > MAX_HW_FILE_SIZE) {
+          rejectedBySize.push(file.name);
+          continue;
+        }
+
+        validFiles.push(file);
+      }
+
+      if (rejectedByType.length) {
+        this.notify.warning('Можно загружать только изображения и видео.');
+      }
+
+      if (rejectedBySize.length) {
+        this.notify.warning('Файл слишком большой. Максимальный размер — 100 МБ.');
+      }
+
+      return validFiles;
+    },
+
     async uploadFiles(files) {
+      const validFiles = this.validateHardwareFiles(files);
+      if (!validFiles.length) return;
+
       const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
+      validFiles.forEach(file => formData.append('files', file));
 
       try {
         const hwId = this.selectedCell.data.dbId;
@@ -1501,6 +1559,7 @@ export default {
   },
 
   async mounted() {
+    this.isUnmounted = false;
     this.skipStatusConfirmSession = sessionStorage.getItem('hw_skip_status_confirm_session') === 'true';
     await this.getAudience();
     this.loadAudienceTelegramSubscriptions({ silent: true });
@@ -1509,6 +1568,7 @@ export default {
   },
 
   beforeUnmount() {
+    this.isUnmounted = true;
     document.removeEventListener('click', this.handleAudienceTelegramOutsideClick);
     this.closeWebSocket()
     this.audienceContext.clear()
@@ -1778,8 +1838,9 @@ export default {
                       <div
                           class="equipment-icon"
                           :style="{ background: getEquipmentType(item.type).color }"
-                          v-html="getEquipmentType(item.type).icon"
-                      ></div>
+                      >
+                        <TrustedSvgIcon :svg="getEquipmentType(item.type).icon" />
+                      </div>
 
                       <div class="equipment-label">
                         {{ getEquipmentType(item.type).name }}
@@ -1829,8 +1890,9 @@ export default {
             <div
                 class="modal-equipment-icon"
                 :style="{ background: getEquipmentType(selectedCell.data.type).color }"
-                v-html="getEquipmentType(selectedCell.data.type).icon"
-            ></div>
+            >
+              <TrustedSvgIcon :svg="getEquipmentType(selectedCell.data.type).icon" />
+            </div>
             <div class="modal-equipment-details">
               <div v-if="!hwTitleEdit">
                 <h3>{{ selectedCell.data.title || getEquipmentType(selectedCell.data.type).name }}</h3>
@@ -1998,8 +2060,9 @@ export default {
             <div
                 class="status-confirm-icon"
                 :style="{ background: getEquipmentType(selectedCell.data.type).color }"
-                v-html="getEquipmentType(selectedCell.data.type).icon"
-            ></div>
+            >
+              <TrustedSvgIcon :svg="getEquipmentType(selectedCell.data.type).icon" />
+            </div>
 
             <div class="status-confirm-copy">
               <span class="status-confirm-kicker">{{ getEquipmentType(selectedCell.data.type).name }}</span>
@@ -2109,8 +2172,9 @@ export default {
               <div
                   class="specs-modal-icon"
                   :style="{ background: getEquipmentType(selectedCell.data.type).color }"
-                  v-html="getEquipmentType(selectedCell.data.type).icon"
-              ></div>
+              >
+                <TrustedSvgIcon :svg="getEquipmentType(selectedCell.data.type).icon" />
+              </div>
 
               <div class="specs-modal-hero-copy">
                 <h2 class="specs-modal-heading">Характеристики</h2>
@@ -2217,7 +2281,9 @@ export default {
                     class="spec-card"
                     :class="{ 'spec-card-pair': item.type === 'pair' }"
                 >
-                  <div class="spec-card-icon" v-html="getSpecIcon(item.iconKey)"></div>
+                  <div class="spec-card-icon">
+                    <TrustedSvgIcon :svg="getSpecIcon(item.iconKey)" />
+                  </div>
 
                   <div v-if="item.type === 'pair'" class="spec-card-copy spec-card-copy-pair">
                     <div class="spec-card-pair-col">

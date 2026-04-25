@@ -1,6 +1,7 @@
 ﻿<script>
 import api from "@/services/api";
 import { useNotificationsStore } from "@/stores/notifications";
+import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 
 const FILTER_OPTIONS_ENDPOINT = "/analytics/hardware/filter-options";
 const ANALYTICS_ENDPOINT = "/analytics/hardware";
@@ -66,6 +67,7 @@ function createRangeDraft() {
 
 export default {
   name: "ManageHardwareAnalytics",
+  components: { TrustedSvgIcon },
 
   data() {
     return {
@@ -1194,7 +1196,9 @@ export default {
 
       <div class="summary-grid">
         <div class="summary-card summary-card-total">
-          <span class="summary-icon summary-icon-equipment" aria-hidden="true" v-html="getTypeIcon('other')"></span>
+          <span class="summary-icon summary-icon-equipment" aria-hidden="true">
+            <TrustedSvgIcon :svg="getTypeIcon('other')" />
+          </span>
           <div class="summary-copy">
             <span class="summary-label">Всего</span>
             <div class="summary-value-row">
@@ -1254,7 +1258,9 @@ export default {
             class="type-summary-card"
             :class="getTypeTone(entry.type)"
           >
-            <span class="type-summary-icon" aria-hidden="true" v-html="getTypeIcon(entry.type)"></span>
+            <span class="type-summary-icon" aria-hidden="true">
+              <TrustedSvgIcon :svg="getTypeIcon(entry.type)" />
+            </span>
             <div class="type-summary-copy">
               <span class="type-summary-label">{{ getTypeLabel(entry.type) }}</span>
               <span class="type-summary-meta">в выборке</span>

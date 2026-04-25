@@ -22,6 +22,8 @@ export default {
       wsReconnectAttempts: 0,
       maxReconnectAttempts: 3,
       reconnectDelay: 1000,
+      reconnectTimer: null,
+      isUnmounted: false,
     }
   },
 
@@ -62,6 +64,13 @@ export default {
 
     connectWebSocket()
     {
+      if (this.isUnmounted) return;
+
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+
       if (this.ws)
       {
         this.ws.onclose = null;
@@ -86,6 +95,8 @@ export default {
       };
 
       this.ws.onclose = (event) => {
+        if (this.isUnmounted) return;
+
         this.wsConnected = false;
 
         // Попытка переподключения
@@ -95,7 +106,8 @@ export default {
 
           this.notify.warning(`Соединение потеряно. Переподключение №${this.wsReconnectAttempts} через ${delay / 1000} с...`);
 
-          setTimeout(() => {
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
             this.connectWebSocket();
           }, delay);
         }
@@ -110,6 +122,11 @@ export default {
     },
     closeWebSocket()
     {
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+
       if(this.ws)
       {
         this.ws.onclose = null;
@@ -120,6 +137,7 @@ export default {
   },
 
   mounted() {
+    this.isUnmounted = false;
     this.fetchOfficesData()
   },
 
@@ -131,6 +149,7 @@ export default {
   },
 
   beforeUnmount() {
+    this.isUnmounted = true;
     this.closeWebSocket();
   }
 
