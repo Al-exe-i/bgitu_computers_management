@@ -25,6 +25,7 @@ from telegram_bot.texts import (
     FALLBACK_TEXT,
     GENERIC_ERROR_TEXT,
     HELP_TEXT,
+    MENU_HINT_TEXT,
     MENU_TEXT,
     render_link_instructions_text,
     render_status_text,
@@ -40,7 +41,7 @@ async def _show_menu(message: Message) -> None:
         reply_markup=build_main_menu_keyboard(),
     )
     await message.answer(
-        "Быстрые действия доступны на кнопках ниже.",
+        MENU_HINT_TEXT,
         reply_markup=build_menu_inline_keyboard(frontend_url=settings.frontend_url),
     )
 

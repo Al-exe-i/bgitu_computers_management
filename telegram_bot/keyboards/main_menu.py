@@ -5,10 +5,10 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
 
 from telegram_bot.services import TelegramBotScopeOption, TelegramBotSubscriptionSnapshot
 
-BUTTON_MENU = "📋 Главное меню"
-BUTTON_STATUS = "🔗 Мой статус"
-BUTTON_SUBSCRIPTIONS = "🔔 Мои подписки"
-BUTTON_LINK = "🧭 Как подключить"
+BUTTON_MENU = "📋 Меню"
+BUTTON_STATUS = "🔗 Статус"
+BUTTON_SUBSCRIPTIONS = "🔔 Подписки"
+BUTTON_LINK = "🧭 Подключение"
 BUTTON_HELP = "❓ Помощь"
 
 CALLBACK_MENU = "menu:home"
@@ -88,10 +88,10 @@ def build_menu_inline_keyboard(*, frontend_url: str) -> InlineKeyboardMarkup:
 
 
 def build_status_inline_keyboard(*, frontend_url: str, is_linked: bool) -> InlineKeyboardMarkup:
-    first_row = [InlineKeyboardButton(text="🔄 Обновить статус", callback_data=CALLBACK_STATUS)]
+    first_row = [InlineKeyboardButton(text="🔄 Обновить", callback_data=CALLBACK_STATUS)]
     if is_linked:
         first_row.append(
-            InlineKeyboardButton(text="🔔 Мои подписки", callback_data=CALLBACK_SUBSCRIPTIONS)
+            InlineKeyboardButton(text="🔔 Подписки", callback_data=CALLBACK_SUBSCRIPTIONS)
         )
 
     second_row = [InlineKeyboardButton(text="📋 Меню", callback_data=CALLBACK_MENU)]
@@ -167,7 +167,7 @@ def build_subscription_event_keyboard(*, scope_code: str) -> InlineKeyboardMarku
                     callback_data=f"subs:event:{scope_code}:r",
                 ),
             ],
-            [InlineKeyboardButton(text="◀ Назад", callback_data=CALLBACK_SUBSCRIPTIONS)],
+            [InlineKeyboardButton(text="← Назад", callback_data=CALLBACK_SUBSCRIPTIONS)],
         ]
     )
 
@@ -194,14 +194,14 @@ def build_subscription_scope_keyboard(
     if page > 1:
         nav_row.append(
             InlineKeyboardButton(
-                text="◀",
+                text="←",
                 callback_data=f"subs:page:{scope_code}:{event_code}:{page - 1}",
             )
         )
     if page < total_pages:
         nav_row.append(
             InlineKeyboardButton(
-                text="▶",
+                text="→",
                 callback_data=f"subs:page:{scope_code}:{event_code}:{page + 1}",
             )
         )
@@ -211,7 +211,7 @@ def build_subscription_scope_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="◀ К выбору события",
+                text="← К выбору события",
                 callback_data=f"subs:add:{'aud' if scope_code == 'a' else 'off'}",
             )
         ]
@@ -241,16 +241,16 @@ def build_subscription_delete_keyboard(
     nav_row: list[InlineKeyboardButton] = []
     if page > 1:
         nav_row.append(
-            InlineKeyboardButton(text="◀", callback_data=f"subs:delete:{page - 1}")
+            InlineKeyboardButton(text="←", callback_data=f"subs:delete:{page - 1}")
         )
     if page < total_pages:
         nav_row.append(
-            InlineKeyboardButton(text="▶", callback_data=f"subs:delete:{page + 1}")
+            InlineKeyboardButton(text="→", callback_data=f"subs:delete:{page + 1}")
         )
     if nav_row:
         rows.append(nav_row)
 
-    rows.append([InlineKeyboardButton(text="◀ К подпискам", callback_data=CALLBACK_SUBSCRIPTIONS)])
+    rows.append([InlineKeyboardButton(text="← К подпискам", callback_data=CALLBACK_SUBSCRIPTIONS)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -266,7 +266,7 @@ def _render_delete_label(subscription: TelegramBotSubscriptionSnapshot) -> str:
         "audience_changed": "изменения",
         "auth_security": "безопасность",
     }.get(subscription.event_type, subscription.event_type)
-    text = f"❌ {scope_label} · {event_label}"
+    text = f"✕ {scope_label} · {event_label}"
     if len(text) <= 40:
         return text
     return text[:39].rstrip() + "…"

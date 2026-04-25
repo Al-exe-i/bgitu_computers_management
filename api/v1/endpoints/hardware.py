@@ -100,6 +100,7 @@ async def update_hardware(
         background_tasks,
         previous_state=previous_state,
         hardware=updated_hw,
+        actor_user_id=audit.user.id,
     )
     return updated_hw
 

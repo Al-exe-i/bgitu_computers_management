@@ -55,7 +55,7 @@ async def delete_office(
 
 @router.get("/all_short", response_model=list[OfficeShort])
 async def get_all_offices_short(service: office_service_dep):
-    return await service.get_all(full=False)
+    return await service.get_all_short()
 
 
 @router.get("/{office_id}", response_model=OfficeResponse)

@@ -5,7 +5,9 @@ from .messages import (
     LINK_CONFLICT_TEXT,
     LINK_INVALID_TEXT,
     LINK_SUCCESS_TEXT,
+    MENU_HINT_TEXT,
     MENU_TEXT,
+    NAVIGATION_PINNED_TEXT,
 )
 from .render import (
     render_link_instructions_text,
@@ -27,7 +29,9 @@ __all__ = [
     "LINK_CONFLICT_TEXT",
     "LINK_INVALID_TEXT",
     "LINK_SUCCESS_TEXT",
+    "MENU_HINT_TEXT",
     "MENU_TEXT",
+    "NAVIGATION_PINNED_TEXT",
     "render_event_label",
     "render_link_instructions_text",
     "render_scope_label",

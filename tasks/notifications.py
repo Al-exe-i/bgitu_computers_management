@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramForbiddenError,
@@ -215,6 +217,7 @@ async def _send_hardware_state_notification_async(
     inv_number: str | None = None,
     x: int | None = None,
     y: int | None = None,
+    actor_user_id: int | None = None,
 ) -> dict[str, int | str]:
     if not settings.telegram.enabled:
         logger.info(
@@ -251,6 +254,7 @@ async def _send_hardware_state_notification_async(
             recipient_ids = await service.get_hardware_event_recipient_ids(
                 audience_id=audience_id,
                 event_type=telegram_event_type,
+                exclude_user_id=actor_user_id,
             )
         except HTTP404:
             logger.warning(
@@ -281,7 +285,10 @@ async def _send_hardware_state_notification_async(
             y=y,
         )
 
-    bot = Bot(token=settings.telegram.bot_token)
+    bot = Bot(
+        token=settings.telegram.bot_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     sent = 0
     failed = 0
     notification_id = uuid4().hex
@@ -323,6 +330,7 @@ async def _send_hardware_state_notification_async(
                 "inv_number": inv_number,
                 "x": x,
                 "y": y,
+                "actor_user_id": actor_user_id,
             },
             results=delivery_results,
         )
@@ -359,6 +367,7 @@ def send_hardware_state_notification(
     inv_number: str | None = None,
     x: int | None = None,
     y: int | None = None,
+    actor_user_id: int | None = None,
 ) -> dict[str, int | str]:
     return asyncio.run(
         _send_hardware_state_notification_async(
@@ -371,6 +380,7 @@ def send_hardware_state_notification(
             inv_number=inv_number,
             x=x,
             y=y,
+            actor_user_id=actor_user_id,
         )
     )
 
@@ -423,7 +433,10 @@ async def _send_auth_security_notification_async(
             user_agent=user_agent,
         )
 
-    bot = Bot(token=settings.telegram.bot_token)
+    bot = Bot(
+        token=settings.telegram.bot_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     sent = 0
     failed = 0
     notification_id = uuid4().hex

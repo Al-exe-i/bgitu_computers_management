@@ -66,6 +66,7 @@ class TelegramSubscriptionRepository:
         event_type: str,
         scopes: list[tuple[str, int]],
         delivery_mode: str = "immediate",
+        exclude_user_id: int | None = None,
     ) -> list[int]:
         if not scopes:
             return []
@@ -92,6 +93,9 @@ class TelegramSubscriptionRepository:
             )
             .distinct()
         )
+
+        if exclude_user_id is not None:
+            stmt = stmt.where(User.id != exclude_user_id)
 
         result = await self.db.execute(stmt)
         return [telegram_id for telegram_id in result.scalars().all() if telegram_id is not None]

@@ -36,7 +36,7 @@ class HardwareService:
         if not hardware:
             raise HTTP404("Hardware not found")
 
-        update_data = schema.model_dump(exclude_unset=True)
+        update_data = schema.model_dump(exclude_unset=True, exclude={'files'})
 
         target_type = update_data.get("type", hardware.type)
 

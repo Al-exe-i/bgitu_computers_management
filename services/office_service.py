@@ -8,8 +8,11 @@ class OfficeService:
     def __init__(self, repo: OfficeRepository):
         self.repo = repo
 
-    async def get_all(self, full=True) -> Sequence[OfficeResponse | OfficeShort]:
-        return await self.repo.get_list(full=full)
+    async def get_all(self) -> Sequence[OfficeResponse | OfficeShort]:
+        return await self.repo.get_list()
+
+    async def get_all_short(self) -> Sequence[OfficeShort]:
+        return await self.repo.get_list_short()
 
     async def get(self, office_id: int) -> OfficeResponse | None:
         return await self.repo.get_one(office_id)

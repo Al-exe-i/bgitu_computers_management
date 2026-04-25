@@ -221,7 +221,7 @@ async def update_user(
         raise
 
     if current_user.id == user_id and current_user.role != UserRole.admin and not current_user.is_superuser:
-        user_in = UserUpdate(**user_in.model_dump(exclude={"role"}))
+        user_in = UserUpdate(**user_in.model_dump(exclude={"role"}, exclude_unset=True))
 
     updated_user = await service.update(user_id, user_in)
     logger.info(

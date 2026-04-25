@@ -14,6 +14,7 @@ from telegram_bot.texts import (
     LINK_CONFLICT_TEXT,
     LINK_INVALID_TEXT,
     LINK_SUCCESS_TEXT,
+    NAVIGATION_PINNED_TEXT,
     render_welcome_text,
 )
 
@@ -70,6 +71,6 @@ async def start_handler(message: Message, command: CommandObject) -> None:
         ),
     )
     await message.answer(
-        "Навигация закреплена в нижнем меню.",
+        NAVIGATION_PINNED_TEXT,
         reply_markup=build_main_menu_keyboard(),
     )

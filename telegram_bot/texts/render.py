@@ -1,43 +1,48 @@
 from telegram_bot.services import TelegramBotAccountSnapshot, TelegramBotSubscriptionSnapshot
+from utils.telegram_format import bold, code, h
 
 
 def render_welcome_text() -> str:
     return (
-        "👋 Это Telegram-бот системы учёта оборудования БГИТУ.\n\n"
-        "Если вы открыли его из профиля на сайте, привязка аккаунта подтверждается "
-        "через команду /start с токеном. После этого бот сможет присылать важные "
-        "уведомления по оборудованию и безопасности аккаунта."
+        "👋 <b>BGITU Hardware</b>\n\n"
+        "Это Telegram-бот системы учёта оборудования БГИТУ. Он помогает получать уведомления "
+        "о неисправностях, восстановлении оборудования и важных событиях аккаунта.\n\n"
+        "Чтобы подключить уведомления, откройте профиль на сайте и создайте ссылку привязки."
     )
 
 
 def render_link_instructions_text(*, frontend_url: str, bot_username: str | None) -> str:
     lines = [
-        "🧭 Как подключить Telegram к аккаунту:",
+        "🧭 <b>Как подключить Telegram</b>",
+        "",
         "1. Откройте профиль на сайте.",
         "2. Нажмите кнопку подключения Telegram.",
-        "3. Откройте ссылку из профиля или отправьте боту команду /start link_<token>.",
+        "3. Перейдите по ссылке из профиля.",
         "",
-        f"🌐 Сайт: {frontend_url}",
+        f"Сайт: {h(frontend_url)}",
     ]
     if bot_username:
-        lines.append(f"🤖 Бот: https://t.me/{bot_username}")
+        lines.append(f"Бот: https://t.me/{h(bot_username)}")
+    lines.append("")
+    lines.append(f"Технический формат команды: {code('/start link_<token>')}")
     return "\n".join(lines)
 
 
 def render_status_text(snapshot: TelegramBotAccountSnapshot) -> str:
     if not snapshot.is_linked:
         return (
-            "🔌 Telegram пока не подключён.\n\n"
-            "Откройте профиль на сайте, сгенерируйте ссылку для привязки и вернитесь в бот."
+            "🔌 <b>Telegram не подключён</b>\n\n"
+            "Создайте ссылку привязки в профиле на сайте и вернитесь в бот."
         )
 
     active_count = sum(1 for item in snapshot.subscriptions if item.enabled)
     lines = [
-        "✅ Telegram подключён",
-        f"📧 Email: {snapshot.email or 'не указан'}",
-        f"👤 Пользователь: {snapshot.full_name or 'не указан'}",
-        f"🛡 Роль: {_render_role(snapshot.role)}",
-        f"🔔 Активных подписок: {active_count}",
+        "✅ <b>Telegram подключён</b>",
+        "",
+        f"Email: {code(snapshot.email)}",
+        f"Пользователь: {h(snapshot.full_name)}",
+        f"Роль: {h(_render_role(snapshot.role))}",
+        f"Активных подписок: {bold(active_count)}",
     ]
     return "\n".join(lines)
 
@@ -45,32 +50,37 @@ def render_status_text(snapshot: TelegramBotAccountSnapshot) -> str:
 def render_subscriptions_text(snapshot: TelegramBotAccountSnapshot) -> str:
     if not snapshot.is_linked:
         return (
-            "🔌 Сначала привяжите Telegram к аккаунту на сайте. "
-            "После этого здесь появятся ваши уведомления."
+            "🔌 <b>Сначала подключите Telegram</b>\n\n"
+            "После привязки аккаунта здесь появятся ваши уведомления."
         )
 
     active_subscriptions = [item for item in snapshot.subscriptions if item.enabled]
     if not active_subscriptions:
         return (
-            "🔕 Активных Telegram-подписок пока нет.\n\n"
+            "🔕 <b>Активных подписок нет</b>\n\n"
             "Создайте первую подписку кнопками ниже."
         )
 
-    lines = ["🔔 Активные подписки:"]
+    lines = [
+        "🔔 <b>Активные подписки</b>",
+        "",
+    ]
     for index, item in enumerate(active_subscriptions, start=1):
-        lines.append(
-            f"{index}. {_render_scope(item)}\n"
-            f"   {_render_event(item.event_type)} • {_render_delivery_mode(item.delivery_mode)}"
+        lines.extend(
+            [
+                f"{index}. {bold(_render_scope(item))}",
+                f"   Событие: {h(_render_event(item.event_type))}",
+                f"   Доставка: {h(_render_delivery_mode(item.delivery_mode))}",
+            ]
         )
-    lines.append("")
-    lines.append("⚙️ Управлять подписками можно кнопками ниже.")
+    lines.extend(["", "Управляйте подписками кнопками ниже."])
     return "\n".join(lines)
 
 
 def render_subscription_event_choice_text(*, scope_label: str) -> str:
     return (
-        f"➕ Новая подписка: {scope_label}\n\n"
-        "Выберите тип уведомления."
+        f"➕ <b>{h(scope_label)}</b>\n\n"
+        "Выберите событие, по которому нужно получать уведомления."
     )
 
 
@@ -82,8 +92,9 @@ def render_subscription_scope_choice_text(
     total_pages: int,
 ) -> str:
     return (
-        f"➕ {scope_label}: {event_label}\n\n"
-        f"Выберите объект из списка.\n"
+        f"➕ <b>{h(scope_label)}</b>\n"
+        f"Событие: {h(event_label)}\n\n"
+        "Выберите объект из списка.\n"
         f"Страница {page} из {total_pages}."
     )
 
@@ -95,10 +106,10 @@ def render_subscription_delete_text(
     total_pages: int,
 ) -> str:
     if active_count == 0:
-        return "🗑 Активных подписок для удаления нет."
+        return "🗑 <b>Удалять нечего</b>\n\nАктивных подписок пока нет."
 
     return (
-        "🗑 Удаление подписки\n\n"
+        "🗑 <b>Удаление подписки</b>\n\n"
         "Выберите подписку, которую нужно отключить.\n"
         f"Страница {page} из {total_pages}."
     )
@@ -111,7 +122,7 @@ def render_subscription_result_text(result: str) -> str:
         "deleted": "Подписка удалена",
         "enabled": "Уведомления безопасности включены",
         "disabled": "Уведомления безопасности выключены",
-        "not_linked": "Сначала привяжите Telegram к аккаунту",
+        "not_linked": "Сначала подключите Telegram",
         "not_found": "Подписка уже отсутствует",
         "invalid": "Не удалось выполнить действие",
     }.get(result, "Не удалось выполнить действие")
@@ -141,11 +152,11 @@ def _render_role(role: str | None) -> str:
 
 def _render_scope(subscription: TelegramBotSubscriptionSnapshot) -> str:
     if subscription.scope_type == "audience":
-        return f"🏫 Аудитория {subscription.scope_id}"
+        return f"Аудитория {subscription.scope_id}"
     if subscription.scope_type == "office":
-        return f"🏢 Корпус {subscription.scope_id}"
+        return f"Корпус {subscription.scope_id}"
     if subscription.scope_type == "user":
-        return "👤 Безопасность аккаунта"
+        return "Безопасность аккаунта"
     return f"{subscription.scope_type} {subscription.scope_id}"
 
 

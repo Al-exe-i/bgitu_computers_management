@@ -115,6 +115,7 @@ class Settings(BaseSettings):
         ]
     )
     PROJECT_NAME: str = "BGITU Computers Management"
+    trusted_proxy_ips: list[str] = Field(default_factory=list)
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

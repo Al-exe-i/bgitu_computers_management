@@ -18,6 +18,7 @@ class OfficeResponse(OfficeBase):
 
 class OfficeShort(OfficeBase):
     audiences_count: int | None = None
+    faulty_hw_count: int | None = None
 
 
 class OfficeUpdate(BaseModel):

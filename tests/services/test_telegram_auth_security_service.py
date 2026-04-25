@@ -52,10 +52,10 @@ def test_build_auth_security_message_formats_login_event() -> None:
         user_agent="pytest",
     )
 
-    assert "🔐 Выполнен вход в аккаунт" in message
-    assert "В аккаунт выполнен новый вход." in message
-    assert "🌐 IP: 127.0.0.1" in message
-    assert "💻 Устройство: pytest" in message
+    assert "🔐 <b>Вход в аккаунт</b>" in message
+    assert "В ваш аккаунт выполнен новый вход." in message
+    assert "IP: <code>127.0.0.1</code>" in message
+    assert "Устройство: pytest" in message
 
 
 def test_build_auth_security_message_formats_password_change_event() -> None:
@@ -68,5 +68,20 @@ def test_build_auth_security_message_formats_password_change_event() -> None:
         event_name="Изменён пароль аккаунта",
     )
 
-    assert "🔑 Изменён пароль аккаунта" in message
+    assert "🔑 <b>Пароль изменён</b>" in message
     assert "Пароль вашего аккаунта был изменён." in message
+
+
+def test_build_auth_security_message_escapes_fallback_event() -> None:
+    service = TelegramNotificationService(
+        FakeTelegramSubscriptionRepo(),
+        FakeAudienceRepo(),
+    )
+
+    message = service.build_auth_security_message(
+        event_name="<unknown>",
+        user_agent="<browser>",
+    )
+
+    assert "&lt;unknown&gt;" in message
+    assert "&lt;browser&gt;" in message

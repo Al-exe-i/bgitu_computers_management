@@ -1,4 +1,4 @@
-from typing import Sequence
+from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -12,24 +12,26 @@ class OfficeRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_list(self, full: bool):
-        if full:
-            stmt = (
-                select(Office)
-                .options(
-                    selectinload(Office.audiences).selectinload(Audience.hardware)
-                )
+    async def get_list(self):
+        stmt = (
+            select(Office)
+            .options(
+                selectinload(Office.audiences).selectinload(Audience.hardware)
             )
-            result = await self.db.execute(stmt)
-            return result.scalars().all()
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
 
+    async def get_list_short(self):
         stmt = (
             select(
                 Office.id,
                 Office.address,
-                func.count(Audience.id).label("audiences_count"),
+                func.count(func.distinct(Audience.id)).label("audiences_count"),
+                func.count(Hardware.id).filter(Hardware.state.is_(False)).label("faulty_hw_count"),
             )
-            .outerjoin(Audience, Audience.office_id == Office.id)  # чтобы корпуса без аудиторий тоже были
+            .outerjoin(Audience, Audience.office_id == Office.id)
+            .outerjoin(Hardware, Hardware.audience_id == Audience.id)
             .group_by(Office.id, Office.address)
             .order_by(Office.id)
         )
@@ -38,8 +40,8 @@ class OfficeRepository:
         rows = result.all()
 
         return [
-            {"id": office_id, "address": address, "audiences_count": cnt}
-            for office_id, address, cnt in rows
+            {"id": office_id, "address": address, "audiences_count": audiences_count, "faulty_hw_count": faulty_hw_count}
+            for office_id, address, audiences_count, faulty_hw_count in rows
         ]
 
     async def get_one(self, office_id: int) -> Office | None:
@@ -99,6 +101,7 @@ class OfficeRepository:
             await self.db.delete(office)
             await self.db.flush()
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("An error occurred while deleting office %s", e)
             return False
 

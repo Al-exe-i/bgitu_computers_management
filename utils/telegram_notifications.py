@@ -27,6 +27,7 @@ def enqueue_hardware_state_notification(
     *,
     previous_state: bool,
     hardware: HardwareStatePayload,
+    actor_user_id: int | None = None,
 ) -> None:
     if not settings.telegram.enabled:
         return
@@ -51,6 +52,7 @@ def enqueue_hardware_state_notification(
         inv_number=hardware.inv_number,
         x=hardware.x,
         y=hardware.y,
+        actor_user_id=actor_user_id,
     )
 
 

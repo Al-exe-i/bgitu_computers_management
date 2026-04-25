@@ -4,6 +4,7 @@ from core.exceptions import HTTP404
 from repositories.audience_repo import AudienceRepository
 from repositories.telegram_subscription_repo import TelegramSubscriptionRepository
 from schemas.telegram import TelegramEventType, TelegramScopeType
+from utils.telegram_format import code, h
 
 
 class TelegramNotificationService:
@@ -20,6 +21,7 @@ class TelegramNotificationService:
         *,
         audience_id: int,
         event_type: TelegramEventType,
+        exclude_user_id: int | None = None,
     ) -> list[int]:
         audience = await self.audience_repo.get_by_id(audience_id)
         if audience is None:
@@ -37,6 +39,7 @@ class TelegramNotificationService:
         return await self.subscription_repo.list_recipient_telegram_ids(
             event_type=event_type.value,
             scopes=scopes,
+            exclude_user_id=exclude_user_id,
         )
 
     async def get_user_event_recipient_ids(
@@ -64,27 +67,28 @@ class TelegramNotificationService:
         y: int | None = None,
     ) -> str:
         if event_type == TelegramEventType.hardware_fault:
-            header = "🚨 Обнаружена неисправность оборудования"
+            header = "🚨 <b>Неисправность оборудования</b>"
         elif event_type == TelegramEventType.hardware_recovered:
-            header = "✅ Оборудование снова отмечено исправным"
+            header = "✅ <b>Оборудование восстановлено</b>"
         else:
             raise ValueError(f"Unsupported telegram event type: {event_type}")
 
         lines = [
             header,
-            f"🏫 Аудитория: {audience_id}",
-            f"🖥 ID оборудования: {hardware_id}",
+            "",
+            f"Аудитория: {code(audience_id)}",
+            f"Оборудование: {code(hardware_id)}",
         ]
         if hardware_type:
-            lines.append(f"🧩 Тип: {self._render_hardware_type(hardware_type)}")
+            lines.append(f"Тип: {h(self._render_hardware_type(hardware_type))}")
         if x is not None and y is not None:
-            lines.append(f"📍 Расположение: ряд {y + 1}, место {x + 1}")
+            lines.append(f"Место: ряд {y + 1}, позиция {x + 1}")
         if title:
-            lines.append(f"🏷 Название: {title}")
+            lines.append(f"Название: {h(title)}")
         if description:
-            lines.append(f"💬 Комментарий: {description}")
+            lines.append(f"Комментарий: {h(description)}")
         if inv_number:
-            lines.append(f"🔢 Инвентарный номер: {inv_number}")
+            lines.append(f"Инвентарный номер: {code(inv_number)}")
 
         return "\n".join(lines)
 
@@ -98,9 +102,9 @@ class TelegramNotificationService:
         title, details = self._render_auth_security_event(event_name)
         lines = [title, details]
         if ip:
-            lines.append(f"🌐 IP: {ip}")
+            lines.append(f"IP: {code(ip)}")
         if user_agent:
-            lines.append(f"💻 Устройство: {user_agent}")
+            lines.append(f"Устройство: {h(user_agent)}")
 
         return "\n".join(lines)
 
@@ -122,20 +126,20 @@ class TelegramNotificationService:
         normalized_name = event_name.strip().lower()
         if normalized_name == "выполнен вход в аккаунт":
             return (
-                "🔐 Выполнен вход в аккаунт",
-                "В аккаунт выполнен новый вход.",
+                "🔐 <b>Вход в аккаунт</b>",
+                "В ваш аккаунт выполнен новый вход.",
             )
         if normalized_name == "изменён пароль аккаунта":
             return (
-                "🔑 Изменён пароль аккаунта",
+                "🔑 <b>Пароль изменён</b>",
                 "Пароль вашего аккаунта был изменён.",
             )
         if normalized_name == "выполнен выход на всех устройствах":
             return (
-                "🚪 Выполнен выход на всех устройствах",
+                "🚪 <b>Выход на всех устройствах</b>",
                 "Все активные сессии были завершены.",
             )
         return (
-            "🛡 Событие безопасности аккаунта",
-            event_name,
+            "🛡 <b>Событие безопасности аккаунта</b>",
+            h(event_name),
         )

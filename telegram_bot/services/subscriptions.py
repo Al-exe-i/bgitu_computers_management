@@ -30,7 +30,7 @@ class TelegramBotSubscriptionFacade:
 
     async def list_office_options(self) -> list[TelegramBotScopeOption]:
         async with open_session() as session:
-            rows = await OfficeRepository(session).get_list(full=False)
+            rows = await OfficeRepository(session).get_list_short()
             return [
                 TelegramBotScopeOption(
                     id=row["id"],

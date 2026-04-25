@@ -26,6 +26,7 @@ def test_enqueue_hardware_state_notification_adds_fault_task(monkeypatch) -> Non
         background_tasks,
         previous_state=True,
         hardware=hardware,
+        actor_user_id=7,
     )
 
     assert len(background_tasks.tasks) == 1
@@ -41,6 +42,7 @@ def test_enqueue_hardware_state_notification_adds_fault_task(monkeypatch) -> Non
         "inv_number": "MON-1",
         "x": 4,
         "y": 2,
+        "actor_user_id": 7,
     }
 
 
