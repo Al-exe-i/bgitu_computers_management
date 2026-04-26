@@ -75,6 +75,9 @@ class UserSessionService:
         session = await self.get_active_by_refresh_token(refresh_token)
         return session.sid if session else None
 
+    async def list_by_user(self, user_id: int, include_inactive: bool = False) -> list[UserSession]:
+        return await self.repo.list_by_user(user_id, include_inactive=include_inactive)
+
     async def revoke(self, sid: str) -> None:
         await self.repo.revoke(sid)
         logger.debug("Session revoked: sid={}", sid)

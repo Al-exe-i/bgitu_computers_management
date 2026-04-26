@@ -54,6 +54,13 @@ class InviteRepository:
         await self.db.refresh(invite)
         return invite
 
+    async def mark_used(self, invite: InviteLink, *, used_by_user_id: int) -> InviteLink:
+        invite.used_at = datetime.now(timezone.utc)
+        invite.used_by_user_id = used_by_user_id
+        await self.db.flush()
+        await self.db.refresh(invite)
+        return invite
+
     async def delete(self, invite: InviteLink) -> None:
         await self.db.delete(invite)
         await self.db.flush()

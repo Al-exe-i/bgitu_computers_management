@@ -8,7 +8,11 @@ class HTTP400(HTTPException):
 
 class HTTP401(HTTPException):
     def __init__(self, detail: str = "Unauthorized"):
-        super().__init__(status_code=401, detail=detail, headers={"WWW-Authenticate": "Bearer"})
+        super().__init__(
+            status_code=401,
+            detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 class HTTP403(HTTPException):

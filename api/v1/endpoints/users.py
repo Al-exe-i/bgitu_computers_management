@@ -1,14 +1,8 @@
-import mimetypes
-import os
-import uuid
-
-import aiofiles
 from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
 
-from core.config import settings
 from core.exceptions import HTTP400, HTTP403, HTTP404, HTTP409
 from core.security import verify_password
 from dependencies.audit_actor import (
@@ -91,26 +85,16 @@ async def read_user(
 
 
 @router.get("/me/photo")
-async def get_user_photo(user: user_dep):
-    if not user.photo:
+async def get_user_photo(
+    user: user_dep,
+    service: user_service_dep,
+):
+    photo = service.get_photo(user)
+    if photo is None:
         logger.warning("User photo not found: user_id={} no photo assigned", user.id)
         raise HTTP404("Photo not found")
 
-    file_path = os.path.join(settings.static.avatars_dir, user.photo)
-
-    if not os.path.exists(file_path):
-        logger.warning("User photo missing on disk: user_id={} path={}", user.id, file_path)
-        raise HTTP404("Photo not found")
-
-    media_type, _ = mimetypes.guess_type(file_path)
-    if media_type is None:
-        media_type = "image/*"
-
-    def file_iterator(path):
-        with open(path, mode="rb") as file_like:
-            yield from file_like
-
-    return StreamingResponse(file_iterator(file_path), media_type=media_type)
+    return FileResponse(photo.path, media_type=photo.media_type)
 
 
 @router.post("/me/password", status_code=200)
@@ -275,7 +259,7 @@ async def upload_user_photo(
         )
         raise
 
-    if not file.content_type.startswith("image/"):
+    if not (file.content_type or "").startswith("image/"):
         logger.warning(
             "User photo upload rejected: invalid content type user_id={} filename={} content_type={}",
             user_id,
@@ -284,26 +268,10 @@ async def upload_user_photo(
         )
         raise HTTP400("File must be an image")
 
-    file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    unique_filename = f"{uuid.uuid4()}.{file_ext}"
-    file_path = os.path.join(settings.static.avatars_dir, unique_filename)
-
-    try:
-        async with aiofiles.open(file_path, "wb") as buffer:
-            content = await file.read()
-            await buffer.write(content)
-    finally:
-        file.file.close()
-
-    update_data = UserUpdate(photo=unique_filename)
-
-    if user.photo:
-        try:
-            os.remove(os.path.join(settings.static.avatars_dir, user.photo))
-        except FileNotFoundError as exc:
-            logger.error(f"Ошибка в {__name__}: {exc}")
-
-    updated_user = await service.update(user_id, update_data)
+    result = await service.upload_photo(user_id, file)
+    if result is None:
+        logger.warning("User photo upload failed: target_user_id={} not found", user_id)
+        raise HTTP404("User not found")
 
     await audit.log(
         action="user.photo_upload",
@@ -311,17 +279,17 @@ async def upload_user_photo(
         entity_id=user_id,
         payload={
             "target_user_id": user_id,
-            "replaced_existing": bool(user.photo),
+            "replaced_existing": result.had_photo,
         },
     )
     logger.info(
         "User photo uploaded: actor_id={} target_user_id={} replaced_existing={}",
         current_user.id,
         user_id,
-        bool(user.photo),
+        result.had_photo,
     )
 
-    return updated_user
+    return result.user
 
 
 @router.delete("/{user_id}/photo", response_model=UserOut)
@@ -353,17 +321,10 @@ async def delete_user_photo(
             user_id,
         )
         raise
-    had_photo = bool(user.photo)
-
-    if user.photo:
-        file_path = os.path.join(settings.static.avatars_dir, user.photo)
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except OSError as exc:
-                logger.error(f"Ошибка в {__name__}: {exc}")
-
-    updated_user = await service.update(user_id, UserUpdate(photo=None))
+    result = await service.delete_photo(user_id)
+    if result is None:
+        logger.warning("User photo delete failed: target_user_id={} not found", user_id)
+        raise HTTP404("User not found")
 
     await audit.log(
         action="user.photo_delete",
@@ -371,14 +332,14 @@ async def delete_user_photo(
         entity_id=user_id,
         payload={
             "target_user_id": user_id,
-            "had_photo": had_photo,
+            "had_photo": result.had_photo,
         },
     )
     logger.info(
         "User photo deleted: actor_id={} target_user_id={} had_photo={}",
         current_user.id,
         user_id,
-        had_photo,
+        result.had_photo,
     )
 
-    return updated_user
+    return result.user

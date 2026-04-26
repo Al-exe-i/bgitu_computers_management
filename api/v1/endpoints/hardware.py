@@ -5,7 +5,6 @@ from fastapi.responses import FileResponse, StreamingResponse
 from loguru import logger
 
 from core.exceptions import HTTP403, HTTP404
-from db.session import session_dep
 from dependencies.audit_actor import admin_audit_actor_dep, user_audit_actor_dep
 from dependencies.auth import user_dep
 from dependencies.hardware import hardware_service_dep
@@ -25,7 +24,6 @@ async def add_hardware_file(
     hardware_id: int,
     files: list[UploadFile],
     service: hardware_service_dep,
-    db: session_dep,
     background_tasks: BackgroundTasks,
     audit: admin_audit_actor_dep,
     realtime: realtime_dep,
@@ -34,7 +32,7 @@ async def add_hardware_file(
     if not hardware:
         raise HTTP404("Hardware doesn't exist")
 
-    result: list[HardwareFileResponse] = await service.update_files(hardware_id, files, db)
+    result: list[HardwareFileResponse] = await service.update_files(hardware_id, files)
     logger.info(
         "Hardware files processed: hardware_id={} audience_id={} requested={} saved={}",
         hardware_id,

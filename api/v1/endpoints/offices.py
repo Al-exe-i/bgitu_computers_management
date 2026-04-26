@@ -76,11 +76,9 @@ async def update_office_by_id_endpoint(
     service: office_service_dep,
     audit: admin_audit_actor_dep,
 ):
-    office = await service.get_short(office_id)
-    if not office:
+    updated_office = await service.update(office_id, office_in)
+    if not updated_office:
         raise HTTP404("Office not found")
-
-    updated_office = await service.update(office_in, office)
 
     await audit.log(
         action="office.update",
@@ -93,17 +91,3 @@ async def update_office_by_id_endpoint(
     )
 
     return updated_office
-
-
-@router.get("/faulty_computers/{office_id}")
-async def get_faulty_computers_in_office(
-    office_id: int,
-    service: office_service_dep,
-):
-    office = await service.get_short(office_id)
-
-    if not office:
-        raise HTTP404("Office not found")
-
-    count = await service.count_faulty(office_id)
-    return {"count": count}

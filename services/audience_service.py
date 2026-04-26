@@ -61,12 +61,12 @@ class AudienceService:
         if update_data:
             for key, value in update_data.items():
                 setattr(current_audience, key, value)
-            await self.repo.session.flush()
+            await self.repo.flush()
 
         if schema.hardware is not None:
             await self._sync_grid(audience_id, schema.hardware)
 
-        await self.repo.session.flush()
+        await self.repo.flush()
         return await self.repo.get_by_id(audience_id)
 
     async def delete_audience(self, audience_id: int) -> None:

@@ -204,10 +204,7 @@ class InviteService:
             new_user_schema
         )
 
-        invite.used_at = datetime.now(timezone.utc)
-        invite.used_by_user_id = created_user.id
-
-        await self.repo.db.flush()
+        await self.repo.mark_used(invite, used_by_user_id=created_user.id)
         logger.info(
             "Invite consumed: invite_id={} user_id={} email={}",
             invite.id,

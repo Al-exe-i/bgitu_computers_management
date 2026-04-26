@@ -80,19 +80,6 @@ class OfficeRepository:
         await self.db.refresh(orm_model)
         return orm_model
 
-    async def count_faulty_computers(self, office_id: int) -> int:
-        stmt = (
-            select(func.count(Hardware.id))
-            .join(Audience)
-            .join(Office)
-            .where(
-                Office.id == office_id,
-                Hardware.state == False
-            )
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar_one()
-
     async def delete(self, office: Office | None) -> bool:
         if office is None:
             return False

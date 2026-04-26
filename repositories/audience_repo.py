@@ -42,6 +42,9 @@ class AudienceRepository:
         await self.session.refresh(audience, attribute_names=["hardware"])
         return audience
 
+    async def flush(self) -> None:
+        await self.session.flush()
+
     async def update(self, audience_id: int, data: dict) -> Audience | None:
         stmt = (
             update(Audience)

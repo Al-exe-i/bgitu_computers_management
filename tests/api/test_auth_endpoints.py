@@ -83,6 +83,10 @@ class DummySessionService:
         self.revoked_user_ids: list[int] = []
         self.repo = DummySessionRepo(repo_rows)
 
+    @property
+    def list_calls(self) -> list[dict]:
+        return self.repo.list_calls
+
     @staticmethod
     def new_sid() -> str:
         return "sid-1"
@@ -108,6 +112,9 @@ class DummySessionService:
         if self.current_session is not None:
             return self.current_session.sid
         return None
+
+    async def list_by_user(self, user_id: int, include_inactive: bool = False):
+        return await self.repo.list_by_user(user_id, include_inactive=include_inactive)
 
     async def revoke(self, sid: str) -> None:
         self.revoked_sids.append(sid)
@@ -316,7 +323,7 @@ def test_sessions_endpoint_marks_current_and_active_flags() -> None:
             response = client.get("/api/v1/sessions?include_inactive=true")
 
         assert response.status_code == 200
-        assert sessions.repo.list_calls == [
+        assert sessions.list_calls == [
             {"user_id": 7, "include_inactive": True}
         ]
 

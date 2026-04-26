@@ -1,11 +1,9 @@
-from typing import Any, Protocol, Sequence
+from typing import Protocol, Sequence
 
 import aiofiles
 import uuid
 import os
-from fastapi import UploadFile
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from core.exceptions import HTTP404
 from models import Hardware
@@ -23,9 +21,22 @@ class HardwareGridPort(Protocol):
     async def delete(self, hardware_id: int) -> None: ...
 
 
+class UploadedHardwareFile(Protocol):
+    filename: str | None
+    content_type: str | None
+    size: int | None
+
+    async def read(self, size: int = -1) -> bytes: ...
+
+
 class HardwareService:
-    def __init__(self, repo: HardwareRepository):
+    def __init__(
+        self,
+        repo: HardwareRepository,
+        files_repo: HardwareFilesRepository | None = None,
+    ):
         self.repo = repo
+        self.files_repo = files_repo
 
     async def get(self, hardware_id: int):
         hardware = await self.repo.get_by_id(hardware_id)
@@ -63,12 +74,11 @@ class HardwareService:
         await self.repo.delete(hardware_id)
 
     async def update_files(
-            self,
-            hardware_id: int,
-            files: list[UploadFile],
-            db: AsyncSession,
+        self,
+        hardware_id: int,
+        files: Sequence[UploadedHardwareFile],
     ):
-        files_repo = HardwareFilesRepository(db)
+        files_repo = self._files_repo()
         created_files: list[HardwareFileResponse] = []
         audience_id = (await self.get(hardware_id)).audience_id
 
@@ -95,7 +105,7 @@ class HardwareService:
                 )
                 continue
 
-            ext = os.path.splitext(file.filename)[1]
+            ext = os.path.splitext(file.filename or "")[1]
             unique_name = f"{uuid.uuid4()}{ext}"
 
             file_path = os.path.join(settings.static.upload_dir, unique_name)
@@ -112,7 +122,6 @@ class HardwareService:
 
             created = await files_repo.create(db_file)
             created_files.append(HardwareFileResponse.model_validate(created, from_attributes=True))
-            await db.flush()
             logger.info(
                 "Hardware file stored: hardware_id={} audience_id={} file_id={} filename={}",
                 hardware_id,
@@ -123,8 +132,7 @@ class HardwareService:
         return created_files
 
     async def get_file_for_stream(self, file_id: int):
-        repo = HardwareFilesRepository(self.repo.retrieve_session())
-        db_file = await repo.get_by_id(file_id)
+        db_file = await self._files_repo().get_by_id(file_id)
 
         if not db_file:
             logger.warning("Hardware file record not found: file_id={}", file_id)
@@ -141,7 +149,7 @@ class HardwareService:
         return db_file
 
     async def delete_file(self, file_id: int) -> int:
-        files_repo = HardwareFilesRepository(self.repo.retrieve_session())
+        files_repo = self._files_repo()
 
         db_file = await files_repo.get_by_id(file_id)
         if not db_file:
@@ -174,3 +182,8 @@ class HardwareService:
         )
 
         return audience_id
+
+    def _files_repo(self) -> HardwareFilesRepository:
+        if self.files_repo is None:
+            raise RuntimeError("Hardware files repository is not configured")
+        return self.files_repo
