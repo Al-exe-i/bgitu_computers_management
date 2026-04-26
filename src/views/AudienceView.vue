@@ -175,7 +175,9 @@ export default {
       isUnmounted: false,
 
       /* Preview */
-      previewIndex: null
+      previewIndex: null,
+      viewportScrollLocked: false,
+      viewportScrollY: 0
     };
   },
   computed: {
@@ -592,6 +594,66 @@ export default {
 
   methods: {
     getApiUrl,
+
+    syncViewportScrollLock() {
+      const shouldLock =
+          this.isWorkspace ||
+          this.selectedCell !== null ||
+          this.previewIndex !== null ||
+          this.showConfirmModal;
+
+      if (shouldLock) {
+        this.lockViewportScroll();
+      } else {
+        this.unlockViewportScroll();
+      }
+    },
+
+    lockViewportScroll() {
+      if (this.viewportScrollLocked) return;
+
+      this.viewportScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      this.viewportScrollLocked = true;
+
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${this.viewportScrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+    },
+
+    unlockViewportScroll() {
+      if (!this.viewportScrollLocked) {
+        document.documentElement.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        return;
+      }
+
+      const scrollY = this.viewportScrollY;
+
+      document.documentElement.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+
+      this.viewportScrollLocked = false;
+      this.viewportScrollY = 0;
+      window.scrollTo(0, scrollY);
+    },
+
+    clearViewportScrollLock() {
+      this.unlockViewportScroll();
+    },
 
     resetAudienceTelegramState() {
       this.telegramStatus = null;
@@ -1084,6 +1146,7 @@ export default {
       this.showStatusConfirmModal = false;
       this.pendingWorkingStatus = null;
       this.statusConfirmLoading = false;
+      this.syncViewportScrollLock();
     },
 
     closeModal() {
@@ -1097,6 +1160,7 @@ export default {
       this.specsEdit = false;
       this.specsDraft = {};
       this.showSpecsModal = false;
+      this.syncViewportScrollLock();
     },
 
     async requestWorkingStatus(status) {
@@ -1442,6 +1506,7 @@ export default {
         this.fileToDeleteId = fileId;
         this.dontAskAgain = false; // Сбрасываем чекбокс
         this.showConfirmModal = true;
+        this.syncViewportScrollLock();
       }
     },
 
@@ -1460,6 +1525,7 @@ export default {
     {
       this.showConfirmModal = false;
       this.fileToDeleteId = null;
+      this.syncViewportScrollLock();
     },
 
     getVideoStreamUrl(fileId)
@@ -1480,15 +1546,15 @@ export default {
       }
 
       this.previewIndex = index;
-      document.body.style.overflow = 'hidden';
+      this.syncViewportScrollLock();
       window.addEventListener('keydown', this.handlePreviewKeys);
     },
 
     // Закрыть
     closePreview() {
       this.previewIndex = null;
-      if (!this.isWorkspace) document.body.style.overflow = ''; // Если workspace активен — НЕ возвращаем скролл
       window.removeEventListener('keydown', this.handlePreviewKeys);
+      this.syncViewportScrollLock();
     },
 
     nextPreview() {
@@ -1524,15 +1590,18 @@ export default {
 
 
       if (next) {
-        document.body.style.overflow = 'hidden';
+        this.syncViewportScrollLock();
+
+        this.$nextTick(() => {
+          this.$refs.gridSection?.scrollTo?.({ top: 0, left: 0 });
+        });
 
         // нативный fullscreen (опционально)
         if (this.workspaceWantsFullscreen) {
           this.requestFullscreenSafe();
         }
       } else {
-        // если preview не открыт — возвращаем скролл
-        if (this.previewIndex === null) document.body.style.overflow = '';
+        this.syncViewportScrollLock();
 
         if (document.fullscreenElement) {
           document.exitFullscreen?.();
@@ -1570,6 +1639,7 @@ export default {
   beforeUnmount() {
     this.isUnmounted = true;
     document.removeEventListener('click', this.handleAudienceTelegramOutsideClick);
+    this.clearViewportScrollLock();
     this.closeWebSocket()
     this.audienceContext.clear()
   }
@@ -1869,8 +1939,9 @@ export default {
       </div>
     </div>
 
-    <Transition>
-      <div v-if="selectedCell" class="modal active equipment-modal" @click.self="closeModal">
+    <Teleport to="body">
+      <Transition>
+        <div v-if="selectedCell" class="modal active equipment-modal audience-equipment-modal" @click.self="closeModal">
         <div class="modal-content equipment-modal-content">
           <div class="modal-close-upper">
             <button @click="closeModal" class="close">
@@ -2033,8 +2104,9 @@ export default {
             </Transition>
           </div>
         </div>
-      </div>
-    </Transition>
+        </div>
+      </Transition>
+    </Teleport>
 
     <Transition>
       <div
@@ -2154,7 +2226,7 @@ export default {
     <Transition>
       <div
           v-if="selectedCell && hasSpecsEditor && showSpecsModal"
-          class="modal active"
+          class="modal active specs-modal-overlay"
           @click.self="closeSpecsModal"
       >
         <div class="modal-content specs-modal-content">
@@ -2516,7 +2588,9 @@ export default {
       </div>
     </Transition>
 
-    <div v-if="showConfirmModal" class="hw-confirm-overlay" @click.self="closeConfirmModal">
+    <Teleport to="body">
+      <Transition>
+        <div v-if="showConfirmModal" class="hw-confirm-overlay audience-file-confirm-overlay" @click.self="closeConfirmModal">
       <div class="hw-confirm-box">
         <h3 class="hw-confirm-title">Удалить файл?</h3>
         <p class="hw-confirm-text">Вы уверены, что хотите удалить этот файл? Это действие нельзя будет отменить.</p>
@@ -2532,7 +2606,9 @@ export default {
           <button @click="confirmDelete" class="hw-btn-delete">Удалить</button>
         </div>
       </div>
-    </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <div v-if="previewIndex !== null && selectedCell" class="hw-lightbox" @click.self="closePreview">
 
@@ -2584,6 +2660,7 @@ export default {
   animation: gradientShift 20s ease infinite;
   min-height: 100vh;
   padding-bottom: 40px;
+  overflow-x: clip;
 }
 
 .page-viewer.workspace .top-header,
@@ -2768,6 +2845,11 @@ export default {
   background: rgba(255, 255, 255, 0.92);
   color: #1d4ed8;
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  transition:
+      border-color 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease;
 }
 
 .audience-telegram-trigger:hover,
@@ -3050,6 +3132,7 @@ export default {
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 :global(html[data-theme='dark']) .audience-telegram-panel {
@@ -3066,29 +3149,48 @@ export default {
 }
 
 :global(html[data-theme='dark']) .audience-telegram-trigger {
-  background: rgba(15, 23, 42, 0.76);
-  border-color: rgba(96, 165, 250, 0.28);
+  background:
+      linear-gradient(180deg, rgba(30, 41, 59, 0.74), rgba(15, 23, 42, 0.72));
+  border-color: rgba(96, 165, 250, 0.22);
   color: #bfdbfe;
-  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.2);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 10px 22px rgba(2, 6, 23, 0.22);
+  transform: none;
+  transition:
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease;
 }
 
-:global(html[data-theme='dark']) .audience-telegram-trigger:hover,
-:global(html[data-theme='dark']) .audience-telegram-trigger.active {
-  background: linear-gradient(135deg, rgba(30, 64, 175, 0.48), rgba(37, 99, 235, 0.28));
-  border-color: rgba(96, 165, 250, 0.34);
-  color: #dbeafe;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
+:global(html[data-theme='dark']) .audience-telegram-trigger:hover:not(.active) {
+  background:
+      linear-gradient(180deg, rgba(30, 41, 59, 0.74), rgba(15, 23, 42, 0.72));
+  border-color: rgba(125, 211, 252, 0.38);
+  color: #e0f2fe;
+  transform: none;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 12px 24px rgba(14, 165, 233, 0.14);
 }
 
 :global(html[data-theme='dark']) .audience-telegram-trigger.active {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  border-color: rgba(96, 165, 250, 0.34);
-  color: #fff;
+  background:
+      radial-gradient(circle at top right, rgba(125, 211, 252, 0.28), transparent 36%),
+      linear-gradient(135deg, #1d4ed8, #0f766e);
+  border-color: rgba(125, 211, 252, 0.48);
+  color: #f8fafc;
+  transform: none;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 14px 28px rgba(14, 165, 233, 0.18);
 }
 
 :global(html[data-theme='dark']) .audience-telegram-trigger-count {
-  background: rgba(15, 23, 42, 0.88);
-  color: #bfdbfe;
+  background: rgba(2, 6, 23, 0.78);
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  color: #e0f2fe;
+  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.24);
 }
 
 :global(html[data-theme='dark']) .audience-telegram-close {
@@ -3137,6 +3239,23 @@ export default {
 
 :global(html[data-theme='dark']) .audience-telegram-event-copy em {
   color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .audience-telegram-empty button {
+  background:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(14, 116, 144, 0.92));
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  color: #f8fafc;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 12px 24px rgba(8, 47, 73, 0.24);
+}
+
+:global(html[data-theme='dark']) .audience-telegram-empty button:hover {
+  background:
+      linear-gradient(135deg, rgba(59, 130, 246, 0.98), rgba(8, 145, 178, 0.95));
+  border-color: rgba(186, 230, 253, 0.36);
+  transform: translateY(-1px);
 }
 
 .stats-grid {
@@ -3197,11 +3316,24 @@ export default {
 .grid-section.workspace {
   position: fixed;
   inset: 0;
-  z-index: 100;        /* выше AppHeader */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;        /* выше AppHeader, ниже модалок */
   border-radius: 0;
   margin: 0;
   padding: 16px;
   overflow: auto;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  transform: none;
 }
 
 .grid-header {
@@ -3604,16 +3736,31 @@ export default {
 .modal {
   position: fixed;
   z-index: 1000;
+  inset: 0;
   left: 0;
   top: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   backdrop-filter: blur(4px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.equipment-modal {
+  align-items: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.specs-modal-overlay {
+  z-index: 2400;
 }
 
 .modal-close-upper
@@ -3661,6 +3808,56 @@ export default {
   max-width: 540px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: modalAppear 0.3s ease;
+}
+
+.equipment-modal-content {
+  margin: 0;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal {
+  background: rgba(2, 6, 23, 0.72);
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .equipment-modal-content {
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 34%),
+      linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  color: #e2e8f0;
+  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.56);
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-title {
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-subtitle,
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-details p {
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-info {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(51, 65, 85, 0.95);
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-details h3,
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-details > div > h3,
+:global(html[data-theme='dark']) .audience-equipment-modal .hw-section-title {
+  color: #f8fafc;
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-close-upper button {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #334155;
+}
+
+:global(html[data-theme='dark']) .audience-equipment-modal .modal-close-upper button:hover {
+  background: rgba(30, 41, 59, 0.96);
 }
 
 .modal-title {
@@ -3767,6 +3964,28 @@ export default {
   cursor: pointer;
   transform: scale(1.02);
   opacity: 0.9;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-info) {
+  background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.88)) !important;
+  border: 1px solid rgba(71, 85, 105, 0.9) !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details h3),
+:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details > div > h3) {
+  color: #f8fafc !important;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details p) {
+  color: #cbd5e1 !important;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details div input) {
+  background: rgba(15, 23, 42, 0.94) !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
 }
 
 .specs-entry-btn {
@@ -5068,7 +5287,6 @@ export default {
 .hw-files-section {
   position: relative;
   margin-top: 15px;
-  border-top: 1px solid #eee;
   padding-top: 10px;
   min-height: 100px;
 }
@@ -5077,13 +5295,18 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 3px;
 }
 
 .hw-section-title {
   font-weight: 600;
   font-size: 14px;
   color: #333;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .hw-section-title) {
+  color: #e2e8f0 !important;
+  text-shadow: 0 1px 0 rgba(2, 6, 23, 0.24);
 }
 
 .hw-add-btn-small {
@@ -5113,7 +5336,6 @@ export default {
   flex-wrap: nowrap;
   overflow-x: auto;
   gap: 12px;
-  margin-bottom: 15px;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   scrollbar-width: thin;
@@ -5252,17 +5474,26 @@ export default {
 /* Модалка подтверждения удаления файла*/
 .hw-confirm-overlay {
   position: fixed;
+  inset: 0;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: fadeIn 0.2s ease;
+}
+
+.audience-file-confirm-overlay {
+  z-index: 2300;
 }
 
 /* Само окно */
@@ -5271,6 +5502,11 @@ export default {
   padding: 24px;
   border-radius: 12px;
   width: 320px;
+  max-width: 100%;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow-y: auto;
   box-shadow: 0 10px 25px rgba(0,0,0,0.2);
   text-align: center;
   animation: scaleIn 0.2s ease;
@@ -5345,6 +5581,38 @@ export default {
 }
 
 /* Анимации */
+:global(html[data-theme='dark'] .audience-file-confirm-overlay) {
+  background: rgba(2, 6, 23, 0.72) !important;
+}
+
+:global(html[data-theme='dark'] .audience-file-confirm-overlay .hw-confirm-box) {
+  background:
+      radial-gradient(circle at top right, rgba(239, 68, 68, 0.14), transparent 34%),
+      linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98)) !important;
+  border: 1px solid rgba(71, 85, 105, 0.9) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.56) !important;
+}
+
+:global(html[data-theme='dark'] .audience-file-confirm-overlay .hw-confirm-title) {
+  color: #f8fafc !important;
+}
+
+:global(html[data-theme='dark'] .audience-file-confirm-overlay .hw-confirm-text),
+:global(html[data-theme='dark'] .audience-file-confirm-overlay .hw-confirm-checkbox) {
+  color: #cbd5e1 !important;
+}
+
+:global(html[data-theme='dark'] .audience-file-confirm-overlay .hw-btn-cancel) {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border: 1px solid #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .audience-file-confirm-overlay .hw-btn-cancel:hover) {
+  background: rgba(51, 65, 85, 0.98) !important;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -5367,6 +5635,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 72px 24px 64px;
   backdrop-filter: blur(5px);
   animation: fadeIn 0.2s ease;
 }
@@ -5374,17 +5643,20 @@ export default {
 /* --- Контент (обертка) --- */
 .hw-lb-content {
   position: relative;
-  max-width: 90vw;  /* Не шире 90% экрана */
-  max-height: 90vh; /* Не выше 90% экрана */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: min(92vw, 1280px);
+  height: calc(100vh - 136px);
+  height: calc(100dvh - 136px);
+  min-height: 220px;
+  display: grid;
+  place-items: center;
 }
 
 /* --- Картинка и Видео --- */
 .hw-lb-image, .hw-lb-video {
-  max-width: 100%;
-  max-height: 85vh; /* Оставляем место под подпись */
+  width: auto;
+  height: auto;
+  max-width: min(100%, 1100px);
+  max-height: min(82vh, calc(100dvh - 156px));
   object-fit: contain; /* Сохраняем пропорции */
   border-radius: 4px;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -5431,10 +5703,15 @@ export default {
 
 /* --- Подпись --- */
 .hw-lb-caption {
-  margin-top: 10px;
+  position: absolute;
+  left: 50%;
+  bottom: -36px;
+  transform: translateX(-50%);
+  margin: 0;
   color: #ccc;
   font-family: sans-serif;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 /**/
 
@@ -6002,8 +6279,8 @@ export default {
   }
 
   .equipment-modal .hw-files-section {
-    margin-top: 14px;
-    padding-top: 12px;
+    margin-top: 5px;
+    padding-top: 7px;
     min-height: 0;
   }
 

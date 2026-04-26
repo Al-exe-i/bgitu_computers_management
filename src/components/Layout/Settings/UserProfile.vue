@@ -176,152 +176,186 @@ export default {
     <div class="card-header">
       <div class="card-heading">
         <h2 class="section-title">{{ activeSectionTitle }}</h2>
-        <p class="section-subtitle">{{ activeSectionSubtitle }}</p>
       </div>
 
       <div class="profile-section-switch" role="tablist" aria-label="Разделы профиля">
+        <span
+          class="profile-section-indicator"
+          :class="{ 'is-telegram': activeSection === 'telegram' }"
+          aria-hidden="true"
+        ></span>
+
         <button
           type="button"
           class="profile-section-btn"
           :class="{ active: activeSection === 'profile' }"
           :aria-selected="activeSection === 'profile'"
+          aria-controls="profile-section-panel"
+          role="tab"
           @click="switchSection('profile')"
         >
-          Профиль
+          <span class="profile-section-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21a8 8 0 0 0-16 0"></path>
+              <circle cx="12" cy="8" r="4"></circle>
+            </svg>
+          </span>
+          <span>Профиль</span>
         </button>
+
         <button
           type="button"
           class="profile-section-btn"
           :class="{ active: activeSection === 'telegram' }"
           :aria-selected="activeSection === 'telegram'"
+          aria-controls="telegram-section-panel"
+          role="tab"
           @click="switchSection('telegram')"
         >
-          Telegram
+          <span class="profile-section-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001l-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15l4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434"/></svg>
+          </span>
+          <span>Telegram</span>
         </button>
       </div>
+
+      <p class="section-subtitle card-subtitle">{{ activeSectionSubtitle }}</p>
     </div>
 
-    <section v-show="activeSection === 'profile'" class="profile-panel">
-      <div class="profile-header">
-        <div class="avatar-container">
-          <div
-            class="avatar-wrapper"
-            :class="{ 'is-loading': isAvatarUploading }"
-            @click="triggerAvatarUpload"
-          >
-            <img v-if="userPhoto" :src="userPhoto" alt="Avatar" class="avatar-img">
-            <div v-else class="avatar-placeholder">{{ userInitials }}</div>
-
-            <div class="avatar-overlay">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
-              </svg>
-            </div>
-
-            <div v-if="isAvatarUploading" class="avatar-loading-overlay">
-              <span class="spinner"></span>
-            </div>
-          </div>
-
-          <button
-            v-if="userPhoto && !isAvatarUploading"
-            class="delete-avatar-btn"
-            title="Удалить фото"
-            @click.stop="handleDeleteAvatar"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          </button>
-        </div>
-
-        <div class="profile-meta">
-          <h3 class="user-email">{{ authStore.user?.email || "Загрузка..." }}</h3>
-          <span class="role-badge">{{ getRoleName(authStore.user?.role) }}</span>
-        </div>
-
-        <input
-          ref="avatarInput"
-          type="file"
-          accept="image/png, image/jpeg, image/webp"
-          hidden
-          @change="handleAvatarUpload"
+    <div class="profile-content-stage">
+      <transition name="profile-panel-shift">
+        <section
+          v-show="activeSection === 'profile'"
+          id="profile-section-panel"
+          class="profile-panel"
+          role="tabpanel"
         >
-      </div>
+          <div class="profile-header">
+            <div class="avatar-container">
+              <div
+                class="avatar-wrapper"
+                :class="{ 'is-loading': isAvatarUploading }"
+                @click="triggerAvatarUpload"
+              >
+                <img v-if="userPhoto" :src="userPhoto" alt="Avatar" class="avatar-img">
+                <div v-else class="avatar-placeholder">{{ userInitials }}</div>
 
-      <form class="profile-form" @submit.prevent="saveProfile">
-        <div class="form-group full-width">
-          <label>Email (логин)</label>
-          <div class="input-with-icon">
-            <svg
-              class="input-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
+                <div class="avatar-overlay">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </div>
+
+                <div v-if="isAvatarUploading" class="avatar-loading-overlay">
+                  <span class="spinner"></span>
+                </div>
+              </div>
+
+              <button
+                v-if="userPhoto && !isAvatarUploading"
+                class="delete-avatar-btn"
+                title="Удалить фото"
+                @click.stop="handleDeleteAvatar"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="profile-meta">
+              <h3 class="user-email">{{ authStore.user?.email || "Загрузка..." }}</h3>
+              <span class="role-badge">{{ getRoleName(authStore.user?.role) }}</span>
+            </div>
+
             <input
-              v-model="form.email"
-              type="email"
-              class="form-input disabled"
-              disabled
-              title="Email нельзя изменить"
+              ref="avatarInput"
+              type="file"
+              accept="image/png, image/jpeg, image/webp"
+              hidden
+              @change="handleAvatarUpload"
             >
           </div>
-        </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label>Имя</label>
-            <input
-              v-model="form.name"
-              type="text"
-              class="form-input"
-              placeholder="Введите имя"
-            >
-          </div>
+          <form class="profile-form" @submit.prevent="saveProfile">
+            <div class="form-group full-width">
+              <label>Email (логин)</label>
+              <div class="input-with-icon">
+                <svg
+                  class="input-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <input
+                  v-model="form.email"
+                  type="email"
+                  class="form-input disabled"
+                  disabled
+                  title="Email нельзя изменить"
+                >
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label>Фамилия</label>
-            <input
-              v-model="form.surname"
-              type="text"
-              class="form-input"
-              placeholder="Введите фамилию"
-            >
-          </div>
-        </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Имя</label>
+                <input
+                  v-model="form.name"
+                  type="text"
+                  class="form-input"
+                  placeholder="Введите имя"
+                >
+              </div>
 
-        <div class="form-actions">
-          <button type="submit" class="btn-save" :disabled="isSaving || !hasChanges">
-            <span v-if="isSaving" class="spinner button-spinner"></span>
-            {{ isSaving ? "Сохранение..." : "Сохранить изменения" }}
-          </button>
-        </div>
-      </form>
-    </section>
+              <div class="form-group">
+                <label>Фамилия</label>
+                <input
+                  v-model="form.surname"
+                  type="text"
+                  class="form-input"
+                  placeholder="Введите фамилию"
+                >
+              </div>
+            </div>
 
-    <section
-      v-if="telegramSectionMounted"
-      v-show="activeSection === 'telegram'"
-      class="profile-panel"
-    >
-      <TelegramSection :show-header="false" />
-    </section>
+            <div class="form-actions">
+              <button type="submit" class="btn-save" :disabled="isSaving || !hasChanges">
+                <span v-if="isSaving" class="spinner button-spinner"></span>
+                {{ isSaving ? "Сохранение..." : "Сохранить изменения" }}
+              </button>
+            </div>
+          </form>
+        </section>
+      </transition>
+
+      <transition name="profile-panel-shift">
+        <section
+          v-if="telegramSectionMounted"
+          v-show="activeSection === 'telegram'"
+          id="telegram-section-panel"
+          class="profile-panel"
+          role="tabpanel"
+        >
+          <TelegramSection :show-header="false" />
+        </section>
+      </transition>
+    </div>
   </div>
 </template>
 
@@ -338,11 +372,10 @@ export default {
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 18px;
   margin-bottom: 28px;
 }
 
@@ -363,42 +396,128 @@ export default {
   line-height: 1.5;
 }
 
+.card-subtitle {
+  grid-column: 1 / -1;
+  max-width: 760px;
+}
+
 .profile-section-switch {
-  display: inline-flex;
+  position: relative;
+  justify-self: end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(118px, 1fr));
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px;
-  border-radius: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.12), transparent 34%),
+    linear-gradient(180deg, #f8fafc, #eef4fb);
+  border: 1px solid rgba(203, 213, 225, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 12px 28px rgba(15, 23, 42, 0.06);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.profile-section-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 2);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, #1e293b 0%, #2563eb 58%, #0ea5e9 100%);
+  box-shadow:
+    0 12px 24px rgba(37, 99, 235, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateX(0);
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.24s ease,
+    box-shadow 0.24s ease;
+  z-index: 0;
+}
+
+.profile-section-indicator.is-telegram {
+  transform: translateX(100%);
 }
 
 .profile-section-btn {
-  min-height: 38px;
-  padding: 0 14px;
+  position: relative;
+  z-index: 1;
+  min-height: 42px;
+  padding: 0 15px;
   border: none;
-  border-radius: 9px;
+  border-radius: 14px;
   background: transparent;
   color: #64748b;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition:
+    color 0.22s ease,
+    transform 0.22s ease;
+}
+
+.profile-section-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.profile-section-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .profile-section-btn:hover {
   color: #334155;
+  transform: translateY(-1px);
 }
 
 .profile-section-btn.active {
-  background: #ffffff;
-  color: #0f172a;
-  box-shadow:
-    0 8px 18px rgba(15, 23, 42, 0.08),
-    0 1px 2px rgba(15, 23, 42, 0.05);
+  color: #ffffff;
+}
+
+.profile-section-btn.active:hover {
+  color: #ffffff;
+}
+
+.profile-content-stage {
+  display: grid;
+  min-width: 0;
+}
+
+.profile-panel-shift-enter-active,
+.profile-panel-shift-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.profile-panel-shift-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.profile-panel-shift-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .profile-panel {
+  grid-area: 1 / 1;
   min-width: 0;
 }
 
@@ -667,8 +786,21 @@ html[data-theme="dark"] .btn-save:disabled {
 }
 
 html[data-theme="dark"] .profile-section-switch {
-  background: rgba(15, 23, 42, 0.92);
-  border-color: #334155;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.94));
+  border-color: rgba(51, 65, 85, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 32px rgba(2, 6, 23, 0.28);
+}
+
+html[data-theme="dark"] .profile-section-indicator {
+  background:
+    linear-gradient(135deg, #1d4ed8 0%, #2563eb 58%, #0891b2 100%);
+  box-shadow:
+    0 14px 26px rgba(37, 99, 235, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 html[data-theme="dark"] .profile-section-btn {
@@ -680,11 +812,11 @@ html[data-theme="dark"] .profile-section-btn:hover {
 }
 
 html[data-theme="dark"] .profile-section-btn.active {
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(17, 24, 39, 0.98));
-  color: #e2e8f0;
-  box-shadow:
-    0 12px 22px rgba(2, 6, 23, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .profile-section-btn.active:hover {
+  color: #f8fafc;
 }
 
 .spinner {
@@ -712,20 +844,47 @@ html[data-theme="dark"] .profile-section-btn.active {
 
 @media (max-width: 480px) {
   .profile-card {
-    padding: 24px;
+    padding: 20px;
   }
 
   .card-header {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: stretch;
+    gap: 14px;
+    margin-bottom: 22px;
   }
 
   .profile-section-switch {
     width: 100%;
+    justify-self: stretch;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 3px;
+    border-radius: 16px;
+  }
+
+  .profile-section-indicator {
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: calc((100% - 6px) / 2);
+    border-radius: 13px;
   }
 
   .profile-section-btn {
-    flex: 1;
+    min-height: 38px;
+    padding: 0 8px;
+    gap: 6px;
+    font-size: 12px;
+    border-radius: 13px;
+  }
+
+  .profile-section-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .section-subtitle {
+    font-size: 13px;
   }
 
   .form-row {

@@ -1932,6 +1932,13 @@ html[data-theme='dark'] .page-viewer .bool-btn-muted.active {
   box-shadow: none !important;
 }
 
+html[data-theme='dark'] .page-viewer {
+  background: #0b1220 !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 html[data-theme='dark'] .create-audience-page .grid-cell.drag-over {
   background: rgba(30, 64, 175, 0.45) !important;
   border-color: #93c5fd !important;
@@ -2231,6 +2238,28 @@ html[data-theme='dark'] .divider span {
 html[data-theme='dark'] .close {
   background: rgba(15, 23, 42, 0.7) !important;
   border-color: var(--border) !important;
+}
+
+html[data-theme='dark'],
+html[data-theme='dark'] body,
+html[data-theme='dark'] #app {
+  background: #0b1220 !important;
+}
+
+html[data-theme='dark'] body {
+  overflow-x: hidden;
+}
+
+html[data-theme='dark'] .page-viewer {
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  background: #0b1220 !important;
+  background-image: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  overflow-x: clip;
 }
 
 .pt-1 {
