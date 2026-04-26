@@ -1,22 +1,31 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable
 
-from core.exceptions import HTTP400, HTTP404, HTTP409
+from core.exceptions import (
+    InviteAlreadyUsedError,
+    InviteBatchInputError,
+    InviteInvalidError,
+    InviteNotFoundError,
+)
 from loguru import logger
 from models.invite_link import InviteLink
+from models.user import UserRole
 from repositories.invite_repo import InviteRepository
 from schemas.invite import (
-    InviteCreateOne,
     InviteCreateBatch,
+    InviteCreateOne,
     InviteCreateResult,
     InviteListItem,
     InvitePreviewResponse,
-    RegisterByInviteRequest,
-    RegisterByInviteResponse,
 )
-from schemas.user import UserCreate
+from utils.invite_utils import hash_invite_token, new_invite_token
 
-from utils.invite_utils import new_invite_token, hash_invite_token
+
+@dataclass(slots=True, frozen=True)
+class InviteRegistrationData:
+    id: int
+    target_email: str | None
+    target_role: UserRole
 
 
 class InviteService:
@@ -57,10 +66,10 @@ class InviteService:
 
     async def create_batch(self, created_by_user_id: int, schema: InviteCreateBatch) -> list[InviteCreateResult]:
         if not schema.count and not schema.emails:
-            raise HTTP400("Either count or emails must be provided")
+            raise InviteBatchInputError("Either count or emails must be provided")
 
         if schema.count and schema.emails:
-            raise HTTP400("Use either count or emails, not both")
+            raise InviteBatchInputError("Use either count or emails, not both")
 
         result: list[InviteCreateResult] = []
 
@@ -88,45 +97,20 @@ class InviteService:
 
     async def list_all(self) -> list[InviteListItem]:
         invites = await self.repo.list_all()
-        return [
-            InviteListItem(
-                id=i.id,
-                target_email=i.target_email,
-                target_role=i.target_role,
-                note=i.note,
-                created_by_user_id=i.created_by_user_id,
-                created_at=i.created_at,
-                expires_at=i.expires_at,
-                used_at=i.used_at,
-                revoked_at=i.revoked_at,
-                used_by_user_id=i.used_by_user_id,
-            )
-            for i in invites
-        ]
+        return [self._to_list_item(invite) for invite in invites]
 
     async def revoke(self, invite_id: int) -> InviteListItem:
         invite = await self.repo.get_by_id(invite_id)
         if not invite:
-            raise HTTP404("Invite not found")
+            raise InviteNotFoundError()
 
         if invite.used_at is not None:
-            raise HTTP400("Invite already used")
+            raise InviteAlreadyUsedError()
 
         if invite.revoked_at is None:
             invite = await self.repo.revoke(invite)
 
-        return InviteListItem(
-            id=invite.id,
-            target_email=invite.target_email,
-            target_role=invite.target_role,
-            note=invite.note,
-            created_by_user_id=invite.created_by_user_id,
-            created_at=invite.created_at,
-            expires_at=invite.expires_at,
-            used_at=invite.used_at,
-            revoked_at=invite.revoked_at,
-            used_by_user_id=invite.used_by_user_id,
-        )
+        return self._to_list_item(invite)
 
     async def preview(self, token: str) -> InvitePreviewResponse:
         token_hash = hash_invite_token(token)
@@ -157,72 +141,58 @@ class InviteService:
             expires_at=invite.expires_at,
         )
 
-    async def register_by_invite(
-        self,
-        schema: RegisterByInviteRequest,
-        *,
-        get_user_by_email: Callable,
-        create_user: Callable,
-    ) -> RegisterByInviteResponse:
-        """
-        Пробросить Callable из auth роутера
-        """
-        token_hash = hash_invite_token(schema.token)
-
+    async def get_active_for_registration(self, token: str) -> InviteRegistrationData:
+        token_hash = hash_invite_token(token)
         invite = await self.repo.get_active_by_token_hash_for_update(token_hash)
         if not invite:
-            logger.warning("Register by invite failed: invite is invalid or inactive for email={}", schema.email)
-            raise HTTP400("Invite is invalid, expired, revoked or already used")
+            logger.warning("Register by invite failed: invite is invalid or inactive")
+            raise InviteInvalidError()
 
-        if invite.target_email and invite.target_email.lower() != schema.email.lower():
-            logger.warning(
-                "Register by invite failed: invite_id={} assigned to another email target_email={} requested_email={}",
-                invite.id,
-                invite.target_email,
-                schema.email,
-            )
-            raise HTTP400("This invite is assigned to another email")
-
-        existing_user = await get_user_by_email(schema.email)
-        if existing_user is not None:
-            logger.warning(
-                "Register by invite failed: email already exists invite_id={} email={}",
-                invite.id,
-                schema.email,
-            )
-            raise HTTP409("User with this email already exists")
-
-        new_user_schema: UserCreate = UserCreate(
-            name=schema.name,
-            surname=schema.surname,
-            email=schema.email,
-            password=schema.password,
-            role=invite.target_role,
+        return InviteRegistrationData(
+            id=invite.id,
+            target_email=invite.target_email,
+            target_role=invite.target_role,
         )
 
-        created_user = await create_user(
-            new_user_schema
-        )
+    async def mark_used(self, invite_id: int, *, used_by_user_id: int) -> None:
+        invite = await self.repo.get_by_id(invite_id)
+        if not invite:
+            raise InviteNotFoundError()
 
-        await self.repo.mark_used(invite, used_by_user_id=created_user.id)
+        if invite.used_at is not None:
+            raise InviteAlreadyUsedError()
+
+        if invite.revoked_at is not None or invite.expires_at <= datetime.now(timezone.utc):
+            raise InviteInvalidError()
+
+        await self.repo.mark_used(invite, used_by_user_id=used_by_user_id)
         logger.info(
             "Invite consumed: invite_id={} user_id={} email={}",
             invite.id,
-            created_user.id,
-            created_user.email,
-        )
-
-        return RegisterByInviteResponse(
-            user_id=created_user.id,
-            email=created_user.email,
-            role=str(created_user.role.value if hasattr(created_user.role, "value") else created_user.role),
+            used_by_user_id,
+            invite.target_email,
         )
 
     async def delete(self, invite_id: int) -> None:
         invite = await self.repo.get_by_id(invite_id)
         if not invite:
             logger.warning("Invite delete failed: invite_id={} not found", invite_id)
-            raise HTTP404("Invite not found")
+            raise InviteNotFoundError()
 
         await self.repo.delete(invite)
         logger.info("Invite deleted: invite_id={}", invite_id)
+
+    @staticmethod
+    def _to_list_item(invite: InviteLink) -> InviteListItem:
+        return InviteListItem(
+            id=invite.id,
+            target_email=invite.target_email,
+            target_role=invite.target_role,
+            note=invite.note,
+            created_by_user_id=invite.created_by_user_id,
+            created_at=invite.created_at,
+            expires_at=invite.expires_at,
+            used_at=invite.used_at,
+            revoked_at=invite.revoked_at,
+            used_by_user_id=invite.used_by_user_id,
+        )

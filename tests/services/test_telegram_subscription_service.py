@@ -4,7 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.exceptions import HTTP400, HTTP404, HTTP409
+from core.exceptions import (
+    TelegramAccountNotLinkedError,
+    TelegramScopeInvalidError,
+    TelegramScopeNotFoundError,
+    TelegramSubscriptionAlreadyExistsError,
+)
 from schemas.telegram import (
     TelegramDeliveryMode,
     TelegramEventType,
@@ -108,7 +113,7 @@ def test_create_subscription_rejects_user_without_linked_telegram() -> None:
             office_ids=set(),
         )
 
-        with pytest.raises(HTTP400, match="not linked"):
+        with pytest.raises(TelegramAccountNotLinkedError, match="not linked"):
             await service.create(
                 user_id=7,
                 data=TelegramSubscriptionCreate(
@@ -129,7 +134,7 @@ def test_create_subscription_rejects_invalid_scope_event_pair() -> None:
             office_ids=set(),
         )
 
-        with pytest.raises(HTTP400, match="require user scope"):
+        with pytest.raises(TelegramScopeInvalidError, match="require user scope"):
             await service.create(
                 user_id=7,
                 data=TelegramSubscriptionCreate(
@@ -183,7 +188,7 @@ def test_create_subscription_rejects_duplicates() -> None:
 
         await service.create(user_id=7, data=data)
 
-        with pytest.raises(HTTP409, match="already exists"):
+        with pytest.raises(TelegramSubscriptionAlreadyExistsError, match="already exists"):
             await service.create(user_id=7, data=data)
 
     asyncio.run(scenario())
@@ -197,7 +202,7 @@ def test_create_subscription_rejects_missing_scope() -> None:
             office_ids=set(),
         )
 
-        with pytest.raises(HTTP404, match="Audience not found"):
+        with pytest.raises(TelegramScopeNotFoundError, match="Audience not found"):
             await service.create(
                 user_id=7,
                 data=TelegramSubscriptionCreate(

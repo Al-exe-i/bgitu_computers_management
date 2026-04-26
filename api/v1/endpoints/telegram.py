@@ -1,10 +1,18 @@
 from fastapi import APIRouter, status
 
-from dependencies.audit_actor import user_audit_actor_dep
-from dependencies.telegram import (
-    telegram_link_service_dep,
-    telegram_subscription_service_dep,
+from core.exceptions import (
+    HTTP400,
+    HTTP404,
+    HTTP409,
+    TelegramAccountNotLinkedError,
+    TelegramScopeInvalidError,
+    TelegramScopeNotFoundError,
+    TelegramSubscriptionAlreadyExistsError,
+    TelegramSubscriptionNotFoundError,
+    TelegramUserNotFoundError,
 )
+from dependencies.audit_actor import user_audit_actor_dep
+from dependencies.telegram import telegram_integration_use_cases_dep
 from schemas.telegram import (
     TelegramLinkStartResponse,
     TelegramLinkStatusResponse,
@@ -18,48 +26,55 @@ router = APIRouter(prefix="/telegram")
 @router.get("/me", response_model=TelegramLinkStatusResponse)
 async def get_my_telegram_status(
     audit: user_audit_actor_dep,
-    link_service: telegram_link_service_dep,
+    use_cases: telegram_integration_use_cases_dep,
 ):
-    return await link_service.get_link_status(audit.user.id)
+    try:
+        return await use_cases.get_link_status(user_id=audit.user.id)
+    except TelegramUserNotFoundError as exc:
+        raise HTTP404(exc.detail)
 
 
 @router.post("/link-token", response_model=TelegramLinkStartResponse, status_code=status.HTTP_201_CREATED)
 async def create_my_telegram_link_token(
     audit: user_audit_actor_dep,
-    link_service: telegram_link_service_dep,
+    use_cases: telegram_integration_use_cases_dep,
 ):
-    result = await link_service.create_link_token(audit.user.id)
-    await audit.log(
-        action="telegram.link_token_create",
-        entity_type="user",
-        entity_id=audit.user.id,
-        payload={"expires_at": result.expires_at.isoformat()},
-    )
-    return result
+    try:
+        result = await use_cases.create_link_token(
+            user_id=audit.user.id,
+            audit=audit,
+        )
+    except TelegramUserNotFoundError as exc:
+        raise HTTP404(exc.detail)
+
+    return result.token
 
 
 @router.delete("/link", response_model=TelegramLinkStatusResponse)
 async def unlink_my_telegram_account(
     audit: user_audit_actor_dep,
-    link_service: telegram_link_service_dep,
+    use_cases: telegram_integration_use_cases_dep,
 ):
-    had_telegram_id = audit.user.telegram_id is not None
-    result = await link_service.unlink_user(audit.user.id)
-    await audit.log(
-        action="telegram.unlink",
-        entity_type="user",
-        entity_id=audit.user.id,
-        payload={"had_telegram_id": had_telegram_id},
-    )
-    return result
+    try:
+        result = await use_cases.unlink_account(
+            actor=audit.user,
+            audit=audit,
+        )
+    except TelegramUserNotFoundError as exc:
+        raise HTTP404(exc.detail)
+
+    return result.status
 
 
 @router.get("/subscriptions", response_model=list[TelegramSubscriptionResponse])
 async def list_my_telegram_subscriptions(
     audit: user_audit_actor_dep,
-    subscription_service: telegram_subscription_service_dep,
+    use_cases: telegram_integration_use_cases_dep,
 ):
-    return await subscription_service.list_for_user(audit.user.id)
+    try:
+        return await use_cases.list_subscriptions(user_id=audit.user.id)
+    except TelegramUserNotFoundError as exc:
+        raise HTTP404(exc.detail)
 
 
 @router.post(
@@ -70,37 +85,35 @@ async def list_my_telegram_subscriptions(
 async def create_my_telegram_subscription(
     data: TelegramSubscriptionCreate,
     audit: user_audit_actor_dep,
-    subscription_service: telegram_subscription_service_dep,
+    use_cases: telegram_integration_use_cases_dep,
 ):
-    result = await subscription_service.create(user_id=audit.user.id, data=data)
-    await audit.log(
-        action="telegram.subscription_create",
-        entity_type="user",
-        entity_id=audit.user.id,
-        payload={
-            "subscription_id": result.id,
-            "scope_type": result.scope_type.value,
-            "scope_id": result.scope_id,
-            "event_type": result.event_type.value,
-            "delivery_mode": result.delivery_mode.value,
-        },
-    )
-    return result
+    try:
+        result = await use_cases.create_subscription(
+            user_id=audit.user.id,
+            data=data,
+            audit=audit,
+        )
+    except (TelegramAccountNotLinkedError, TelegramScopeInvalidError) as exc:
+        raise HTTP400(exc.detail)
+    except (TelegramUserNotFoundError, TelegramScopeNotFoundError) as exc:
+        raise HTTP404(exc.detail)
+    except TelegramSubscriptionAlreadyExistsError as exc:
+        raise HTTP409(exc.detail)
+
+    return result.subscription
 
 
 @router.delete("/subscriptions/{subscription_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_my_telegram_subscription(
     subscription_id: int,
     audit: user_audit_actor_dep,
-    subscription_service: telegram_subscription_service_dep,
+    use_cases: telegram_integration_use_cases_dep,
 ):
-    await subscription_service.delete(
-        user_id=audit.user.id,
-        subscription_id=subscription_id,
-    )
-    await audit.log(
-        action="telegram.subscription_delete",
-        entity_type="user",
-        entity_id=audit.user.id,
-        payload={"subscription_id": subscription_id},
-    )
+    try:
+        await use_cases.delete_subscription(
+            user_id=audit.user.id,
+            subscription_id=subscription_id,
+            audit=audit,
+        )
+    except TelegramSubscriptionNotFoundError as exc:
+        raise HTTP404(exc.detail)

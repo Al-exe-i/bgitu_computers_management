@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
-from core.exceptions import HTTP409
+from core.exceptions import TelegramSubscriptionAlreadyExistsError
 from schemas.telegram import TelegramEventType, TelegramScopeType
 from telegram_bot.services.subscriptions import TelegramBotSubscriptionFacade
 
@@ -98,7 +98,7 @@ def test_toggle_auth_security_enables_subscription_when_missing(monkeypatch) -> 
 def test_create_subscription_returns_exists_for_duplicates(monkeypatch) -> None:
     class FakeService:
         async def create(self, **_kwargs):
-            raise HTTP409("exists")
+            raise TelegramSubscriptionAlreadyExistsError("exists")
 
     @asynccontextmanager
     async def fake_open_session():

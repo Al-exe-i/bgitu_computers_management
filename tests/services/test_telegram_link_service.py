@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.config import TelegramConfig
-from core.exceptions import HTTP400, HTTP409
+from core.exceptions import TelegramAccountAlreadyLinkedError, TelegramLinkTokenInvalidError
 from services.telegram_link_service import TelegramLinkService
 from utils.telegram import hash_telegram_link_token
 
@@ -143,7 +143,7 @@ def test_confirm_link_rejects_token_bound_to_another_user() -> None:
             TelegramConfig(enabled=True),
         )
 
-        with pytest.raises(HTTP409, match="already linked"):
+        with pytest.raises(TelegramAccountAlreadyLinkedError, match="already linked"):
             await service.confirm_link(token=raw_token, telegram_id=123456789)
 
     asyncio.run(scenario())
@@ -157,7 +157,7 @@ def test_confirm_link_rejects_invalid_token() -> None:
             TelegramConfig(enabled=True),
         )
 
-        with pytest.raises(HTTP400, match="invalid or expired"):
+        with pytest.raises(TelegramLinkTokenInvalidError, match="invalid or expired"):
             await service.confirm_link(token="missing", telegram_id=123)
 
     asyncio.run(scenario())

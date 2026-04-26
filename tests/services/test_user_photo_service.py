@@ -2,7 +2,9 @@ import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+from core.security import verify_password
 from models.user import UserRole
+from schemas.user import UserCreate, UserOut
 from services.user_service import UserService
 
 
@@ -10,6 +12,7 @@ class FakeUserRepo:
     def __init__(self, user: SimpleNamespace | None) -> None:
         self.user = user
         self.updates: list[dict] = []
+        self.created_user = None
 
     async def get(self, user_id: int):
         if self.user is not None and self.user.id == user_id:
@@ -21,6 +24,14 @@ class FakeUserRepo:
         self.updates.append(changes)
         for key, value in changes.items():
             setattr(user, key, value)
+        return user
+
+    async def create(self, user):
+        user.id = 7
+        user.reg_date = datetime(2026, 4, 21, tzinfo=timezone.utc)
+        user.is_superuser = False
+        user.telegram_id_confirmed = False
+        self.created_user = user
         return user
 
 
@@ -88,5 +99,27 @@ def test_delete_photo_removes_avatar_and_clears_user_photo() -> None:
         assert result.user.photo is None
         assert repo.updates == [{"photo": None}]
         assert storage.deleted_filenames == ["avatar.jpg"]
+
+    asyncio.run(scenario())
+
+
+def test_create_hashes_password_and_returns_user_out() -> None:
+    async def scenario() -> None:
+        repo = FakeUserRepo(None)
+        service = UserService(repo)
+
+        result = await service.create(
+            UserCreate(
+                email="user@example.com",
+                password="secret1",
+                role=UserRole.teacher,
+            )
+        )
+
+        assert isinstance(result, UserOut)
+        assert not hasattr(result, "password")
+        assert repo.created_user is not None
+        assert repo.created_user.password != "secret1"
+        assert verify_password("secret1", repo.created_user.password)
 
     asyncio.run(scenario())

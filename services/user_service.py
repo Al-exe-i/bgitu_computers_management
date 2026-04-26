@@ -44,7 +44,7 @@ class UserService:
         user_data = data.model_dump(exclude_unset=True)
         user = User(**user_data)
         user = await self.repo.create(user)
-        return user
+        return UserOut.model_validate(user, from_attributes=True)
 
     async def delete(self, user_id: int) -> bool:
         user = await self.repo.get(user_id)

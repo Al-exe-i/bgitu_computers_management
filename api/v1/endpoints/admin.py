@@ -5,19 +5,22 @@ from fastapi.responses import FileResponse
 from loguru import logger
 
 from core.config import settings
-from core.exceptions import HTTP403, HTTP404
+from core.exceptions import (
+    HTTP400,
+    HTTP403,
+    HTTP404,
+    InviteAlreadyUsedError,
+    InviteBatchInputError,
+    InviteNotFoundError,
+)
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep
-from dependencies.invite import invite_service_dep
+from dependencies.identity import identity_invite_use_cases_dep
 from schemas.audit_log import AuditLogListResponse
 from schemas.invite import InviteCreateBatch, InviteCreateOne, InviteCreateResult, InviteListItem
 
 router = APIRouter(prefix="")
-
-
-def _role_name(role) -> str | None:
-    return role.name if hasattr(role, "name") else role
 
 
 @router.get("/files/{file_path:path}")
@@ -73,88 +76,72 @@ async def get_audit_log(
 @router.post("/invites/one", response_model=InviteCreateResult)
 async def create_invite_one(
     data: InviteCreateOne,
-    service: invite_service_dep,
+    use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    result = await service.create_one(created_by_user_id=audit.user.id, schema=data)
-
-    await audit.log(
-        action="invite.create",
-        entity_type="invite",
-        entity_id=result.id,
-        payload={
-            "target_email": result.target_email,
-            "target_role": _role_name(result.target_role),
-            "expires_at": result.expires_at.isoformat(),
-        },
+    result = await use_cases.create_one(
+        data=data,
+        created_by_user_id=audit.user.id,
+        audit=audit,
     )
-
-    return result
+    return result.invite
 
 
 @router.post("/invites/batch", response_model=list[InviteCreateResult])
 async def create_invite_batch(
     data: InviteCreateBatch,
-    service: invite_service_dep,
+    use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    result = await service.create_batch(created_by_user_id=audit.user.id, schema=data)
+    try:
+        result = await use_cases.create_batch(
+            data=data,
+            created_by_user_id=audit.user.id,
+            audit=audit,
+        )
+    except InviteBatchInputError as exc:
+        raise HTTP400(exc.detail)
 
-    await audit.log(
-        action="invite.create_batch",
-        entity_type="invite",
-        payload={
-            "created_count": len(result),
-            "target_role": _role_name(data.target_role),
-            "targeted": bool(data.emails),
-            "targeted_emails_count": len(data.emails or []),
-            "expires_at": data.expires_at.isoformat(),
-        },
-    )
-
-    return result
+    return result.invites
 
 
 @router.get("/invites", response_model=list[InviteListItem])
 async def list_invites(
-    service: invite_service_dep,
+    use_cases: identity_invite_use_cases_dep,
     user: admin_dep,
 ):
-    return await service.list_all()
+    return await use_cases.list_invites()
 
 
 @router.post("/invites/{invite_id}/revoke", response_model=InviteListItem)
 async def revoke_invite(
     invite_id: int,
-    service: invite_service_dep,
+    use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    result = await service.revoke(invite_id)
+    try:
+        result = await use_cases.revoke(
+            invite_id=invite_id,
+            audit=audit,
+        )
+    except InviteNotFoundError as exc:
+        raise HTTP404(exc.detail)
+    except InviteAlreadyUsedError as exc:
+        raise HTTP400(exc.detail)
 
-    await audit.log(
-        action="invite.revoke",
-        entity_type="invite",
-        entity_id=invite_id,
-        payload={
-            "target_email": result.target_email,
-            "target_role": _role_name(result.target_role),
-        },
-    )
-
-    return result
+    return result.invite
 
 
 @router.delete("/invites/{invite_id}", status_code=204)
 async def delete_invite(
     invite_id: int,
-    service: invite_service_dep,
+    use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    await service.delete(invite_id)
-
-    await audit.log(
-        action="invite.delete",
-        entity_type="invite",
-        entity_id=invite_id,
-        payload={"invite_id": invite_id},
-    )
+    try:
+        await use_cases.delete(
+            invite_id=invite_id,
+            audit=audit,
+        )
+    except InviteNotFoundError as exc:
+        raise HTTP404(exc.detail)

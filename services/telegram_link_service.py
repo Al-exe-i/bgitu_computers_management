@@ -3,7 +3,11 @@ from datetime import datetime, timedelta, timezone
 from loguru import logger
 
 from core.config import TelegramConfig
-from core.exceptions import HTTP400, HTTP404, HTTP409
+from core.exceptions import (
+    TelegramAccountAlreadyLinkedError,
+    TelegramLinkTokenInvalidError,
+    TelegramUserNotFoundError,
+)
 from models.tg_link_token import TelegramLinkToken
 from repositories.tg_link_token_repo import TelegramLinkTokenRepository
 from repositories.user_repo import UserRepository
@@ -29,7 +33,7 @@ class TelegramLinkService:
     async def get_link_status(self, user_id: int) -> TelegramLinkStatusResponse:
         user = await self.user_repo.get(user_id)
         if not user:
-            raise HTTP404("User not found")
+            raise TelegramUserNotFoundError()
 
         telegram_id = str(user.telegram_id) if user.telegram_id is not None else None
         return TelegramLinkStatusResponse(
@@ -40,7 +44,7 @@ class TelegramLinkService:
     async def create_link_token(self, user_id: int) -> TelegramLinkStartResponse:
         user = await self.user_repo.get(user_id)
         if not user:
-            raise HTTP404("User not found")
+            raise TelegramUserNotFoundError()
 
         await self.token_repo.deactivate_active_for_user(user_id)
 
@@ -76,15 +80,15 @@ class TelegramLinkService:
             hash_telegram_link_token(token),
         )
         if not link_token:
-            raise HTTP400("Telegram link token is invalid or expired")
+            raise TelegramLinkTokenInvalidError()
 
         user = await self.user_repo.get(link_token.user_id)
         if not user:
-            raise HTTP404("User not found")
+            raise TelegramUserNotFoundError()
 
         existing_user = await self.user_repo.get_by_telegram_id(telegram_id)
         if existing_user and existing_user.id != user.id:
-            raise HTTP409("Telegram account is already linked to another user")
+            raise TelegramAccountAlreadyLinkedError()
 
         await self.user_repo.set_telegram_link(user, telegram_id, confirmed=True)
         await self.token_repo.mark_used(link_token)
@@ -98,7 +102,7 @@ class TelegramLinkService:
     async def unlink_user(self, user_id: int) -> TelegramLinkStatusResponse:
         user = await self.user_repo.get(user_id)
         if not user:
-            raise HTTP404("User not found")
+            raise TelegramUserNotFoundError()
 
         await self.user_repo.clear_telegram_link(user)
         logger.info("Telegram unlinked for user_id={}", user_id)

@@ -5,19 +5,23 @@ from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from core.exceptions import (
+    HTTP400,
     HTTP401,
     HTTP404,
+    HTTP409,
     InvalidCredentialsError,
+    InviteAssignedToAnotherEmailError,
+    InviteInvalidError,
+    InviteUserAlreadyExistsError,
     RefreshSessionNotFoundError,
     RefreshTokenMissingError,
     RefreshTokenReuseDetectedError,
     RefreshUserNotFoundError,
     SessionNotFoundError,
 )
-from dependencies.auth_service import auth_service_dep
 from dependencies.audit_actor import audit_ctx_dep, user_audit_actor_dep
+from dependencies.identity import identity_auth_use_cases_dep
 from dependencies.invite import invite_service_dep
-from dependencies.user import user_service_dep
 from schemas.invite import (
     InvitePreviewRequest,
     InvitePreviewResponse,
@@ -25,8 +29,8 @@ from schemas.invite import (
     RegisterByInviteResponse,
 )
 from schemas.user_session import UserSessionOut
+from modules.identity.adapters.fastapi_events import dispatch_identity_events
 from utils.tokens import build_token_response
-from utils.telegram_notifications import enqueue_auth_security_notification
 
 router = APIRouter()
 
@@ -34,52 +38,41 @@ router = APIRouter()
 @router.post("/token")
 async def login_for_access_token(
     background_tasks: BackgroundTasks,
-    auth_service: auth_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: audit_ctx_dep,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
     try:
-        result = await auth_service.login(
+        result = await use_cases.login(
             email=form_data.username,
             password=form_data.password,
             ip=audit.meta.get("ip"),
             user_agent=audit.meta.get("user_agent"),
+            audit=audit,
         )
     except InvalidCredentialsError:
         raise HTTP401("Invalid credentials")
 
-    await audit.log(
-        action="auth.login",
-        entity_type="user",
-        entity_id=result.user_id,
-        payload={"email": result.user_email, "sid": result.sid},
-        user_id=result.user_id,
-    )
-    enqueue_auth_security_notification(
-        background_tasks,
-        user_id=result.user_id,
-        event_name="Выполнен вход в аккаунт",
-        ip=audit.meta.get("ip"),
-        user_agent=audit.meta.get("user_agent"),
-    )
+    dispatch_identity_events(background_tasks, result.events)
 
     return build_token_response(
-        access_token=result.access_token,
-        refresh_token=result.refresh_token,
+        access_token=result.tokens.access_token,
+        refresh_token=result.tokens.refresh_token,
     )
 
 
 @router.post("/refresh")
 async def refresh_tokens(
-    auth_service: auth_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: audit_ctx_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     try:
-        result = await auth_service.refresh(
+        result = await use_cases.refresh(
             refresh_token=refresh_token,
             ip=audit.meta.get("ip"),
             user_agent=audit.meta.get("user_agent"),
+            audit=audit,
         )
     except RefreshTokenMissingError:
         raise HTTP401("No refresh token provided")
@@ -87,51 +80,28 @@ async def refresh_tokens(
         raise HTTP401("Couldn't validate refresh token")
     except RefreshUserNotFoundError:
         raise HTTP401("User not found")
-    except RefreshTokenReuseDetectedError as exc:
-        await audit.log(
-            action="auth.refresh_reuse",
-            entity_type="user_session",
-            entity_id=None,
-            payload={"sid": exc.sid},
-            user_id=exc.user_id,
-        )
+    except RefreshTokenReuseDetectedError:
         raise HTTP401("Refresh token revoked")
 
-    await audit.log(
-        action="auth.refresh",
-        entity_type="user_session",
-        entity_id=None,
-        payload={"sid": result.sid},
-        user_id=result.user_id,
-    )
-
     return build_token_response(
-        access_token=result.access_token,
-        refresh_token=result.refresh_token,
+        access_token=result.tokens.access_token,
+        refresh_token=result.tokens.refresh_token,
     )
 
 
 @router.post("/logout")
 async def logout_user(
     response: Response,
-    auth_service: auth_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: audit_ctx_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
-    result = await auth_service.logout(
+    await use_cases.logout(
         refresh_token=refresh_token,
         ip=audit.meta.get("ip"),
         user_agent=audit.meta.get("user_agent"),
+        audit=audit,
     )
-
-    if result.user_id:
-        await audit.log(
-            action="auth.logout",
-            entity_type="user_session",
-            entity_id=None,
-            payload={"sid": result.sid},
-            user_id=result.user_id,
-        )
 
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
@@ -143,26 +113,18 @@ async def logout_user(
 async def logout_all_user_sessions(
     background_tasks: BackgroundTasks,
     response: Response,
-    auth_service: auth_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: user_audit_actor_dep,
 ):
     user_id = audit.user.id
 
-    await auth_service.logout_all(user_id=user_id)
-
-    await audit.log(
-        action="auth.logout_all",
-        entity_type="user_session",
-        entity_id=None,
-        payload={"user_id": user_id},
-    )
-    enqueue_auth_security_notification(
-        background_tasks,
+    result = await use_cases.logout_all(
         user_id=user_id,
-        event_name="Выполнен выход на всех устройствах",
         ip=audit.meta.get("ip"),
         user_agent=audit.meta.get("user_agent"),
+        audit=audit,
     )
+    dispatch_identity_events(background_tasks, result.events)
 
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
@@ -172,12 +134,12 @@ async def logout_all_user_sessions(
 
 @router.get("/sessions", response_model=list[UserSessionOut])
 async def get_my_sessions(
-    auth_service: auth_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: user_audit_actor_dep,
     include_inactive: bool = Query(False),
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
-    return await auth_service.list_user_sessions(
+    return await use_cases.list_user_sessions(
         user_id=audit.user.id,
         include_inactive=include_inactive,
         refresh_token=refresh_token,
@@ -188,27 +150,21 @@ async def get_my_sessions(
 async def revoke_session(
     sid: str,
     response: Response,
-    auth_service: auth_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: user_audit_actor_dep,
     refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ):
     try:
-        result = await auth_service.revoke_session(
+        result = await use_cases.revoke_session(
             user_id=audit.user.id,
             sid=sid,
             refresh_token=refresh_token,
+            audit=audit,
         )
     except SessionNotFoundError:
         raise HTTP404("Session not found")
 
-    await audit.log(
-        action="auth.session_revoke",
-        entity_type="user_session",
-        entity_id=None,
-        payload={"sid": sid},
-    )
-
-    if result.revoked_current_session:
+    if result.session.revoked_current_session:
         response.delete_cookie("access_token", path="/")
         response.delete_cookie("refresh_token", path="/")
 
@@ -224,22 +180,17 @@ async def preview_invite(
 @router.post("/auth/invite/register", response_model=RegisterByInviteResponse)
 async def register_by_invite(
     data: RegisterByInviteRequest,
-    service: invite_service_dep,
-    user_service: user_service_dep,
+    use_cases: identity_auth_use_cases_dep,
     audit: audit_ctx_dep,
 ):
-    result = await service.register_by_invite(
-        data,
-        get_user_by_email=user_service.get_by_email,
-        create_user=user_service.create,
-    )
+    try:
+        result = await use_cases.register_by_invite(
+            data=data,
+            audit=audit,
+        )
+    except (InviteInvalidError, InviteAssignedToAnotherEmailError) as exc:
+        raise HTTP400(exc.detail)
+    except InviteUserAlreadyExistsError as exc:
+        raise HTTP409(exc.detail)
 
-    await audit.log(
-        action="auth.register_by_invite",
-        entity_type="user",
-        entity_id=result.user_id,
-        payload={"email": result.email, "role": result.role},
-        user_id=result.user_id,
-    )
-
-    return result
+    return result.registration

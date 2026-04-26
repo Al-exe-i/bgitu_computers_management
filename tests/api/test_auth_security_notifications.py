@@ -70,10 +70,18 @@ def test_login_endpoint_calls_auth_security_enqueue(monkeypatch) -> None:
 
     monkeypatch.setattr(settings.telegram, "enabled", True)
 
-    def fake_enqueue(background_tasks, **kwargs) -> None:
-        calls.append(kwargs)
+    def fake_dispatch(background_tasks, events) -> None:
+        calls.extend(
+            {
+                "user_id": event.user_id,
+                "event_name": event.event_name,
+                "ip": event.ip,
+                "user_agent": event.user_agent,
+            }
+            for event in events
+        )
 
-    monkeypatch.setattr(auth_endpoints, "enqueue_auth_security_notification", fake_enqueue)
+    monkeypatch.setattr(auth_endpoints, "dispatch_identity_events", fake_dispatch)
     app.dependency_overrides[get_user_service] = lambda: DummyUserService(user)
     app.dependency_overrides[get_user_session_service] = lambda: sessions
     app.dependency_overrides[get_audit_ctx] = lambda: audit

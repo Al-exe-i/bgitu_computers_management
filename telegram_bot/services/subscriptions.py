@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 
-from core.exceptions import HTTP400, HTTP404, HTTP409
+from core.exceptions import (
+    TelegramAccountNotLinkedError,
+    TelegramScopeInvalidError,
+    TelegramScopeNotFoundError,
+    TelegramSubscriptionAlreadyExistsError,
+    TelegramSubscriptionNotFoundError,
+)
 from models.audience import Audience
 from repositories.audience_repo import AudienceRepository
 from repositories.office_repo import OfficeRepository
@@ -66,9 +72,13 @@ class TelegramBotSubscriptionFacade:
                         delivery_mode=TelegramDeliveryMode.immediate,
                     ),
                 )
-            except HTTP409:
+            except TelegramSubscriptionAlreadyExistsError:
                 return "exists"
-            except (HTTP400, HTTP404):
+            except (
+                TelegramAccountNotLinkedError,
+                TelegramScopeInvalidError,
+                TelegramScopeNotFoundError,
+            ):
                 return "invalid"
 
             return "created"
@@ -91,7 +101,7 @@ class TelegramBotSubscriptionFacade:
                     user_id=user.id,
                     subscription_id=subscription_id,
                 )
-            except HTTP404:
+            except TelegramSubscriptionNotFoundError:
                 return "not_found"
 
             return "deleted"

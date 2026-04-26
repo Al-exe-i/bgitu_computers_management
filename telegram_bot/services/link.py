@@ -1,5 +1,5 @@
 from core.config import settings
-from core.exceptions import HTTP400, HTTP409
+from core.exceptions import TelegramAccountAlreadyLinkedError, TelegramLinkTokenInvalidError
 from repositories.tg_link_token_repo import TelegramLinkTokenRepository
 from repositories.user_repo import UserRepository
 from schemas.telegram import TelegramLinkStatusResponse
@@ -24,8 +24,8 @@ class TelegramBotLinkFacade:
 
     @staticmethod
     def classify_error(exc: Exception) -> str:
-        if isinstance(exc, HTTP409):
+        if isinstance(exc, TelegramAccountAlreadyLinkedError):
             return "conflict"
-        if isinstance(exc, HTTP400):
+        if isinstance(exc, TelegramLinkTokenInvalidError):
             return "invalid"
         return "generic"

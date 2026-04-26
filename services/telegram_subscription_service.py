@@ -1,6 +1,13 @@
 from loguru import logger
 
-from core.exceptions import HTTP400, HTTP404, HTTP409
+from core.exceptions import (
+    TelegramAccountNotLinkedError,
+    TelegramScopeInvalidError,
+    TelegramScopeNotFoundError,
+    TelegramSubscriptionAlreadyExistsError,
+    TelegramSubscriptionNotFoundError,
+    TelegramUserNotFoundError,
+)
 from models.telegram_subscription import TelegramSubscription
 from repositories.audience_repo import AudienceRepository
 from repositories.office_repo import OfficeRepository
@@ -30,7 +37,7 @@ class TelegramSubscriptionService:
     async def list_for_user(self, user_id: int) -> list[TelegramSubscriptionResponse]:
         user = await self.user_repo.get(user_id)
         if not user:
-            raise HTTP404("User not found")
+            raise TelegramUserNotFoundError()
 
         rows = await self.repo.list_by_user(user_id)
         return [
@@ -46,10 +53,10 @@ class TelegramSubscriptionService:
     ) -> TelegramSubscriptionResponse:
         user = await self.user_repo.get(user_id)
         if not user:
-            raise HTTP404("User not found")
+            raise TelegramUserNotFoundError()
 
         if user.telegram_id is None or not user.telegram_id_confirmed:
-            raise HTTP400("Telegram account is not linked")
+            raise TelegramAccountNotLinkedError()
 
         self._validate_scope_event(user_id=user_id, data=data)
         await self._validate_scope_exists(data)
@@ -61,7 +68,7 @@ class TelegramSubscriptionService:
             event_type=data.event_type.value,
         )
         if existing:
-            raise HTTP409("Telegram subscription already exists")
+            raise TelegramSubscriptionAlreadyExistsError()
 
         subscription = TelegramSubscription(
             user_id=user_id,
@@ -92,7 +99,7 @@ class TelegramSubscriptionService:
             subscription_id=subscription_id,
         )
         if not subscription:
-            raise HTTP404("Telegram subscription not found")
+            raise TelegramSubscriptionNotFoundError()
 
         await self.repo.delete(subscription)
         logger.info(
@@ -109,22 +116,22 @@ class TelegramSubscriptionService:
     ) -> None:
         if data.scope_type == TelegramScopeType.user:
             if data.scope_id != user_id:
-                raise HTTP400("User scope can target only the current user")
+                raise TelegramScopeInvalidError("User scope can target only the current user")
             if data.event_type != TelegramEventType.auth_security:
-                raise HTTP400("User scope supports only auth_security notifications")
+                raise TelegramScopeInvalidError("User scope supports only auth_security notifications")
             return
 
         if data.event_type == TelegramEventType.auth_security:
-            raise HTTP400("auth_security notifications require user scope")
+            raise TelegramScopeInvalidError("auth_security notifications require user scope")
 
     async def _validate_scope_exists(self, data: TelegramSubscriptionCreate) -> None:
         if data.scope_type == TelegramScopeType.audience:
             audience = await self.audience_repo.get_by_id(data.scope_id)
             if audience is None:
-                raise HTTP404("Audience not found")
+                raise TelegramScopeNotFoundError("Audience not found")
             return
 
         if data.scope_type == TelegramScopeType.office:
             office = await self.office_repo.get_one_short(data.scope_id)
             if office is None:
-                raise HTTP404("Office not found")
+                raise TelegramScopeNotFoundError("Office not found")
