@@ -93,6 +93,9 @@ class TelegramConfig(BaseModel):
     bot_token: str | None = None
     bot_username: str | None = None
     link_token_ttl_minutes: int = 15
+    request_timeout_seconds: float = 15.0
+    startup_retry_attempts: int = 3
+    startup_retry_delay_seconds: float = 2.0
 
 
 class Settings(BaseSettings):

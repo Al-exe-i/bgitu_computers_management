@@ -1,40 +1,20 @@
 import asyncio
-from contextlib import asynccontextmanager
 
-from tasks.notifications import TelegramDeliveryResult, _persist_delivery_results
-
-
-class FakeSession:
-    def __init__(self) -> None:
-        self.committed = False
-
-    async def commit(self) -> None:
-        self.committed = True
+from services.telegram_delivery_log_service import TelegramDeliveryLogService
+from services.telegram_delivery_service import TelegramDeliveryResult
 
 
-def test_persist_delivery_results_creates_delivery_log_rows(monkeypatch) -> None:
-    captured: dict = {}
-    session = FakeSession()
-
+def test_delivery_log_service_creates_delivery_log_rows() -> None:
     class FakeRepo:
-        def __init__(self, db) -> None:
-            captured["repo_session"] = db
+        def __init__(self) -> None:
+            self.delivery_logs = []
 
         async def create_many(self, delivery_logs) -> None:
-            captured["delivery_logs"] = list(delivery_logs)
+            self.delivery_logs = list(delivery_logs)
 
-    @asynccontextmanager
-    async def fake_open_task_session():
-        yield session
-
-    monkeypatch.setattr("tasks.notifications.open_task_session", fake_open_task_session)
-    monkeypatch.setattr(
-        "tasks.notifications.TelegramNotificationDeliveryLogRepository",
-        FakeRepo,
-    )
-
+    repo = FakeRepo()
     asyncio.run(
-        _persist_delivery_results(
+        TelegramDeliveryLogService(repo).save_results(
             notification_id="notif-1",
             event_type="hardware_fault",
             payload={"hardware_id": 42, "audience_id": 215},
@@ -55,10 +35,8 @@ def test_persist_delivery_results_creates_delivery_log_rows(monkeypatch) -> None
         )
     )
 
-    delivery_logs = captured["delivery_logs"]
+    delivery_logs = repo.delivery_logs
     assert len(delivery_logs) == 2
-    assert captured["repo_session"] is session
-    assert session.committed is True
 
     assert delivery_logs[0].notification_id == "notif-1"
     assert delivery_logs[0].event_type == "hardware_fault"

@@ -26,6 +26,9 @@ from core.exceptions.identity import (
     UserPermissionDeniedError,
 )
 from core.exceptions.inventory import (
+    AudienceGridValidationError,
+    AudienceHardwareNotFoundError,
+    AudienceNotFoundError,
     HardwareFileBadRangeError,
     HardwareFileMissingOnDiskError,
     HardwareFileNotFoundError,
@@ -41,6 +44,7 @@ from core.exceptions.notifications import (
     TelegramAccountAlreadyLinkedError,
     TelegramAccountNotLinkedError,
     TelegramLinkTokenInvalidError,
+    TelegramNotificationAudienceNotFoundError,
     TelegramScopeInvalidError,
     TelegramScopeNotFoundError,
     TelegramSubscriptionAlreadyExistsError,
@@ -50,6 +54,9 @@ from core.exceptions.notifications import (
 
 __all__ = [
     "AuthServiceError",
+    "AudienceGridValidationError",
+    "AudienceHardwareNotFoundError",
+    "AudienceNotFoundError",
     "HardwareFileBadRangeError",
     "HardwareFileMissingOnDiskError",
     "HardwareFileNotFoundError",
@@ -87,6 +94,7 @@ __all__ = [
     "TelegramAccountAlreadyLinkedError",
     "TelegramAccountNotLinkedError",
     "TelegramLinkTokenInvalidError",
+    "TelegramNotificationAudienceNotFoundError",
     "TelegramScopeInvalidError",
     "TelegramScopeNotFoundError",
     "TelegramSubscriptionAlreadyExistsError",

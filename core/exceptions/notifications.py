@@ -36,3 +36,7 @@ class TelegramScopeInvalidError(NotificationError):
 
 class TelegramScopeNotFoundError(NotificationError):
     detail = "Telegram subscription scope not found"
+
+
+class TelegramNotificationAudienceNotFoundError(NotificationError):
+    detail = "Audience not found"

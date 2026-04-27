@@ -1,7 +1,11 @@
 import asyncio
 from types import SimpleNamespace
 
+import pytest
+
+from core.exceptions import TelegramNotificationAudienceNotFoundError
 from schemas.telegram import TelegramEventType
+from services.telegram_notification_renderer import TelegramNotificationRenderer
 from services.telegram_notification_service import TelegramNotificationService
 
 
@@ -27,7 +31,15 @@ class FakeTelegramSubscriptionRepo:
 
 
 class FakeAudienceRepo:
+    def __init__(self, audience=None, *, missing: bool = False) -> None:
+        self.audience = audience
+        self.missing = missing
+
     async def get_by_id(self, audience_id: int):
+        if self.missing:
+            return None
+        if self.audience is not None:
+            return self.audience
         return SimpleNamespace(id=audience_id, office_id=7)
 
 
@@ -54,13 +66,26 @@ def test_get_hardware_event_recipient_ids_uses_audience_and_office_scopes() -> N
     asyncio.run(scenario())
 
 
-def test_build_hardware_state_message_formats_fault_event() -> None:
-    service = TelegramNotificationService(
-        FakeTelegramSubscriptionRepo(),
-        FakeAudienceRepo(),
-    )
+def test_get_hardware_event_recipient_ids_missing_audience_raises_application_error() -> None:
+    async def scenario() -> None:
+        service = TelegramNotificationService(
+            FakeTelegramSubscriptionRepo(),
+            FakeAudienceRepo(missing=True),
+        )
 
-    message = service.build_hardware_state_message(
+        with pytest.raises(TelegramNotificationAudienceNotFoundError):
+            await service.get_hardware_event_recipient_ids(
+                audience_id=15,
+                event_type=TelegramEventType.hardware_fault,
+            )
+
+    asyncio.run(scenario())
+
+
+def test_build_hardware_state_message_formats_fault_event() -> None:
+    renderer = TelegramNotificationRenderer()
+
+    message = renderer.build_hardware_state_message(
         hardware_id=42,
         audience_id=215,
         event_type=TelegramEventType.hardware_fault,
@@ -83,12 +108,9 @@ def test_build_hardware_state_message_formats_fault_event() -> None:
 
 
 def test_build_hardware_state_message_escapes_dynamic_fields() -> None:
-    service = TelegramNotificationService(
-        FakeTelegramSubscriptionRepo(),
-        FakeAudienceRepo(),
-    )
+    renderer = TelegramNotificationRenderer()
 
-    message = service.build_hardware_state_message(
+    message = renderer.build_hardware_state_message(
         hardware_id=42,
         audience_id=215,
         event_type=TelegramEventType.hardware_fault,

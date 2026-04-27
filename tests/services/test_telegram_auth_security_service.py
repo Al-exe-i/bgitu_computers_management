@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from schemas.telegram import TelegramEventType
+from services.telegram_notification_renderer import TelegramNotificationRenderer
 from services.telegram_notification_service import TelegramNotificationService
 
 
@@ -41,12 +42,9 @@ def test_get_user_event_recipient_ids_uses_user_scope() -> None:
 
 
 def test_build_auth_security_message_formats_login_event() -> None:
-    service = TelegramNotificationService(
-        FakeTelegramSubscriptionRepo(),
-        FakeAudienceRepo(),
-    )
+    renderer = TelegramNotificationRenderer()
 
-    message = service.build_auth_security_message(
+    message = renderer.build_auth_security_message(
         event_name="Выполнен вход в аккаунт",
         ip="127.0.0.1",
         user_agent="pytest",
@@ -59,12 +57,9 @@ def test_build_auth_security_message_formats_login_event() -> None:
 
 
 def test_build_auth_security_message_formats_password_change_event() -> None:
-    service = TelegramNotificationService(
-        FakeTelegramSubscriptionRepo(),
-        FakeAudienceRepo(),
-    )
+    renderer = TelegramNotificationRenderer()
 
-    message = service.build_auth_security_message(
+    message = renderer.build_auth_security_message(
         event_name="Изменён пароль аккаунта",
     )
 
@@ -73,12 +68,9 @@ def test_build_auth_security_message_formats_password_change_event() -> None:
 
 
 def test_build_auth_security_message_escapes_fallback_event() -> None:
-    service = TelegramNotificationService(
-        FakeTelegramSubscriptionRepo(),
-        FakeAudienceRepo(),
-    )
+    renderer = TelegramNotificationRenderer()
 
-    message = service.build_auth_security_message(
+    message = renderer.build_auth_security_message(
         event_name="<unknown>",
         user_agent="<browser>",
     )

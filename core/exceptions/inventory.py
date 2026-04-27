@@ -2,6 +2,24 @@ class InventoryError(Exception):
     detail = "Inventory operation failed"
 
 
+class AudienceNotFoundError(InventoryError):
+    detail = "Audience not found"
+
+
+class AudienceGridValidationError(InventoryError):
+    detail = "Audience grid is invalid"
+
+    def __init__(self, detail: str | None = None) -> None:
+        if detail is not None:
+            self.detail = detail
+        super().__init__(self.detail)
+
+
+class AudienceHardwareNotFoundError(AudienceGridValidationError):
+    def __init__(self, *, hardware_id: int, audience_id: int) -> None:
+        super().__init__(f"Hardware id={hardware_id} not found in audience {audience_id}")
+
+
 class HardwareNotFoundError(InventoryError):
     detail = "Hardware not found"
 

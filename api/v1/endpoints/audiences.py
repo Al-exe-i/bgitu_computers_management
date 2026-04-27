@@ -1,7 +1,13 @@
 from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 
-from core.exceptions import HTTP409
+from core.exceptions import (
+    AudienceGridValidationError,
+    AudienceNotFoundError,
+    HTTP400,
+    HTTP404,
+    HTTP409,
+)
 from dependencies.inventory import inventory_audience_use_cases_dep
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.audiences import audiences_service_dep
@@ -25,6 +31,8 @@ async def create_audience(
             data=data,
             audit=audit,
         )
+    except AudienceGridValidationError as exc:
+        raise HTTP400(exc.detail)
     except IntegrityError:
         raise HTTP409("Audience already exists")
 
@@ -44,7 +52,10 @@ async def get_audience_details(
     audience_id: int,
     service: audiences_service_dep,
 ):
-    return await service.get_one(audience_id)
+    try:
+        return await service.get_one(audience_id)
+    except AudienceNotFoundError as exc:
+        raise HTTP404(exc.detail)
 
 
 @router.put("/{audience_id}", response_model=AudienceShortResponse)
@@ -56,11 +67,16 @@ async def update_audience(
     background_tasks: BackgroundTasks,
     realtime: realtime_dep,
 ):
-    result = await use_cases.update_audience(
-        audience_id=audience_id,
-        data=data,
-        audit=audit,
-    )
+    try:
+        result = await use_cases.update_audience(
+            audience_id=audience_id,
+            data=data,
+            audit=audit,
+        )
+    except AudienceNotFoundError as exc:
+        raise HTTP404(exc.detail)
+    except AudienceGridValidationError as exc:
+        raise HTTP400(exc.detail)
 
     dispatch_inventory_events(background_tasks, realtime, result.events)
     return result.audience
@@ -74,9 +90,12 @@ async def delete_audience(
     background_tasks: BackgroundTasks,
     realtime: realtime_dep,
 ):
-    result = await use_cases.delete_audience(
-        audience_id=audience_id,
-        audit=audit,
-    )
+    try:
+        result = await use_cases.delete_audience(
+            audience_id=audience_id,
+            audit=audit,
+        )
+    except AudienceNotFoundError as exc:
+        raise HTTP404(exc.detail)
 
     dispatch_inventory_events(background_tasks, realtime, result.events)

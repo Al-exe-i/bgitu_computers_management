@@ -1,6 +1,6 @@
 import pytest
 
-from core.exceptions import HTTP400
+from core.exceptions import AudienceGridValidationError
 from models.hardware import HardwareType
 from schemas.hardware import HardwareGridItem
 from utils.grid_utils import GridHelper
@@ -42,7 +42,7 @@ def test_validate_grid_rejects_intersection() -> None:
         make_item(item_id=2, x=1, y=1, width=2, height=2),
     ]
 
-    with pytest.raises(HTTP400, match="intersect"):
+    with pytest.raises(AudienceGridValidationError, match="intersect"):
         GridHelper.validate_grid(items, grid_width=5, grid_height=5)
 
 
@@ -52,5 +52,5 @@ def test_validate_grid_rejects_duplicate_ids() -> None:
         make_item(item_id=7, x=1, y=0),
     ]
 
-    with pytest.raises(HTTP400, match="Duplicate hardware id=7"):
+    with pytest.raises(AudienceGridValidationError, match="Duplicate hardware id=7"):
         GridHelper.validate_grid(items, grid_width=5, grid_height=5)
