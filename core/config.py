@@ -121,7 +121,7 @@ class Settings(BaseSettings):
     trusted_proxy_ips: list[str] = Field(default_factory=list)
 
     model_config = SettingsConfigDict(
-        env_file=(".env",),
+        env_file=(".env.docker",),
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="BGITU__",

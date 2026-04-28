@@ -8,6 +8,7 @@ from loguru import logger
 from api import api_router
 from core.config import settings
 from core.logger import setup_logging
+from core.metrics import metrics_middleware, metrics_response
 from websocket.routes import router as ws_router
 from websocket.service import RealtimeService
 
@@ -40,6 +41,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.middleware("http")(metrics_middleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -55,3 +58,8 @@ app.include_router(ws_router)
 @app.get("/")
 def root():
     return {"message": "success"}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return metrics_response()

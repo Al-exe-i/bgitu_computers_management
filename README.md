@@ -238,3 +238,21 @@ docker compose --profile telegram up --build telegram_bot
 ```
 
 По умолчанию сервис `telegram_bot` вынесен в отдельный profile и не стартует автоматически.
+## Observability
+
+Для локального мониторинга добавлен stack Prometheus + Loki + Promtail + Grafana.
+
+Запуск:
+
+```powershell
+docker compose --profile observability up -d --build backend prometheus loki promtail grafana
+```
+
+URL:
+
+- Backend metrics: `http://localhost:8000/metrics`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (`admin` / `admin`)
+- Loki: `http://localhost:3100`
+
+Подробнее: `docs/observability.md`.
