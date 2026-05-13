@@ -6,7 +6,7 @@ from core.config import settings
 
 engine = create_async_engine(
     str(settings.db.url),
-    echo=False, #Settings.DEBUG
+    echo=False,
 )
 
 session_factory = async_sessionmaker(

@@ -9,17 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# uv
 RUN pip install --no-cache-dir uv==${UV_VERSION}
 
-# зависимости (для кеша слоёв)
 COPY pyproject.toml uv.lock ./
 
-# создаст .venv и поставит строго по lock
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
-# чтобы команды (uvicorn/alembic/pytest) находились без uv run
 ENV PATH="/backend/.venv/bin:$PATH"
 
 COPY . .
