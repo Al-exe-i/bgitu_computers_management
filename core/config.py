@@ -125,6 +125,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="BGITU__",
+        extra="ignore",
     )
 
 

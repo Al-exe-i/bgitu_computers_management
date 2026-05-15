@@ -135,10 +135,16 @@ uv run celery -A celery_app:celery_app beat -l info
 
 ## Запуск через Docker Compose
 
-Для backend-части обычно достаточно:
+Полный стек поднимается одной командой:
 
 ```powershell
-docker compose up --build db redis redis_gui backend celery_worker celery_beat
+.\scripts\docker-up.ps1
+```
+
+Если сеть `diplom_default` уже создана и не нужно принудительно пересоздавать контейнеры, можно использовать обычный Compose:
+
+```powershell
+docker compose up -d --build
 ```
 
 Важно: сервис `frontend` в `docker-compose.yaml` сейчас ссылается на внешний путь:
@@ -234,10 +240,11 @@ uv run python -m telegram_bot.main
 Запуск через Docker Compose:
 
 ```powershell
-docker compose --profile telegram up --build telegram_bot
+.\scripts\docker-up.ps1
 ```
 
-По умолчанию сервис `telegram_bot` вынесен в отдельный profile и не стартует автоматически.
+Сервис `telegram_bot` поднимается вместе с остальным Docker Compose stack.
+
 ## Observability
 
 Для локального мониторинга добавлен stack Prometheus + Loki + Promtail + Grafana.
@@ -245,7 +252,7 @@ docker compose --profile telegram up --build telegram_bot
 Запуск:
 
 ```powershell
-docker compose --profile observability up -d --build backend prometheus loki promtail grafana
+.\scripts\docker-up.ps1
 ```
 
 URL:
