@@ -261,5 +261,3 @@ URL:
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000` (`admin` / `admin`)
 - Loki: `http://localhost:3100`
-
-Подробнее: `docs/observability.md`.
