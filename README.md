@@ -221,13 +221,11 @@ const ws = new WebSocket(`ws://localhost:8000/ws?audience_id=${audienceId}`);
 ```powershell
 uv run python -m telegram_bot.main
 ```
-
 Сервис `telegram_bot` поднимается вместе с остальным Docker Compose stack.
 
 ## Observability
 
 Для локального мониторинга добавлен stack Prometheus + Loki + Promtail + Grafana.
-
 
 URL:
 
