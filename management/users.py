@@ -30,6 +30,8 @@ class ManagedUserResult:
 
 def normalize_email(email: str) -> str:
     value = email.strip()
+    if len(value) < 6:
+        raise ManagementUserError("Email must contain at least 6 characters")
     if not value:
         raise ManagementUserError("Email/login must not be empty")
     return value

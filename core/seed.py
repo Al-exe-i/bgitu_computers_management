@@ -12,8 +12,8 @@ OFFICES = [
 ]
 
 USER = {
-    "email": "admin",
-    "password": get_password_hash("admin"),
+    "email": "administrator",
+    "password": get_password_hash("admin777"),
     "is_superuser": True,
     "role": "admin",
     "telegram_id_confirmed": False,
