@@ -138,23 +138,8 @@ uv run celery -A celery_app:celery_app beat -l info
 Полный стек поднимается одной командой:
 
 ```powershell
-.\scripts\docker-up.ps1
-```
-
-Если сеть `diplom_default` уже создана и не нужно принудительно пересоздавать контейнеры, можно использовать обычный Compose:
-
-```powershell
 docker compose up -d --build
 ```
-
-Важно: сервис `frontend` в `docker-compose.yaml` сейчас ссылается на внешний путь:
-
-```text
-E:\University\JS\frontend_computers
-```
-
-Если этого каталога на машине нет, запускайте compose без сервиса `frontend` или сначала исправьте `build` в `docker-compose.yaml`.
-
 ## Конфигурация
 
 Все настройки читаются из `.env` с префиксом `BGITU__`.
@@ -237,23 +222,12 @@ const ws = new WebSocket(`ws://localhost:8000/ws?audience_id=${audienceId}`);
 uv run python -m telegram_bot.main
 ```
 
-Запуск через Docker Compose:
-
-```powershell
-.\scripts\docker-up.ps1
-```
-
 Сервис `telegram_bot` поднимается вместе с остальным Docker Compose stack.
 
 ## Observability
 
 Для локального мониторинга добавлен stack Prometheus + Loki + Promtail + Grafana.
 
-Запуск:
-
-```powershell
-.\scripts\docker-up.ps1
-```
 
 URL:
 
