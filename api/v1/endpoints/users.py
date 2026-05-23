@@ -1,20 +1,11 @@
-from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status
+from fastapi import APIRouter, File, UploadFile, status
 from fastapi.responses import FileResponse
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import (
-    HTTP400,
-    HTTP403,
     HTTP404,
     HTTP409,
-    InvalidCurrentPasswordError,
-    InvalidUserPhotoError,
-    SamePasswordError,
-    SelfDeleteForbiddenError,
-    SuperuserDeleteForbiddenError,
-    UserNotFoundError,
-    UserPermissionDeniedError,
 )
 from dependencies.audit_actor import (
     admin_audit_actor_dep,
@@ -22,10 +13,9 @@ from dependencies.audit_actor import (
     user_audit_actor_dep,
 )
 from dependencies.auth import admin_dep, user_dep
+from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_user_use_cases_dep
-from dependencies.user import user_service_dep
 from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
-from modules.identity.adapters.fastapi_events import dispatch_identity_events
 
 router = APIRouter()
 
@@ -55,10 +45,10 @@ async def read_current_user(current_user: user_dep):
 
 @router.get("/all", response_model=list[UserOut])
 async def get_all_users(
-    service: user_service_dep,
-    user: admin_dep,
+    use_cases: identity_user_use_cases_dep,
+    _user: admin_dep,
 ):
-    return await service.get_all()
+    return await use_cases.list_users()
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -67,23 +57,18 @@ async def read_user(
     user_id: int,
     current_user: user_dep,
 ):
-    try:
-        return await use_cases.read_user(
-            user_id=user_id,
-            actor=current_user,
-        )
-    except UserPermissionDeniedError as exc:
-        raise HTTP403(exc.detail)
-    except UserNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    return await use_cases.read_user(
+        user_id=user_id,
+        actor=current_user,
+    )
 
 
 @router.get("/me/photo")
 async def get_user_photo(
     user: user_dep,
-    service: user_service_dep,
+    use_cases: identity_user_use_cases_dep,
 ):
-    photo = service.get_photo(user)
+    photo = use_cases.get_current_photo(actor=user)
     if photo is None:
         logger.warning("User photo not found: user_id={} no photo assigned", user.id)
         raise HTTP404("Photo not found")
@@ -96,20 +81,17 @@ async def change_password(
     data: ChangePasswordSchema,
     use_cases: identity_user_use_cases_dep,
     audit: user_audit_actor_dep,
-    background_tasks: BackgroundTasks,
+    events: identity_event_dispatcher_dep,
 ):
-    try:
-        result = await use_cases.change_password(
-            data=data,
-            actor=audit.user,
-            audit=audit,
-            ip=audit.meta.get("ip"),
-            user_agent=audit.meta.get("user_agent"),
-        )
-    except (InvalidCurrentPasswordError, SamePasswordError) as exc:
-        raise HTTP400(exc.detail)
+    result = await use_cases.change_password(
+        data=data,
+        actor=audit.user,
+        audit=audit,
+        ip=audit.meta.get("ip"),
+        user_agent=audit.meta.get("user_agent"),
+    )
 
-    dispatch_identity_events(background_tasks, result.events)
+    await events.dispatch(result.events)
 
     return {"message": "Password updated successfully"}
 
@@ -120,16 +102,11 @@ async def delete_user(
     user_id: int,
     audit: superuser_audit_actor_dep,
 ):
-    try:
-        await use_cases.delete_user(
-            user_id=user_id,
-            actor=audit.user,
-            audit=audit,
-        )
-    except UserNotFoundError as exc:
-        raise HTTP404(exc.detail)
-    except (SelfDeleteForbiddenError, SuperuserDeleteForbiddenError) as exc:
-        raise HTTP400(exc.detail)
+    await use_cases.delete_user(
+        user_id=user_id,
+        actor=audit.user,
+        audit=audit,
+    )
 
     return {"msg": "User deleted successfully"}
 
@@ -141,17 +118,12 @@ async def update_user(
     user_in: UserUpdate,
     audit: user_audit_actor_dep,
 ):
-    try:
-        result = await use_cases.update_user(
-            user_id=user_id,
-            data=user_in,
-            actor=audit.user,
-            audit=audit,
-        )
-    except UserPermissionDeniedError as exc:
-        raise HTTP403(exc.detail)
-    except UserNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    result = await use_cases.update_user(
+        user_id=user_id,
+        data=user_in,
+        actor=audit.user,
+        audit=audit,
+    )
 
     return result.user
 
@@ -163,19 +135,12 @@ async def upload_user_photo(
     audit: user_audit_actor_dep,
     file: UploadFile = File(),
 ):
-    try:
-        result = await use_cases.upload_user_photo(
-            user_id=user_id,
-            file=file,
-            actor=audit.user,
-            audit=audit,
-        )
-    except InvalidUserPhotoError as exc:
-        raise HTTP400(exc.detail)
-    except UserPermissionDeniedError as exc:
-        raise HTTP403(exc.detail)
-    except UserNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    result = await use_cases.upload_user_photo(
+        user_id=user_id,
+        file=file,
+        actor=audit.user,
+        audit=audit,
+    )
 
     return result.user
 
@@ -186,15 +151,10 @@ async def delete_user_photo(
     use_cases: identity_user_use_cases_dep,
     audit: user_audit_actor_dep,
 ):
-    try:
-        result = await use_cases.delete_user_photo(
-            user_id=user_id,
-            actor=audit.user,
-            audit=audit,
-        )
-    except UserPermissionDeniedError as exc:
-        raise HTTP403(exc.detail)
-    except UserNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    result = await use_cases.delete_user_photo(
+        user_id=user_id,
+        actor=audit.user,
+        audit=audit,
+    )
 
     return result.user

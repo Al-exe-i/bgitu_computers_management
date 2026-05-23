@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from api import api_router
 from core.config import settings
+from core.exception_handlers import register_exception_handlers
 from core.logger import setup_logging
 from core.metrics import metrics_middleware, metrics_response
 from websocket.routes import router as ws_router
@@ -40,6 +41,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan,
 )
+register_exception_handlers(app)
 
 app.middleware("http")(metrics_middleware)
 

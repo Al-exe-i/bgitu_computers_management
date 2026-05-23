@@ -1,19 +1,13 @@
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import (
-    AudienceGridValidationError,
-    AudienceNotFoundError,
-    HTTP400,
-    HTTP404,
     HTTP409,
 )
+from dependencies.events import inventory_event_dispatcher_dep
 from dependencies.inventory import inventory_audience_use_cases_dep
 from dependencies.audit_actor import admin_audit_actor_dep
-from dependencies.audiences import audiences_service_dep
-from dependencies.realtime import realtime_dep
 from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
-from modules.inventory.adapters.fastapi_events import dispatch_inventory_events
 
 router = APIRouter()
 
@@ -23,39 +17,33 @@ async def create_audience(
     data: AudienceCreate,
     use_cases: inventory_audience_use_cases_dep,
     audit: admin_audit_actor_dep,
-    background_tasks: BackgroundTasks,
-    realtime: realtime_dep,
+    events: inventory_event_dispatcher_dep,
 ):
     try:
         result = await use_cases.create_audience(
             data=data,
             audit=audit,
         )
-    except AudienceGridValidationError as exc:
-        raise HTTP400(exc.detail)
     except IntegrityError:
         raise HTTP409("Audience already exists")
 
-    dispatch_inventory_events(background_tasks, realtime, result.events)
+    await events.dispatch(result.events)
     return result.audience
 
 
 @router.get("", response_model=list[AudienceResponse])
 async def get_audiences(
-    service: audiences_service_dep,
+    use_cases: inventory_audience_use_cases_dep,
 ):
-    return await service.get_list()
+    return await use_cases.list_audiences()
 
 
 @router.get("/{audience_id}", response_model=AudienceResponse)
 async def get_audience_details(
     audience_id: int,
-    service: audiences_service_dep,
+    use_cases: inventory_audience_use_cases_dep,
 ):
-    try:
-        return await service.get_one(audience_id)
-    except AudienceNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    return await use_cases.get_audience(audience_id=audience_id)
 
 
 @router.put("/{audience_id}", response_model=AudienceShortResponse)
@@ -64,21 +52,15 @@ async def update_audience(
     data: AudienceUpdate,
     use_cases: inventory_audience_use_cases_dep,
     audit: admin_audit_actor_dep,
-    background_tasks: BackgroundTasks,
-    realtime: realtime_dep,
+    events: inventory_event_dispatcher_dep,
 ):
-    try:
-        result = await use_cases.update_audience(
-            audience_id=audience_id,
-            data=data,
-            audit=audit,
-        )
-    except AudienceNotFoundError as exc:
-        raise HTTP404(exc.detail)
-    except AudienceGridValidationError as exc:
-        raise HTTP400(exc.detail)
+    result = await use_cases.update_audience(
+        audience_id=audience_id,
+        data=data,
+        audit=audit,
+    )
 
-    dispatch_inventory_events(background_tasks, realtime, result.events)
+    await events.dispatch(result.events)
     return result.audience
 
 
@@ -87,15 +69,11 @@ async def delete_audience(
     audience_id: int,
     use_cases: inventory_audience_use_cases_dep,
     audit: admin_audit_actor_dep,
-    background_tasks: BackgroundTasks,
-    realtime: realtime_dep,
+    events: inventory_event_dispatcher_dep,
 ):
-    try:
-        result = await use_cases.delete_audience(
-            audience_id=audience_id,
-            audit=audit,
-        )
-    except AudienceNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    result = await use_cases.delete_audience(
+        audience_id=audience_id,
+        audit=audit,
+    )
 
-    dispatch_inventory_events(background_tasks, realtime, result.events)
+    await events.dispatch(result.events)

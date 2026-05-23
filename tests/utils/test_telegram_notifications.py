@@ -3,8 +3,10 @@ from types import SimpleNamespace
 from fastapi import BackgroundTasks
 
 from core.config import settings
-from tasks.notifications import send_hardware_state_notification
-from utils.telegram_notifications import enqueue_hardware_state_notification
+from utils.telegram_notifications import (
+    enqueue_hardware_state_notification,
+    schedule_hardware_state_notification,
+)
 
 
 def test_enqueue_hardware_state_notification_adds_fault_task(monkeypatch) -> None:
@@ -31,11 +33,12 @@ def test_enqueue_hardware_state_notification_adds_fault_task(monkeypatch) -> Non
 
     assert len(background_tasks.tasks) == 1
     task = background_tasks.tasks[0]
-    assert task.func == send_hardware_state_notification.delay
+    assert task.func == schedule_hardware_state_notification
     assert task.kwargs == {
+        "previous_state": True,
         "hardware_id": 9,
         "audience_id": 12,
-        "event_type": "hardware_fault",
+        "state": False,
         "hardware_type": "computer",
         "title": "Монитор",
         "description": "Полосы на экране",

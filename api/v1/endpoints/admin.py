@@ -6,12 +6,8 @@ from loguru import logger
 
 from core.config import settings
 from core.exceptions import (
-    HTTP400,
     HTTP403,
     HTTP404,
-    InviteAlreadyUsedError,
-    InviteBatchInputError,
-    InviteNotFoundError,
 )
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.audit_log import audit_log_service_dep
@@ -93,14 +89,11 @@ async def create_invite_batch(
     use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    try:
-        result = await use_cases.create_batch(
-            data=data,
-            created_by_user_id=audit.user.id,
-            audit=audit,
-        )
-    except InviteBatchInputError as exc:
-        raise HTTP400(exc.detail)
+    result = await use_cases.create_batch(
+        data=data,
+        created_by_user_id=audit.user.id,
+        audit=audit,
+    )
 
     return result.invites
 
@@ -119,15 +112,10 @@ async def revoke_invite(
     use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    try:
-        result = await use_cases.revoke(
-            invite_id=invite_id,
-            audit=audit,
-        )
-    except InviteNotFoundError as exc:
-        raise HTTP404(exc.detail)
-    except InviteAlreadyUsedError as exc:
-        raise HTTP400(exc.detail)
+    result = await use_cases.revoke(
+        invite_id=invite_id,
+        audit=audit,
+    )
 
     return result.invite
 
@@ -138,10 +126,7 @@ async def delete_invite(
     use_cases: identity_invite_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    try:
-        await use_cases.delete(
-            invite_id=invite_id,
-            audit=audit,
-        )
-    except InviteNotFoundError as exc:
-        raise HTTP404(exc.detail)
+    await use_cases.delete(
+        invite_id=invite_id,
+        audit=audit,
+    )

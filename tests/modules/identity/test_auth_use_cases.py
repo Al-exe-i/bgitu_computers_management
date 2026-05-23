@@ -14,7 +14,7 @@ from modules.identity.application.auth import LOGIN_EVENT_NAME, LOGOUT_ALL_EVENT
 from modules.identity.events import AuthSecurityNotificationEvent
 from schemas.invite import RegisterByInviteRequest
 from services.invite_service import InviteRegistrationData
-from services.auth_service import LogoutResult, TokenIssueResult
+from services.auth_service import TokenIssueResult
 
 
 class FakeAuthService:
@@ -176,7 +176,8 @@ def test_logout_all_writes_audit_and_returns_auth_security_event() -> None:
             audit=audit,
         )
 
-        assert isinstance(result.logout, LogoutResult)
+        assert result.logout.user_id == 7
+        assert result.logout.sid is None
         assert audit.logs == [
             {
                 "action": "auth.logout_all",

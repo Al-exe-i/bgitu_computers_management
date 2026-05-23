@@ -6,9 +6,12 @@ from schemas.telegram import (
     TelegramSubscriptionCreate,
     TelegramSubscriptionResponse,
 )
-from services.telegram_link_service import TelegramLinkService
-from services.telegram_subscription_service import TelegramSubscriptionService
-from modules.notifications.ports import AuditLogger, TelegramActor
+from modules.notifications.ports import (
+    AuditLogger,
+    TelegramActor,
+    TelegramLinkServicePort,
+    TelegramSubscriptionServicePort,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -35,8 +38,8 @@ class TelegramIntegrationUseCases:
     def __init__(
         self,
         *,
-        link_service: TelegramLinkService,
-        subscription_service: TelegramSubscriptionService,
+        link_service: TelegramLinkServicePort,
+        subscription_service: TelegramSubscriptionServicePort,
     ) -> None:
         self.link_service = link_service
         self.subscription_service = subscription_service

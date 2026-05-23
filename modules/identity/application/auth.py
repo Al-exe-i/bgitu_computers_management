@@ -8,14 +8,19 @@ from core.exceptions import (
     InviteUserAlreadyExistsError,
     RefreshTokenReuseDetectedError,
 )
-from schemas.invite import RegisterByInviteRequest, RegisterByInviteResponse
+from schemas.invite import InvitePreviewResponse, RegisterByInviteRequest, RegisterByInviteResponse
 from schemas.user import UserCreate
 from schemas.user_session import UserSessionOut
-from services.auth_service import AuthService, LogoutResult, RevokeSessionResult, TokenIssueResult
-from services.invite_service import InviteService
-from services.user_service import UserService
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
-from modules.identity.ports import AuditLogger
+from modules.identity.ports import (
+    AuditLogger,
+    AuthServicePort,
+    InviteServicePort,
+    LogoutResult,
+    RevokeSessionResult,
+    TokenIssueResult,
+    UserServicePort,
+)
 
 
 LOGIN_EVENT_NAME = "Выполнен вход в аккаунт"
@@ -26,6 +31,12 @@ LOGOUT_ALL_EVENT_NAME = "Выполнен выход на всех устрой�
 class IdentityTokenResult:
     tokens: TokenIssueResult
     events: list[IdentityEvent]
+
+
+@dataclass(slots=True, frozen=True)
+class IdentityLogoutState:
+    user_id: int | None
+    sid: str | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -50,9 +61,9 @@ class IdentityAuthUseCases:
     def __init__(
         self,
         *,
-        auth_service: AuthService,
-        invite_service: InviteService,
-        user_service: UserService,
+        auth_service: AuthServicePort,
+        invite_service: InviteServicePort,
+        user_service: UserServicePort,
     ) -> None:
         self.auth_service = auth_service
         self.invite_service = invite_service
@@ -171,7 +182,7 @@ class IdentityAuthUseCases:
         )
 
         return IdentityLogoutResult(
-            logout=LogoutResult(user_id=user_id, sid=None),
+            logout=IdentityLogoutState(user_id=user_id, sid=None),
             events=[
                 AuthSecurityNotificationEvent(
                     user_id=user_id,
@@ -194,6 +205,9 @@ class IdentityAuthUseCases:
             include_inactive=include_inactive,
             refresh_token=refresh_token,
         )
+
+    async def preview_invite(self, *, token: str) -> InvitePreviewResponse:
+        return await self.invite_service.preview(token)
 
     async def revoke_session(
         self,

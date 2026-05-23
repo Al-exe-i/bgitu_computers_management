@@ -8,14 +8,18 @@ from models import Hardware
 from models.user import UserRole
 from schemas.hardware import HardwareUpdate
 from schemas.hardware_file import HardwareFileResponse
-from services.hardware_file_service import HardwareFileService, UploadedHardwareFile
-from services.hardware_service import HardwareService
 from modules.inventory.events import (
     AudienceUpdatedEvent,
     HardwareStateChangedEvent,
     InventoryEvent,
 )
-from modules.inventory.ports import AuditLogger, InventoryActor
+from modules.inventory.ports import (
+    AuditLogger,
+    HardwareFileServicePort,
+    HardwareServicePort,
+    InventoryActor,
+    UploadedHardwareFile,
+)
 from utils.audit import clean_sensitive
 
 
@@ -40,8 +44,8 @@ class DeleteHardwareFileResult:
 class InventoryHardwareUseCases:
     def __init__(
         self,
-        hardware_service: HardwareService,
-        hardware_file_service: HardwareFileService | None = None,
+        hardware_service: HardwareServicePort,
+        hardware_file_service: HardwareFileServicePort | None = None,
     ) -> None:
         self.hardware_service = hardware_service
         self.hardware_file_service = hardware_file_service
@@ -147,7 +151,7 @@ class InventoryHardwareUseCases:
             events=[AudienceUpdatedEvent(result.audience_id)],
         )
 
-    def _hardware_file_service(self) -> HardwareFileService:
+    def _hardware_file_service(self) -> HardwareFileServicePort:
         if self.hardware_file_service is None:
             raise RuntimeError("Hardware file service is not configured")
         return self.hardware_file_service

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from core.config import settings
 from dependencies.audit_actor import get_audit_ctx
+from dependencies.events import get_identity_event_dispatcher
 from dependencies.user import get_user_service
 from dependencies.user_session_service import get_user_session_service
 from main import app
@@ -56,7 +57,6 @@ def clear_dependency_overrides() -> None:
 
 
 def test_login_endpoint_calls_auth_security_enqueue(monkeypatch) -> None:
-    from api.v1.endpoints import auth as auth_endpoints
     from core.security import get_password_hash
 
     user = SimpleNamespace(
@@ -70,21 +70,22 @@ def test_login_endpoint_calls_auth_security_enqueue(monkeypatch) -> None:
 
     monkeypatch.setattr(settings.telegram, "enabled", True)
 
-    def fake_dispatch(background_tasks, events) -> None:
-        calls.extend(
-            {
-                "user_id": event.user_id,
-                "event_name": event.event_name,
-                "ip": event.ip,
-                "user_agent": event.user_agent,
-            }
-            for event in events
-        )
+    class DummyEventDispatcher:
+        async def dispatch(self, events) -> None:
+            calls.extend(
+                {
+                    "user_id": event.user_id,
+                    "event_name": event.event_name,
+                    "ip": event.ip,
+                    "user_agent": event.user_agent,
+                }
+                for event in events
+            )
 
-    monkeypatch.setattr(auth_endpoints, "dispatch_identity_events", fake_dispatch)
     app.dependency_overrides[get_user_service] = lambda: DummyUserService(user)
     app.dependency_overrides[get_user_session_service] = lambda: sessions
     app.dependency_overrides[get_audit_ctx] = lambda: audit
+    app.dependency_overrides[get_identity_event_dispatcher] = lambda: DummyEventDispatcher()
 
     try:
         with TestClient(app) as client:

@@ -76,6 +76,14 @@ class CeleryConfig(BaseModel):
     timezone: str = "UTC"
 
 
+class OutboxConfig(BaseModel):
+    batch_size: int = 50
+    max_attempts: int = 5
+    retry_delay_seconds: int = 60
+    stale_after_seconds: int = 300
+    poll_interval_seconds: int = 10
+
+
 class WebSocketConfig(BaseModel):
     enabled: bool = True
     transport: Literal["inmemory", "redis"] = "inmemory"
@@ -106,6 +114,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
+    outbox: OutboxConfig = OutboxConfig()
     websocket: WebSocketConfig = WebSocketConfig()
     telegram: TelegramConfig = TelegramConfig()
     frontend_url: str = "http://localhost:5173"
@@ -125,6 +134,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="BGITU__",
+        extra="ignore",
     )
 
 

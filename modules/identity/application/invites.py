@@ -6,8 +6,7 @@ from schemas.invite import (
     InviteCreateResult,
     InviteListItem,
 )
-from services.invite_service import InviteService
-from modules.identity.ports import AuditLogger
+from modules.identity.ports import AuditLogger, InviteServicePort
 
 
 @dataclass(slots=True, frozen=True)
@@ -31,7 +30,7 @@ class IdentityInviteDeleteResult:
 
 
 class IdentityInviteUseCases:
-    def __init__(self, invite_service: InviteService) -> None:
+    def __init__(self, invite_service: InviteServicePort) -> None:
         self.invite_service = invite_service
 
     async def create_one(

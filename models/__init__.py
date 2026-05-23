@@ -9,6 +9,7 @@ from .tg_link_token import TelegramLinkToken
 from .telegram_notification_delivery_log import TelegramNotificationDeliveryLog
 from .telegram_subscription import TelegramSubscription
 from .invite_link import InviteLink
+from .outbox_event import OutboxEvent
 
 __all__ = [
     "Audience",
@@ -22,4 +23,5 @@ __all__ = [
     "TelegramNotificationDeliveryLog",
     "TelegramSubscription",
     "InviteLink",
+    "OutboxEvent",
 ]

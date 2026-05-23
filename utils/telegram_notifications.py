@@ -35,23 +35,58 @@ def enqueue_hardware_state_notification(
     if previous_state == hardware.state:
         return
 
-    event_type = (
-        TelegramEventType.hardware_fault
-        if previous_state and not hardware.state
-        else TelegramEventType.hardware_recovered
-    )
-
     background_tasks.add_task(
-        send_hardware_state_notification.delay,
+        schedule_hardware_state_notification,
+        previous_state=previous_state,
         hardware_id=hardware.id,
         audience_id=hardware.audience_id,
-        event_type=event_type.value,
+        state=hardware.state,
         hardware_type=getattr(hardware.type, "value", hardware.type),
         title=hardware.title,
         description=hardware.description,
         inv_number=hardware.inv_number,
         x=hardware.x,
         y=hardware.y,
+        actor_user_id=actor_user_id,
+    )
+
+
+def schedule_hardware_state_notification(
+    *,
+    previous_state: bool,
+    hardware_id: int,
+    audience_id: int,
+    state: bool,
+    hardware_type: str | None,
+    title: str | None,
+    description: str | None,
+    inv_number: str | None,
+    x: int,
+    y: int,
+    actor_user_id: int | None = None,
+) -> None:
+    if not settings.telegram.enabled:
+        return
+
+    if previous_state == state:
+        return
+
+    event_type = (
+        TelegramEventType.hardware_fault
+        if previous_state and not state
+        else TelegramEventType.hardware_recovered
+    )
+
+    send_hardware_state_notification.delay(
+        hardware_id=hardware_id,
+        audience_id=audience_id,
+        event_type=event_type.value,
+        hardware_type=hardware_type,
+        title=title,
+        description=description,
+        inv_number=inv_number,
+        x=x,
+        y=y,
         actor_user_id=actor_user_id,
     )
 
@@ -68,7 +103,25 @@ def enqueue_auth_security_notification(
         return
 
     background_tasks.add_task(
-        send_auth_security_notification.delay,
+        schedule_auth_security_notification,
+        user_id=user_id,
+        event_name=event_name,
+        ip=ip,
+        user_agent=user_agent,
+    )
+
+
+def schedule_auth_security_notification(
+    *,
+    user_id: int,
+    event_name: str,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> None:
+    if not settings.telegram.enabled:
+        return
+
+    send_auth_security_notification.delay(
         user_id=user_id,
         event_name=event_name,
         ip=ip,

@@ -15,10 +15,14 @@ from core.exceptions import (
 from core.security import verify_password
 from models.user import UserRole
 from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
-from services.avatar_storage import UploadedAvatarFile
-from services.user_service import UserService
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
-from modules.identity.ports import AuditLogger, IdentityActor
+from modules.identity.ports import (
+    AuditLogger,
+    IdentityActor,
+    StoredAvatarFile,
+    UploadedAvatarFile,
+    UserServicePort,
+)
 from utils.audit import changed_fields
 
 
@@ -37,8 +41,12 @@ class IdentityUserCommandResult:
 
 
 class IdentityUserUseCases:
-    def __init__(self, user_service: UserService) -> None:
+    def __init__(self, user_service: UserServicePort) -> None:
         self.user_service = user_service
+
+    async def list_users(self) -> list[UserOut]:
+        users = await self.user_service.get_all()
+        return [UserOut.model_validate(user, from_attributes=True) for user in users]
 
     async def create_user(
         self,
@@ -84,6 +92,9 @@ class IdentityUserUseCases:
             raise UserNotFoundError()
 
         return user
+
+    def get_current_photo(self, *, actor: IdentityActor) -> StoredAvatarFile | None:
+        return self.user_service.get_photo(actor)
 
     async def change_password(
         self,

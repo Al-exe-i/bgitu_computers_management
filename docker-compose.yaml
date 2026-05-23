@@ -97,16 +97,6 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
-  redis_gui:
-    image: redis/redisinsight
-    cpus: "0.15"
-    mem_limit: 96m
-    memswap_limit: 96m
-    pids_limit: 128
-    logging: *default-logging
-    ports:
-      - "5540:5540"
-
   celery_worker:
     build: .
     container_name: diplom_celery_worker

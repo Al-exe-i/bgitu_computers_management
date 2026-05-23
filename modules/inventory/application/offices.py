@@ -2,9 +2,8 @@ from dataclasses import dataclass
 
 from core.exceptions import OfficeNotFoundError
 from models import Office
-from schemas.office import OfficeCreate, OfficeResponse, OfficeUpdate
-from services.office_service import OfficeService
-from modules.inventory.ports import AuditLogger
+from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
+from modules.inventory.ports import AuditLogger, OfficeServicePort
 from utils.audit import changed_fields
 
 
@@ -24,8 +23,16 @@ class DeleteOfficeResult:
 
 
 class InventoryOfficeUseCases:
-    def __init__(self, office_service: OfficeService) -> None:
+    def __init__(self, office_service: OfficeServicePort) -> None:
         self.office_service = office_service
+
+    async def list_offices(self) -> list[OfficeResponse | OfficeShort]:
+        offices = await self.office_service.get_all()
+        return list(offices)
+
+    async def list_offices_short(self) -> list[OfficeShort]:
+        offices = await self.office_service.get_all_short()
+        return list(offices)
 
     async def get_office(self, *, office_id: int) -> OfficeResponse:
         office = await self.office_service.get(office_id)

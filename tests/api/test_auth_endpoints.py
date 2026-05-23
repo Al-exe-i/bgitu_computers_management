@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from dependencies.audit_actor import get_audit_ctx
 from dependencies.audit_actor import get_user_audit_actor
+from dependencies.events import get_identity_event_dispatcher
 from dependencies.user import get_user_service
 from dependencies.user_session_service import get_user_session_service
 from main import app
@@ -123,9 +124,15 @@ class DummySessionService:
         self.revoked_user_ids.append(user_id)
 
 
+class DummyEventDispatcher:
+    async def dispatch(self, events) -> None:
+        return None
+
+
 def override_dependencies(*, user_service, session_service, audit=None, user_audit=None):
     app.dependency_overrides[get_user_service] = lambda: user_service
     app.dependency_overrides[get_user_session_service] = lambda: session_service
+    app.dependency_overrides[get_identity_event_dispatcher] = lambda: DummyEventDispatcher()
     if audit is not None:
         app.dependency_overrides[get_audit_ctx] = lambda: audit
     if user_audit is not None:

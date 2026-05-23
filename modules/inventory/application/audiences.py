@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
-from schemas.audience import AudienceCreate, AudienceShortResponse, AudienceUpdate
-from services.audience_service import AudienceService
+from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
 from modules.inventory.events import AudienceUpdatedEvent, InventoryEvent
-from modules.inventory.ports import AuditLogger
+from modules.inventory.ports import AuditLogger, AudienceServicePort
 from utils.audit import clean_sensitive
 
 
@@ -25,8 +24,15 @@ class DeleteAudienceResult:
 
 
 class InventoryAudienceUseCases:
-    def __init__(self, audience_service: AudienceService) -> None:
+    def __init__(self, audience_service: AudienceServicePort) -> None:
         self.audience_service = audience_service
+
+    async def list_audiences(self) -> list[AudienceResponse]:
+        audiences = await self.audience_service.get_list()
+        return list(audiences)
+
+    async def get_audience(self, *, audience_id: int) -> AudienceResponse:
+        return await self.audience_service.get_one(audience_id)
 
     async def create_audience(
         self,
