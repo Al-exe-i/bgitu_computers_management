@@ -1353,7 +1353,7 @@ export default {
 
       this.ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg?.audience_updated === this.classroom?.number) {
+        if (Number(msg?.audience_updated) === Number(this.classroom?.number)) {
           this.scheduleRefresh();
         }
       };
