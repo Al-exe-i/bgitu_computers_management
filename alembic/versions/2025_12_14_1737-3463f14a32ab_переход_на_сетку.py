@@ -32,7 +32,7 @@ def upgrade() -> None:
             "type",
             sa.Enum(
                 "computer",
-                "server"
+                "server",
                 "tv",
                 "projector",
                 "printer",
