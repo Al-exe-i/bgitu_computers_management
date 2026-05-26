@@ -177,7 +177,12 @@ export default {
       /* Preview */
       previewIndex: null,
       viewportScrollLocked: false,
-      viewportScrollY: 0
+      viewportScrollLockMode: null,
+      viewportScrollLockFrame: null,
+      viewportScrollY: 0,
+      viewportScrollSnapshot: null,
+      viewportResizeHandler: null,
+      viewportTouchStartY: 0
     };
   },
   computed: {
@@ -589,70 +594,443 @@ export default {
       if (this.authStore.isAuthenticated && this.classroom?.number) {
         this.loadAudienceTelegramSubscriptions({ silent: true });
       }
-    }
+    },
+
+    isWorkspace() {
+      this.scheduleViewportScrollLock();
+    },
+
+    selectedCell() {
+      this.scheduleViewportScrollLock();
+    },
+
+    previewIndex() {
+      this.scheduleViewportScrollLock();
+    },
+
+    showConfirmModal() {
+      this.scheduleViewportScrollLock();
+    },
+
+    showStatusConfirmModal() {
+      this.scheduleViewportScrollLock();
+    },
+
+    showSpecsModal() {
+      this.scheduleViewportScrollLock();
+    },
+
+    dropClassroomModalShow() {
+      this.scheduleViewportScrollLock();
+    },
   },
 
   methods: {
     getApiUrl,
 
-    syncViewportScrollLock() {
-      const shouldLock =
+    shouldLockViewportScroll() {
+      return (
           this.isWorkspace ||
           this.selectedCell !== null ||
           this.previewIndex !== null ||
-          this.showConfirmModal;
+          this.showConfirmModal ||
+          this.showStatusConfirmModal ||
+          this.showSpecsModal ||
+          this.dropClassroomModalShow
+      );
+    },
 
-      if (shouldLock) {
-        this.lockViewportScroll();
+    getViewportScrollLockMode() {
+      const hasBlockingModal =
+          this.selectedCell !== null ||
+          this.previewIndex !== null ||
+          this.showConfirmModal ||
+          this.showStatusConfirmModal ||
+          this.showSpecsModal ||
+          this.dropClassroomModalShow;
+
+      return this.isWorkspace && !hasBlockingModal ? 'layout' : 'events';
+    },
+
+    scheduleViewportScrollLock() {
+      if (this.viewportScrollLockFrame !== null) {
+        window.cancelAnimationFrame(this.viewportScrollLockFrame);
+        this.viewportScrollLockFrame = null;
+      }
+
+      this.$nextTick(() => {
+        if (this.viewportScrollLockFrame !== null) {
+          window.cancelAnimationFrame(this.viewportScrollLockFrame);
+        }
+
+        this.viewportScrollLockFrame = window.requestAnimationFrame(() => {
+          this.viewportScrollLockFrame = null;
+          this.syncViewportScrollLock();
+        });
+      });
+    },
+
+    syncViewportScrollLock() {
+      if (this.shouldLockViewportScroll()) {
+        const lockMode = this.getViewportScrollLockMode();
+
+        if (this.viewportScrollLocked && this.viewportScrollLockMode !== lockMode) {
+          this.unlockViewportScroll();
+        }
+
+        this.lockViewportScroll(lockMode);
       } else {
         this.unlockViewportScroll();
       }
     },
 
-    lockViewportScroll() {
+    updateModalViewportMetrics() {
+      const height = window.visualViewport?.height || window.innerHeight;
+      const top = window.visualViewport?.offsetTop || 0;
+      document.documentElement.style.setProperty('--audience-modal-vh', `${height}px`);
+      document.documentElement.style.setProperty('--audience-modal-top', `${top}px`);
+    },
+
+    prepareEventsOnlyModalLock() {
+      const html = document.documentElement;
+      const body = document.body;
+
+      this.viewportScrollY = window.scrollY || html.scrollTop || body.scrollTop || 0;
+      this.updateModalViewportMetrics();
+      html.style.setProperty('--audience-scroll-lock-offset', `${this.viewportScrollY}px`);
+      body.classList.add('audience-modal-events-locked');
+    },
+
+    attachViewportScrollLockListeners() {
+      if (this.viewportResizeHandler) return;
+
+      this.viewportResizeHandler = () => {
+        if (this.viewportScrollLocked) {
+          this.updateModalViewportMetrics();
+        }
+      };
+
+      window.addEventListener('resize', this.viewportResizeHandler, { passive: true });
+      window.addEventListener('orientationchange', this.viewportResizeHandler, { passive: true });
+      window.visualViewport?.addEventListener('resize', this.viewportResizeHandler, { passive: true });
+      window.visualViewport?.addEventListener('scroll', this.viewportResizeHandler, { passive: true });
+      window.addEventListener('scroll', this.handleLockedWindowScroll, { passive: true });
+      window.addEventListener('wheel', this.handleLockedWheel, { passive: false, capture: true });
+      window.addEventListener('touchstart', this.handleLockedTouchStart, { passive: true, capture: true });
+      window.addEventListener('touchmove', this.handleLockedTouchMove, { passive: false, capture: true });
+      window.addEventListener('keydown', this.handleModalKeydown);
+    },
+
+    detachViewportScrollLockListeners() {
+      if (!this.viewportResizeHandler) {
+        window.removeEventListener('keydown', this.handleModalKeydown);
+        window.removeEventListener('scroll', this.handleLockedWindowScroll);
+        window.removeEventListener('wheel', this.handleLockedWheel, true);
+        window.removeEventListener('touchstart', this.handleLockedTouchStart, true);
+        window.removeEventListener('touchmove', this.handleLockedTouchMove, true);
+        return;
+      }
+
+      window.removeEventListener('resize', this.viewportResizeHandler);
+      window.removeEventListener('orientationchange', this.viewportResizeHandler);
+      window.visualViewport?.removeEventListener('resize', this.viewportResizeHandler);
+      window.visualViewport?.removeEventListener('scroll', this.viewportResizeHandler);
+      window.removeEventListener('scroll', this.handleLockedWindowScroll);
+      window.removeEventListener('wheel', this.handleLockedWheel, true);
+      window.removeEventListener('touchstart', this.handleLockedTouchStart, true);
+      window.removeEventListener('touchmove', this.handleLockedTouchMove, true);
+      window.removeEventListener('keydown', this.handleModalKeydown);
+      this.viewportResizeHandler = null;
+    },
+
+    getScrollLockContainer(target) {
+      const scrollableSelectors = [
+        '.equipment-modal-content',
+        '.specs-modal-content',
+        '.status-confirm-sheet',
+        '.hw-confirm-box',
+        '.hw-lb-content',
+        '.modal-content',
+        '.modal',
+        '.grid-section.workspace'
+      ].join(',');
+      let element = target instanceof Element ? target : target?.parentElement;
+      let fallback = null;
+
+      while (element && element !== document.body) {
+        if (element.matches(scrollableSelectors)) {
+          fallback ??= element;
+
+          if (element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth) {
+            return element;
+          }
+        }
+
+        element = element.parentElement;
+      }
+
+      return fallback;
+    },
+
+    shouldPreventLockedScroll(container, deltaY) {
+      if (!container) return true;
+      if (Math.abs(deltaY) < 1) return false;
+
+      const hasVerticalScroll = container.scrollHeight > container.clientHeight + 1;
+      if (!hasVerticalScroll) return true;
+
+      const scrollTop = container.scrollTop;
+      const maxScrollTop = container.scrollHeight - container.clientHeight;
+      const isScrollingUp = deltaY < 0;
+      const isScrollingDown = deltaY > 0;
+
+      return (
+          (isScrollingUp && scrollTop <= 0) ||
+          (isScrollingDown && scrollTop >= maxScrollTop - 1)
+      );
+    },
+
+    handleLockedWindowScroll() {
+      if (!this.viewportScrollLocked) return;
+      if (this.viewportScrollLockMode !== 'layout') return;
+
+      if (Math.abs(window.scrollY - this.viewportScrollY) > 1) {
+        window.scrollTo(0, this.viewportScrollY);
+      }
+    },
+
+    handleLockedWheel(event) {
+      if (!this.viewportScrollLocked) return;
+
+      const container = this.getScrollLockContainer(event.target);
+      if (event.cancelable && this.shouldPreventLockedScroll(container, event.deltaY)) {
+        event.preventDefault();
+      }
+    },
+
+    handleLockedTouchStart(event) {
+      this.viewportTouchStartY = event.touches?.[0]?.clientY ?? 0;
+    },
+
+    handleLockedTouchMove(event) {
+      if (!this.viewportScrollLocked || !event.touches?.length) return;
+
+      const currentY = event.touches[0].clientY;
+      const deltaY = this.viewportTouchStartY - currentY;
+      this.viewportTouchStartY = currentY;
+
+      const container = this.getScrollLockContainer(event.target);
+      if (event.cancelable && this.shouldPreventLockedScroll(container, deltaY)) {
+        event.preventDefault();
+      }
+    },
+
+    lockViewportScroll(lockMode = this.getViewportScrollLockMode()) {
       if (this.viewportScrollLocked) return;
 
-      this.viewportScrollY = window.scrollY || document.documentElement.scrollTop || 0;
-      this.viewportScrollLocked = true;
+      const html = document.documentElement;
+      const body = document.body;
+      const app = document.getElementById('app');
+      const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
 
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${this.viewportScrollY}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
+      this.viewportScrollY = window.scrollY || html.scrollTop || body.scrollTop || 0;
+      this.viewportScrollSnapshot = {
+        lockMode,
+        htmlOverflow: html.style.overflow,
+        htmlOverscrollBehavior: html.style.overscrollBehavior,
+        modalViewportHeight: html.style.getPropertyValue('--audience-modal-vh'),
+        modalViewportTop: html.style.getPropertyValue('--audience-modal-top'),
+        modalScrollOffset: html.style.getPropertyValue('--audience-scroll-lock-offset'),
+        bodyPosition: body.style.position,
+        bodyTop: body.style.top,
+        bodyLeft: body.style.left,
+        bodyRight: body.style.right,
+        bodyWidth: body.style.width,
+        bodyBoxSizing: body.style.boxSizing,
+        bodyOverflow: body.style.overflow,
+        bodyOverscrollBehavior: body.style.overscrollBehavior,
+        bodyPaddingRight: body.style.paddingRight,
+        appPosition: app?.style.position ?? '',
+        appTop: app?.style.top ?? '',
+        appLeft: app?.style.left ?? '',
+        appRight: app?.style.right ?? '',
+        appWidth: app?.style.width ?? '',
+        appBoxSizing: app?.style.boxSizing ?? '',
+        appOverflow: app?.style.overflow ?? '',
+        appPaddingRight: app?.style.paddingRight ?? '',
+      };
+      this.viewportScrollLocked = true;
+      this.viewportScrollLockMode = lockMode;
+
+      this.updateModalViewportMetrics();
+      this.attachViewportScrollLockListeners();
+      html.style.setProperty('--audience-scroll-lock-offset', `${this.viewportScrollY}px`);
+
+      if (lockMode !== 'layout') {
+        body.classList.add('audience-modal-events-locked');
+        return;
+      }
+
+      html.classList.add('audience-viewport-locked');
+      body.classList.add('audience-viewport-locked');
+      html.style.overflow = 'hidden';
+      html.style.overscrollBehavior = 'none';
+      body.style.overflow = 'hidden';
+      body.style.overscrollBehavior = 'none';
+
+      if (app) {
+        app.classList.add('audience-app-viewport-locked');
+        app.style.position = 'fixed';
+        app.style.top = `-${this.viewportScrollY}px`;
+        app.style.left = '0';
+        app.style.right = '0';
+        app.style.width = '100%';
+        app.style.boxSizing = 'border-box';
+        app.style.overflow = 'hidden';
+      }
+
+      if (scrollbarWidth > 0) {
+        if (app) {
+          app.style.paddingRight = `${scrollbarWidth}px`;
+        } else {
+          body.style.paddingRight = `${scrollbarWidth}px`;
+        }
+      }
     },
 
     unlockViewportScroll() {
+      const html = document.documentElement;
+      const body = document.body;
+      const app = document.getElementById('app');
+      const snapshot = this.viewportScrollSnapshot;
+      const lockMode = this.viewportScrollLockMode || snapshot?.lockMode;
+
       if (!this.viewportScrollLocked) {
-        document.documentElement.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
+        html.classList.remove('audience-viewport-locked');
+        body.classList.remove('audience-viewport-locked');
+        body.classList.remove('audience-modal-events-locked');
+        app?.classList.remove('audience-app-viewport-locked');
+        this.detachViewportScrollLockListeners();
         return;
       }
 
       const scrollY = this.viewportScrollY;
 
-      document.documentElement.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.width = '';
-      document.body.style.overflow = '';
+      if (snapshot?.modalViewportHeight) {
+        html.style.setProperty('--audience-modal-vh', snapshot.modalViewportHeight);
+      } else {
+        html.style.removeProperty('--audience-modal-vh');
+      }
+
+      if (snapshot?.modalViewportTop) {
+        html.style.setProperty('--audience-modal-top', snapshot.modalViewportTop);
+      } else {
+        html.style.removeProperty('--audience-modal-top');
+      }
+
+      html.style.removeProperty('--audience-scroll-lock-offset');
+
+      html.classList.remove('audience-viewport-locked');
+      body.classList.remove('audience-viewport-locked');
+      body.classList.remove('audience-modal-events-locked');
+      app?.classList.remove('audience-app-viewport-locked');
+
+      if (lockMode === 'layout') {
+        html.style.overflow = snapshot?.htmlOverflow ?? '';
+        html.style.overscrollBehavior = snapshot?.htmlOverscrollBehavior ?? '';
+        body.style.position = snapshot?.bodyPosition ?? '';
+        body.style.top = snapshot?.bodyTop ?? '';
+        body.style.left = snapshot?.bodyLeft ?? '';
+        body.style.right = snapshot?.bodyRight ?? '';
+        body.style.width = snapshot?.bodyWidth ?? '';
+        body.style.boxSizing = snapshot?.bodyBoxSizing ?? '';
+        body.style.overflow = snapshot?.bodyOverflow ?? '';
+        body.style.overscrollBehavior = snapshot?.bodyOverscrollBehavior ?? '';
+        body.style.paddingRight = snapshot?.bodyPaddingRight ?? '';
+
+        if (app) {
+          app.style.position = snapshot?.appPosition ?? '';
+          app.style.top = snapshot?.appTop ?? '';
+          app.style.left = snapshot?.appLeft ?? '';
+          app.style.right = snapshot?.appRight ?? '';
+          app.style.width = snapshot?.appWidth ?? '';
+          app.style.boxSizing = snapshot?.appBoxSizing ?? '';
+          app.style.overflow = snapshot?.appOverflow ?? '';
+          app.style.paddingRight = snapshot?.appPaddingRight ?? '';
+        }
+      }
 
       this.viewportScrollLocked = false;
+      this.viewportScrollLockMode = null;
       this.viewportScrollY = 0;
+      this.viewportScrollSnapshot = null;
+      this.detachViewportScrollLockListeners();
       window.scrollTo(0, scrollY);
     },
 
     clearViewportScrollLock() {
+      if (this.viewportScrollLockFrame !== null) {
+        window.cancelAnimationFrame(this.viewportScrollLockFrame);
+        this.viewportScrollLockFrame = null;
+      }
+
       this.unlockViewportScroll();
+    },
+
+    handleModalKeydown(event) {
+      if (event.defaultPrevented || event.isComposing) return;
+
+      if (this.previewIndex !== null) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          this.closePreview();
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          this.nextPreview();
+        } else if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          this.prevPreview();
+        }
+        return;
+      }
+
+      if (event.key !== 'Escape') return;
+
+      if (this.showConfirmModal) {
+        event.preventDefault();
+        this.closeConfirmModal();
+        return;
+      }
+
+      if (this.showSpecsModal) {
+        event.preventDefault();
+        this.closeSpecsModal();
+        return;
+      }
+
+      if (this.showStatusConfirmModal) {
+        event.preventDefault();
+        this.closeStatusConfirmModal();
+        return;
+      }
+
+      if (this.dropClassroomModalShow) {
+        event.preventDefault();
+        this.dropClassroomModalShow = false;
+        this.scheduleViewportScrollLock();
+        return;
+      }
+
+      if (this.selectedCell) {
+        event.preventDefault();
+        this.closeModal();
+        return;
+      }
+
+      if (this.isWorkspace) {
+        event.preventDefault();
+        this.toggleWorkspace();
+      }
     },
 
     resetAudienceTelegramState() {
@@ -1130,6 +1508,8 @@ export default {
       const eq = this.getEquipment(row, col);
       if (!eq) return;
 
+      this.prepareEventsOnlyModalLock();
+
       this.selectedCell = {
         row,
         col,
@@ -1146,12 +1526,16 @@ export default {
       this.showStatusConfirmModal = false;
       this.pendingWorkingStatus = null;
       this.statusConfirmLoading = false;
-      this.syncViewportScrollLock();
+      this.scheduleViewportScrollLock();
     },
 
     closeModal() {
       this.closeStatusConfirmModal();
+      this.previewIndex = null;
       this.selectedCell = null;
+      this.showStatusConfirmModal = false;
+      this.pendingWorkingStatus = null;
+      this.statusConfirmLoading = false;
 
       this.invNumEdit = false;
       this.hwTitleEdit = false;
@@ -1160,7 +1544,10 @@ export default {
       this.specsEdit = false;
       this.specsDraft = {};
       this.showSpecsModal = false;
-      this.syncViewportScrollLock();
+      this.showConfirmModal = false;
+      this.fileToDeleteId = null;
+      this.dontAskAgain = false;
+      this.scheduleViewportScrollLock();
     },
 
     async requestWorkingStatus(status) {
@@ -1506,7 +1893,7 @@ export default {
         this.fileToDeleteId = fileId;
         this.dontAskAgain = false; // Сбрасываем чекбокс
         this.showConfirmModal = true;
-        this.syncViewportScrollLock();
+        this.scheduleViewportScrollLock();
       }
     },
 
@@ -1525,7 +1912,7 @@ export default {
     {
       this.showConfirmModal = false;
       this.fileToDeleteId = null;
-      this.syncViewportScrollLock();
+      this.scheduleViewportScrollLock();
     },
 
     getVideoStreamUrl(fileId)
@@ -1546,15 +1933,13 @@ export default {
       }
 
       this.previewIndex = index;
-      this.syncViewportScrollLock();
-      window.addEventListener('keydown', this.handlePreviewKeys);
+      this.scheduleViewportScrollLock();
     },
 
     // Закрыть
     closePreview() {
       this.previewIndex = null;
-      window.removeEventListener('keydown', this.handlePreviewKeys);
-      this.syncViewportScrollLock();
+      this.scheduleViewportScrollLock();
     },
 
     nextPreview() {
@@ -1577,20 +1962,13 @@ export default {
       }
     },
 
-    handlePreviewKeys(e)
-    {
-      if (e.key === 'Escape') this.closePreview();
-      if (e.key === 'ArrowRight') this.nextPreview();
-      if (e.key === 'ArrowLeft') this.prevPreview();
-    },
-
     toggleWorkspace() {
       const next = !this.isWorkspace;
       this.isWorkspace = next;
 
 
       if (next) {
-        this.syncViewportScrollLock();
+        this.scheduleViewportScrollLock();
 
         this.$nextTick(() => {
           this.$refs.gridSection?.scrollTo?.({ top: 0, left: 0 });
@@ -1601,7 +1979,7 @@ export default {
           this.requestFullscreenSafe();
         }
       } else {
-        this.syncViewportScrollLock();
+        this.scheduleViewportScrollLock();
 
         if (document.fullscreenElement) {
           document.exitFullscreen?.();
@@ -1940,8 +2318,7 @@ export default {
     </div>
 
     <Teleport to="body">
-      <Transition>
-        <div v-if="selectedCell" class="modal active equipment-modal audience-equipment-modal" @click.self="closeModal">
+      <div v-if="selectedCell" class="modal active equipment-modal audience-equipment-modal" @click.self="closeModal">
         <div class="modal-content equipment-modal-content">
           <div class="modal-close-upper">
             <button @click="closeModal" class="close">
@@ -2105,7 +2482,6 @@ export default {
           </div>
         </div>
         </div>
-      </Transition>
     </Teleport>
 
     <Transition>
@@ -3329,8 +3705,10 @@ export default {
   max-width: 100vw;
   height: 100vh;
   height: 100dvh;
+  height: var(--audience-modal-vh, 100dvh);
   max-height: 100vh;
   max-height: 100dvh;
+  max-height: var(--audience-modal-vh, 100dvh);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   transform: none;
@@ -3733,15 +4111,44 @@ export default {
 }
 
 /* Modal */
+:global(html.audience-viewport-locked),
+:global(body.audience-viewport-locked) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+:global(#app.audience-app-viewport-locked) .modal,
+:global(#app.audience-app-viewport-locked) .status-confirm-overlay,
+:global(#app.audience-app-viewport-locked) .hw-lightbox {
+  transform: translate3d(0, var(--audience-scroll-lock-offset, 0px), 0);
+}
+
+:global(body > .audience-equipment-modal) {
+  position: fixed !important;
+  inset: auto 0 0 0 !important;
+  top: var(--audience-modal-top, 0px) !important;
+  width: 100vw !important;
+  height: var(--audience-modal-vh, 100dvh) !important;
+  transform: none !important;
+}
+
+:global(body.audience-modal-events-locked > .audience-equipment-modal) {
+  position: absolute !important;
+  top: var(--audience-scroll-lock-offset, 0px) !important;
+  bottom: auto !important;
+  min-height: var(--audience-modal-vh, 100dvh) !important;
+}
+
 .modal {
   position: fixed;
   z-index: 1000;
   inset: 0;
   left: 0;
-  top: 0;
+  top: var(--audience-modal-top, 0px);
   width: 100vw;
   height: 100vh;
   height: 100dvh;
+  height: var(--audience-modal-vh, 100dvh);
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -3814,8 +4221,9 @@ export default {
   margin: 0;
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
-  overflow-y: auto;
+  max-height: calc(var(--audience-modal-vh, 100dvh) - 40px);
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 :global(html[data-theme='dark']) .audience-equipment-modal {
@@ -4111,7 +4519,11 @@ export default {
   padding-top: 0;
   max-width: 680px;
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  max-height: calc(var(--audience-modal-vh, 100dvh) - 40px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background:
       radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 34%),
       linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -4861,11 +5273,16 @@ export default {
   background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(10px);
   animation: fadeIn 0.2s ease;
+  max-height: var(--audience-modal-vh, 100dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .status-confirm-sheet {
   position: relative;
   width: min(100%, 560px);
+  max-height: calc(var(--audience-modal-vh, 100dvh) - 48px);
   padding: 28px;
   border-radius: 28px;
   background:
@@ -4875,7 +5292,9 @@ export default {
   border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow: 0 32px 70px rgba(15, 23, 42, 0.2);
   animation: scaleIn 0.2s ease;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .status-confirm-sheet.is-working {
@@ -5480,6 +5899,7 @@ export default {
   width: 100vw;
   height: 100vh;
   height: 100dvh;
+  height: var(--audience-modal-vh, 100dvh);
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   z-index: 2000;
@@ -5489,6 +5909,7 @@ export default {
   padding: 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   animation: fadeIn 0.2s ease;
 }
 
@@ -5505,8 +5926,11 @@ export default {
   max-width: 100%;
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
+  max-height: calc(var(--audience-modal-vh, 100dvh) - 32px);
   margin: auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 10px 25px rgba(0,0,0,0.2);
   text-align: center;
   animation: scaleIn 0.2s ease;
@@ -5638,6 +6062,11 @@ export default {
   padding: 72px 24px 64px;
   backdrop-filter: blur(5px);
   animation: fadeIn 0.2s ease;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--audience-modal-vh, 100dvh);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 /* --- Контент (обертка) --- */
@@ -5646,6 +6075,7 @@ export default {
   width: min(92vw, 1280px);
   height: calc(100vh - 136px);
   height: calc(100dvh - 136px);
+  height: calc(var(--audience-modal-vh, 100dvh) - 136px);
   min-height: 220px;
   display: grid;
   place-items: center;
@@ -5657,6 +6087,7 @@ export default {
   height: auto;
   max-width: min(100%, 1100px);
   max-height: min(82vh, calc(100dvh - 156px));
+  max-height: min(82vh, calc(var(--audience-modal-vh, 100dvh) - 156px));
   object-fit: contain; /* Сохраняем пропорции */
   border-radius: 4px;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -6091,6 +6522,7 @@ export default {
     max-width: 460px;
     max-height: calc(100vh - 24px);
     max-height: calc(100dvh - 24px);
+    max-height: calc(var(--audience-modal-vh, 100dvh) - 24px);
     overflow-y: auto;
     padding: 12px 14px 16px;
     border-radius: 22px;
@@ -6397,6 +6829,7 @@ export default {
   .equipment-modal .modal-content {
     max-height: calc(100vh - 20px);
     max-height: calc(100dvh - 20px);
+    max-height: calc(var(--audience-modal-vh, 100dvh) - 20px);
     padding: 12px 12px 14px;
     border-radius: 20px;
   }
