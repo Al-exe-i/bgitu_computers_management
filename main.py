@@ -1,7 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-
-import redis
+from redis.exceptions import ConnectionError
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -26,7 +25,7 @@ async def lifespan(application: FastAPI):
 
     try:
         await realtime.start()
-    except redis.exceptions.ConnectionError:
+    except ConnectionError:
         logger.error("Не удалось подключиться к Redis, см. Traceback:")
         raise
 
