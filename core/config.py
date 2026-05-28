@@ -84,6 +84,11 @@ class OutboxConfig(BaseModel):
     poll_interval_seconds: int = 10
 
 
+class CacheConfig(BaseModel):
+    redis_url: str = "redis://localhost:6379/3"
+    user_ttl_seconds: int = 600
+
+
 class WebSocketConfig(BaseModel):
     enabled: bool = True
     transport: Literal["inmemory", "redis"] = "inmemory"
@@ -115,6 +120,7 @@ class Settings(BaseSettings):
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
     outbox: OutboxConfig = OutboxConfig()
+    cache: CacheConfig = CacheConfig()
     websocket: WebSocketConfig = WebSocketConfig()
     telegram: TelegramConfig = TelegramConfig()
     frontend_url: str = "http://localhost:5173"

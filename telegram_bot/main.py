@@ -6,6 +6,7 @@ from aiogram.exceptions import TelegramNetworkError
 from loguru import logger
 
 from core.config import settings
+from core.logger import setup_logging
 from services.telegram_bot_factory import build_telegram_bot
 from telegram_bot.commands import build_default_commands
 from telegram_bot.router import build_router
@@ -45,6 +46,15 @@ async def _set_default_commands_with_retry(
 
 
 async def run_polling() -> None:
+    logger.info(
+        "Telegram bot startup requested: enabled={} token_configured={} username={} timeout={}s command_attempts={}",
+        settings.telegram.enabled,
+        bool(settings.telegram.bot_token),
+        settings.telegram.bot_username,
+        settings.telegram.request_timeout_seconds,
+        settings.telegram.startup_retry_attempts,
+    )
+
     if not settings.telegram.enabled:
         raise RuntimeError("Telegram bot is disabled in config")
 
@@ -59,6 +69,7 @@ async def run_polling() -> None:
     dispatcher.include_router(build_router())
 
     try:
+        logger.info("Telegram bot command setup started")
         await _set_default_commands_with_retry(
             bot,
             attempts=settings.telegram.startup_retry_attempts,
@@ -72,6 +83,8 @@ async def run_polling() -> None:
 
 
 def main() -> None:
+    setup_logging()
+
     try:
         asyncio.run(run_polling())
     except TelegramNetworkError as exc:

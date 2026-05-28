@@ -9,6 +9,7 @@ from core.config import settings
 from core.exception_handlers import register_exception_handlers
 from core.logger import setup_logging
 from core.metrics import metrics_middleware, metrics_response
+from core.redis_client import close_cache_redis
 from websocket.routes import router as ws_router
 from websocket.service import RealtimeService
 
@@ -32,6 +33,7 @@ async def lifespan(application: FastAPI):
     try:
         yield
     finally:
+        await close_cache_redis()
         await realtime.stop()
 
 

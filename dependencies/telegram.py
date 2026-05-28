@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from core.config import settings
+from dependencies.cache import user_cache_dep
 from db.session import session_dep
 from repositories.audience_repo import AudienceRepository
 from repositories.office_repo import OfficeRepository
@@ -14,18 +15,21 @@ from services.telegram_link_service import TelegramLinkService
 from services.telegram_subscription_service import TelegramSubscriptionService
 
 
-def get_telegram_link_service(db: session_dep) -> TelegramLinkService:
+def get_telegram_link_service(db: session_dep, user_cache: user_cache_dep) -> TelegramLinkService:
     return TelegramLinkService(
         TelegramLinkTokenRepository(db),
-        UserRepository(db),
+        UserRepository(db, user_cache),
         settings.telegram,
     )
 
 
-def get_telegram_subscription_service(db: session_dep) -> TelegramSubscriptionService:
+def get_telegram_subscription_service(
+    db: session_dep,
+    user_cache: user_cache_dep,
+) -> TelegramSubscriptionService:
     return TelegramSubscriptionService(
         TelegramSubscriptionRepository(db),
-        UserRepository(db),
+        UserRepository(db, user_cache),
         AudienceRepository(db),
         OfficeRepository(db),
     )

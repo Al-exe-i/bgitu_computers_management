@@ -7,6 +7,8 @@ x-default-logging: &default-logging
 x-app-db-pool: &app-db-pool
   BGITU__DB__POOL_SIZE: "5"
   BGITU__DB__MAX_OVERFLOW: "5"
+  BGITU__CACHE__REDIS_URL: "redis://redis:6379/3"
+  BGITU__CACHE__USER_TTL_SECONDS: "600"
 
 services:
   db:
@@ -61,6 +63,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     command: >
       sh -c " echo 'Waiting for database...' && until pg_isready -h db -p 5432 -U ${BGITU__DB__USERNAME}; do sleep 2; done && echo 'Running migrations...' && alembic upgrade head && echo 'Seeding...' && cd /backend && python -m core.seed && echo 'Starting server...' && uvicorn main:app --host 0.0.0.0 --port 8000 "
 
@@ -138,6 +142,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     profiles:
       - tg_bot

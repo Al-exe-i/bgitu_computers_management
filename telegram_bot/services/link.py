@@ -1,5 +1,6 @@
 from core.config import settings
 from core.exceptions import TelegramAccountAlreadyLinkedError, TelegramLinkTokenInvalidError
+from dependencies.cache import get_user_cache
 from repositories.tg_link_token_repo import TelegramLinkTokenRepository
 from repositories.user_repo import UserRepository
 from schemas.telegram import TelegramLinkStatusResponse
@@ -17,7 +18,7 @@ class TelegramBotLinkFacade:
         async with open_session() as session:
             service = TelegramLinkService(
                 TelegramLinkTokenRepository(session),
-                UserRepository(session),
+                UserRepository(session, get_user_cache()),
                 settings.telegram,
             )
             return await service.confirm_link(token=token, telegram_id=telegram_id)

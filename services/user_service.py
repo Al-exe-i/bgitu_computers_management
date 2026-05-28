@@ -6,6 +6,7 @@ from models import User
 from repositories.user_repo import UserRepository
 from schemas.user import UserUpdate, UserOut, UserCreate
 from services.avatar_storage import AvatarStorage, StoredAvatarFile, UploadedAvatarFile
+from services.user_cache import CachedUser, UserCache
 
 
 @dataclass(slots=True)
@@ -19,15 +20,26 @@ class UserService:
         self,
         repo: UserRepository,
         avatar_storage: AvatarStorage | None = None,
+        user_cache: UserCache | None = None,
     ):
         self.repo = repo
         self.avatar_storage = avatar_storage
+        self.user_cache = user_cache
 
     async def get_all(self) -> Sequence[User]:
         return await self.repo.get_all()
 
-    async def get(self, user_id: int) -> UserOut:
-        return await self.repo.get(user_id)
+    async def get(self, user_id: int) -> User | CachedUser | None:
+        if self.user_cache is not None:
+            cached = await self.user_cache.get(user_id)
+            if cached is not None:
+                return cached
+
+        user = await self.repo.get(user_id)
+        if user is not None and self.user_cache is not None:
+            await self.user_cache.set(user)
+
+        return user
 
     async def get_by_email(self, email: str) -> User:
         return await self.repo.get_by_email(email)

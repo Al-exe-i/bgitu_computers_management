@@ -74,7 +74,9 @@ class RedisConnectionRegistry:
 
         pipeline = self.redis.pipeline()
         await pipeline.zadd(self._instances_key(), {instance_id: expire_at})
-        pipeline.hset(self._instance_key(instance_id), mapping={"last_seen": now.isoformat()})
+        pipeline.hset(
+            self._instance_key(instance_id), mapping={"last_seen": now.isoformat()}
+        )
         await pipeline.execute()
 
     async def unregister_instance(self, instance_id: str) -> None:
@@ -89,9 +91,17 @@ class RedisConnectionRegistry:
 
         pipeline = self.redis.pipeline()
         await pipeline.zadd(self._connections_key(), {meta.connection_id: expire_at})
-        await pipeline.zadd(self._instance_connections_key(meta.instance_id), {meta.connection_id: expire_at})
-        await pipeline.zadd(self._audience_connections_key(meta.audience_key), {meta.connection_id: expire_at})
-        pipeline.hset(self._connection_key(meta.connection_id), mapping=meta.to_mapping())
+        await pipeline.zadd(
+            self._instance_connections_key(meta.instance_id),
+            {meta.connection_id: expire_at},
+        )
+        await pipeline.zadd(
+            self._audience_connections_key(meta.audience_key),
+            {meta.connection_id: expire_at},
+        )
+        pipeline.hset(
+            self._connection_key(meta.connection_id), mapping=meta.to_mapping()
+        )
         await pipeline.execute()
 
     async def touch_connection(
@@ -106,9 +116,15 @@ class RedisConnectionRegistry:
 
         pipeline = self.redis.pipeline()
         await pipeline.zadd(self._connections_key(), {connection_id: expire_at})
-        await  pipeline.zadd(self._instance_connections_key(instance_id), {connection_id: expire_at})
-        await pipeline.zadd(self._audience_connections_key(audience_key), {connection_id: expire_at})
-        pipeline.hset(self._connection_key(connection_id), mapping={"last_seen": now.isoformat()})
+        await pipeline.zadd(
+            self._instance_connections_key(instance_id), {connection_id: expire_at}
+        )
+        await pipeline.zadd(
+            self._audience_connections_key(audience_key), {connection_id: expire_at}
+        )
+        pipeline.hset(
+            self._connection_key(connection_id), mapping={"last_seen": now.isoformat()}
+        )
         await pipeline.execute()
 
     async def unregister_connection(
@@ -127,7 +143,9 @@ class RedisConnectionRegistry:
 
     async def cleanup_expired_connections(self, *, batch_size: int = 500) -> int:
         now_ts = self._now().timestamp()
-        expired_ids = await self.redis.zrangebyscore(self._connections_key(), min="-inf", max=now_ts, start=0, num=batch_size)
+        expired_ids = await self.redis.zrangebyscore(
+            self._connections_key(), min="-inf", max=now_ts, start=0, num=batch_size
+        )
         if not expired_ids:
             return 0
 
@@ -138,8 +156,12 @@ class RedisConnectionRegistry:
 
             await pipeline.zrem(self._connections_key(), connection_id)
             if meta is not None:
-                await pipeline.zrem(self._instance_connections_key(meta.instance_id), connection_id)
-                await pipeline.zrem(self._audience_connections_key(meta.audience_key), connection_id)
+                await pipeline.zrem(
+                    self._instance_connections_key(meta.instance_id), connection_id
+                )
+                await pipeline.zrem(
+                    self._audience_connections_key(meta.audience_key), connection_id
+                )
             await pipeline.delete(self._connection_key(connection_id))
 
         await pipeline.execute()
@@ -147,7 +169,9 @@ class RedisConnectionRegistry:
 
     async def cleanup_expired_instances(self, *, batch_size: int = 100) -> int:
         now_ts = self._now().timestamp()
-        expired_ids = await self.redis.zrangebyscore(self._instances_key(), min="-inf", max=now_ts, start=0, num=batch_size)
+        expired_ids = await self.redis.zrangebyscore(
+            self._instances_key(), min="-inf", max=now_ts, start=0, num=batch_size
+        )
         if not expired_ids:
             return 0
 

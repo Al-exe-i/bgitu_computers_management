@@ -8,6 +8,7 @@ ENV_DEFAULTS = {
     "BGITU__JWT__ACCESS_SECRET_KEY": "test-secret-key",
     "BGITU__CELERY__BROKER_URL": "redis://localhost:6379/0",
     "BGITU__CELERY__RESULT_BACKEND": "redis://localhost:6379/1",
+    "BGITU__CACHE__REDIS_URL": "redis://localhost:6379/3",
 }
 
 
