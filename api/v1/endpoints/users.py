@@ -1,11 +1,10 @@
 from fastapi import APIRouter, File, UploadFile, status
 from fastapi.responses import FileResponse
 from loguru import logger
-from sqlalchemy.exc import IntegrityError
 
+from api.v1.application_events import dispatch_result_events
 from core.exceptions import (
     HTTP404,
-    HTTP409,
 )
 from dependencies.audit_actor import (
     admin_audit_actor_dep,
@@ -26,14 +25,10 @@ async def create_user(
     user_in: UserCreate,
     audit: admin_audit_actor_dep,
 ):
-    try:
-        result = await use_cases.create_user(
-            data=user_in,
-            audit=audit,
-        )
-    except IntegrityError:
-        logger.warning("User creation failed due to duplicate email={}", user_in.email)
-        raise HTTP409("User already exists")
+    result = await use_cases.create_user(
+        data=user_in,
+        audit=audit,
+    )
 
     return result.user
 
@@ -83,15 +78,16 @@ async def change_password(
     audit: user_audit_actor_dep,
     events: identity_event_dispatcher_dep,
 ):
-    result = await use_cases.change_password(
-        data=data,
-        actor=audit.user,
-        audit=audit,
-        ip=audit.meta.get("ip"),
-        user_agent=audit.meta.get("user_agent"),
+    await dispatch_result_events(
+        await use_cases.change_password(
+            data=data,
+            actor=audit.user,
+            audit=audit,
+            ip=audit.meta.get("ip"),
+            user_agent=audit.meta.get("user_agent"),
+        ),
+        events,
     )
-
-    await events.dispatch(result.events)
 
     return {"message": "Password updated successfully"}
 

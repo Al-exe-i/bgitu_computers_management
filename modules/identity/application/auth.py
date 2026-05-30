@@ -7,6 +7,7 @@ from core.exceptions import (
     InviteAssignedToAnotherEmailError,
     InviteUserAlreadyExistsError,
     RefreshTokenReuseDetectedError,
+    UserAlreadyExistsError,
 )
 from schemas.invite import InvitePreviewResponse, RegisterByInviteRequest, RegisterByInviteResponse
 from schemas.user import UserCreate
@@ -258,15 +259,18 @@ class IdentityAuthUseCases:
             )
             raise InviteUserAlreadyExistsError()
 
-        created_user = await self.user_service.create(
-            UserCreate(
-                name=data.name,
-                surname=data.surname,
-                email=str(data.email),
-                password=data.password,
-                role=invite.target_role,
+        try:
+            created_user = await self.user_service.create(
+                UserCreate(
+                    name=data.name,
+                    surname=data.surname,
+                    email=str(data.email),
+                    password=data.password,
+                    role=invite.target_role,
+                )
             )
-        )
+        except UserAlreadyExistsError as exc:
+            raise InviteUserAlreadyExistsError() from exc
         if created_user is None:
             raise IdentityError("User was not created")
 

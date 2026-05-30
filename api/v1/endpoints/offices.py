@@ -1,7 +1,5 @@
 from fastapi import APIRouter
-from sqlalchemy.exc import IntegrityError
 
-from core.exceptions import HTTP409
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.inventory import inventory_office_use_cases_dep
 from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
@@ -20,13 +18,10 @@ async def create_office(
     use_cases: inventory_office_use_cases_dep,
     audit: admin_audit_actor_dep,
 ):
-    try:
-        result = await use_cases.create_office(
-            data=schema,
-            audit=audit,
-        )
-    except IntegrityError:
-        raise HTTP409("Office already exists")
+    result = await use_cases.create_office(
+        data=schema,
+        audit=audit,
+    )
 
     return result.office
 

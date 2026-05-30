@@ -1,6 +1,9 @@
 from typing import Sequence
 from dataclasses import dataclass
 
+from sqlalchemy.exc import IntegrityError
+
+from core.exceptions import UserAlreadyExistsError
 from core.security import get_password_hash
 from models import User
 from repositories.user_repo import UserRepository
@@ -55,7 +58,10 @@ class UserService:
         data.password = get_password_hash(data.password)
         user_data = data.model_dump(exclude_unset=True)
         user = User(**user_data)
-        user = await self.repo.create(user)
+        try:
+            user = await self.repo.create(user)
+        except IntegrityError as exc:
+            raise UserAlreadyExistsError() from exc
         return UserOut.model_validate(user, from_attributes=True)
 
     async def delete(self, user_id: int) -> bool:

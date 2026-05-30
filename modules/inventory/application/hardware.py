@@ -94,7 +94,7 @@ class InventoryHardwareUseCases:
         if not current_hw:
             raise HardwareNotFoundError()
 
-        if data.state and actor.role == UserRole.teacher:
+        if data.state is True and actor.role == UserRole.teacher:
             logger.warning(
                 "Hardware update rejected: teacher tried to mark good state user_id={} hardware_id={}",
                 actor.id,
@@ -104,6 +104,7 @@ class InventoryHardwareUseCases:
 
         if actor.role == UserRole.teacher:
             data = HardwareUpdate(**data.model_dump(include={"state"}, exclude_unset=True))
+        data = self._normalize_update(data)
 
         previous_state = current_hw.state
         updated_hw = await self.hardware_service.update(hardware_id, data)
@@ -155,3 +156,12 @@ class InventoryHardwareUseCases:
         if self.hardware_file_service is None:
             raise RuntimeError("Hardware file service is not configured")
         return self.hardware_file_service
+
+    @staticmethod
+    def _normalize_update(data: HardwareUpdate) -> HardwareUpdate:
+        if data.state is not True:
+            return data
+
+        update_data = data.model_dump(exclude_unset=True)
+        update_data["description"] = None
+        return HardwareUpdate(**update_data)

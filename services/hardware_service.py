@@ -33,9 +33,6 @@ class HardwareService:
         elif "type" in update_data:
             update_data["specs"] = validate_specs(target_type, hardware.specs)
 
-        if update_data.get("state"):
-            update_data["description"] = None
-
         return await self.repo.update(hardware_id, update_data)
 
     async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]:

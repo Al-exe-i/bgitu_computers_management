@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
+from api.v1.application_events import dispatch_result_events
 from dependencies.audit_actor import admin_audit_actor_dep, user_audit_actor_dep
 from dependencies.auth import user_dep
 from dependencies.events import inventory_event_dispatcher_dep
@@ -19,13 +20,15 @@ async def add_hardware_file(
     audit: admin_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
-    result = await use_cases.add_files(
-        hardware_id=hardware_id,
-        files=files,
-        audit=audit,
+    result = await dispatch_result_events(
+        await use_cases.add_files(
+            hardware_id=hardware_id,
+            files=files,
+            audit=audit,
+        ),
+        events,
     )
 
-    await events.dispatch(result.events)
     return {"status": "success", "files": result.files}
 
 
@@ -37,14 +40,16 @@ async def update_hardware(
     audit: user_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
-    result = await use_cases.update_hardware(
-        hardware_id=hardware_id,
-        data=data,
-        actor=audit.user,
-        audit=audit,
+    result = await dispatch_result_events(
+        await use_cases.update_hardware(
+            hardware_id=hardware_id,
+            data=data,
+            actor=audit.user,
+            audit=audit,
+        ),
+        events,
     )
 
-    await events.dispatch(result.events)
     return result.hardware
 
 
@@ -90,10 +95,12 @@ async def delete_hardware_file(
     audit: admin_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
-    result = await use_cases.delete_file(
-        file_id=file_id,
-        audit=audit,
+    result = await dispatch_result_events(
+        await use_cases.delete_file(
+            file_id=file_id,
+            audit=audit,
+        ),
+        events,
     )
 
-    await events.dispatch(result.events)
     return {"status": "success"}

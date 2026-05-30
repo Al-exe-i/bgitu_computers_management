@@ -22,10 +22,12 @@ from core.exceptions.identity import (
     SamePasswordError,
     SelfDeleteForbiddenError,
     SuperuserDeleteForbiddenError,
+    UserAlreadyExistsError,
     UserNotFoundError,
     UserPermissionDeniedError,
 )
 from core.exceptions.inventory import (
+    AudienceAlreadyExistsError,
     AudienceGridValidationError,
     AudienceHardwareNotFoundError,
     AudienceNotFoundError,
@@ -37,6 +39,7 @@ from core.exceptions.inventory import (
     HardwareNotFoundError,
     HardwarePermissionDeniedError,
     InventoryError,
+    OfficeAlreadyExistsError,
     OfficeNotFoundError,
 )
 from core.exceptions.notifications import (
@@ -54,6 +57,7 @@ from core.exceptions.notifications import (
 
 __all__ = [
     "AuthServiceError",
+    "AudienceAlreadyExistsError",
     "AudienceGridValidationError",
     "AudienceHardwareNotFoundError",
     "AudienceNotFoundError",
@@ -83,6 +87,7 @@ __all__ = [
     "InvalidUserPhotoError",
     "NotificationError",
     "OfficeNotFoundError",
+    "OfficeAlreadyExistsError",
     "RefreshSessionNotFoundError",
     "RefreshTokenMissingError",
     "RefreshTokenReuseDetectedError",
@@ -101,5 +106,6 @@ __all__ = [
     "TelegramSubscriptionNotFoundError",
     "TelegramUserNotFoundError",
     "UserNotFoundError",
+    "UserAlreadyExistsError",
     "UserPermissionDeniedError",
 ]

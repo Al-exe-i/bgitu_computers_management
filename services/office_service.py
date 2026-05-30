@@ -1,4 +1,8 @@
 from typing import Sequence
+
+from sqlalchemy.exc import IntegrityError
+
+from core.exceptions import OfficeAlreadyExistsError
 from models import Office
 from repositories.office_repo import OfficeRepository
 from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort, OfficeCreate
@@ -22,7 +26,10 @@ class OfficeService:
 
     async def create(self, office: OfficeCreate) -> Office:
         new_office = Office(**office.model_dump())
-        return await self.repo.create(new_office)
+        try:
+            return await self.repo.create(new_office)
+        except IntegrityError as exc:
+            raise OfficeAlreadyExistsError() from exc
 
     async def update(self, office_id: int, schema: OfficeUpdate) -> Office | None:
         office = await self.repo.get_one_short(office_id)

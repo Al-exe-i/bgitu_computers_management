@@ -10,6 +10,10 @@ class UserNotFoundError(IdentityError):
     detail = "User not found"
 
 
+class UserAlreadyExistsError(IdentityError):
+    detail = "User already exists"
+
+
 class UserPermissionDeniedError(IdentityError):
     detail = "Not enough permissions"
 

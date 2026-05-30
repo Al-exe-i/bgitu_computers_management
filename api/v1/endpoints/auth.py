@@ -4,6 +4,7 @@ from fastapi import APIRouter, Cookie, Depends, Query
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 
+from api.v1.application_events import dispatch_result_events
 from dependencies.audit_actor import audit_ctx_dep, user_audit_actor_dep
 from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_auth_use_cases_dep
@@ -26,15 +27,16 @@ async def login_for_access_token(
     audit: audit_ctx_dep,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
-    result = await use_cases.login(
-        email=form_data.username,
-        password=form_data.password,
-        ip=audit.meta.get("ip"),
-        user_agent=audit.meta.get("user_agent"),
-        audit=audit,
+    result = await dispatch_result_events(
+        await use_cases.login(
+            email=form_data.username,
+            password=form_data.password,
+            ip=audit.meta.get("ip"),
+            user_agent=audit.meta.get("user_agent"),
+            audit=audit,
+        ),
+        events,
     )
-
-    await events.dispatch(result.events)
 
     return build_token_response(
         access_token=result.tokens.access_token,
@@ -90,13 +92,15 @@ async def logout_all_user_sessions(
 ):
     user_id = audit.user.id
 
-    result = await use_cases.logout_all(
-        user_id=user_id,
-        ip=audit.meta.get("ip"),
-        user_agent=audit.meta.get("user_agent"),
-        audit=audit,
+    result = await dispatch_result_events(
+        await use_cases.logout_all(
+            user_id=user_id,
+            ip=audit.meta.get("ip"),
+            user_agent=audit.meta.get("user_agent"),
+            audit=audit,
+        ),
+        events,
     )
-    await events.dispatch(result.events)
 
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")

@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from core.exceptions import (
+    AudienceAlreadyExistsError,
     AudienceGridValidationError,
     AudienceNotFoundError,
     HardwareFileBadRangeError,
@@ -23,6 +24,7 @@ from core.exceptions import (
     InviteInvalidError,
     InviteNotFoundError,
     InviteUserAlreadyExistsError,
+    OfficeAlreadyExistsError,
     OfficeNotFoundError,
     RefreshSessionNotFoundError,
     RefreshTokenMissingError,
@@ -41,6 +43,7 @@ from core.exceptions import (
     TelegramSubscriptionAlreadyExistsError,
     TelegramSubscriptionNotFoundError,
     TelegramUserNotFoundError,
+    UserAlreadyExistsError,
     UserNotFoundError,
     UserPermissionDeniedError,
 )
@@ -69,6 +72,8 @@ DOMAIN_EXCEPTION_STATUS: dict[type[Exception], int] = {
     InviteAssignedToAnotherEmailError: HTTPStatus.BAD_REQUEST,
     InviteNotFoundError: HTTPStatus.NOT_FOUND,
     InviteUserAlreadyExistsError: HTTPStatus.CONFLICT,
+    UserAlreadyExistsError: HTTPStatus.CONFLICT,
+    AudienceAlreadyExistsError: HTTPStatus.CONFLICT,
     AudienceGridValidationError: HTTPStatus.BAD_REQUEST,
     AudienceNotFoundError: HTTPStatus.NOT_FOUND,
     HardwareNotFoundError: HTTPStatus.NOT_FOUND,
@@ -78,6 +83,7 @@ DOMAIN_EXCEPTION_STATUS: dict[type[Exception], int] = {
     HardwareFileUnsupportedMediaError: HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
     HardwareFileBadRangeError: HTTPStatus.BAD_REQUEST,
     HardwareFileRangeNotSatisfiableError: HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
+    OfficeAlreadyExistsError: HTTPStatus.CONFLICT,
     OfficeNotFoundError: HTTPStatus.NOT_FOUND,
     TelegramUserNotFoundError: HTTPStatus.NOT_FOUND,
     TelegramLinkTokenInvalidError: HTTPStatus.BAD_REQUEST,

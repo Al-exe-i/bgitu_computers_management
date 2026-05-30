@@ -6,6 +6,10 @@ class AudienceNotFoundError(InventoryError):
     detail = "Audience not found"
 
 
+class AudienceAlreadyExistsError(InventoryError):
+    detail = "Audience already exists"
+
+
 class AudienceGridValidationError(InventoryError):
     detail = "Audience grid is invalid"
 
@@ -30,6 +34,10 @@ class HardwarePermissionDeniedError(InventoryError):
 
 class OfficeNotFoundError(InventoryError):
     detail = "Office not found"
+
+
+class OfficeAlreadyExistsError(InventoryError):
+    detail = "Office already exists"
 
 
 class HardwareFileNotFoundError(InventoryError):

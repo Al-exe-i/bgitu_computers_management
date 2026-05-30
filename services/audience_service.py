@@ -1,6 +1,8 @@
 from typing import Sequence
 
-from core.exceptions import AudienceNotFoundError
+from sqlalchemy.exc import IntegrityError
+
+from core.exceptions import AudienceAlreadyExistsError, AudienceNotFoundError
 from models import Audience
 from repositories.audience_repo import AudienceRepository
 from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
@@ -36,7 +38,10 @@ class AudienceService:
             hardware=self.grid.build_hardware_models(schema.hardware),
         )
 
-        return await self.repo.create(audience_orm)
+        try:
+            return await self.repo.create(audience_orm)
+        except IntegrityError as exc:
+            raise AudienceAlreadyExistsError() from exc
 
     async def update_audience(self, audience_id: int, schema: AudienceUpdate):
         current_audience = await self.repo.get_by_id(audience_id)
