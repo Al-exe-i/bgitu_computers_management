@@ -2,6 +2,9 @@ import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+from redis.exceptions import RedisError
+
+from core.metrics import MetricsRegistry
 from db.post_commit import run_post_commit_hooks
 from models.user import UserRole
 from repositories.user_repo import UserRepository
@@ -14,15 +17,24 @@ class FakeRedis:
         self.store: dict[str, str] = {}
         self.ttl: dict[str, int] = {}
         self.deleted: list[str] = []
+        self.fail_get = False
+        self.fail_set = False
+        self.fail_delete = False
 
     async def get(self, key: str):
+        if self.fail_get:
+            raise RedisError("get failed")
         return self.store.get(key)
 
     async def set(self, key: str, value: str, *, ex: int):
+        if self.fail_set:
+            raise RedisError("set failed")
         self.store[key] = value
         self.ttl[key] = ex
 
     async def delete(self, key: str):
+        if self.fail_delete:
+            raise RedisError("delete failed")
         self.deleted.append(key)
         self.store.pop(key, None)
 
@@ -75,7 +87,8 @@ def make_user(user_id: int = 7):
 def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
     async def scenario() -> None:
         redis = FakeRedis()
-        cache = UserCache(redis, ttl_seconds=600)
+        metrics = MetricsRegistry()
+        cache = UserCache(redis, ttl_seconds=600, metrics=metrics)
 
         await cache.set(make_user())
         cached = await cache.get(7)
@@ -85,6 +98,9 @@ def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
         assert cached.password == "hashed-password"
         assert cached.role == UserRole.teacher
         assert redis.ttl["identity:user:7:v1"] == 600
+        output = metrics.render()
+        assert 'bgitu_cache_events_total{cache="identity_user",operation="set",result="success"} 1' in output
+        assert 'bgitu_cache_events_total{cache="identity_user",operation="get",result="hit"} 1' in output
 
     asyncio.run(scenario())
 
@@ -102,6 +118,41 @@ def test_user_service_uses_redis_cache_after_first_db_read() -> None:
         assert second.id == 7
         assert second.password == "hashed-password"
         assert repo.calls == 1
+
+    asyncio.run(scenario())
+
+
+def test_user_cache_records_miss_invalid_payload_and_redis_errors() -> None:
+    async def scenario() -> None:
+        redis = FakeRedis()
+        metrics = MetricsRegistry()
+        cache = UserCache(redis, ttl_seconds=600, metrics=metrics)
+
+        assert await cache.get(7) is None
+
+        redis.store["identity:user:7:v1"] = '{"id": 7}'
+        assert await cache.get(7) is None
+
+        redis.fail_get = True
+        assert await cache.get(7) is None
+
+        redis.fail_get = False
+        redis.fail_set = True
+        await cache.set(make_user())
+
+        redis.fail_set = False
+        redis.fail_delete = True
+        await cache.invalidate(7)
+
+        output = metrics.render()
+        assert 'bgitu_cache_events_total{cache="identity_user",operation="get",result="miss"} 1' in output
+        assert (
+            'bgitu_cache_events_total{cache="identity_user",operation="get",result="invalid_payload"} 1'
+            in output
+        )
+        assert 'bgitu_cache_events_total{cache="identity_user",operation="get",result="error"} 1' in output
+        assert 'bgitu_cache_events_total{cache="identity_user",operation="set",result="error"} 1' in output
+        assert 'bgitu_cache_events_total{cache="identity_user",operation="delete",result="error"} 1' in output
 
     asyncio.run(scenario())
 

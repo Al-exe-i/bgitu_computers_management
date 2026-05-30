@@ -29,4 +29,9 @@ def test_access_token_roundtrip_preserves_payload() -> None:
 
 
 def test_verify_access_token_returns_none_for_invalid_token() -> None:
-    assert verify_access_token("not-a-jwt") is None
+    assert (
+        verify_access_token(
+            "not-a-jwt-some-trash-here-to-suppress-length-error-777-999-888"
+        )
+        is None
+    )
