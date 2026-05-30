@@ -1492,6 +1492,7 @@ export default {
     openSpecsModal() {
       if (!this.hasSpecsEditor) return;
 
+      this.prepareEventsOnlyModalLock();
       this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
       this.specsEdit = false;
       this.showSpecsModal = true;
@@ -1548,6 +1549,11 @@ export default {
       this.fileToDeleteId = null;
       this.dontAskAgain = false;
       this.scheduleViewportScrollLock();
+    },
+
+    openDropClassroomModal() {
+      this.prepareEventsOnlyModalLock();
+      this.dropClassroomModalShow = true;
     },
 
     async requestWorkingStatus(status) {
@@ -1891,6 +1897,7 @@ export default {
       else
       {
         // Иначе показываем окно
+        this.prepareEventsOnlyModalLock();
         this.fileToDeleteId = fileId;
         this.dontAskAgain = false; // Сбрасываем чекбокс
         this.showConfirmModal = true;
@@ -1933,6 +1940,7 @@ export default {
         return;
       }
 
+      this.prepareEventsOnlyModalLock();
       this.previewIndex = index;
       this.scheduleViewportScrollLock();
     },
@@ -2176,7 +2184,7 @@ export default {
             </svg>
             Редактировать
           </button>
-          <button v-if="havePermission" class="header-btn delete-btn" @click="dropClassroomModalShow = true">
+          <button v-if="havePermission" class="header-btn delete-btn" @click="openDropClassroomModal">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -2600,10 +2608,10 @@ export default {
       </div>
     </Teleport>
 
-    <Transition>
+    <Teleport to="body">
       <div
           v-if="selectedCell && hasSpecsEditor && showSpecsModal"
-          class="modal active specs-modal-overlay"
+          class="modal active specs-modal-overlay audience-specs-modal-overlay"
           @click.self="closeSpecsModal"
       >
         <div class="modal-content specs-modal-content">
@@ -2942,10 +2950,10 @@ export default {
           </div>
         </div>
       </div>
-    </Transition>
+    </Teleport>
 
-    <Transition>
-      <div v-if="dropClassroomModalShow" class="modal">
+    <Teleport to="body">
+      <div v-if="dropClassroomModalShow" class="modal audience-drop-classroom-overlay">
         <div class="modal-content pt-1">
           <h2 class="modal-title">Удаление аудитории</h2>
           <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">
@@ -2963,7 +2971,7 @@ export default {
           </div>
         </div>
       </div>
-    </Transition>
+    </Teleport>
 
     <Teleport to="body">
       <Transition>
@@ -2987,7 +2995,8 @@ export default {
       </Transition>
     </Teleport>
 
-    <div v-if="previewIndex !== null && selectedCell" class="hw-lightbox" @click.self="closePreview">
+    <Teleport to="body">
+    <div v-if="previewIndex !== null && selectedCell" class="hw-lightbox audience-lightbox-overlay" @click.self="closePreview">
 
       <button class="hw-lb-close" @click="closePreview">&times;</button>
 
@@ -3026,6 +3035,7 @@ export default {
       >
         &#10095; </button>
     </div>
+    </Teleport>
 
   </div>
 
@@ -4124,7 +4134,12 @@ export default {
   transform: translate3d(0, var(--audience-scroll-lock-offset, 0px), 0);
 }
 
-:global(body > .audience-equipment-modal) {
+:global(body > .audience-equipment-modal),
+:global(body > .audience-status-confirm-overlay),
+:global(body > .audience-specs-modal-overlay),
+:global(body > .audience-drop-classroom-overlay),
+:global(body > .audience-file-confirm-overlay),
+:global(body > .audience-lightbox-overlay) {
   position: fixed !important;
   inset: auto 0 0 0 !important;
   top: var(--audience-modal-top, 0px) !important;
@@ -4133,23 +4148,12 @@ export default {
   transform: none !important;
 }
 
-:global(body.audience-modal-events-locked > .audience-equipment-modal) {
-  position: absolute !important;
-  top: var(--audience-scroll-lock-offset, 0px) !important;
-  bottom: auto !important;
-  min-height: var(--audience-modal-vh, 100dvh) !important;
-}
-
-:global(body > .audience-status-confirm-overlay) {
-  position: fixed !important;
-  inset: auto 0 0 0 !important;
-  top: var(--audience-modal-top, 0px) !important;
-  width: 100vw !important;
-  height: var(--audience-modal-vh, 100dvh) !important;
-  transform: none !important;
-}
-
-:global(body.audience-modal-events-locked > .audience-status-confirm-overlay) {
+:global(body.audience-modal-events-locked > .audience-equipment-modal),
+:global(body.audience-modal-events-locked > .audience-status-confirm-overlay),
+:global(body.audience-modal-events-locked > .audience-specs-modal-overlay),
+:global(body.audience-modal-events-locked > .audience-drop-classroom-overlay),
+:global(body.audience-modal-events-locked > .audience-file-confirm-overlay),
+:global(body.audience-modal-events-locked > .audience-lightbox-overlay) {
   position: absolute !important;
   top: var(--audience-scroll-lock-offset, 0px) !important;
   bottom: auto !important;
