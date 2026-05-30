@@ -1560,6 +1560,7 @@ export default {
         return;
       }
 
+      this.prepareEventsOnlyModalLock();
       this.pendingWorkingStatus = status;
       this.showStatusConfirmModal = true;
     },
@@ -2484,10 +2485,10 @@ export default {
         </div>
     </Teleport>
 
-    <Transition>
+    <Teleport to="body">
       <div
           v-if="selectedCell && showStatusConfirmModal"
-          class="status-confirm-overlay"
+          class="status-confirm-overlay audience-status-confirm-overlay"
           @click.self="closeStatusConfirmModal"
       >
         <div class="status-confirm-sheet" :class="statusConfirmActionClass">
@@ -2597,7 +2598,7 @@ export default {
           </div>
         </div>
       </div>
-    </Transition>
+    </Teleport>
 
     <Transition>
       <div
@@ -4133,6 +4134,22 @@ export default {
 }
 
 :global(body.audience-modal-events-locked > .audience-equipment-modal) {
+  position: absolute !important;
+  top: var(--audience-scroll-lock-offset, 0px) !important;
+  bottom: auto !important;
+  min-height: var(--audience-modal-vh, 100dvh) !important;
+}
+
+:global(body > .audience-status-confirm-overlay) {
+  position: fixed !important;
+  inset: auto 0 0 0 !important;
+  top: var(--audience-modal-top, 0px) !important;
+  width: 100vw !important;
+  height: var(--audience-modal-vh, 100dvh) !important;
+  transform: none !important;
+}
+
+:global(body.audience-modal-events-locked > .audience-status-confirm-overlay) {
   position: absolute !important;
   top: var(--audience-scroll-lock-offset, 0px) !important;
   bottom: auto !important;
