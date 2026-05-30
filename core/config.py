@@ -87,6 +87,8 @@ class OutboxConfig(BaseModel):
 class CacheConfig(BaseModel):
     redis_url: str = "redis://localhost:6379/3"
     user_ttl_seconds: int = 600
+    office_short_ttl_seconds: int = 300
+    analytics_filter_options_ttl_seconds: int = 300
 
 
 class WebSocketConfig(BaseModel):

@@ -6,14 +6,26 @@ from core.exceptions import AudienceAlreadyExistsError, AudienceNotFoundError
 from models import Audience
 from repositories.audience_repo import AudienceRepository
 from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
+from schemas.analytics import HardwareAnalyticsFilterOptions
+from schemas.office import OfficeShort
 from services.audience_grid_service import AudienceGridService
+from services.cache_invalidation import invalidate_after_commit
+from services.response_cache import RedisTypedCache
 from utils.audience_landmarks import normalize_landmarks
 
 
 class AudienceService:
-    def __init__(self, repo: AudienceRepository, grid: AudienceGridService):
+    def __init__(
+        self,
+        repo: AudienceRepository,
+        grid: AudienceGridService,
+        office_short_cache: RedisTypedCache[list[OfficeShort]] | None = None,
+        analytics_filter_options_cache: RedisTypedCache[HardwareAnalyticsFilterOptions] | None = None,
+    ):
         self.repo = repo
         self.grid = grid
+        self.office_short_cache = office_short_cache
+        self.analytics_filter_options_cache = analytics_filter_options_cache
 
     async def get_list(self) -> Sequence[AudienceResponse]:
         audiences = await self.repo.get_all()
@@ -39,9 +51,11 @@ class AudienceService:
         )
 
         try:
-            return await self.repo.create(audience_orm)
+            created = await self.repo.create(audience_orm)
         except IntegrityError as exc:
             raise AudienceAlreadyExistsError() from exc
+        self._invalidate_related_caches_after_commit()
+        return created
 
     async def update_audience(self, audience_id: int, schema: AudienceUpdate):
         current_audience = await self.repo.get_by_id(audience_id)
@@ -68,8 +82,18 @@ class AudienceService:
             await self.grid.sync(audience_id, schema.hardware)
 
         await self.repo.flush()
-        return await self.repo.get_by_id(audience_id)
+        updated = await self.repo.get_by_id(audience_id)
+        self._invalidate_related_caches_after_commit()
+        return updated
 
     async def delete_audience(self, audience_id: int) -> None:
         await self.get_one(audience_id)
         await self.repo.delete(audience_id)
+        self._invalidate_related_caches_after_commit()
+
+    def _invalidate_related_caches_after_commit(self) -> None:
+        invalidate_after_commit(
+            self.repo,
+            self.office_short_cache,
+            self.analytics_filter_options_cache,
+        )

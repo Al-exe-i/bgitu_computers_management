@@ -6,11 +6,17 @@ from schemas.analytics import (
     HardwareAnalyticsSummary,
     HardwareAnalyticsFilterOptions,
 )
+from services.response_cache import RedisTypedCache
 
 
 class HardwareAnalyticsService:
-    def __init__(self, repo: HardwareAnalyticsRepository):
+    def __init__(
+        self,
+        repo: HardwareAnalyticsRepository,
+        filter_options_cache: RedisTypedCache[HardwareAnalyticsFilterOptions] | None = None,
+    ):
         self.repo = repo
+        self.filter_options_cache = filter_options_cache
 
     async def get_hardware(self, filters: HardwareAnalyticsFilters) -> HardwareAnalyticsResponse:
         rows = await self.repo.list(filters)
@@ -46,6 +52,11 @@ class HardwareAnalyticsService:
         )
 
     async def get_filter_options(self) -> HardwareAnalyticsFilterOptions:
+        if self.filter_options_cache is not None:
+            cached = await self.filter_options_cache.get()
+            if cached is not None:
+                return cached
+
         data = await self.repo.filter_options()
 
         spec_filters = [
@@ -58,7 +69,12 @@ class HardwareAnalyticsService:
             {"key": "managed", "label": "Управляемый", "kind": "boolean", "types": ["switch"]},
         ]
 
-        return HardwareAnalyticsFilterOptions(
+        options = HardwareAnalyticsFilterOptions(
             **data,
             spec_filters=spec_filters,
         )
+
+        if self.filter_options_cache is not None:
+            await self.filter_options_cache.set(options)
+
+        return options

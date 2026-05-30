@@ -28,6 +28,7 @@ class MetricsRegistry:
     def __init__(self) -> None:
         self._lock = Lock()
         self._http: dict[tuple[str, str, str], HttpMetricRow] = defaultdict(HttpMetricRow)
+        self._cache: dict[tuple[str, str, str], int] = defaultdict(int)
 
     def observe_http_request(
         self,
@@ -47,6 +48,18 @@ class MetricsRegistry:
                 if duration_seconds <= bucket:
                     row.buckets[bucket] += 1
 
+    def observe_cache_event(
+        self,
+        *,
+        cache: str,
+        operation: str,
+        result: str,
+    ) -> None:
+        key = (cache, operation, result)
+
+        with self._lock:
+            self._cache[key] += 1
+
     def render(self) -> str:
         lines = [
             "# HELP bgitu_app_info Application info.",
@@ -58,6 +71,7 @@ class MetricsRegistry:
 
         with self._lock:
             rows = list(self._http.items())
+            cache_rows = list(self._cache.items())
 
         for (method, path, status_code), row in rows:
             labels = _labels({"method": method, "path": path, "status_code": status_code})
@@ -81,6 +95,23 @@ class MetricsRegistry:
             lines.append(f"bgitu_http_request_duration_seconds_bucket{inf_labels} {row.count}")
             lines.append(f"bgitu_http_request_duration_seconds_count{base} {row.count}")
             lines.append(f"bgitu_http_request_duration_seconds_sum{base} {row.duration_sum:.9f}")
+
+        lines.extend(
+            [
+                "# HELP bgitu_cache_events_total Total cache events.",
+                "# TYPE bgitu_cache_events_total counter",
+            ]
+        )
+
+        for (cache, operation, result), count in cache_rows:
+            labels = _labels(
+                {
+                    "cache": cache,
+                    "operation": operation,
+                    "result": result,
+                }
+            )
+            lines.append(f"bgitu_cache_events_total{labels} {count}")
 
         return "\n".join(lines) + "\n"
 

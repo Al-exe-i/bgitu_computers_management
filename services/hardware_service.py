@@ -4,6 +4,9 @@ from core.exceptions import HardwareNotFoundError
 from models import Hardware
 from repositories.hardware_repo import HardwareRepository
 from schemas.hardware import HardwareGridItem, HardwareUpdate
+from schemas.office import OfficeShort
+from services.cache_invalidation import invalidate_after_commit
+from services.response_cache import RedisTypedCache
 from utils.hw_specs import validate_specs
 
 
@@ -14,8 +17,13 @@ class HardwareGridPort(Protocol):
 
 
 class HardwareService:
-    def __init__(self, repo: HardwareRepository):
+    def __init__(
+        self,
+        repo: HardwareRepository,
+        office_short_cache: RedisTypedCache[list[OfficeShort]] | None = None,
+    ):
         self.repo = repo
+        self.office_short_cache = office_short_cache
 
     async def get(self, hardware_id: int):
         return await self.repo.get_by_id(hardware_id)
@@ -33,7 +41,9 @@ class HardwareService:
         elif "type" in update_data:
             update_data["specs"] = validate_specs(target_type, hardware.specs)
 
-        return await self.repo.update(hardware_id, update_data)
+        updated = await self.repo.update(hardware_id, update_data)
+        self._invalidate_related_caches_after_commit()
+        return updated
 
     async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]:
         return await self.repo.get_by_audience_id(audience_id)
@@ -42,7 +52,13 @@ class HardwareService:
         data = item.model_dump(exclude={"id"})
         data["specs"] = validate_specs(item.type, data.get("specs"))
         hw = Hardware(**data, audience_id=audience_id)
-        return await self.repo.create(hw)
+        created = await self.repo.create(hw)
+        self._invalidate_related_caches_after_commit()
+        return created
 
     async def delete(self, hardware_id: int) -> None:
         await self.repo.delete(hardware_id)
+        self._invalidate_related_caches_after_commit()
+
+    def _invalidate_related_caches_after_commit(self) -> None:
+        invalidate_after_commit(self.repo, self.office_short_cache)
