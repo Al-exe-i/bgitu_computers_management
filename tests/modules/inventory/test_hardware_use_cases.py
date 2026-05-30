@@ -171,6 +171,31 @@ def test_update_hardware_rejects_teacher_marking_good_state() -> None:
     asyncio.run(scenario())
 
 
+def test_update_hardware_marking_good_clears_description_in_use_case() -> None:
+    async def scenario() -> None:
+        hardware = make_hardware(state=False, description="broken")
+        service = FakeHardwareService(hardware)
+        audit = FakeAudit()
+        use_cases = InventoryHardwareUseCases(service)
+
+        result = await use_cases.update_hardware(
+            hardware_id=9,
+            data=HardwareUpdate(state=True),
+            actor=make_actor(role=UserRole.admin),
+            audit=audit,
+        )
+
+        assert result.hardware.description is None
+        assert service.update_calls == [
+            {
+                "hardware_id": 9,
+                "data": {"state": True, "description": None},
+            }
+        ]
+
+    asyncio.run(scenario())
+
+
 def test_delete_hardware_file_uses_file_service_and_logs_audit() -> None:
     async def scenario() -> None:
         file_service = FakeHardwareFileService()

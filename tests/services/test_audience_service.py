@@ -2,20 +2,28 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
-from core.exceptions import AudienceNotFoundError
+from core.exceptions import AudienceAlreadyExistsError, AudienceNotFoundError
+from schemas.audience import AudienceCreate
 from schemas.audience import AudienceUpdate
 from services.audience_service import AudienceService
 
 
 class FakeAudienceRepo:
-    def __init__(self, audience=None) -> None:
+    def __init__(self, audience=None, *, create_error: Exception | None = None) -> None:
         self.audience = audience
+        self.create_error = create_error
 
     async def get_by_id(self, audience_id: int):
         if self.audience and self.audience.id == audience_id:
             return self.audience
         return None
+
+    async def create(self, audience):
+        if self.create_error is not None:
+            raise self.create_error
+        return audience
 
 
 class FakeAudienceGrid:
@@ -45,5 +53,28 @@ def test_update_missing_audience_raises_application_error() -> None:
 
         with pytest.raises(AudienceNotFoundError):
             await service.update_audience(12, AudienceUpdate(description="212"))
+
+    asyncio.run(scenario())
+
+
+def test_create_duplicate_audience_raises_domain_error() -> None:
+    async def scenario() -> None:
+        service = AudienceService(
+            FakeAudienceRepo(create_error=IntegrityError("insert audiences", {}, Exception("duplicate"))),
+            FakeAudienceGrid(),
+        )
+
+        with pytest.raises(AudienceAlreadyExistsError):
+            await service.create_audience(
+                AudienceCreate(
+                    id=12,
+                    floor=2,
+                    description="212",
+                    office_id=1,
+                    width=10,
+                    height=10,
+                    hardware=[],
+                )
+            )
 
     asyncio.run(scenario())

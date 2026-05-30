@@ -2,6 +2,10 @@ import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+from core.exceptions import UserAlreadyExistsError
 from core.security import verify_password
 from models.user import UserRole
 from schemas.user import UserCreate, UserOut
@@ -9,8 +13,9 @@ from services.user_service import UserService
 
 
 class FakeUserRepo:
-    def __init__(self, user: SimpleNamespace | None) -> None:
+    def __init__(self, user: SimpleNamespace | None, *, create_error: Exception | None = None) -> None:
         self.user = user
+        self.create_error = create_error
         self.updates: list[dict] = []
         self.created_user = None
 
@@ -27,6 +32,8 @@ class FakeUserRepo:
         return user
 
     async def create(self, user):
+        if self.create_error is not None:
+            raise self.create_error
         user.id = 7
         user.reg_date = datetime(2026, 4, 21, tzinfo=timezone.utc)
         user.is_superuser = False
@@ -121,5 +128,25 @@ def test_create_hashes_password_and_returns_user_out() -> None:
         assert repo.created_user is not None
         assert repo.created_user.password != "secret1"
         assert verify_password("secret1", repo.created_user.password)
+
+    asyncio.run(scenario())
+
+
+def test_create_translates_duplicate_user_to_domain_error() -> None:
+    async def scenario() -> None:
+        repo = FakeUserRepo(
+            None,
+            create_error=IntegrityError("insert users", {}, Exception("duplicate")),
+        )
+        service = UserService(repo)
+
+        with pytest.raises(UserAlreadyExistsError):
+            await service.create(
+                UserCreate(
+                    email="user@example.com",
+                    password="secret1",
+                    role=UserRole.teacher,
+                )
+            )
 
     asyncio.run(scenario())
