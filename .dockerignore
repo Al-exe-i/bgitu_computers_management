@@ -1,6 +1,6 @@
 .venv
+.env.dev
 .env
-.env.docker
 .git
 .idea
 __pycache__/
@@ -9,3 +9,5 @@ __pycache__/
 logs/
 static/uploads/
 static/avatars/
+tests
+pytest.ini
