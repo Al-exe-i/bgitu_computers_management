@@ -1,39 +1,116 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+import asyncio
+import json
+
+from fastapi import APIRouter, HTTPException, Request, status
+from starlette.responses import StreamingResponse
 
 router = APIRouter()
 
 
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    realtime = websocket.app.state.realtime
-    if not realtime.config.enabled:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="WebSocket is disabled")
-        return
+class SSEConnection:
+    def __init__(self, *, queue_size: int = 100) -> None:
+        self._queue: asyncio.Queue[dict | None] = asyncio.Queue(maxsize=queue_size)
+        self._closed = False
 
-    audience_raw = websocket.query_params.get("audience_id")
+    async def accept(self) -> None:
+        return None
+
+    async def send_json(self, payload: dict) -> None:
+        if self._closed:
+            raise RuntimeError("SSE connection is closed")
+
+        try:
+            self._queue.put_nowait(payload)
+        except asyncio.QueueFull as exc:
+            raise RuntimeError("SSE connection queue is full") from exc
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+
+        self._closed = True
+        try:
+            self._queue.put_nowait(None)
+        except asyncio.QueueFull:
+            try:
+                self._queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+
+            self._queue.put_nowait(None)
+
+    async def receive_json(self) -> dict | None:
+        return await self._queue.get()
+
+
+def _format_sse(payload: dict) -> str:
+    event_name = "audience_updated" if "audience_updated" in payload else "message"
+    data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event_name}\ndata: {data}\n\n"
+
+
+@router.get("/events", include_in_schema=False)
+async def sse_endpoint(request: Request):
+    realtime = request.app.state.realtime
+    if not realtime.config.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Realtime events are disabled",
+        )
+
+    audience_raw = request.query_params.get("audience_id")
     audience_id: int | None = None
 
     if audience_raw:
         try:
             audience_id = int(audience_raw)
-        except ValueError:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid audience_id")
-            return
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid audience_id",
+            ) from exc
 
+    connection = SSEConnection()
     connection_id = await realtime.connect(
-        websocket,
+        connection,
         audience_id=audience_id,
         user_id=None,
-        ip=websocket.client.host if websocket.client else None,
-        user_agent=websocket.headers.get("user-agent"),
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
     )
 
-    try:
-        while True:
-            await websocket.receive_text()
-            await realtime.heartbeat(connection_id)
-    except WebSocketDisconnect:
-        await realtime.disconnect(connection_id)
-    except Exception:
-        await realtime.disconnect(connection_id)
-        raise
+    async def event_stream():
+        try:
+            yield "retry: 3000\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    payload = await asyncio.wait_for(
+                        connection.receive_json(),
+                        timeout=realtime.config.heartbeat_interval_seconds,
+                    )
+                except asyncio.TimeoutError:
+                    await realtime.heartbeat(connection_id)
+                    yield ": ping\n\n"
+                    continue
+
+                if payload is None:
+                    break
+
+                await realtime.heartbeat(connection_id)
+                yield _format_sse(payload)
+        finally:
+            await realtime.disconnect(connection_id)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

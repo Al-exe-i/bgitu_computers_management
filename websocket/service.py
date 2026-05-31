@@ -63,19 +63,19 @@ class RealtimeService:
 
         self._subscriber_task = asyncio.create_task(
             self.bus.run_forever(self.handle_event),
-            name="ws-redis-subscriber",
+            name="realtime-redis-subscriber",
         )
         self._instance_heartbeat_task = asyncio.create_task(
             self._instance_heartbeat_loop(),
-            name="ws-instance-heartbeat",
+            name="realtime-instance-heartbeat",
         )
         self._connections_heartbeat_task = asyncio.create_task(
             self._connections_heartbeat_loop(),
-            name="ws-connections-heartbeat",
+            name="realtime-connections-heartbeat",
         )
         self._cleanup_task = asyncio.create_task(
             self._cleanup_loop(),
-            name="ws-cleanup",
+            name="realtime-cleanup",
         )
 
         logger.info("Realtime service started in redis mode with instance_id={}", self.instance_id)
@@ -114,7 +114,7 @@ class RealtimeService:
 
     async def connect(
         self,
-        websocket,
+        connection,
         *,
         audience_id: int | None,
         user_id: int | None,
@@ -127,7 +127,7 @@ class RealtimeService:
         connection_id = str(uuid4())
         state = await self.manager.accept(
             connection_id=connection_id,
-            websocket=websocket,
+            connection=connection,
             audience_id=audience_id,
             user_id=user_id,
         )
@@ -138,7 +138,7 @@ class RealtimeService:
             )
 
         logger.debug(
-            "WebSocket connected: connection_id={} audience_id={} instance_id={}",
+            "Realtime client connected: connection_id={} audience_id={} instance_id={}",
             connection_id,
             audience_id,
             self.instance_id,
@@ -154,7 +154,7 @@ class RealtimeService:
             return
 
         await self._unregister_state(state)
-        logger.debug("WebSocket disconnected: connection_id={}", connection_id)
+        logger.debug("Realtime client disconnected: connection_id={}", connection_id)
 
     async def heartbeat(self, connection_id: str) -> None:
         if not self.config.enabled:

@@ -1,14 +1,21 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Protocol
 
-from fastapi import WebSocket
+
+class RealtimeConnection(Protocol):
+    async def accept(self) -> None: ...
+
+    async def send_json(self, payload: dict) -> None: ...
+
+    async def close(self) -> None: ...
 
 
 @dataclass(slots=True)
 class LocalConnectionState:
     connection_id: str
-    websocket: WebSocket
+    connection: RealtimeConnection
     audience_id: int | None
     user_id: int | None
     connected_at: datetime
@@ -25,16 +32,16 @@ class LocalConnectionManager:
         self,
         *,
         connection_id: str,
-        websocket: WebSocket,
+        connection: RealtimeConnection,
         audience_id: int | None,
         user_id: int | None,
     ) -> LocalConnectionState:
-        await websocket.accept()
+        await connection.accept()
 
         now = datetime.now(timezone.utc)
         state = LocalConnectionState(
             connection_id=connection_id,
-            websocket=websocket,
+            connection=connection,
             audience_id=audience_id,
             user_id=user_id,
             connected_at=now,
@@ -82,7 +89,7 @@ class LocalConnectionManager:
             return None
 
         try:
-            await state.websocket.send_json(payload)
+            await state.connection.send_json(payload)
             return None
         except Exception:
             return await self.remove(connection_id)
@@ -110,7 +117,7 @@ class LocalConnectionManager:
                 continue
 
             try:
-                await popped.websocket.close()
+                await popped.connection.close()
             except Exception:
                 pass
 

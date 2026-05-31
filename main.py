@@ -10,7 +10,7 @@ from core.exception_handlers import register_exception_handlers
 from core.logger import setup_logging
 from core.metrics import metrics_middleware, metrics_response
 from core.redis_client import close_cache_redis
-from websocket.routes import router as ws_router
+from websocket.routes import router as realtime_router
 from websocket.service import RealtimeService
 
 setup_logging()
@@ -42,6 +42,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan,
 )
+
 register_exception_handlers(app)
 
 app.middleware("http")(metrics_middleware)
@@ -55,12 +56,12 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api.prefix)
-app.include_router(ws_router)
+app.include_router(realtime_router)
 
 
-@app.get("/")
-def root():
-    return {"message": "success"}
+@app.get("/ping")
+def ping():
+    return {"message": "pong!"}
 
 
 @app.get("/metrics", include_in_schema=False)

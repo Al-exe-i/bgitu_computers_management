@@ -1,7 +1,7 @@
 # BGITU Hardware Management
 
 Backend-сервис для учёта компьютерного оборудования в корпусах и аудиториях.  
-Проект построен на FastAPI, PostgreSQL и Redis. Внутри есть CRUD по корпусам, аудиториям и оборудованию, аутентификация, аудит действий, работа с файлами, аналитика и realtime-обновления через WebSocket.
+Проект построен на FastAPI, PostgreSQL и Redis. Внутри есть CRUD по корпусам, аудиториям и оборудованию, аутентификация, аудит действий, работа с файлами, аналитика и realtime-обновления через SSE.
 
 ## Что есть в проекте
 
@@ -12,7 +12,7 @@ Backend-сервис для учёта компьютерного оборудо
 - аудит действий пользователей
 - аналитика по оборудованию
 - Celery-задачи для фоновой очистки сессий
-- WebSocket для обновления данных аудиторий без перезагрузки страницы
+- SSE для обновления данных аудиторий без перезагрузки страницы
 
 ## Стек
 
@@ -38,7 +38,7 @@ Backend-сервис для учёта компьютерного оборудо
 - `dependencies/` — FastAPI dependencies
 - `tasks/` — Celery tasks
 - `utils/` — вспомогательные функции
-- `websocket/` — realtime-логика и Redis-backed WebSocket
+- `websocket/` — realtime-логика и Redis-backed SSE
 - `alembic/` — миграции
 - `static/` — загруженные файлы и аватары
 - `logs/` — лог-файлы приложения
@@ -74,14 +74,13 @@ Copy-Item .env.example .env
 Если локально базы нет, можно поднять только инфраструктуру:
 
 ```powershell
-docker compose up -d db redis redis_gui
+docker compose up -d db redis
 ```
 
 После этого будут доступны:
 
 - PostgreSQL на `localhost:5433`
 - Redis на `localhost:6379`
-- Redis Insight на `http://localhost:5540`
 
 ### 3. Установить зависимости
 
@@ -140,18 +139,29 @@ uv run celery -A celery_app:celery_app beat -l info
 ```powershell
 docker compose up -d --build
 ```
+
+Если Docker уже успел создать stale-контейнеры со ссылкой на удаленную сеть, используйте безопасный запуск:
+
+```powershell
+.\scripts\docker-up.ps1
+```
+
+Для Docker Compose в репозитории есть tracked-файл `.env.docker.example`. Локальные секреты и переопределения можно положить в `.env.docker`; этот файл игнорируется git.
+
 ## Конфигурация
 
-Все настройки читаются из `.env` с префиксом `BGITU__`.
+Настройки приложения читаются из переменных с префиксом `BGITU__`.
 
 Основные группы:
 
 - `BGITU__DB__*` — подключение к PostgreSQL
 - `BGITU__JWT__*` — access token и время жизни токенов
 - `BGITU__CELERY__*` — Redis broker и backend для Celery
-- `BGITU__WEBSOCKET__*` — realtime и Redis для WebSocket
+- `BGITU__WEBSOCKET__*` — realtime и Redis для SSE
 - `BGITU__CORS_ORIGINS` — список разрешённых origin для фронтенда
 - `BGITU__FRONTEND_URL` — URL фронтенда, используется в приглашениях
+
+Для PostgreSQL в Docker также нужны `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`. В `.env.docker.example` они уже согласованы с `BGITU__DB__*`.
 
 Пример `BGITU__CORS_ORIGINS` должен быть JSON-массивом в одну строку:
 
@@ -159,25 +169,25 @@ docker compose up -d --build
 BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 ```
 
-## WebSocket и realtime
+## SSE и realtime
 
-WebSocket endpoint:
+SSE endpoint:
 
 ```text
-/ws
+/events
 ```
 
 Можно подключаться двумя способами:
 
-- `/ws?audience_id=123` — получать обновления только по одной аудитории
-- `/ws` — получать обновления по всем аудиториям
+- `/events?audience_id=123` — получать обновления только по одной аудитории
+- `/events` — получать обновления по всем аудиториям
 
 Здесь `audience_id` — это именно `id` аудитории в базе, а не номер кабинета вроде `105`.
 
 Пример подключения с фронтенда:
 
 ```ts
-const ws = new WebSocket(`ws://localhost:8000/ws?audience_id=${audienceId}`);
+const events = new EventSource(`http://localhost:8000/events?audience_id=${audienceId}`);
 ```
 
 Сейчас во внешний сокет уходит payload такого вида:
@@ -188,7 +198,7 @@ const ws = new WebSocket(`ws://localhost:8000/ws?audience_id=${audienceId}`);
 
 ### Как это работает внутри
 
-- backend держит сами объекты `WebSocket` только локально, в памяти процесса
+- backend держит сами SSE-подключения только локально, в памяти процесса
 - Redis хранит реестр активных соединений и активных backend-инстансов
 - при изменении аудитории событие публикуется в Redis Pub/Sub
 - все backend-инстансы получают это событие
@@ -196,9 +206,9 @@ const ws = new WebSocket(`ws://localhost:8000/ws?audience_id=${audienceId}`);
 
 Если `BGITU__WEBSOCKET__ENABLED=0`, то:
 
-- `/ws` не принимает подключения
+- `/events` не принимает подключения
 - realtime-события из HTTP endpoints не публикуются
-- Redis-клиенты для WebSocket не создаются
+- Redis-клиенты для SSE не создаются
 ## Telegram bot
 
 В проект добавлен отдельный процесс `telegram_bot`, который живёт в этом же репозитории и использует те же модели, конфиг и базу данных.

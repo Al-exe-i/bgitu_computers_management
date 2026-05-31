@@ -4,7 +4,7 @@ import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import ErrorContainer from "@/components/Common/ErrorContainer.vue";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
-import {getWsUrl} from "@/config/api.js";
+import {getSseUrl} from "@/config/api.js";
 
 export default {
   name: "HomeView",
@@ -17,8 +17,8 @@ export default {
       error: false,
       errorMsg: "",
 
-      // WebSocket
-      ws: null,
+      // Realtime events
+      eventSource: null,
       wsReconnectAttempts: 0,
       maxReconnectAttempts: 3,
       reconnectDelay: 1000,
@@ -50,7 +50,7 @@ export default {
         this.loading = false;
 
         // Подключаем сокет только после первой успешной загрузки
-        if (!this.ws) this.connectWebSocket();
+        if (!this.eventSource) this.connectRealtime();
 
       }
       catch (err)
@@ -62,7 +62,7 @@ export default {
       }
     },
 
-    connectWebSocket()
+    connectRealtime()
     {
       if (this.isUnmounted) return;
 
@@ -71,33 +71,39 @@ export default {
         this.reconnectTimer = null;
       }
 
-      if (this.ws)
+      if (this.eventSource)
       {
-        this.ws.onclose = null;
-        this.ws.close();
+        this.eventSource.onopen = null;
+        this.eventSource.onmessage = null;
+        this.eventSource.onerror = null;
+        this.eventSource.close();
       }
 
-      this.ws = new WebSocket(getWsUrl())
+      this.eventSource = new EventSource(getSseUrl())
 
-      this.ws.onopen = () => {
+      this.eventSource.onopen = () => {
         this.wsConnected = true;
         this.wsError = false;
         this.wsReconnectAttempts = 0;
         this.reconnectDelay = 1000;
       };
 
-      this.ws.onmessage = (event) => {
+      const handleRealtimeEvent = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg?.audience_updated)
+        if (msg?.audience_updated || msg?.audience_id)
         {
           this.fetchOfficesData();
         }
       };
 
-      this.ws.onclose = (event) => {
+      this.eventSource.addEventListener('audience_updated', handleRealtimeEvent);
+      this.eventSource.onmessage = handleRealtimeEvent;
+
+      this.eventSource.onerror = () => {
         if (this.isUnmounted) return;
 
         this.wsConnected = false;
+        this.eventSource?.close();
 
         // Попытка переподключения
         if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
@@ -108,7 +114,7 @@ export default {
 
           this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
-            this.connectWebSocket();
+            this.connectRealtime();
           }, delay);
         }
         else
@@ -120,18 +126,21 @@ export default {
         }
       };
     },
-    closeWebSocket()
+    closeRealtime()
     {
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
 
-      if(this.ws)
+      if(this.eventSource)
       {
-        this.ws.onclose = null;
+        this.eventSource.onopen = null;
+        this.eventSource.onmessage = null;
+        this.eventSource.onerror = null;
         this.wsConnected = false;
-        this.ws.close()
+        this.eventSource.close()
+        this.eventSource = null;
       }
     }
   },
@@ -150,7 +159,7 @@ export default {
 
   beforeUnmount() {
     this.isUnmounted = true;
-    this.closeWebSocket();
+    this.closeRealtime();
   }
 
 }

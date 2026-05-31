@@ -5,7 +5,7 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 import {useAuthStore} from "@/stores/auth.js";
-import {getApiUrl, getWsUrl} from "@/config/api.js";
+import {getApiUrl, getSseUrl} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {markRaw} from "vue";
 import {
@@ -163,12 +163,12 @@ export default {
       fileToDeleteId: null,
       dontAskAgain: false,
 
-      /*WebSocket*/
+      /* Realtime events */
       refreshTimer: null,
       refreshDebounceMs: 400,
       wsSuspendedUntil: 0,
 
-      ws: null,
+      eventSource: null,
       wsConnected: false,
       wsError: false,
       wsReconnectAttempts: 0,
@@ -1699,8 +1699,8 @@ export default {
           'Не удалось изменить заголовок текущего оборудования!'
       );
     },
-    /* WebSocket */
-    connectWebSocket() {
+    /* Realtime events */
+    connectRealtime() {
       if (this.isUnmounted || !this.classroom?.number) {
         return;
       }
@@ -1710,31 +1710,37 @@ export default {
         this.reconnectTimer = null;
       }
 
-      if (this.ws) {
-        this.ws.onclose = null;
-        this.ws.close();
+      if (this.eventSource) {
+        this.eventSource.onopen = null;
+        this.eventSource.onerror = null;
+        this.eventSource.close();
       }
 
-      this.ws = new WebSocket(`${getWsUrl()}?audience_id=${this.classroom.number}`);
+      this.eventSource = new EventSource(`${getSseUrl()}?audience_id=${this.classroom.number}`);
 
-      this.ws.onopen = () => {
+      this.eventSource.onopen = () => {
         this.wsConnected = true;
         this.wsError = false;
         this.wsReconnectAttempts = 0;
         this.reconnectDelay = 1000;
       };
 
-      this.ws.onmessage = (event) => {
+      const handleRealtimeEvent = (event) => {
         const msg = JSON.parse(event.data);
-        if (Number(msg?.audience_updated) === Number(this.classroom?.number)) {
+        const audienceId = msg?.audience_updated ?? msg?.audience_id;
+        if (Number(audienceId) === Number(this.classroom?.number)) {
           this.scheduleRefresh();
         }
       };
 
-      this.ws.onclose = () => {
+      this.eventSource.addEventListener('audience_updated', handleRealtimeEvent);
+      this.eventSource.onmessage = handleRealtimeEvent;
+
+      this.eventSource.onerror = () => {
         if (this.isUnmounted) return;
 
         this.wsConnected = false;
+        this.eventSource?.close();
 
         if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
           this.wsReconnectAttempts++;
@@ -1744,7 +1750,7 @@ export default {
 
           this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
-            this.connectWebSocket();
+            this.connectRealtime();
           }, delay);
         } else {
           this.wsError = true;
@@ -1754,7 +1760,7 @@ export default {
       };
     },
 
-    closeWebSocket()
+    closeRealtime()
     {
       clearTimeout(this.refreshTimer)
       this.refreshTimer = null;
@@ -1764,11 +1770,13 @@ export default {
         this.reconnectTimer = null;
       }
 
-      if(this.ws)
+      if(this.eventSource)
       {
-        this.ws.onclose = null;
+        this.eventSource.onopen = null;
+        this.eventSource.onerror = null;
         this.wsConnected = false;
-        this.ws.close()
+        this.eventSource.close()
+        this.eventSource = null;
       }
     },
     /* Файлы оборудования */
@@ -1998,7 +2006,7 @@ export default {
     await this.getAudience();
     this.loadAudienceTelegramSubscriptions({ silent: true });
     document.addEventListener('click', this.handleAudienceTelegramOutsideClick);
-    this.connectWebSocket();
+    this.connectRealtime();
   },
 
   beforeUnmount() {
@@ -2006,7 +2014,7 @@ export default {
     document.removeEventListener('click', this.handleAudienceTelegramOutsideClick);
     this.clearStatusConfirmTimers();
     this.clearViewportScrollLock();
-    this.closeWebSocket()
+    this.closeRealtime()
     this.audienceContext.clear()
   }
 };
