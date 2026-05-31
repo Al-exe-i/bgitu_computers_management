@@ -1808,10 +1808,6 @@ html[data-theme='dark'] .page-viewer .specs-modal-content {
     linear-gradient(180deg, #0f172a 0%, #111827 100%) !important;
 }
 
-html[data-theme='dark'] .page-viewer .specs-title {
-  color: #94a3b8 !important;
-}
-
 html[data-theme='dark'] .page-viewer .specs-header-subtitle,
 html[data-theme='dark'] .page-viewer .specs-modal-description,
 html[data-theme='dark'] .page-viewer .specs-empty-text,

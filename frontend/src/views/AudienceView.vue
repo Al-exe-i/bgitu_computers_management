@@ -1,4 +1,4 @@
-<script>
+﻿<script>
 import api from "@/services/api.js";
 import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
@@ -129,10 +129,13 @@ export default {
       specsDraft: {},
       specsSaving: false,
       showSpecsModal: false,
-      showStatusConfirmModal: false,
       pendingWorkingStatus: null,
       statusConfirmLoading: false,
-      skipStatusConfirmSession: false,
+      statusConfirmDurationMs: 5000,
+      statusConfirmRemainingMs: 0,
+      statusConfirmStartedAt: 0,
+      statusConfirmTimerId: null,
+      statusConfirmEndTimerId: null,
 
       /* Telegram-подписки аудитории */
       telegramStatus: null,
@@ -517,72 +520,37 @@ export default {
       return 'Технические характеристики оборудования.';
     },
 
-    statusConfirmTargetIsWorking() {
-      return this.pendingWorkingStatus === true;
-    },
-
     statusConfirmTargetLabel() {
       if (this.pendingWorkingStatus === true) return 'Исправно';
       if (this.pendingWorkingStatus === false) return 'Неисправно';
       return '';
     },
 
-    statusConfirmCurrentLabel() {
-      return this.selectedCell?.data?.working ? 'Исправно' : 'Неисправно';
-    },
-
-    statusConfirmTitle() {
-      if (this.pendingWorkingStatus === true) {
-        return 'Подтвердить исправление?';
-      }
-
-      if (this.pendingWorkingStatus === false) {
-        return 'Подтвердить отметку о неисправности?';
-      }
-
-      return 'Подтвердить изменение статуса';
-    },
-
-    statusConfirmDescription() {
-      if (!this.selectedCell?.data) return '';
-
-      if (this.pendingWorkingStatus === true) {
-        return `Оборудование «${this.selectedEquipmentDisplayName}» будет помечено как исправное и вернётся в рабочий статус`;
-      }
-
-      if (this.pendingWorkingStatus === false) {
-        return `Оборудование «${this.selectedEquipmentDisplayName}» будет отмечено как неисправное, это отразится в аудитории и статистике`;
-      }
-
-      return '';
-    },
-
-    statusConfirmHint() {
-      const comment = this.selectedCell?.data?.comment?.trim?.() ?? '';
-
-      if (this.pendingWorkingStatus === true) {
-        return comment
-            ? 'Текущий комментарий о проблеме будет очищен после подтверждения.'
-            : 'Статус сменится без дополнительных изменений.';
-      }
-
-      if (this.pendingWorkingStatus === false) {
-        return comment
-            ? 'Текущий комментарий будет сохранён вместе с новым статусом.'
-            : 'Комментарий не указан. При необходимости его можно добавить перед подтверждением.';
-      }
-
-      return '';
-    },
-
-    statusConfirmActionLabel() {
-      if (this.pendingWorkingStatus === true) return 'Подтвердить исправность';
-      if (this.pendingWorkingStatus === false) return 'Подтвердить неисправность';
-      return 'Подтвердить';
-    },
-
     statusConfirmActionClass() {
       return this.pendingWorkingStatus === true ? 'is-working' : 'is-broken';
+    },
+
+    statusConfirmIsPending() {
+      return this.pendingWorkingStatus !== null;
+    },
+
+    statusConfirmRemainingSeconds() {
+      return Math.max(0, Math.ceil(this.statusConfirmRemainingMs / 1000));
+    },
+
+    statusConfirmProgressPercent() {
+      if (!this.statusConfirmIsPending || this.statusConfirmDurationMs <= 0) return 0;
+
+      return Math.max(
+          0,
+          Math.min(100, (this.statusConfirmRemainingMs / this.statusConfirmDurationMs) * 100)
+      );
+    },
+
+    statusConfirmProgressStyle() {
+      return {
+        '--status-confirm-progress': `${this.statusConfirmProgressPercent}%`
+      };
     },
 
   },
@@ -612,10 +580,6 @@ export default {
       this.scheduleViewportScrollLock();
     },
 
-    showStatusConfirmModal() {
-      this.scheduleViewportScrollLock();
-    },
-
     showSpecsModal() {
       this.scheduleViewportScrollLock();
     },
@@ -634,7 +598,6 @@ export default {
           this.selectedCell !== null ||
           this.previewIndex !== null ||
           this.showConfirmModal ||
-          this.showStatusConfirmModal ||
           this.showSpecsModal ||
           this.dropClassroomModalShow
       );
@@ -645,7 +608,6 @@ export default {
           this.selectedCell !== null ||
           this.previewIndex !== null ||
           this.showConfirmModal ||
-          this.showStatusConfirmModal ||
           this.showSpecsModal ||
           this.dropClassroomModalShow;
 
@@ -747,7 +709,6 @@ export default {
       const scrollableSelectors = [
         '.equipment-modal-content',
         '.specs-modal-content',
-        '.status-confirm-sheet',
         '.hw-confirm-box',
         '.hw-lb-content',
         '.modal-content',
@@ -1008,7 +969,7 @@ export default {
         return;
       }
 
-      if (this.showStatusConfirmModal) {
+      if (this.statusConfirmIsPending) {
         event.preventDefault();
         this.closeStatusConfirmModal();
         return;
@@ -1524,7 +1485,6 @@ export default {
       this.specsEdit = false;
       this.specsDraft = JSON.parse(JSON.stringify(eq.specs ?? {}));
       this.showSpecsModal = false;
-      this.showStatusConfirmModal = false;
       this.pendingWorkingStatus = null;
       this.statusConfirmLoading = false;
       this.scheduleViewportScrollLock();
@@ -1534,7 +1494,6 @@ export default {
       this.closeStatusConfirmModal();
       this.previewIndex = null;
       this.selectedCell = null;
-      this.showStatusConfirmModal = false;
       this.pendingWorkingStatus = null;
       this.statusConfirmLoading = false;
 
@@ -1559,59 +1518,79 @@ export default {
     async requestWorkingStatus(status) {
       if (!this.selectedCell || this.selectedCell.data.working === status || this.statusConfirmLoading) return;
 
-      if (this.skipStatusConfirmSession) {
-        this.statusConfirmLoading = true;
-        await this.applyWorkingStatus(status);
-        this.statusConfirmLoading = false;
-        return;
-      }
-
-      this.prepareEventsOnlyModalLock();
       this.pendingWorkingStatus = status;
-      this.showStatusConfirmModal = true;
+      this.startStatusConfirmCountdown();
     },
 
     closeStatusConfirmModal() {
       if (this.statusConfirmLoading) return;
 
-      this.showStatusConfirmModal = false;
+      this.clearStatusConfirmTimers();
       this.pendingWorkingStatus = null;
-    },
-
-    updateStatusConfirmSessionPreference() {
-      if (this.skipStatusConfirmSession) {
-        sessionStorage.setItem('hw_skip_status_confirm_session', 'true');
-        return;
-      }
-
-      sessionStorage.removeItem('hw_skip_status_confirm_session');
+      this.statusConfirmStartedAt = 0;
+      this.statusConfirmRemainingMs = 0;
     },
 
     async confirmWorkingStatus() {
-      if (this.pendingWorkingStatus === null) return;
+      if (this.pendingWorkingStatus === null || this.statusConfirmLoading) return;
 
+      const status = this.pendingWorkingStatus;
+      this.clearStatusConfirmTimers();
+      this.statusConfirmRemainingMs = 0;
       this.statusConfirmLoading = true;
-      const isUpdated = await this.applyWorkingStatus(this.pendingWorkingStatus);
 
-      if (isUpdated) {
-        this.showStatusConfirmModal = false;
+      try {
+        await this.applyWorkingStatus(status);
+      } finally {
         this.pendingWorkingStatus = null;
+        this.statusConfirmStartedAt = 0;
+        this.statusConfirmRemainingMs = 0;
+        this.statusConfirmLoading = false;
+      }
+    },
+
+    startStatusConfirmCountdown() {
+      this.clearStatusConfirmTimers();
+      this.statusConfirmStartedAt = Date.now();
+      this.statusConfirmRemainingMs = this.statusConfirmDurationMs;
+      this.statusConfirmTimerId = window.setInterval(this.updateStatusConfirmCountdown, 80);
+      this.statusConfirmEndTimerId = window.setTimeout(this.confirmWorkingStatus, this.statusConfirmDurationMs);
+    },
+
+    updateStatusConfirmCountdown() {
+      if (this.pendingWorkingStatus === null || !this.statusConfirmStartedAt) return;
+
+      const elapsedMs = Date.now() - this.statusConfirmStartedAt;
+      this.statusConfirmRemainingMs = Math.max(0, this.statusConfirmDurationMs - elapsedMs);
+    },
+
+    clearStatusConfirmTimers() {
+      if (this.statusConfirmTimerId !== null) {
+        window.clearInterval(this.statusConfirmTimerId);
+        this.statusConfirmTimerId = null;
       }
 
-      this.statusConfirmLoading = false;
+      if (this.statusConfirmEndTimerId !== null) {
+        window.clearTimeout(this.statusConfirmEndTimerId);
+        this.statusConfirmEndTimerId = null;
+      }
     },
 
     async applyWorkingStatus(status) {
       if (!this.selectedCell) return false;
 
-      const description = status === true ? `` : this.selectedCell.data.comment;
+      const cell = this.selectedCell;
+      const hardwareId = cell.data.dbId;
+      const description = status === true ? `` : cell.data.comment;
       this.wsSuspendedUntil = Date.now() + 1000;
 
       try {
-        await api.patch(`/hardware/${this.selectedCell.data.dbId}`, {
+        await api.patch(`/hardware/${hardwareId}`, {
           state: status,
           description
         });
+
+        if (this.selectedCell?.data?.dbId !== hardwareId) return true;
 
         this.selectedCell.data.working = status;
 
@@ -2016,7 +1995,6 @@ export default {
 
   async mounted() {
     this.isUnmounted = false;
-    this.skipStatusConfirmSession = sessionStorage.getItem('hw_skip_status_confirm_session') === 'true';
     await this.getAudience();
     this.loadAudienceTelegramSubscriptions({ silent: true });
     document.addEventListener('click', this.handleAudienceTelegramOutsideClick);
@@ -2026,6 +2004,7 @@ export default {
   beforeUnmount() {
     this.isUnmounted = true;
     document.removeEventListener('click', this.handleAudienceTelegramOutsideClick);
+    this.clearStatusConfirmTimers();
     this.clearViewportScrollLock();
     this.closeWebSocket()
     this.audienceContext.clear()
@@ -2411,10 +2390,11 @@ export default {
             ></textarea>
           </div>
 
-          <div class="action-btns">
+          <div class="action-btns status-action-zone">
+            <template v-if="!statusConfirmIsPending">
             <button
                 class="action-btn fix-btn"
-                :disabled="selectedCell.data.working || statusConfirmLoading"
+                :disabled="selectedCell.data.working || statusConfirmIsPending || statusConfirmLoading"
                 @click="requestWorkingStatus(true)"
                 v-if="havePermission"
             >
@@ -2422,13 +2402,32 @@ export default {
             </button>
             <button
                 class="action-btn break-btn"
-                :disabled="!selectedCell.data.working || statusConfirmLoading"
+                :disabled="!selectedCell.data.working || statusConfirmIsPending || statusConfirmLoading"
                 @click="requestWorkingStatus(false)"
             >
               Неисправно
             </button>
-          </div>
+            </template>
 
+            <div
+                v-else
+                class="status-inline-confirm"
+                :class="statusConfirmActionClass"
+                :style="statusConfirmProgressStyle"
+                aria-live="polite"
+            >
+              <span class="status-inline-progress"></span>
+              <span class="status-inline-label">
+                {{ statusConfirmTargetLabel }} через {{ statusConfirmRemainingSeconds }} сек.
+              </span>
+              <button type="button" class="status-inline-btn" :disabled="statusConfirmLoading" @click="closeStatusConfirmModal">
+                Отмена
+              </button>
+              <button type="button" class="status-inline-btn is-primary" :disabled="statusConfirmLoading" @click="confirmWorkingStatus">
+                {{ statusConfirmLoading ? '...' : 'Сейчас' }}
+              </button>
+            </div>
+          </div>
           <!-- Список файлов (фото и видео) -->
           <div
               class="hw-files-section"
@@ -2492,122 +2491,6 @@ export default {
         </div>
         </div>
     </Teleport>
-
-    <Teleport to="body">
-      <div
-          v-if="selectedCell && showStatusConfirmModal"
-          class="status-confirm-overlay audience-status-confirm-overlay"
-          @click.self="closeStatusConfirmModal"
-      >
-        <div class="status-confirm-sheet" :class="statusConfirmActionClass">
-          <button
-              type="button"
-              class="status-confirm-close"
-              :disabled="statusConfirmLoading"
-              @click="closeStatusConfirmModal"
-              aria-label="Закрыть подтверждение"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-
-          <div class="status-confirm-hero">
-            <div
-                class="status-confirm-icon"
-                :style="{ background: getEquipmentType(selectedCell.data.type).color }"
-            >
-              <TrustedSvgIcon :svg="getEquipmentType(selectedCell.data.type).icon" />
-            </div>
-
-            <div class="status-confirm-copy">
-              <span class="status-confirm-kicker">{{ getEquipmentType(selectedCell.data.type).name }}</span>
-              <h3 class="status-confirm-title">{{ statusConfirmTitle }}</h3>
-              <p class="status-confirm-text">{{ statusConfirmDescription }}</p>
-            </div>
-          </div>
-
-          <div class="status-confirm-equipment">
-            <div class="status-confirm-equipment-name">{{ selectedEquipmentDisplayName }}</div>
-            <div class="status-confirm-equipment-meta">
-              <span>Ряд {{ selectedCell.row + 1 }}</span>
-              <span>Место {{ selectedCell.col + 1 }}</span>
-              <span>Инв. № {{ selectedCell.data.invNumber || 'н/д' }}</span>
-            </div>
-          </div>
-
-          <div class="status-confirm-flow">
-            <div class="status-confirm-state is-current">
-              <span class="status-confirm-state-label">Сейчас</span>
-              <strong>{{ statusConfirmCurrentLabel }}</strong>
-            </div>
-
-            <div class="status-confirm-arrow" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14"></path>
-                <path d="m13 6l6 6l-6 6"></path>
-              </svg>
-            </div>
-
-            <div class="status-confirm-state is-target" :class="statusConfirmActionClass">
-              <span class="status-confirm-state-label">Станет</span>
-              <strong>{{ statusConfirmTargetLabel }}</strong>
-            </div>
-          </div>
-
-          <div class="status-confirm-note" :class="statusConfirmActionClass">
-            <div class="status-confirm-note-icon">
-              <svg v-if="statusConfirmTargetIsWorking" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 6L9 17l-5-5"></path>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M12 8v5"></path>
-                <circle cx="12" cy="16.5" r="0.7" fill="currentColor" stroke="none"></circle>
-              </svg>
-            </div>
-            <p>{{ statusConfirmHint }}</p>
-          </div>
-
-          <label class="status-confirm-session-toggle">
-            <input
-                v-model="skipStatusConfirmSession"
-                type="checkbox"
-                @change="updateStatusConfirmSessionPreference"
-            >
-            <span class="status-confirm-session-switch" aria-hidden="true">
-              <span class="status-confirm-session-switch-thumb"></span>
-            </span>
-            <span class="status-confirm-session-copy">
-              <strong>Не требовать подтверждения в этой сессии</strong>
-              <span>Дальше состояние оборудования будет меняться сразу, без этого окна.</span>
-            </span>
-          </label>
-
-          <div class="status-confirm-actions">
-            <button
-                type="button"
-                class="status-confirm-btn is-cancel"
-                :disabled="statusConfirmLoading"
-                @click="closeStatusConfirmModal"
-            >
-              Отмена
-            </button>
-            <button
-                type="button"
-                class="status-confirm-btn is-submit"
-                :class="statusConfirmActionClass"
-                :disabled="statusConfirmLoading"
-                @click="confirmWorkingStatus"
-            >
-              {{ statusConfirmLoading ? 'Сохраняем...' : statusConfirmActionLabel }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
     <Teleport to="body">
       <div
           v-if="selectedCell && hasSpecsEditor && showSpecsModal"
@@ -4129,13 +4012,11 @@ export default {
 }
 
 :global(#app.audience-app-viewport-locked) .modal,
-:global(#app.audience-app-viewport-locked) .status-confirm-overlay,
 :global(#app.audience-app-viewport-locked) .hw-lightbox {
   transform: translate3d(0, var(--audience-scroll-lock-offset, 0px), 0);
 }
 
 :global(body > .audience-equipment-modal),
-:global(body > .audience-status-confirm-overlay),
 :global(body > .audience-specs-modal-overlay),
 :global(body > .audience-drop-classroom-overlay),
 :global(body > .audience-file-confirm-overlay),
@@ -4149,7 +4030,6 @@ export default {
 }
 
 :global(body.audience-modal-events-locked > .audience-equipment-modal),
-:global(body.audience-modal-events-locked > .audience-status-confirm-overlay),
 :global(body.audience-modal-events-locked > .audience-specs-modal-overlay),
 :global(body.audience-modal-events-locked > .audience-drop-classroom-overlay),
 :global(body.audience-modal-events-locked > .audience-file-confirm-overlay),
@@ -5158,6 +5038,253 @@ export default {
   color: #334155;
 }
 
+:global(html[data-theme='dark']) .audience-specs-modal-overlay {
+  background: rgba(2, 6, 23, 0.72);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-content {
+  color: #e2e8f0;
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(14, 165, 233, 0.1), transparent 30%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  box-shadow: 0 28px 72px rgba(2, 6, 23, 0.56);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .modal-close-upper button {
+  background: rgba(30, 41, 59, 0.82);
+  border: 1px solid rgba(51, 65, 85, 0.95);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .modal-close-upper button:hover {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-heading,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-name,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-meta-value,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-card-value,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-empty-title,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-form-banner-title,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-progress-head {
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-description,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-meta-label,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-card-label,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-empty-text,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-form-banner-text,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-form-label,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-suffix,
+:global(html[data-theme='dark']) .spec-form-label {
+  color: #cbd5e1 !important;
+}
+
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-card,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-meta-pill,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-progress,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-card,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-form-group {
+  background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.56)),
+      rgba(2, 6, 23, 0.32);
+  border-color: rgba(51, 65, 85, 0.92);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.28);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-progress-track {
+  background: rgba(30, 41, 59, 0.96);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-progress-track span {
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-meta-icon,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-card-icon,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-empty-icon {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(14, 165, 233, 0.18));
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-card-pair-divider {
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.18), rgba(148, 163, 184, 0.45), rgba(51, 65, 85, 0.18));
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-empty {
+  background: rgba(15, 23, 42, 0.58);
+  border-color: rgba(59, 130, 246, 0.42);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-form-banner {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.28), rgba(14, 165, 233, 0.1));
+  border-color: rgba(59, 130, 246, 0.38);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-input,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-segment-btn,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-clear-btn,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-btn {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(71, 85, 105, 0.95);
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-input::placeholder {
+  color: #64748b;
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5l5 5l5-5' stroke='%2394a3b8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-segment-btn.active,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-clear-btn.active,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-btn.active,
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-btn-muted.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.34), rgba(14, 165, 233, 0.18));
+  border-color: rgba(96, 165, 250, 0.72);
+  color: #bfdbfe;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.14);
+}
+
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .bool-btn-muted {
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-card.specs-card-modal),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-content),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-card),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-meta-pill),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-progress) {
+  background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.9)),
+      #020617 !important;
+  border-color: rgba(51, 65, 85, 0.96) !important;
+  box-shadow:
+      0 18px 42px rgba(2, 6, 23, 0.36),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-name),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-heading),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-meta-value),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-value),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-progress-head) {
+  color: #f8fafc !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-description),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-meta-label),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-label) {
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-progress-track) {
+  background: rgba(30, 41, 59, 0.98) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-view) {
+  background: transparent !important;
+  color: #cbd5e1 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-modal-name) {
+  color: #cbd5e1 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-btn.specs-btn-secondary) {
+  background: rgba(30, 41, 59, 0.92) !important;
+  border: 1px solid rgba(71, 85, 105, 0.95) !important;
+  color: #cbd5e1 !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-btn.specs-btn-secondary:hover:not(:disabled)) {
+  background: rgba(51, 65, 85, 0.94) !important;
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group.spec-form-group-double),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group.spec-form-group-switch) {
+  background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.72)),
+      #020617 !important;
+  border-color: rgba(51, 65, 85, 0.96) !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.07) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-segment-btn),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-clear-btn) {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-color: rgba(71, 85, 105, 0.96) !important;
+  color: #cbd5e1 !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.06) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-segment-btn:hover:not(.active)),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-clear-btn:hover:not(.active)) {
+  background: rgba(30, 41, 59, 0.94) !important;
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-segment-btn.active),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-clear-btn.active) {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.36), rgba(14, 165, 233, 0.16)) !important;
+  border-color: rgba(96, 165, 250, 0.7) !important;
+  color: #bfdbfe !important;
+  box-shadow:
+      0 10px 22px rgba(37, 99, 235, 0.14),
+      inset 0 1px 0 rgba(191, 219, 254, 0.1) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-empty),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-form-banner),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-input),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-btn),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-btn-muted) {
+  background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.72)),
+      #020617 !important;
+  border-color: rgba(51, 65, 85, 0.96) !important;
+  color: #cbd5e1 !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.07) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-icon),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-meta-icon),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-empty-icon) {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.42), rgba(14, 165, 233, 0.16)) !important;
+  color: #bfdbfe !important;
+  box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-title),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-empty-title),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-form-banner-title) {
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-header-subtitle),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-empty-text),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-form-banner-text) {
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-pair-divider) {
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.12), rgba(148, 163, 184, 0.38), rgba(51, 65, 85, 0.12)) !important;
+}
+
 .status-badge {
   display: inline-block;
   padding: 10px 20px;
@@ -5231,29 +5358,182 @@ export default {
 }
 
 .fix-btn {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 44%),
+      linear-gradient(135deg, #10b981, #059669);
   color: white;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
 }
 
 .fix-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  transform: none;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 44%),
+      linear-gradient(135deg, #12a874, #047857);
+  box-shadow:
+      0 0 0 1px rgba(16, 185, 129, 0.18) inset,
+      0 8px 18px rgba(5, 150, 105, 0.16);
 }
 
 .break-btn {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 44%),
+      linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
 }
 
 .break-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  transform: none;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 44%),
+      linear-gradient(135deg, #e33d3d, #b91c1c);
+  box-shadow:
+      0 0 0 1px rgba(239, 68, 68, 0.18) inset,
+      0 8px 18px rgba(220, 38, 38, 0.15);
 }
 
 .action-btn:disabled {
   background: #cbd5e1;
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.status-action-zone {
+  min-height: 48px;
+}
+
+.status-inline-confirm {
+  --status-accent: #2563eb;
+  --status-inline-bg: #f8fafc;
+  --status-inline-border: rgba(226, 232, 240, 0.95);
+  --status-inline-text: #0f172a;
+  --status-inline-btn-bg: rgba(255, 255, 255, 0.76);
+  --status-inline-btn-hover-bg: rgba(255, 255, 255, 0.96);
+  --status-inline-btn-text: #475569;
+  --status-inline-progress-start: color-mix(in srgb, var(--status-accent), white 82%);
+  --status-inline-progress-end: color-mix(in srgb, var(--status-accent), white 92%);
+  --status-inline-progress-glow: color-mix(in srgb, var(--status-accent), transparent 82%);
+  position: relative;
+  isolation: isolate;
+  flex: 1 1 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--status-inline-bg);
+  border: 1px solid var(--status-inline-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.status-inline-confirm.is-working {
+  --status-accent: #059669;
+}
+
+.status-inline-confirm.is-broken {
+  --status-accent: #dc2626;
+}
+
+.status-inline-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--status-confirm-progress, 100%);
+  background:
+      linear-gradient(90deg, var(--status-inline-progress-glow), transparent 82%),
+      linear-gradient(90deg, var(--status-inline-progress-start), var(--status-inline-progress-end));
+  transition: width 0.08s linear;
+  z-index: -1;
+}
+
+.status-inline-label {
+  min-width: 0;
+  padding: 0 10px;
+  color: var(--status-inline-text);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-inline-btn {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  background: var(--status-inline-btn-bg);
+  color: var(--status-inline-btn-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.status-inline-btn:hover:not(:disabled) {
+  transform: none;
+  background: var(--status-inline-btn-hover-bg);
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.14) inset;
+}
+
+.status-inline-btn.is-primary {
+  color: white;
+  border-color: transparent;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 46%),
+      linear-gradient(135deg, var(--status-accent), color-mix(in srgb, var(--status-accent), #020617 16%));
+}
+
+.status-inline-btn.is-primary:hover:not(:disabled) {
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 46%),
+      linear-gradient(135deg, var(--status-accent), color-mix(in srgb, var(--status-accent), #020617 24%));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-accent), white 72%) inset;
+}
+
+.status-inline-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+:global(html[data-theme='dark']) .status-inline-confirm {
+  --status-inline-bg: rgba(15, 23, 42, 0.94);
+  --status-inline-border: rgba(51, 65, 85, 0.98);
+  --status-inline-text: #e2e8f0;
+  --status-inline-btn-bg: rgba(30, 41, 59, 0.82);
+  --status-inline-btn-hover-bg: rgba(51, 65, 85, 0.92);
+  --status-inline-btn-text: #cbd5e1;
+  --status-inline-progress-start: color-mix(in srgb, var(--status-accent), #0f172a 68%);
+  --status-inline-progress-end: color-mix(in srgb, var(--status-accent), #020617 78%);
+  --status-inline-progress-glow: color-mix(in srgb, var(--status-accent), transparent 62%);
+  box-shadow:
+      0 0 0 1px rgba(15, 23, 42, 0.4) inset,
+      inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+
+:global(html[data-theme='dark']) .status-inline-btn {
+  border-color: rgba(71, 85, 105, 0.9);
+}
+
+@media (max-width: 520px) {
+  .status-inline-confirm {
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .status-inline-label {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
+  .status-inline-btn {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
 }
 
 .close-btn {
@@ -5281,395 +5561,6 @@ export default {
 
 .cancel-btn:hover {
   background: #e2e8f0;
-}
-
-.status-confirm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(10px);
-  animation: fadeIn 0.2s ease;
-  max-height: var(--audience-modal-vh, 100dvh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
-.status-confirm-sheet {
-  position: relative;
-  width: min(100%, 560px);
-  max-height: calc(var(--audience-modal-vh, 100dvh) - 48px);
-  padding: 28px;
-  border-radius: 28px;
-  background:
-      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
-      radial-gradient(circle at 12% 14%, rgba(148, 163, 184, 0.1), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.2);
-  animation: scaleIn 0.2s ease;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
-.status-confirm-sheet.is-working {
-  box-shadow:
-      0 32px 70px rgba(15, 23, 42, 0.2),
-      0 0 0 1px rgba(16, 185, 129, 0.06);
-}
-
-.status-confirm-sheet.is-broken {
-  box-shadow:
-      0 32px 70px rgba(15, 23, 42, 0.2),
-      0 0 0 1px rgba(239, 68, 68, 0.05);
-}
-
-.status-confirm-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #64748b;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.status-confirm-close:hover:not(:disabled) {
-  color: #0f172a;
-  background: white;
-}
-
-.status-confirm-close:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.status-confirm-close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.status-confirm-hero {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.status-confirm-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
-  flex-shrink: 0;
-}
-
-.status-confirm-icon :deep(svg) {
-  width: 30px;
-  height: 30px;
-}
-
-.status-confirm-copy {
-  min-width: 0;
-}
-
-.status-confirm-kicker {
-  display: inline-block;
-  margin-bottom: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.status-confirm-title {
-  margin: 0 0 8px;
-  padding-right: 48px;
-  font-size: 26px;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  color: #0f172a;
-}
-
-.status-confirm-text {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.6;
-  color: #475569;
-}
-
-.status-confirm-equipment {
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: rgba(241, 245, 249, 0.82);
-  border: 1px solid rgba(226, 232, 240, 0.95);
-}
-
-.status-confirm-equipment-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 8px;
-  overflow-wrap: anywhere;
-}
-
-.status-confirm-equipment-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.status-confirm-equipment-meta span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status-confirm-flow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  margin: 18px 0;
-}
-
-.status-confirm-state {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.status-confirm-state-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #94a3b8;
-}
-
-.status-confirm-state strong {
-  font-size: 17px;
-  color: #0f172a;
-}
-
-.status-confirm-state.is-target.is-working {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(110, 231, 183, 0.12));
-  border-color: rgba(16, 185, 129, 0.28);
-}
-
-.status-confirm-state.is-target.is-broken {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(251, 113, 133, 0.12));
-  border-color: rgba(239, 68, 68, 0.24);
-}
-
-.status-confirm-arrow {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(226, 232, 240, 0.75);
-  color: #64748b;
-}
-
-.status-confirm-arrow svg {
-  width: 18px;
-  height: 18px;
-}
-
-.status-confirm-note {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 6px;
-  border-radius: 14px;
-  margin-bottom: 20px;
-  background: rgba(241, 245, 249, 0.95);
-  border: 1px solid rgba(226, 232, 240, 0.95);
-}
-
-.status-confirm-note.is-working {
-  background: linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(209, 250, 229, 0.94));
-  border-color: rgba(16, 185, 129, 0.2);
-}
-
-.status-confirm-note.is-broken {
-  background: linear-gradient(135deg, rgba(255, 241, 242, 0.96), rgba(255, 228, 230, 0.94));
-  border-color: rgba(239, 68, 68, 0.16);
-}
-
-.status-confirm-note-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.status-confirm-note.is-working .status-confirm-note-icon {
-  color: #059669;
-}
-
-.status-confirm-note.is-broken .status-confirm-note-icon {
-  color: #dc2626;
-}
-
-.status-confirm-note-icon svg {
-  width: 18px;
-  height: 18px;
-}
-
-.status-confirm-note p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: #475569;
-}
-
-.status-confirm-session-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  margin-bottom: 20px;
-  border-radius: 18px;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  cursor: pointer;
-  user-select: none;
-}
-
-.status-confirm-session-toggle input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.status-confirm-session-switch {
-  position: relative;
-  width: 46px;
-  height: 28px;
-  margin-top: 2px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: #cbd5e1;
-  transition: background-color 0.22s ease, box-shadow 0.22s ease;
-}
-
-.status-confirm-session-switch-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: white;
-  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.16);
-  transition: transform 0.22s ease;
-}
-
-.status-confirm-session-toggle input:checked + .status-confirm-session-switch {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
-}
-
-.status-confirm-session-toggle input:checked + .status-confirm-session-switch .status-confirm-session-switch-thumb {
-  transform: translateX(18px);
-}
-
-.status-confirm-session-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.status-confirm-session-copy strong {
-  font-size: 14px;
-  color: #0f172a;
-}
-
-.status-confirm-session-copy span {
-  font-size: 13px;
-  line-height: 1.5;
-  color: #64748b;
-}
-
-.status-confirm-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.status-confirm-btn {
-  flex: 1;
-  min-height: 50px;
-  border-radius: 16px;
-  border: none;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-}
-
-.status-confirm-btn:disabled {
-  cursor: wait;
-  opacity: 0.72;
-  transform: none;
-}
-
-.status-confirm-btn.is-cancel {
-  background: #eef2f7;
-  color: #475569;
-}
-
-.status-confirm-btn.is-cancel:hover:not(:disabled) {
-  background: #e2e8f0;
-}
-
-.status-confirm-btn.is-submit {
-  color: white;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
-}
-
-.status-confirm-btn.is-submit.is-working {
-  background: linear-gradient(135deg, #10b981, #059669);
-}
-
-.status-confirm-btn.is-submit.is-broken {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.status-confirm-btn.is-submit:hover:not(:disabled) {
-  transform: translateY(-1px);
 }
 
 /* Modal Transition */
@@ -6292,194 +6183,6 @@ export default {
   .scale-type-btn,
   .scale-controls {
     display: none;
-  }
-
-  .status-confirm-overlay {
-    align-items: center;
-    padding: 16px 12px;
-  }
-
-  .status-confirm-sheet {
-    width: min(100%, 440px);
-    max-width: 440px;
-    max-height: min(78vh, 680px);
-    overflow-y: auto;
-    padding: 18px 16px 14px;
-    border-radius: 24px;
-    scrollbar-width: none;
-  }
-
-  .status-confirm-sheet::-webkit-scrollbar {
-    display: none;
-  }
-
-  .status-confirm-close {
-    top: 12px;
-    right: 12px;
-    width: 34px;
-    height: 34px;
-    border-radius: 12px;
-  }
-
-  .status-confirm-close svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .status-confirm-hero {
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .status-confirm-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 18px;
-  }
-
-  .status-confirm-icon :deep(svg) {
-    width: 24px;
-    height: 24px;
-  }
-
-  .status-confirm-kicker {
-    display: none;
-  }
-
-  .status-confirm-title {
-    font-size: 20px;
-    line-height: 1.08;
-    padding-right: 28px;
-    margin-bottom: 4px;
-  }
-
-  .status-confirm-text {
-    font-size: 13px;
-    line-height: 1.45;
-  }
-
-  .status-confirm-equipment {
-    padding: 12px 14px;
-    border-radius: 16px;
-  }
-
-  .status-confirm-equipment-name {
-    font-size: 16px;
-    margin-bottom: 6px;
-  }
-
-  .status-confirm-equipment-meta {
-    gap: 6px;
-  }
-
-  .status-confirm-equipment-meta span {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-
-  .status-confirm-flow {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: 8px;
-    margin: 14px 0;
-  }
-
-  .status-confirm-state {
-    padding: 12px 10px;
-    border-radius: 16px;
-    text-align: center;
-    align-items: center;
-  }
-
-  .status-confirm-state-label {
-    font-size: 10px;
-  }
-
-  .status-confirm-state strong {
-    font-size: 15px;
-  }
-
-  .status-confirm-arrow {
-    width: 34px;
-    height: 34px;
-    border-radius: 12px;
-  }
-
-  .status-confirm-arrow svg {
-    width: 16px;
-    height: 16px;
-    transform: none;
-  }
-
-  .status-confirm-note {
-    padding: 12px 14px;
-    gap: 10px;
-    border-radius: 16px;
-    margin-bottom: 14px;
-  }
-
-  .status-confirm-note-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 11px;
-  }
-
-  .status-confirm-note-icon svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .status-confirm-note p {
-    font-size: 12px;
-    line-height: 1.45;
-  }
-
-  .status-confirm-session-toggle {
-    gap: 10px;
-    padding: 12px 14px;
-    margin-bottom: 14px;
-    border-radius: 16px;
-  }
-
-  .status-confirm-session-switch {
-    width: 40px;
-    height: 24px;
-    margin-top: 1px;
-  }
-
-  .status-confirm-session-switch-thumb {
-    top: 3px;
-    left: 3px;
-    width: 18px;
-    height: 18px;
-  }
-
-  .status-confirm-session-toggle input:checked + .status-confirm-session-switch .status-confirm-session-switch-thumb {
-    transform: translateX(16px);
-  }
-
-  .status-confirm-session-copy {
-    gap: 2px;
-  }
-
-  .status-confirm-session-copy strong {
-    font-size: 13px;
-  }
-
-  .status-confirm-session-copy span {
-    font-size: 11px;
-    line-height: 1.4;
-  }
-
-  .status-confirm-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-    gap: 10px;
-  }
-
-  .status-confirm-btn {
-    min-height: 44px;
-    border-radius: 14px;
-    font-size: 14px;
   }
 
   .grid-info {
