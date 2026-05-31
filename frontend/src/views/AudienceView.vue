@@ -5409,6 +5409,7 @@ export default {
 
 .status-action-zone {
   min-height: 48px;
+  align-items: stretch;
 }
 
 .status-inline-confirm {
@@ -5425,7 +5426,11 @@ export default {
   position: relative;
   isolation: isolate;
   flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 48px;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -5463,6 +5468,7 @@ export default {
   color: var(--status-inline-text);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5477,6 +5483,10 @@ export default {
   color: var(--status-inline-btn-text);
   font-size: 13px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 0.18s ease, background 0.18s ease;
 }
@@ -5527,20 +5537,53 @@ export default {
 }
 
 @media (max-width: 520px) {
+  .status-action-zone {
+    min-height: 36px;
+  }
+
+  .status-action-zone:has(.status-inline-confirm) {
+    min-height: 76px;
+  }
+
   .status-inline-confirm {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+        "label label"
+        "cancel confirm";
+    align-items: stretch;
     gap: 6px;
     padding: 5px;
+    min-height: 72px;
   }
 
   .status-inline-label {
+    grid-area: label;
+    min-height: 28px;
     padding: 0 6px;
     font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: normal;
+    overflow: visible;
+    text-align: center;
+    text-overflow: clip;
   }
 
   .status-inline-btn {
-    min-height: 34px;
+    min-height: 32px;
     padding: 0 8px;
     font-size: 12px;
+    width: 100%;
+  }
+
+  .status-inline-btn:not(.is-primary) {
+    grid-area: cancel;
+  }
+
+  .status-inline-btn.is-primary {
+    grid-area: confirm;
   }
 }
 
@@ -6339,22 +6382,22 @@ export default {
     gap: 6px;
   }
 
-  .equipment-modal .modal-equipment-inline-input {
-    width: clamp(148px, 62vw, 220px);
+  .equipment-modal .modal-equipment-details .modal-equipment-inline-edit .modal-equipment-inline-input {
+    width: clamp(132px, 58vw, 204px);
     max-width: 100%;
     flex: 0 1 auto;
-    min-height: 30px;
-    height: 30px;
-    padding: 2px 8px;
+    min-height: 28px;
+    height: 28px;
+    padding: 1px 8px;
     font-size: 12px;
-    line-height: 1;
+    line-height: 1.1;
     border-radius: 8px;
     border-width: 1px;
     box-sizing: border-box;
   }
 
-  .equipment-modal .modal-equipment-inline-edit.is-inv .modal-equipment-inline-input {
-    width: clamp(118px, 48vw, 176px);
+  .equipment-modal .modal-equipment-details .modal-equipment-inline-edit.is-inv .modal-equipment-inline-input {
+    width: clamp(104px, 44vw, 156px);
   }
 
   .equipment-modal .modal-equipment-inline-edit :deep(svg) {
@@ -6391,9 +6434,10 @@ export default {
   }
 
   .equipment-modal .specs-entry-btn {
-    min-height: 42px;
-    padding: 10px 12px;
-    border-radius: 12px;
+    min-height: 32px;
+    padding: 4px 9px;
+    border-radius: 9px;
+    gap: 6px;
   }
 
   .equipment-modal .status-badge {
@@ -6436,10 +6480,10 @@ export default {
   }
 
   .equipment-modal .action-btn {
-    min-height: 44px;
-    padding: 12px 10px;
-    border-radius: 14px;
-    font-size: 14px;
+    min-height: 36px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 13px;
   }
 
   .equipment-modal .hw-files-section {
@@ -6597,18 +6641,18 @@ export default {
     height: 24px;
   }
 
-  .equipment-modal .modal-equipment-inline-input {
-    width: clamp(136px, 58vw, 196px);
-    min-height: 28px;
-    height: 28px;
-    padding: 1px 7px;
+  .equipment-modal .modal-equipment-details .modal-equipment-inline-edit .modal-equipment-inline-input {
+    width: clamp(120px, 54vw, 176px);
+    min-height: 26px;
+    height: 26px;
+    padding: 0 7px;
     font-size: 11px;
-    line-height: 1;
-    border-radius: 8px;
+    line-height: 1.1;
+    border-radius: 7px;
   }
 
-  .equipment-modal .modal-equipment-inline-edit.is-inv .modal-equipment-inline-input {
-    width: clamp(112px, 44vw, 156px);
+  .equipment-modal .modal-equipment-details .modal-equipment-inline-edit.is-inv .modal-equipment-inline-input {
+    width: clamp(96px, 40vw, 138px);
   }
 
   .equipment-modal .modal-equipment-inline-edit :deep(svg) {
@@ -6622,7 +6666,9 @@ export default {
   }
 
   .equipment-modal .action-btn {
-    font-size: 13px;
+    min-height: 34px;
+    padding: 7px 8px;
+    font-size: 12px;
   }
 
   .equipment-modal .hw-file-card {
@@ -6654,9 +6700,17 @@ export default {
     font-size: 11px;
   }
 
-  .specs-entry-btn {
-    padding: 10px 12px;
-    font-size: 12px;
+  .equipment-modal .specs-entry-btn {
+    min-height: 30px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    gap: 5px;
+  }
+
+  .equipment-modal .specs-entry-btn svg {
+    width: 14px;
+    height: 14px;
   }
 
   .spec-form-group-switch {
