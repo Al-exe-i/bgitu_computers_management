@@ -5668,7 +5668,7 @@ export default {
 /* --- Контейнер секции файлов --- */
 .hw-files-section {
   position: relative;
-  margin-top: 15px;
+  /* margin-top: 15px; */
   padding-top: 10px;
   min-height: 100px;
 }
