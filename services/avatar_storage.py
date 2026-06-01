@@ -1,11 +1,11 @@
 import mimetypes
-import os
-import uuid
 from dataclasses import dataclass
-from typing import Protocol
+from pathlib import PurePosixPath
+from typing import Iterator, Protocol
 
-import aiofiles
 from loguru import logger
+
+from services.object_storage import ObjectStorage, object_filename
 
 
 class UploadedAvatarFile(Protocol):
@@ -18,53 +18,50 @@ class UploadedAvatarFile(Protocol):
 
 @dataclass(slots=True, frozen=True)
 class StoredAvatarFile:
-    path: str
+    key: str
     media_type: str
+    filename: str
+    storage: ObjectStorage
+
+    def iter_file(self) -> Iterator[bytes]:
+        return self.storage.iter_range(self.key)
 
 
 class AvatarStorage:
-    def __init__(self, avatars_dir: str) -> None:
-        self.avatars_dir = avatars_dir
+    def __init__(self, storage: ObjectStorage, *, prefix: str = "avatars") -> None:
+        self.storage = storage
+        self.prefix = prefix
 
     def get_existing(self, filename: str | None) -> StoredAvatarFile | None:
         if not filename:
             return None
 
-        path = os.path.join(self.avatars_dir, filename)
-        if not os.path.exists(path):
+        key = self._key_for_filename(filename)
+        if not self.storage.exists(key):
             return None
 
-        media_type, _ = mimetypes.guess_type(path)
-        return StoredAvatarFile(path=path, media_type=media_type or "image/*")
+        media_type, _ = mimetypes.guess_type(object_filename(key))
+        return StoredAvatarFile(
+            key=key,
+            media_type=media_type or "image/*",
+            filename=object_filename(key),
+            storage=self.storage,
+        )
 
     async def save(self, file: UploadedAvatarFile) -> str:
-        os.makedirs(self.avatars_dir, exist_ok=True)
-
-        file_ext = os.path.splitext(file.filename or "")[1] or ".jpg"
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = os.path.join(self.avatars_dir, unique_filename)
-
-        try:
-            async with aiofiles.open(file_path, "wb") as buffer:
-                content = await file.read()
-                await buffer.write(content)
-        finally:
-            await file.close()
-
-        return unique_filename
+        key = await self.storage.save_upload(file, prefix=self.prefix)
+        return object_filename(key)
 
     def delete(self, filename: str | None) -> bool:
         if not filename:
             return False
 
-        file_path = os.path.join(self.avatars_dir, filename)
-        if not os.path.exists(file_path):
-            return False
-
         try:
-            os.remove(file_path)
-        except OSError as exc:
-            logger.error("Failed to remove avatar file path={} error={}", file_path, exc)
+            return self.storage.delete(self._key_for_filename(filename))
+        except Exception as exc:
+            logger.error("Failed to remove avatar file filename={} error={}", filename, exc)
             return False
 
-        return True
+    def _key_for_filename(self, filename: str) -> str:
+        safe_filename = PurePosixPath(filename.replace("\\", "/")).name
+        return str(PurePosixPath(self.prefix.strip("/")) / safe_filename)

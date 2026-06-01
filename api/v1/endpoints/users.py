@@ -1,5 +1,5 @@
 from fastapi import APIRouter, File, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from api.v1.application_events import dispatch_result_events
@@ -68,7 +68,13 @@ async def get_user_photo(
         logger.warning("User photo not found: user_id={} no photo assigned", user.id)
         raise HTTP404("Photo not found")
 
-    return FileResponse(photo.path, media_type=photo.media_type)
+    return StreamingResponse(
+        photo.iter_file(),
+        media_type=photo.media_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{photo.filename}"',
+        },
+    )
 
 
 @router.post("/me/password", status_code=200)

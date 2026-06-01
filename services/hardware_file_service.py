@@ -1,10 +1,7 @@
-import os
-import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-import aiofiles
 from loguru import logger
 
 from core.exceptions import HardwareFileNotFoundError, HardwareNotFoundError
@@ -12,10 +9,10 @@ from models import Hardware
 from models.hardware_file import HardwareFile
 from repositories.hw_files_repo import HardwareFilesRepository
 from schemas.hardware_file import HardwareFileResponse
+from services.object_storage import ObjectStorage
 
 
 MAX_HARDWARE_FILE_SIZE_BYTES = 20 * 1024 * 1024
-WRITE_CHUNK_SIZE_BYTES = 1024 * 1024
 
 
 class UploadedHardwareFile(Protocol):
@@ -42,27 +39,15 @@ class HardwareFileDeleteResult:
 
 
 class HardwareFileStorage:
-    def __init__(self, upload_dir: str) -> None:
-        self.upload_dir = upload_dir
+    def __init__(self, storage: ObjectStorage, *, prefix: str = "uploads") -> None:
+        self.storage = storage
+        self.prefix = prefix
 
     async def save(self, file: UploadedHardwareFile) -> str:
-        os.makedirs(self.upload_dir, exist_ok=True)
-
-        ext = os.path.splitext(file.filename or "")[1]
-        file_path = os.path.join(self.upload_dir, f"{uuid.uuid4()}{ext}")
-
-        async with aiofiles.open(file_path, "wb") as out_file:
-            while content := await file.read(WRITE_CHUNK_SIZE_BYTES):
-                await out_file.write(content)
-
-        return file_path
+        return await self.storage.save_upload(file, prefix=self.prefix)
 
     def delete(self, file_path: str) -> bool:
-        if not os.path.exists(file_path):
-            return False
-
-        os.remove(file_path)
-        return True
+        return self.storage.delete(file_path)
 
 
 class HardwareFileService:

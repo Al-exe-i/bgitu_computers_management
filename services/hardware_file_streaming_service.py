@@ -1,7 +1,7 @@
 import mimetypes
-import os
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
 from loguru import logger
 
@@ -14,50 +14,53 @@ from core.exceptions import (
 )
 from models.hardware_file import HardwareFile
 from repositories.hw_files_repo import HardwareFilesRepository
+from services.object_storage import ObjectStorage, object_filename
 
 
 DEFAULT_RANGE_CHUNK_SIZE = 1024 * 1024
-READ_CHUNK_SIZE = 64 * 1024
 
 
 @dataclass(slots=True, frozen=True)
 class HardwareDownloadFile:
-    path: str
+    key: str
     media_type: str
     filename: str
+    storage: ObjectStorage
+
+    def iter_file(self) -> Iterator[bytes]:
+        return self.storage.iter_range(self.key)
 
 
 @dataclass(slots=True, frozen=True)
 class HardwareVideoStream:
-    path: str
+    key: str
     media_type: str
     status_code: int
     headers: dict[str, str]
     start: int
     content_length: int
+    storage: ObjectStorage
 
     def iter_file(self) -> Iterator[bytes]:
-        with open(self.path, "rb") as file:
-            file.seek(self.start)
-            remaining = self.content_length
-            while remaining > 0:
-                chunk = file.read(min(READ_CHUNK_SIZE, remaining))
-                if not chunk:
-                    break
-                yield chunk
-                remaining -= len(chunk)
+        return self.storage.iter_range(
+            self.key,
+            offset=self.start,
+            length=self.content_length,
+        )
 
 
 class HardwareFileStreamingService:
-    def __init__(self, files_repo: HardwareFilesRepository) -> None:
+    def __init__(self, files_repo: HardwareFilesRepository, storage: ObjectStorage) -> None:
         self.files_repo = files_repo
+        self.storage = storage
 
     async def get_download(self, file_id: int) -> HardwareDownloadFile:
         db_file = await self._get_existing_file(file_id)
         return HardwareDownloadFile(
-            path=db_file.file_path,
+            key=db_file.file_path,
             media_type=db_file.file_type,
-            filename=os.path.basename(db_file.file_path),
+            filename=object_filename(db_file.file_path),
+            storage=self.storage,
         )
 
     async def prepare_video_stream(
@@ -68,7 +71,7 @@ class HardwareFileStreamingService:
     ) -> HardwareVideoStream:
         db_file = await self._get_existing_file(file_id)
         content_type = self._detect_video_content_type(db_file)
-        file_size = os.path.getsize(db_file.file_path)
+        file_size = self.storage.stat(db_file.file_path).size
         start, end = self._parse_range(
             range_header=range_header,
             file_size=file_size,
@@ -76,7 +79,7 @@ class HardwareFileStreamingService:
         content_length = end - start + 1
 
         return HardwareVideoStream(
-            path=db_file.file_path,
+            key=db_file.file_path,
             media_type=content_type,
             status_code=206,
             headers={
@@ -87,6 +90,7 @@ class HardwareFileStreamingService:
             },
             start=start,
             content_length=content_length,
+            storage=self.storage,
         )
 
     async def _get_existing_file(self, file_id: int) -> HardwareFile:
@@ -95,9 +99,9 @@ class HardwareFileStreamingService:
             logger.warning("Hardware file record not found: file_id={}", file_id)
             raise HardwareFileNotFoundError()
 
-        if not os.path.exists(db_file.file_path):
+        if not self.storage.exists(db_file.file_path):
             logger.warning(
-                "Hardware file missing on disk: file_id={} path={}",
+                "Hardware file missing in storage: file_id={} key={}",
                 file_id,
                 db_file.file_path,
             )
@@ -111,7 +115,7 @@ class HardwareFileStreamingService:
         if content_type.startswith("video/"):
             return content_type
 
-        mime_type, _ = mimetypes.guess_type(db_file.file_path)
+        mime_type, _ = mimetypes.guess_type(PurePosixPath(db_file.file_path).name)
         if mime_type and mime_type.startswith("video/"):
             return mime_type
 

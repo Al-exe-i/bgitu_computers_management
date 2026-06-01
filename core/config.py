@@ -91,6 +91,15 @@ class CacheConfig(BaseModel):
     analytics_filter_options_ttl_seconds: int = 300
 
 
+class StorageConfig(BaseModel):
+    backend: Literal["local", "minio"] = "local"
+    endpoint: str = "localhost:9000"
+    access_key: str = "minioadmin"
+    secret_key: str = "minioadmin"
+    bucket: str = "bgitu-files"
+    secure: bool = False
+
+
 class WebSocketConfig(BaseModel):
     enabled: bool = True
     transport: Literal["inmemory", "redis"] = "inmemory"
@@ -123,6 +132,7 @@ class Settings(BaseSettings):
     celery: CeleryConfig
     outbox: OutboxConfig = OutboxConfig()
     cache: CacheConfig = CacheConfig()
+    storage: StorageConfig = StorageConfig()
     websocket: WebSocketConfig = WebSocketConfig()
     telegram: TelegramConfig = TelegramConfig()
     frontend_url: str = "http://localhost:5173"

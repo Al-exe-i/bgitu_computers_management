@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-
+from typing import Sequence
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,9 @@ class UserSessionRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_user(self, user_id: int, include_inactive: bool = False) -> list[UserSession]:
+    async def list_by_user(
+        self, user_id: int, include_inactive: bool = False
+    ) -> Sequence[UserSession]:
         now = datetime.now(timezone.utc)
         stmt = select(UserSession).where(UserSession.user_id == user_id)
 
@@ -31,10 +33,14 @@ class UserSessionRepository:
                 UserSession.expires_at > now,
             )
 
-        stmt = stmt.order_by(UserSession.last_used_at.desc().nullslast(), UserSession.created_at.desc())
+        stmt = stmt.order_by(
+            UserSession.last_used_at.desc().nullslast(), UserSession.created_at.desc()
+        )
         return (await self.db.execute(stmt)).scalars().all()
 
-    async def get_active_by_refresh_token_hash(self, token_hash: str) -> UserSession | None:
+    async def get_active_by_refresh_token_hash(
+        self, token_hash: str
+    ) -> UserSession | None:
         now = datetime.now(timezone.utc)
         stmt = select(UserSession).where(
             UserSession.refresh_token_hash == token_hash,
@@ -44,7 +50,9 @@ class UserSessionRepository:
         res = await self.db.execute(stmt)
         return res.scalar_one_or_none()
 
-    async def rotate_refresh_token_hash(self, *, sid: str, old_hash: str, new_hash: str) -> bool:
+    async def rotate_refresh_token_hash(
+        self, *, sid: str, old_hash: str, new_hash: str
+    ) -> bool:
         now = datetime.now(timezone.utc)
         stmt = (
             update(UserSession)

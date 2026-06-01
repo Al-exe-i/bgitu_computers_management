@@ -21,6 +21,7 @@ Backend-сервис для учёта компьютерного оборудо
 - SQLAlchemy 2.x + asyncpg
 - PostgreSQL
 - Redis
+- MinIO
 - Celery
 - Alembic
 - Loguru
@@ -67,6 +68,7 @@ Copy-Item .env.example .env
 - `BGITU__JWT__ACCESS_SECRET_KEY`
 - `BGITU__CELERY__BROKER_URL`
 - `BGITU__CELERY__RESULT_BACKEND`
+- `BGITU__STORAGE__*`
 - `BGITU__WEBSOCKET__*`
 
 ### 2. Поднять PostgreSQL и Redis
@@ -74,13 +76,15 @@ Copy-Item .env.example .env
 Если локально базы нет, можно поднять только инфраструктуру:
 
 ```powershell
-docker compose up -d db redis
+docker compose up -d db redis minio
 ```
 
 После этого будут доступны:
 
 - PostgreSQL на `localhost:5433`
 - Redis на `localhost:6379`
+- MinIO API на `localhost:9000`
+- MinIO Console на `http://localhost:9001`
 
 ### 3. Установить зависимости
 
@@ -157,6 +161,7 @@ docker compose up -d --build
 - `BGITU__DB__*` — подключение к PostgreSQL
 - `BGITU__JWT__*` — access token и время жизни токенов
 - `BGITU__CELERY__*` — Redis broker и backend для Celery
+- `BGITU__STORAGE__*` — backend хранения файлов: `local` или `minio`
 - `BGITU__WEBSOCKET__*` — realtime и Redis для SSE
 - `BGITU__CORS_ORIGINS` — список разрешённых origin для фронтенда
 - `BGITU__FRONTEND_URL` — URL фронтенда, используется в приглашениях
@@ -167,6 +172,33 @@ docker compose up -d --build
 
 ```env
 BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+```
+
+## File storage
+
+Файлы оборудования и аватары отдаются через backend API, а не напрямую из bucket.
+Это сохраняет проверку прав на endpoints:
+
+```text
+/api/v1/hardware/files/{file_id}
+/api/v1/hardware/stream/{file_id}
+/api/v1/users/me/photo
+```
+
+В Docker Compose используется MinIO. Backend внутри Docker подключается к `minio:9000`, а с хоста доступны:
+
+- MinIO API: `http://localhost:9000`
+- MinIO Console: `http://localhost:9001`
+
+Основные переменные:
+
+```env
+BGITU__STORAGE__BACKEND=minio
+BGITU__STORAGE__ENDPOINT=localhost:9000
+BGITU__STORAGE__ACCESS_KEY=minioadmin
+BGITU__STORAGE__SECRET_KEY=minioadmin
+BGITU__STORAGE__BUCKET=bgitu-files
+BGITU__STORAGE__SECURE=false
 ```
 
 ## SSE и realtime

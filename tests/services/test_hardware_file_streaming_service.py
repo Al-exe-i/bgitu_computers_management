@@ -1,7 +1,5 @@
 import asyncio
-import io
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 
@@ -10,6 +8,7 @@ from core.exceptions import (
     HardwareFileUnsupportedMediaError,
 )
 from services.hardware_file_streaming_service import HardwareFileStreamingService
+from services.object_storage import ObjectStat
 
 
 class FakeHardwareFilesRepo:
@@ -21,15 +20,26 @@ class FakeHardwareFilesRepo:
 
 
 def make_service(row: SimpleNamespace) -> HardwareFileStreamingService:
-    return HardwareFileStreamingService(FakeHardwareFilesRepo({row.id: row}))
+    return HardwareFileStreamingService(
+        FakeHardwareFilesRepo({row.id: row}),
+        FakeStorage({"uploads/manual.pdf": b"manual", "uploads/video.mp4": b"0123456789", "uploads/notes.txt": b"text"}),
+    )
 
 
-class BytesFile(io.BytesIO):
-    def __enter__(self):
-        return self
+class FakeStorage:
+    def __init__(self, objects: dict[str, bytes]) -> None:
+        self.objects = objects
 
-    def __exit__(self, exc_type, exc, traceback) -> None:
-        self.close()
+    def exists(self, key: str) -> bool:
+        return key in self.objects
+
+    def stat(self, key: str) -> ObjectStat:
+        return ObjectStat(size=len(self.objects[key]))
+
+    def iter_range(self, key: str, *, offset: int = 0, length: int | None = None):
+        content = self.objects[key]
+        end = None if length is None else offset + length
+        yield content[offset:end]
 
 
 def test_get_download_returns_file_response_data() -> None:
@@ -38,10 +48,9 @@ def test_get_download_returns_file_response_data() -> None:
             SimpleNamespace(id=1, file_path="uploads/manual.pdf", file_type="application/pdf")
         )
 
-        with patch("services.hardware_file_streaming_service.os.path.exists", return_value=True):
-            result = await service.get_download(1)
+        result = await service.get_download(1)
 
-        assert result.path == "uploads/manual.pdf"
+        assert result.key == "uploads/manual.pdf"
         assert result.media_type == "application/pdf"
         assert result.filename == "manual.pdf"
 
@@ -52,18 +61,13 @@ def test_prepare_video_stream_parses_range_and_streams_requested_bytes() -> None
     async def scenario() -> None:
         service = make_service(SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="video/mp4"))
 
-        with (
-            patch("services.hardware_file_streaming_service.os.path.exists", return_value=True),
-            patch("services.hardware_file_streaming_service.os.path.getsize", return_value=10),
-        ):
-            result = await service.prepare_video_stream(file_id=1, range_header="bytes=2-5")
+        result = await service.prepare_video_stream(file_id=1, range_header="bytes=2-5")
 
         assert result.status_code == 206
         assert result.media_type == "video/mp4"
         assert result.headers["Content-Range"] == "bytes 2-5/10"
         assert result.headers["Content-Length"] == "4"
-        with patch("builtins.open", return_value=BytesFile(b"0123456789")):
-            assert b"".join(result.iter_file()) == b"2345"
+        assert b"".join(result.iter_file()) == b"2345"
 
     asyncio.run(scenario())
 
@@ -74,11 +78,7 @@ def test_prepare_video_stream_detects_video_by_file_extension() -> None:
             SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="application/octet-stream")
         )
 
-        with (
-            patch("services.hardware_file_streaming_service.os.path.exists", return_value=True),
-            patch("services.hardware_file_streaming_service.os.path.getsize", return_value=10),
-        ):
-            result = await service.prepare_video_stream(file_id=1, range_header=None)
+        result = await service.prepare_video_stream(file_id=1, range_header=None)
 
         assert result.media_type == "video/mp4"
         assert result.headers["Content-Range"] == "bytes 0-9/10"
@@ -90,11 +90,7 @@ def test_prepare_video_stream_rejects_bad_range_header() -> None:
     async def scenario() -> None:
         service = make_service(SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="video/mp4"))
 
-        with (
-            patch("services.hardware_file_streaming_service.os.path.exists", return_value=True),
-            patch("services.hardware_file_streaming_service.os.path.getsize", return_value=10),
-            pytest.raises(HardwareFileBadRangeError),
-        ):
+        with pytest.raises(HardwareFileBadRangeError):
             await service.prepare_video_stream(file_id=1, range_header="bytes=bad")
 
     asyncio.run(scenario())
@@ -104,10 +100,7 @@ def test_prepare_video_stream_rejects_non_video_file() -> None:
     async def scenario() -> None:
         service = make_service(SimpleNamespace(id=1, file_path="uploads/notes.txt", file_type="text/plain"))
 
-        with (
-            patch("services.hardware_file_streaming_service.os.path.exists", return_value=True),
-            pytest.raises(HardwareFileUnsupportedMediaError),
-        ):
+        with pytest.raises(HardwareFileUnsupportedMediaError):
             await service.prepare_video_stream(file_id=1, range_header=None)
 
     asyncio.run(scenario())

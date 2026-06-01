@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from api.v1.application_events import dispatch_result_events
 from dependencies.audit_actor import admin_audit_actor_dep, user_audit_actor_dep
@@ -61,10 +61,12 @@ async def get_file(
 ):
     file = await service.get_download(file_id)
 
-    return FileResponse(
-        path=file.path,
+    return StreamingResponse(
+        file.iter_file(),
         media_type=file.media_type,
-        filename=file.filename,
+        headers={
+            "Content-Disposition": f'inline; filename="{file.filename}"',
+        },
     )
 
 

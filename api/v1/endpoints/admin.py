@@ -1,10 +1,10 @@
-from pathlib import Path
+import mimetypes
+from pathlib import PurePosixPath
 
 from fastapi import APIRouter, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from core.config import settings
 from core.exceptions import (
     HTTP403,
     HTTP404,
@@ -13,6 +13,7 @@ from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep
 from dependencies.identity import identity_invite_use_cases_dep
+from dependencies.storage import object_storage_dep
 from schemas.audit_log import AuditLogListResponse
 from schemas.invite import InviteCreateBatch, InviteCreateOne, InviteCreateResult, InviteListItem
 
@@ -23,26 +24,23 @@ router = APIRouter(prefix="")
 async def get_protected_file(
     file_path: str,
     user: admin_dep,
+    storage: object_storage_dep,
 ):
-    base_dir = Path(settings.static.root).resolve()
-    safe_file_path = file_path.lstrip("/")
-    requested_path = (base_dir / safe_file_path).resolve()
-
-    try:
-        requested_path.relative_to(base_dir)
-    except ValueError:
-        logger.warning(
-            "Protected file access denied: requested_path={} base_dir={}",
-            requested_path,
-            base_dir,
-        )
+    object_key = str(PurePosixPath(file_path.replace("\\", "/").lstrip("/")))
+    if object_key.startswith("../") or "/../" in object_key:
+        logger.warning("Protected file access denied: object_key={}", object_key)
         raise HTTP403("Access Denied")
 
-    if not requested_path.is_file():
-        logger.warning("Protected file not found: {}", requested_path)
+    if not storage.exists(object_key):
+        logger.warning("Protected file not found: {}", object_key)
         raise HTTP404("File Not Found")
 
-    return FileResponse(requested_path)
+    media_type, _ = mimetypes.guess_type(PurePosixPath(object_key).name)
+
+    return StreamingResponse(
+        storage.iter_range(object_key),
+        media_type=media_type or "application/octet-stream",
+    )
 
 
 @router.get("/audit-log", response_model=AuditLogListResponse)

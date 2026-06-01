@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from core.config import settings
 from dependencies.cache import office_short_list_cache_dep
+from dependencies.storage import object_storage_dep
 from db.session import session_dep
 from repositories.hardware_repo import HardwareRepository
 from repositories.hw_files_repo import HardwareFilesRepository
@@ -24,11 +24,12 @@ hardware_service_dep = Annotated[HardwareService, Depends(get_hardware_service)]
 async def get_hardware_file_service(
     db: session_dep,
     office_short_cache: office_short_list_cache_dep,
+    storage: object_storage_dep,
 ) -> HardwareFileService:
     return HardwareFileService(
         files_repo=HardwareFilesRepository(db),
         hardware=HardwareService(HardwareRepository(db), office_short_cache),
-        storage=HardwareFileStorage(settings.static.upload_dir),
+        storage=HardwareFileStorage(storage),
     )
 
 
@@ -38,8 +39,11 @@ hardware_file_service_dep = Annotated[
 ]
 
 
-async def get_hardware_file_streaming_service(db: session_dep) -> HardwareFileStreamingService:
-    return HardwareFileStreamingService(HardwareFilesRepository(db))
+async def get_hardware_file_streaming_service(
+    db: session_dep,
+    storage: object_storage_dep,
+) -> HardwareFileStreamingService:
+    return HardwareFileStreamingService(HardwareFilesRepository(db), storage)
 
 
 hardware_file_streaming_service_dep = Annotated[
