@@ -35,9 +35,23 @@ def test_sse_formats_audience_update_event() -> None:
     assert _format_sse({"audience_updated": 5}) == 'event: audience_updated\ndata: {"audience_updated":5}\n\n'
 
 
+def test_sse_formats_notification_event() -> None:
+    assert (
+        _format_sse({"type": "notification", "notification": {"event_type": "hardware_fault"}})
+        == 'event: notification\ndata: {"type":"notification","notification":{"event_type":"hardware_fault"}}\n\n'
+    )
+
+
 def test_sse_route_rejects_invalid_audience_id() -> None:
     with TestClient(app) as client:
         response = client.get("/events?audience_id=bad")
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid audience_id"
+
+
+def test_notifications_sse_route_requires_auth() -> None:
+    with TestClient(app) as client:
+        response = client.get("/events/notifications")
+
+    assert response.status_code == 401

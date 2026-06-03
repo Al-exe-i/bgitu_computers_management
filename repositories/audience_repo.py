@@ -35,6 +35,11 @@ class AudienceRepository:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_one_short(self, audience_id: int) -> Audience | None:
+        stmt = select(Audience).where(Audience.id == audience_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def create(self, audience: Audience) -> Audience:
         """Создание аудитории"""
         self.session.add(audience)

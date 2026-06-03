@@ -40,3 +40,27 @@ class TelegramScopeNotFoundError(NotificationError):
 
 class TelegramNotificationAudienceNotFoundError(NotificationError):
     detail = "Audience not found"
+
+
+class NotificationUserNotFoundError(NotificationError):
+    detail = "User not found"
+
+
+class NotificationSubscriptionAlreadyExistsError(NotificationError):
+    detail = "Notification subscription already exists"
+
+
+class NotificationSubscriptionNotFoundError(NotificationError):
+    detail = "Notification subscription not found"
+
+
+class NotificationScopeInvalidError(NotificationError):
+    detail = "Notification subscription scope is invalid"
+
+
+class NotificationScopeNotFoundError(NotificationError):
+    detail = "Notification subscription scope not found"
+
+
+class NotificationAudienceNotFoundError(NotificationError):
+    detail = "Audience not found"

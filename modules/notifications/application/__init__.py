@@ -1,3 +1,8 @@
+from modules.notifications.application.realtime import (
+    NotificationSubscriptionCreateResult,
+    NotificationSubscriptionDeleteResult,
+    RealtimeNotificationSubscriptionUseCases,
+)
 from modules.notifications.application.telegram import (
     TelegramIntegrationUseCases,
     TelegramLinkTokenResult,
@@ -7,6 +12,9 @@ from modules.notifications.application.telegram import (
 )
 
 __all__ = [
+    "NotificationSubscriptionCreateResult",
+    "NotificationSubscriptionDeleteResult",
+    "RealtimeNotificationSubscriptionUseCases",
     "TelegramIntegrationUseCases",
     "TelegramLinkTokenResult",
     "TelegramSubscriptionCreateResult",

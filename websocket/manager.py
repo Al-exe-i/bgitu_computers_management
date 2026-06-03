@@ -26,6 +26,7 @@ class LocalConnectionManager:
     def __init__(self) -> None:
         self._connections: dict[str, LocalConnectionState] = {}
         self._audience_to_connections: dict[int | None, set[str]] = {}
+        self._user_to_connections: dict[int, set[str]] = {}
         self._lock = asyncio.Lock()
 
     async def accept(
@@ -51,6 +52,8 @@ class LocalConnectionManager:
         async with self._lock:
             self._connections[connection_id] = state
             self._audience_to_connections.setdefault(audience_id, set()).add(connection_id)
+            if user_id is not None:
+                self._user_to_connections.setdefault(user_id, set()).add(connection_id)
 
         return state
 
@@ -65,6 +68,13 @@ class LocalConnectionManager:
                 audience_connections.discard(connection_id)
                 if not audience_connections:
                     self._audience_to_connections.pop(state.audience_id, None)
+
+            if state.user_id is not None:
+                user_connections = self._user_to_connections.get(state.user_id)
+                if user_connections is not None:
+                    user_connections.discard(connection_id)
+                    if not user_connections:
+                        self._user_to_connections.pop(state.user_id, None)
 
             return state
 
@@ -98,6 +108,18 @@ class LocalConnectionManager:
         async with self._lock:
             targets = set(self._audience_to_connections.get(None, set()))
             targets.update(self._audience_to_connections.get(audience_id, set()))
+
+        dropped: list[LocalConnectionState] = []
+        for connection_id in targets:
+            removed = await self.send_json(connection_id, payload)
+            if removed is not None:
+                dropped.append(removed)
+
+        return dropped
+
+    async def broadcast_user(self, user_id: int, payload: dict) -> list[LocalConnectionState]:
+        async with self._lock:
+            targets = set(self._user_to_connections.get(user_id, set()))
 
         dropped: list[LocalConnectionState] = []
         for connection_id in targets:

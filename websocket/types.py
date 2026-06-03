@@ -91,3 +91,53 @@ class AudienceUpdatedEvent:
             audience_id=int(payload["audience_id"]),
             sent_at=datetime.fromisoformat(str(payload["sent_at"])),
         )
+
+
+@dataclass(slots=True, frozen=True)
+class RealtimeNotificationEvent:
+    event_id: str
+    type: Literal["notification"]
+    user_id: int
+    payload: dict[str, Any]
+    sent_at: datetime
+
+    @classmethod
+    def new(cls, *, user_id: int, payload: dict[str, Any]) -> "RealtimeNotificationEvent":
+        return cls(
+            event_id=str(uuid4()),
+            type="notification",
+            user_id=user_id,
+            payload=payload,
+            sent_at=datetime.now(timezone.utc),
+        )
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "type": self.type,
+            "user_id": self.user_id,
+            "payload": self.payload,
+            "sent_at": self.sent_at.isoformat(),
+        }
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> "RealtimeNotificationEvent":
+        return cls(
+            event_id=str(payload["event_id"]),
+            type="notification",
+            user_id=int(payload["user_id"]),
+            payload=dict(payload["payload"]),
+            sent_at=datetime.fromisoformat(str(payload["sent_at"])),
+        )
+
+
+RealtimeEvent = AudienceUpdatedEvent | RealtimeNotificationEvent
+
+
+def realtime_event_from_payload(payload: dict[str, Any]) -> RealtimeEvent:
+    event_type = payload.get("type")
+    if event_type == "audience_updated":
+        return AudienceUpdatedEvent.from_payload(payload)
+    if event_type == "notification":
+        return RealtimeNotificationEvent.from_payload(payload)
+    raise ValueError(f"Unsupported realtime event type: {event_type}")

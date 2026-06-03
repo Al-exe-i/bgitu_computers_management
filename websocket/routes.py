@@ -4,6 +4,8 @@ import json
 from fastapi import APIRouter, HTTPException, Request, status
 from starlette.responses import StreamingResponse
 
+from dependencies.auth import user_dep
+
 router = APIRouter()
 
 
@@ -44,9 +46,21 @@ class SSEConnection:
 
 
 def _format_sse(payload: dict) -> str:
-    event_name = "audience_updated" if "audience_updated" in payload else "message"
+    event_name = payload.get("type") or ("audience_updated" if "audience_updated" in payload else "message")
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     return f"event: {event_name}\ndata: {data}\n\n"
+
+
+def _stream_response(event_stream):
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/events", include_in_schema=False)
@@ -105,12 +119,51 @@ async def sse_endpoint(request: Request):
         finally:
             await realtime.disconnect(connection_id)
 
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+    return _stream_response(event_stream)
+
+
+@router.get("/events/notifications", include_in_schema=False)
+async def notifications_sse_endpoint(request: Request, user: user_dep):
+    realtime = request.app.state.realtime
+    if not realtime.config.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Realtime events are disabled",
+        )
+
+    connection = SSEConnection()
+    connection_id = await realtime.connect(
+        connection,
+        audience_id=None,
+        user_id=user.id,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
     )
+
+    async def event_stream():
+        try:
+            yield "retry: 3000\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    payload = await asyncio.wait_for(
+                        connection.receive_json(),
+                        timeout=realtime.config.heartbeat_interval_seconds,
+                    )
+                except asyncio.TimeoutError:
+                    await realtime.heartbeat(connection_id)
+                    yield ": ping\n\n"
+                    continue
+
+                if payload is None:
+                    break
+
+                await realtime.heartbeat(connection_id)
+                yield _format_sse(payload)
+        finally:
+            await realtime.disconnect(connection_id)
+
+    return _stream_response(event_stream)

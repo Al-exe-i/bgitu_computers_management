@@ -5,13 +5,19 @@ from loguru import logger
 from celery_app import celery_app
 from core.config import settings
 from core.outbox import OutboxEventType
+from repositories.audience_repo import AudienceRepository
+from repositories.notification_subscription_repo import NotificationSubscriptionRepository
 from repositories.outbox_event_repo import OutboxEventRepository
+from services.realtime_notification_service import (
+    AudienceChangedNotification,
+    AuthSecurityNotification,
+    HardwareStateNotification,
+    RealtimeNotificationDispatcher,
+    RealtimeNotificationRecipientService,
+    RealtimeNotificationRenderer,
+)
 from tasks.sessions import open_task_session
 from utils.broadcast import publish_audience_updated
-from utils.telegram_notifications import (
-    schedule_auth_security_notification,
-    schedule_hardware_state_notification,
-)
 from websocket.service import RealtimeService
 
 
@@ -80,15 +86,16 @@ async def _mark_failed(event_id: int, exc: Exception) -> None:
 
 async def _dispatch_event(event_type: str, payload: dict) -> None:
     if event_type == OutboxEventType.IDENTITY_AUTH_SECURITY.value:
-        schedule_auth_security_notification(**payload)
+        await _send_realtime_auth_security_notification(payload)
         return
 
     if event_type == OutboxEventType.INVENTORY_HARDWARE_STATE_CHANGED.value:
-        schedule_hardware_state_notification(**payload)
+        await _send_realtime_hardware_state_notification(payload)
         return
 
     if event_type == OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value:
         await _publish_audience_updated(payload["audience_id"])
+        await _send_realtime_audience_changed_notification(payload)
         return
 
     raise ValueError(f"Unsupported outbox event type: {event_type}")
@@ -98,6 +105,50 @@ async def _publish_audience_updated(audience_id: int) -> None:
     realtime = RealtimeService(settings.websocket)
     try:
         await publish_audience_updated(realtime, audience_id)
+    finally:
+        if realtime.bus is not None:
+            await realtime.bus.close()
+        if realtime.registry is not None:
+            await realtime.registry.close()
+
+
+async def _send_realtime_hardware_state_notification(payload: dict) -> dict[str, int | str]:
+    async def dispatch(dispatcher: RealtimeNotificationDispatcher):
+        return await dispatcher.send_hardware_state(HardwareStateNotification(**payload))
+
+    return await _dispatch_realtime_notification(dispatch)
+
+
+async def _send_realtime_auth_security_notification(payload: dict) -> dict[str, int | str]:
+    async def dispatch(dispatcher: RealtimeNotificationDispatcher):
+        return await dispatcher.send_auth_security(AuthSecurityNotification(**payload))
+
+    return await _dispatch_realtime_notification(dispatch)
+
+
+async def _send_realtime_audience_changed_notification(payload: dict) -> dict[str, int | str]:
+    async def dispatch(dispatcher: RealtimeNotificationDispatcher):
+        return await dispatcher.send_audience_changed(
+            AudienceChangedNotification(audience_id=payload["audience_id"])
+        )
+
+    return await _dispatch_realtime_notification(dispatch)
+
+
+async def _dispatch_realtime_notification(dispatch) -> dict[str, int | str]:
+    realtime = RealtimeService(settings.websocket)
+    try:
+        async with open_task_session() as session:
+            dispatcher = RealtimeNotificationDispatcher(
+                recipients=RealtimeNotificationRecipientService(
+                    NotificationSubscriptionRepository(session),
+                    AudienceRepository(session),
+                ),
+                renderer=RealtimeNotificationRenderer(),
+                publisher=realtime,
+            )
+            result = await dispatch(dispatcher)
+            return result.as_task_result()
     finally:
         if realtime.bus is not None:
             await realtime.bus.close()

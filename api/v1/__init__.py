@@ -6,6 +6,7 @@ from .endpoints import (
     auth,
     hardware,
     hardware_analytics,
+    notifications,
     offices,
     telegram,
     users,
@@ -23,4 +24,5 @@ api_router.include_router(
     prefix="/analytics/hardware",
     tags=["Аналитика оборудования (hardware_analytics)"],
 )
+api_router.include_router(notifications.router, tags=["Notifications"])
 api_router.include_router(telegram.router, tags=["Telegram"])

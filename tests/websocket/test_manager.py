@@ -40,3 +40,27 @@ def test_manager_removes_connection_when_send_fails() -> None:
         assert snapshot == []
 
     asyncio.run(scenario())
+
+
+def test_manager_broadcasts_to_matching_user_connections_only() -> None:
+    async def scenario() -> None:
+        manager = LocalConnectionManager()
+        ws_target = DummyWebSocket()
+        ws_second_target = DummyWebSocket()
+        ws_other = DummyWebSocket()
+        ws_global = DummyWebSocket()
+
+        await manager.accept(connection_id="target", connection=ws_target, audience_id=None, user_id=7)
+        await manager.accept(connection_id="target-2", connection=ws_second_target, audience_id=10, user_id=7)
+        await manager.accept(connection_id="other", connection=ws_other, audience_id=None, user_id=8)
+        await manager.accept(connection_id="global", connection=ws_global, audience_id=None, user_id=None)
+
+        dropped = await manager.broadcast_user(7, {"type": "notification"})
+
+        assert dropped == []
+        assert ws_target.messages == [{"type": "notification"}]
+        assert ws_second_target.messages == [{"type": "notification"}]
+        assert ws_other.messages == []
+        assert ws_global.messages == []
+
+    asyncio.run(scenario())

@@ -11,7 +11,7 @@ from core.config import WebSocketConfig
 from websocket.manager import LocalConnectionManager, LocalConnectionState
 from websocket.pubsub import RedisEventBus
 from websocket.registry import RedisConnectionRegistry
-from websocket.types import AudienceUpdatedEvent, RedisConnectionMeta
+from websocket.types import AudienceUpdatedEvent, RealtimeEvent, RealtimeNotificationEvent, RedisConnectionMeta
 
 
 class RealtimeService:
@@ -180,13 +180,40 @@ class RealtimeService:
 
         await self.handle_event(AudienceUpdatedEvent.new(audience_id))
 
-    async def handle_event(self, event: AudienceUpdatedEvent) -> None:
-        if event.type != "audience_updated":
+    async def publish_notification(self, *, user_id: int, payload: dict) -> None:
+        if not self.config.enabled:
             return
 
+        if self.bus is not None:
+            await self.bus.publish_notification(user_id=user_id, payload=payload)
+            return
+
+        await self.handle_event(RealtimeNotificationEvent.new(user_id=user_id, payload=payload))
+
+    async def handle_event(self, event: RealtimeEvent) -> None:
+        if event.type == "audience_updated":
+            await self._handle_audience_updated(event)
+            return
+
+        if event.type == "notification":
+            await self._handle_notification(event)
+
+    async def _handle_audience_updated(self, event: AudienceUpdatedEvent) -> None:
         dropped = await self.manager.broadcast_audience(
             event.audience_id,
             {"audience_updated": event.audience_id},
+        )
+
+        for state in dropped:
+            await self._unregister_state(state)
+
+    async def _handle_notification(self, event: RealtimeNotificationEvent) -> None:
+        dropped = await self.manager.broadcast_user(
+            event.user_id,
+            {
+                "type": "notification",
+                "notification": event.payload,
+            },
         )
 
         for state in dropped:

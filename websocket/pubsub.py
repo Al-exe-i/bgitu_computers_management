@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from loguru import logger
 from redis.asyncio import Redis
 
-from websocket.types import AudienceUpdatedEvent
+from websocket.types import AudienceUpdatedEvent, RealtimeEvent, RealtimeNotificationEvent, realtime_event_from_payload
 
 
 class RedisEventBus:
@@ -29,9 +29,13 @@ class RedisEventBus:
         event = AudienceUpdatedEvent.new(audience_id)
         await self.publisher.publish(self.channel, json.dumps(event.to_payload()))
 
+    async def publish_notification(self, *, user_id: int, payload: dict) -> None:
+        event = RealtimeNotificationEvent.new(user_id=user_id, payload=payload)
+        await self.publisher.publish(self.channel, json.dumps(event.to_payload()))
+
     async def run_forever(
         self,
-        on_event: Callable[[AudienceUpdatedEvent], Awaitable[None]],
+        on_event: Callable[[RealtimeEvent], Awaitable[None]],
     ) -> None:
         backoff = self.reconnect_delay_seconds
 
@@ -48,7 +52,7 @@ class RedisEventBus:
                         continue
 
                     payload = json.loads(message["data"])
-                    await on_event(AudienceUpdatedEvent.from_payload(payload))
+                    await on_event(realtime_event_from_payload(payload))
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
