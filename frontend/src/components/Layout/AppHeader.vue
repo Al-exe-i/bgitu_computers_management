@@ -10,12 +10,14 @@ import logoLight from '@/assets/logo_IT.png';
 import logoDark from '@/assets/logo_IT_dark.png'
 import {useOfficeStore} from "@/stores/offices.js";
 import {useThemeStore} from "@/stores/theme.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: 'appHeader',
   data() {
     return {
       isDropdownOpen: false,
+      isNotificationsOpen: false,
       activeOfficeId: null,
       isOfficeDropdownOpen: false,
       officeSwitchRefs: {},
@@ -90,6 +92,18 @@ export default {
       return useThemeStore()
     },
 
+    notificationsStore() {
+      return useNotificationsStore()
+    },
+
+    realtimeNotifications() {
+      return this.notificationsStore.realtimeHistory;
+    },
+
+    unreadNotificationsCount() {
+      return this.notificationsStore.unreadCount;
+    },
+
     userName()
     {
       const user = this.authStore.user
@@ -139,11 +153,25 @@ export default {
     {
       this.authStore.logout()
       this.isDropdownOpen = false
+      this.isNotificationsOpen = false
     },
 
     toggleDropdown()
     {
       this.isDropdownOpen = !this.isDropdownOpen
+      if (this.isDropdownOpen) {
+        this.isNotificationsOpen = false
+      }
+    },
+
+    toggleNotificationsDropdown()
+    {
+      this.isNotificationsOpen = !this.isNotificationsOpen
+      this.isDropdownOpen = false
+
+      if (this.isNotificationsOpen) {
+        this.notificationsStore.markAllRealtimeRead()
+      }
     },
 
     handleClickOutside(event)
@@ -151,6 +179,11 @@ export default {
       if (!event.target.closest('.profile-dropdown'))
       {
         this.isDropdownOpen = false
+      }
+
+      if (!event.target.closest('.notifications-dropdown'))
+      {
+        this.isNotificationsOpen = false
       }
 
       if (!event.target.closest('.office-switch-shell'))
@@ -253,6 +286,50 @@ export default {
 
     toggleTheme() {
       this.themeStore.toggleTheme()
+    },
+
+    toggleNotificationSound() {
+      this.notificationsStore.toggleSound()
+    },
+
+    clearNotificationHistory() {
+      this.notificationsStore.clearRealtimeHistory()
+    },
+
+    goNotificationSettings() {
+      router.push({ name: 'SettingsProfile', query: { section: 'notifications' } })
+      this.isNotificationsOpen = false
+    },
+
+    getNotificationTime(value) {
+      if (!value) return ''
+
+      const date = new Date(value)
+      const now = Date.now()
+      const diffMs = now - date.getTime()
+      const minute = 60 * 1000
+      const hour = 60 * minute
+
+      if (diffMs >= 0 && diffMs < minute) return 'только что'
+      if (diffMs >= 0 && diffMs < hour) return `${Math.floor(diffMs / minute)} мин назад`
+
+      return new Intl.DateTimeFormat('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date)
+    },
+
+    getNotificationTypeLabel(type) {
+      const labels = {
+        success: 'Исправно',
+        info: 'Инфо',
+        warning: 'Внимание',
+        error: 'Ошибка',
+      }
+
+      return labels[type] || 'Инфо'
     }
   },
 
@@ -470,6 +547,110 @@ export default {
             </svg>
           </span>
         </button>
+        <div v-if="authStore.isAuthenticated" class="notifications-dropdown">
+          <button
+              type="button"
+              class="notifications-trigger"
+              :class="{ active: isNotificationsOpen, unread: unreadNotificationsCount > 0 }"
+              title="Уведомления"
+              aria-label="Открыть уведомления"
+              :aria-expanded="isNotificationsOpen ? 'true' : 'false'"
+              @click="toggleNotificationsDropdown"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span v-if="unreadNotificationsCount" class="notifications-badge">
+              {{ unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount }}
+            </span>
+          </button>
+
+          <div v-show="isNotificationsOpen" class="notifications-dropdown-content">
+            <div class="notifications-panel-head">
+              <div>
+                <span class="notifications-kicker">Realtime</span>
+                <h3>Уведомления</h3>
+              </div>
+              <button
+                  type="button"
+                  class="notifications-sound-btn"
+                  :class="{ active: notificationsStore.soundEnabled }"
+                  :title="notificationsStore.soundEnabled ? 'Выключить звук' : 'Включить звук'"
+                  @click="toggleNotificationSound"
+              >
+                <svg v-if="notificationsStore.soundEnabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+                  <path d="m23 9-6 6"></path>
+                  <path d="m17 9 6 6"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div v-if="realtimeNotifications.length" class="notifications-list">
+              <article
+                  v-for="notification in realtimeNotifications"
+                  :key="notification.id"
+                  class="notification-preview"
+                  :class="[`is-${notification.type}`, { unread: !notification.read }]"
+              >
+                <div class="notification-preview-icon">
+                  <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <path d="M20 6 9 17l-5-5"></path>
+                  </svg>
+                  <svg v-else-if="notification.type === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <path d="M12 9v4"></path>
+                    <path d="M12 17h.01"></path>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
+                    <path d="M12 16v-4"></path>
+                    <path d="M12 8h.01"></path>
+                  </svg>
+                </div>
+
+                <div class="notification-preview-copy">
+                  <div class="notification-preview-topline">
+                    <strong>{{ notification.title }}</strong>
+                    <span>{{ getNotificationTime(notification.receivedAt) }}</span>
+                  </div>
+                  <p>{{ notification.text }}</p>
+                  <em>{{ getNotificationTypeLabel(notification.type) }}</em>
+                </div>
+              </article>
+            </div>
+
+            <div v-else class="notifications-empty">
+              <div class="notifications-empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+              </div>
+              <strong>Пока тихо</strong>
+              <span>Новые события появятся здесь сразу после получения.</span>
+            </div>
+
+            <div class="notifications-panel-actions">
+              <button type="button" @click="goNotificationSettings">
+                Настроить
+              </button>
+              <button
+                  type="button"
+                  :disabled="!realtimeNotifications.length"
+                  @click="clearNotificationHistory"
+              >
+                Очистить
+              </button>
+            </div>
+          </div>
+        </div>
         <!-- Если авторизованы -->
         <div v-if="authStore.isAuthenticated" class="profile-dropdown">
           <div class="profile-trigger" :class="{active: isDropdownOpen}" @click="toggleDropdown">
@@ -1080,6 +1261,387 @@ header {
   box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
+.notifications-dropdown {
+  position: relative;
+}
+
+.notifications-trigger {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  background:
+      radial-gradient(circle at 35% 22%, rgba(59, 130, 246, 0.16), transparent 42%),
+      rgba(255, 255, 255, 0.92);
+  color: #334155;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.notifications-trigger svg {
+  width: 22px;
+  height: 22px;
+}
+
+.notifications-trigger:hover,
+.notifications-trigger.active {
+  transform: translateY(-1px);
+  border-color: rgba(59, 130, 246, 0.42);
+  background:
+      radial-gradient(circle at 35% 22%, rgba(59, 130, 246, 0.22), transparent 44%),
+      rgba(239, 246, 255, 0.96);
+  color: #2563eb;
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.16);
+}
+
+.notifications-trigger.unread::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.14);
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  border: 2px solid #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.notifications-dropdown-content {
+  position: absolute;
+  right: 0;
+  top: 60px;
+  width: min(380px, calc(100vw - 24px));
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 24px;
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 36%),
+      rgba(255, 255, 255, 0.98);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+  z-index: 120;
+  animation: fadeIn 0.24s ease;
+}
+
+.notifications-panel-head,
+.notifications-panel-actions,
+.notification-preview-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notifications-panel-head {
+  margin-bottom: 14px;
+}
+
+.notifications-kicker {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.notifications-panel-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.notifications-sound-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.92);
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.notifications-sound-btn.active {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.notifications-sound-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.notifications-list {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.notification-preview {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 11px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(248, 250, 252, 0.9);
+  position: relative;
+}
+
+.notification-preview.unread {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.94), rgba(255, 255, 255, 0.96));
+}
+
+.notification-preview-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.notification-preview-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.notification-preview.is-success .notification-preview-icon {
+  background: linear-gradient(135deg, #10b981, #047857);
+}
+
+.notification-preview.is-warning .notification-preview-icon {
+  background: linear-gradient(135deg, #f59e0b, #dc2626);
+}
+
+.notification-preview.is-info .notification-preview-icon,
+.notification-preview.is-error .notification-preview-icon {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.notification-preview-copy {
+  min-width: 0;
+}
+
+.notification-preview-topline strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-preview-topline span {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.notification-preview-copy p {
+  margin: 5px 0 7px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.notification-preview-copy em {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.notifications-empty {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  text-align: center;
+  color: #64748b;
+}
+
+.notifications-empty-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 20px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+}
+
+.notifications-empty-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.notifications-empty strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.notifications-empty span {
+  max-width: 250px;
+  font-size: 13px;
+}
+
+.notifications-panel-actions {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.notifications-panel-actions button {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 13px;
+  padding: 9px 12px;
+  background: rgba(248, 250, 252, 0.92);
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.notifications-panel-actions button:first-child {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: transparent;
+  color: #fff;
+}
+
+.notifications-panel-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.1);
+}
+
+.notifications-panel-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:global(html[data-theme='dark']) .notifications-trigger {
+  background:
+      radial-gradient(circle at 35% 22%, rgba(96, 165, 250, 0.16), transparent 42%),
+      rgba(15, 23, 42, 0.92);
+  border-color: #334155;
+  color: #cbd5e1;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.28);
+}
+
+:global(html[data-theme='dark']) .notifications-trigger:hover,
+:global(html[data-theme='dark']) .notifications-trigger.active {
+  background:
+      radial-gradient(circle at 35% 22%, rgba(96, 165, 250, 0.22), transparent 44%),
+      rgba(30, 41, 59, 0.96);
+  border-color: rgba(96, 165, 250, 0.42);
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .notifications-badge {
+  border-color: #0f172a;
+}
+
+:global(html[data-theme='dark']) .notifications-dropdown-content {
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 36%),
+      rgba(15, 23, 42, 0.98);
+  border-color: #334155;
+  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.48);
+}
+
+:global(html[data-theme='dark']) .notifications-panel-head h3,
+:global(html[data-theme='dark']) .notification-preview-topline strong,
+:global(html[data-theme='dark']) .notifications-empty strong {
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .notifications-kicker,
+:global(html[data-theme='dark']) .notifications-empty-icon {
+  background: rgba(37, 99, 235, 0.22);
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .notifications-sound-btn,
+:global(html[data-theme='dark']) .notifications-panel-actions button {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+:global(html[data-theme='dark']) .notifications-sound-btn.active {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(96, 165, 250, 0.32);
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .notification-preview {
+  background: rgba(15, 23, 42, 0.82);
+  border-color: #334155;
+}
+
+:global(html[data-theme='dark']) .notification-preview.unread {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.24), rgba(15, 23, 42, 0.92));
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+:global(html[data-theme='dark']) .notification-preview-copy p,
+:global(html[data-theme='dark']) .notifications-empty,
+:global(html[data-theme='dark']) .notification-preview-topline span {
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark']) .notification-preview-copy em {
+  background: rgba(30, 41, 59, 0.9);
+  color: #cbd5e1;
+}
+
+:global(html[data-theme='dark']) .notifications-panel-actions {
+  border-top-color: #334155;
+}
+
 .profile-dropdown
 {
   position: relative;
@@ -1341,6 +1903,23 @@ header {
 
   .profile-dropdown-content {
     right: 50%;
+  }
+
+  .notifications-dropdown-content {
+    right: -58px;
+    top: 54px;
+    width: min(360px, calc(100vw - 16px));
+    padding: 13px;
+  }
+
+  .notifications-trigger {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+  }
+
+  .notifications-list {
+    max-height: 310px;
   }
 
   .profile-trigger
