@@ -956,7 +956,7 @@ export default {
   }
 }
 
-:global(html[data-theme='dark']) .realtime-notifications-section {
+:global(html[data-theme='dark'] .realtime-notifications-section) {
   --rn-bg: rgba(15, 23, 42, 0.9);
   --rn-bg-strong: rgba(15, 23, 42, 0.96);
   --rn-border: #334155;
@@ -966,15 +966,81 @@ export default {
   --rn-accent-soft: rgba(37, 99, 235, 0.22);
 }
 
-:global(html[data-theme='dark']) .rn-segmented button.active {
-  background: #111827;
+:global(html[data-theme='dark'] .rn-alert) {
+  background: rgba(127, 29, 29, 0.22) !important;
+  border-color: rgba(248, 113, 113, 0.28) !important;
+  color: #fecaca !important;
 }
 
-:global(html[data-theme='dark']) .rn-event-marker {
-  background: #334155;
+:global(html[data-theme='dark'] .rn-alert span) {
+  background: rgba(248, 113, 113, 0.18) !important;
+  color: #fecaca !important;
 }
 
-:global(html[data-theme='dark']) .rn-form select {
-  color: #e2e8f0;
+:global(html[data-theme='dark'] .rn-hero),
+:global(html[data-theme='dark'] .rn-security-card),
+:global(html[data-theme='dark'] .rn-panel),
+:global(html[data-theme='dark'] .rn-subscription),
+:global(html[data-theme='dark'] .rn-empty),
+:global(html[data-theme='dark'] .rn-note),
+:global(html[data-theme='dark'] .rn-segmented),
+:global(html[data-theme='dark'] .rn-event) {
+  box-shadow: 0 22px 48px rgba(2, 6, 23, 0.28) !important;
+}
+
+:global(html[data-theme='dark'] .rn-toggle) {
+  background: rgba(51, 65, 85, 0.92) !important;
+  border-color: #475569 !important;
+}
+
+:global(html[data-theme='dark'] .rn-toggle > span:not(.rn-spinner)) {
+  background: #cbd5e1 !important;
+  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.38) !important;
+}
+
+:global(html[data-theme='dark'] .rn-toggle.active) {
+  background: linear-gradient(135deg, #2563eb, #0f766e) !important;
+  border-color: rgba(96, 165, 250, 0.32) !important;
+}
+
+:global(html[data-theme='dark'] .rn-tags .accent) {
+  background: rgba(20, 184, 166, 0.16) !important;
+  color: #5eead4 !important;
+}
+
+:global(html[data-theme='dark'] .rn-delete) {
+  background: rgba(248, 113, 113, 0.14) !important;
+  color: #fca5a5 !important;
+}
+
+:global(html[data-theme='dark'] .rn-delete:hover) {
+  background: rgba(248, 113, 113, 0.22) !important;
+}
+
+:global(html[data-theme='dark'] .rn-segmented button.active) {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-color: rgba(96, 165, 250, 0.28) !important;
+  color: #93c5fd !important;
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.34) !important;
+}
+
+:global(html[data-theme='dark'] .rn-event.active) {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(15, 118, 110, 0.18)) !important;
+  border-color: rgba(96, 165, 250, 0.34) !important;
+}
+
+:global(html[data-theme='dark'] .rn-event-marker) {
+  background: #334155 !important;
+}
+
+:global(html[data-theme='dark'] .rn-form select) {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .rn-form select option) {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
 }
 </style>

@@ -11,9 +11,13 @@ import logoDark from '@/assets/logo_IT_dark.png'
 import {useOfficeStore} from "@/stores/offices.js";
 import {useThemeStore} from "@/stores/theme.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import NotificationTypeIcon from "@/components/Layout/NotificationTypeIcon.vue";
 
 export default {
   name: 'appHeader',
+  components: {
+    NotificationTypeIcon,
+  },
   data() {
     return {
       isDropdownOpen: false,
@@ -600,19 +604,7 @@ export default {
                   :class="[`is-${notification.type}`, { unread: !notification.read }]"
               >
                 <div class="notification-preview-icon">
-                  <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <path d="M20 6 9 17l-5-5"></path>
-                  </svg>
-                  <svg v-else-if="notification.type === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <path d="M12 9v4"></path>
-                    <path d="M12 17h.01"></path>
-                  </svg>
-                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
-                    <path d="M12 16v-4"></path>
-                    <path d="M12 8h.01"></path>
-                  </svg>
+                  <NotificationTypeIcon :type="notification.type" />
                 </div>
 
                 <div class="notification-preview-copy">
@@ -1442,16 +1434,19 @@ header {
 }
 
 .notification-preview.is-success .notification-preview-icon {
-  background: linear-gradient(135deg, #10b981, #047857);
+  background: linear-gradient(135deg, #10b981, #059669);
 }
 
 .notification-preview.is-warning .notification-preview-icon {
-  background: linear-gradient(135deg, #f59e0b, #dc2626);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-.notification-preview.is-info .notification-preview-icon,
+.notification-preview.is-info .notification-preview-icon {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
 .notification-preview.is-error .notification-preview-icon {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .notification-preview-copy {
@@ -1562,84 +1557,90 @@ header {
   cursor: not-allowed;
 }
 
-:global(html[data-theme='dark']) .notifications-trigger {
+:global(html[data-theme='dark'] .notifications-trigger) {
   background:
       radial-gradient(circle at 35% 22%, rgba(96, 165, 250, 0.16), transparent 42%),
-      rgba(15, 23, 42, 0.92);
-  border-color: #334155;
-  color: #cbd5e1;
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.28);
+      rgba(15, 23, 42, 0.92) !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.28) !important;
 }
 
-:global(html[data-theme='dark']) .notifications-trigger:hover,
-:global(html[data-theme='dark']) .notifications-trigger.active {
+:global(html[data-theme='dark'] .notifications-trigger:hover),
+:global(html[data-theme='dark'] .notifications-trigger.active) {
   background:
       radial-gradient(circle at 35% 22%, rgba(96, 165, 250, 0.22), transparent 44%),
-      rgba(30, 41, 59, 0.96);
-  border-color: rgba(96, 165, 250, 0.42);
-  color: #93c5fd;
+      rgba(30, 41, 59, 0.96) !important;
+  border-color: rgba(96, 165, 250, 0.42) !important;
+  color: #93c5fd !important;
 }
 
-:global(html[data-theme='dark']) .notifications-badge {
-  border-color: #0f172a;
+:global(html[data-theme='dark'] .notifications-badge) {
+  border-color: #0f172a !important;
 }
 
-:global(html[data-theme='dark']) .notifications-dropdown-content {
+:global(html[data-theme='dark'] .notifications-dropdown-content) {
   background:
       radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 36%),
-      rgba(15, 23, 42, 0.98);
-  border-color: #334155;
-  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.48);
+      rgba(15, 23, 42, 0.98) !important;
+  border-color: #334155 !important;
+  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.48) !important;
 }
 
-:global(html[data-theme='dark']) .notifications-panel-head h3,
-:global(html[data-theme='dark']) .notification-preview-topline strong,
-:global(html[data-theme='dark']) .notifications-empty strong {
-  color: #e2e8f0;
+:global(html[data-theme='dark'] .notifications-panel-head h3),
+:global(html[data-theme='dark'] .notification-preview-topline strong),
+:global(html[data-theme='dark'] .notifications-empty strong) {
+  color: #e2e8f0 !important;
 }
 
-:global(html[data-theme='dark']) .notifications-kicker,
-:global(html[data-theme='dark']) .notifications-empty-icon {
-  background: rgba(37, 99, 235, 0.22);
-  color: #93c5fd;
+:global(html[data-theme='dark'] .notifications-kicker),
+:global(html[data-theme='dark'] .notifications-empty-icon) {
+  background: rgba(37, 99, 235, 0.22) !important;
+  color: #93c5fd !important;
 }
 
-:global(html[data-theme='dark']) .notifications-sound-btn,
-:global(html[data-theme='dark']) .notifications-panel-actions button {
-  background: rgba(15, 23, 42, 0.9);
-  border-color: #334155;
-  color: #cbd5e1;
+:global(html[data-theme='dark'] .notifications-sound-btn),
+:global(html[data-theme='dark'] .notifications-panel-actions button) {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
 }
 
-:global(html[data-theme='dark']) .notifications-sound-btn.active {
-  background: rgba(37, 99, 235, 0.22);
-  border-color: rgba(96, 165, 250, 0.32);
-  color: #93c5fd;
+:global(html[data-theme='dark'] .notifications-sound-btn.active) {
+  background: rgba(37, 99, 235, 0.22) !important;
+  border-color: rgba(96, 165, 250, 0.32) !important;
+  color: #93c5fd !important;
 }
 
-:global(html[data-theme='dark']) .notification-preview {
-  background: rgba(15, 23, 42, 0.82);
-  border-color: #334155;
+:global(html[data-theme='dark'] .notification-preview) {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border-color: #334155 !important;
 }
 
-:global(html[data-theme='dark']) .notification-preview.unread {
-  background: linear-gradient(135deg, rgba(30, 64, 175, 0.24), rgba(15, 23, 42, 0.92));
-  border-color: rgba(96, 165, 250, 0.34);
+:global(html[data-theme='dark'] .notification-preview.unread) {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.24), rgba(15, 23, 42, 0.92)) !important;
+  border-color: rgba(96, 165, 250, 0.34) !important;
 }
 
-:global(html[data-theme='dark']) .notification-preview-copy p,
-:global(html[data-theme='dark']) .notifications-empty,
-:global(html[data-theme='dark']) .notification-preview-topline span {
-  color: #94a3b8;
+:global(html[data-theme='dark'] .notification-preview-copy p),
+:global(html[data-theme='dark'] .notifications-empty),
+:global(html[data-theme='dark'] .notification-preview-topline span) {
+  color: #94a3b8 !important;
 }
 
-:global(html[data-theme='dark']) .notification-preview-copy em {
-  background: rgba(30, 41, 59, 0.9);
-  color: #cbd5e1;
+:global(html[data-theme='dark'] .notification-preview-copy em) {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #cbd5e1 !important;
 }
 
-:global(html[data-theme='dark']) .notifications-panel-actions {
-  border-top-color: #334155;
+:global(html[data-theme='dark'] .notifications-panel-actions) {
+  border-top-color: #334155 !important;
+}
+
+:global(html[data-theme='dark'] .notifications-panel-actions button:first-child) {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
 }
 
 .profile-dropdown

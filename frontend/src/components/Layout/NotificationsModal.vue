@@ -1,8 +1,12 @@
 ﻿<script>
+import NotificationTypeIcon from "@/components/Layout/NotificationTypeIcon.vue";
 import {useNotificationsStore} from "@/stores/notifications.js";
 
 export default {
   name: "NotificationsModal",
+  components: {
+    NotificationTypeIcon,
+  },
   computed: {
     notificationsStore()
     {
@@ -10,16 +14,6 @@ export default {
     }
   },
   methods: {
-    getIcon(type)
-    {
-      const icons = {
-        success: '✓',
-        info: 'ℹ',
-        warning: '⚠',
-        error: '✕'
-      };
-      return icons[type] || 'ℹ'
-    },
     getTitle(type)
     {
       const titles = {
@@ -57,7 +51,9 @@ export default {
           class="notification"
           :class="notif.type"
       >
-        <div class="notification-icon">{{ getIcon(notif.type) }}</div>
+        <div class="notification-icon">
+          <NotificationTypeIcon :type="notif.type" />
+        </div>
         <div class="notification-content">
           <div class="notification-title">{{ notif.title || getTitle(notif.type) }}</div>
           <div class="notification-message">{{ notif.text }}</div>
@@ -159,6 +155,11 @@ export default {
   position: relative;
   animation: iconPulse 2s ease-in-out infinite;
   z-index: 2;
+}
+
+.notification-icon svg {
+  width: 24px;
+  height: 24px;
 }
 
 @keyframes iconPulse {
@@ -276,6 +277,38 @@ export default {
   stroke: #ef4444;
 }
 
+:global(html[data-theme='dark'] .notification) {
+  background:
+      radial-gradient(circle at 18% 0%, rgba(59, 130, 246, 0.16), transparent 36%),
+      rgba(15, 23, 42, 0.96) !important;
+  border: 1px solid rgba(51, 65, 85, 0.86) !important;
+  box-shadow:
+      0 24px 70px rgba(2, 6, 23, 0.54),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .notification-title) {
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .notification-message) {
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .notification-close) {
+  background: rgba(30, 41, 59, 0.86) !important;
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .notification-close:hover) {
+  background: rgba(248, 113, 113, 0.16) !important;
+  color: #fca5a5 !important;
+}
+
+:global(html[data-theme='dark'] .notification-progress-track) {
+  stroke: rgba(71, 85, 105, 0.64) !important;
+}
+
 @media (max-width: 768px) {
   .notifications-container {
     top: 16px;
@@ -303,6 +336,11 @@ export default {
     width: 40px;
     height: 40px;
     font-size: 20px;
+  }
+
+  .notification-icon svg {
+    width: 21px;
+    height: 21px;
   }
 }
 </style>

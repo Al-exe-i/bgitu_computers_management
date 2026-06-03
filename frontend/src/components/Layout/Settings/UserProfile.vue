@@ -769,26 +769,42 @@ export default {
   opacity: 0.8;
 }
 
-html[data-theme="dark"] .btn-save:not(:disabled) {
+:global(html[data-theme='dark'] .profile-card) {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border: 1px solid #334155 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 24px 54px rgba(2, 6, 23, 0.34) !important;
+}
+
+:global(html[data-theme='dark'] .profile-card .section-title) {
+  color: #f8fafc !important;
+}
+
+:global(html[data-theme='dark'] .profile-card .section-subtitle),
+:global(html[data-theme='dark'] .profile-card .card-subtitle) {
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .profile-card .btn-save:not(:disabled)) {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   border: 1px solid #2563eb;
   color: #e2e8f0;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.3);
 }
 
-html[data-theme="dark"] .btn-save:hover:not(:disabled) {
+:global(html[data-theme='dark'] .profile-card .btn-save:hover:not(:disabled)) {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   border-color: #3b82f6;
 }
 
-html[data-theme="dark"] .btn-save:disabled {
+:global(html[data-theme='dark'] .profile-card .btn-save:disabled) {
   background: #334155;
   border: 1px solid #475569;
   color: #94a3b8;
   box-shadow: none;
 }
 
-html[data-theme="dark"] .profile-section-switch {
+:global(html[data-theme='dark'] .profile-card .profile-section-switch) {
   background:
     radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.12), transparent 34%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.94));
@@ -798,7 +814,7 @@ html[data-theme="dark"] .profile-section-switch {
     0 16px 32px rgba(2, 6, 23, 0.28);
 }
 
-html[data-theme="dark"] .profile-section-indicator {
+:global(html[data-theme='dark'] .profile-card .profile-section-indicator) {
   background:
     linear-gradient(135deg, #1d4ed8 0%, #2563eb 58%, #0891b2 100%);
   box-shadow:
@@ -806,19 +822,19 @@ html[data-theme="dark"] .profile-section-indicator {
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-html[data-theme="dark"] .profile-section-btn {
+:global(html[data-theme='dark'] .profile-card .profile-section-btn) {
   color: #94a3b8;
 }
 
-html[data-theme="dark"] .profile-section-btn:hover {
+:global(html[data-theme='dark'] .profile-card .profile-section-btn:hover) {
   color: #cbd5e1;
 }
 
-html[data-theme="dark"] .profile-section-btn.active {
+:global(html[data-theme='dark'] .profile-card .profile-section-btn.active) {
   color: #f8fafc;
 }
 
-html[data-theme="dark"] .profile-section-btn.active:hover {
+:global(html[data-theme='dark'] .profile-card .profile-section-btn.active:hover) {
   color: #f8fafc;
 }
 
