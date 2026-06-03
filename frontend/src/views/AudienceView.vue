@@ -9,11 +9,10 @@ import {getApiUrl, getSseUrl} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {markRaw} from "vue";
 import {
-  createTelegramSubscription as createTelegramSubscriptionRequest,
-  deleteTelegramSubscription as deleteTelegramSubscriptionRequest,
-  getTelegramStatus,
-  getTelegramSubscriptions
-} from "@/services/telegram.js";
+  createNotificationSubscription as createTelegramSubscriptionRequest,
+  deleteNotificationSubscription as deleteTelegramSubscriptionRequest,
+  getNotificationSubscriptions as getTelegramSubscriptions
+} from "@/services/notifications.js";
 
 const MAX_HW_FILE_SIZE = 100 * 1024 * 1024;
 const ALLOWED_HW_FILE_TYPES = ['image/', 'video/'];
@@ -154,6 +153,11 @@ export default {
           value: 'hardware_recovered',
           label: 'Восстановление',
           description: 'Когда оборудование снова исправно.'
+        },
+        {
+          value: 'audience_changed',
+          label: 'Изменения',
+          description: 'Когда аудиторию или сетку оборудования обновили.'
         }
       ]),
 
@@ -240,7 +244,7 @@ export default {
     },
 
     isTelegramConnected() {
-      return !!this.telegramStatus?.telegram_id_confirmed;
+      return this.authStore.isAuthenticated;
     },
 
     audienceTelegramSubscriptions() {
@@ -1026,7 +1030,7 @@ export default {
 
     openTelegramProfileSettings() {
       this.closeAudienceTelegramPopover();
-      router.push({ name: 'SettingsProfile', query: { section: 'telegram' } });
+      router.push({ name: 'SettingsProfile', query: { section: 'notifications' } });
     },
 
     getTelegramErrorMessage(error, fallbackMessage) {
@@ -1035,7 +1039,7 @@ export default {
       const message = typeof detail === 'string' ? detail : '';
 
       if (error?.code === 'ECONNABORTED') {
-        return 'Сервер Telegram не ответил вовремя. Повторите действие ещё раз.';
+        return 'Сервер уведомлений не ответил вовремя. Повторите действие ещё раз.';
       }
 
       if (!error?.response) {
@@ -1047,11 +1051,11 @@ export default {
       }
 
       if (status === 403) {
-        return 'Недостаточно прав для работы с Telegram-подписками.';
+        return 'Недостаточно прав для работы с подписками.';
       }
 
       if (status === 404) {
-        return 'Telegram-подписка не найдена.';
+        return 'Подписка не найдена.';
       }
 
       if (status === 409) {
@@ -1063,13 +1067,14 @@ export default {
       }
 
       if (status === 422) {
-        return 'Не удалось применить Telegram-подписку для этой аудитории.';
+        return 'Не удалось применить подписку для этой аудитории.';
       }
 
       return fallbackMessage;
     },
 
     getTelegramEventLabel(eventType) {
+      if (eventType === 'audience_changed') return 'изменения аудитории';
       if (eventType === 'hardware_recovered') return 'восстановление';
       return 'неисправность';
     },
@@ -1115,7 +1120,12 @@ export default {
       const requestAudienceId = Number(this.classroom.number);
 
       try {
-        const statusResponse = await getTelegramStatus();
+        this.telegramStatus = {
+          telegram_id: null,
+          telegram_id_confirmed: true
+        };
+
+        const subscriptionsResponse = await getTelegramSubscriptions();
 
         if (
             requestUserKey !== this.currentAuthUserKey ||
@@ -1124,30 +1134,9 @@ export default {
           return;
         }
 
-        const status = statusResponse.data || {};
-
-        this.telegramStatus = {
-          telegram_id: status.telegram_id || null,
-          telegram_id_confirmed: !!status.telegram_id_confirmed
-        };
-
-        if (this.telegramStatus.telegram_id_confirmed) {
-          const subscriptionsResponse = await getTelegramSubscriptions();
-
-          if (
-              requestUserKey !== this.currentAuthUserKey ||
-              requestAudienceId !== Number(this.classroom?.number)
-          ) {
-            return;
-          }
-
-          this.telegramSubscriptions = Array.isArray(subscriptionsResponse.data)
-              ? subscriptionsResponse.data
-              : [];
-        } else {
-          this.telegramSubscriptions = [];
-        }
-
+        this.telegramSubscriptions = Array.isArray(subscriptionsResponse.data)
+            ? subscriptionsResponse.data
+            : [];
         this.telegramSubscriptionsError = '';
       } catch (error) {
         if (
@@ -1159,7 +1148,7 @@ export default {
 
         const message = this.getTelegramErrorMessage(
             error,
-            'Не удалось загрузить Telegram-подписки аудитории.'
+            'Не удалось загрузить подписки аудитории.'
         );
 
         this.telegramSubscriptionsError = message;
@@ -1179,7 +1168,7 @@ export default {
 
     async toggleAudienceTelegramSubscription(eventType) {
       if (!this.isTelegramConnected || !this.classroom?.number) {
-        this.notify.warning('Сначала подключите Telegram в профиле.');
+        this.notify.warning('Войдите в систему, чтобы управлять подписками.');
         return;
       }
 
@@ -1201,8 +1190,7 @@ export default {
           await createTelegramSubscriptionRequest({
             scope_type: 'audience',
             scope_id: Number(this.classroom.number),
-            event_type: eventType,
-            delivery_mode: 'immediate'
+            event_type: eventType
           });
         }
 
@@ -1217,7 +1205,7 @@ export default {
       } catch (error) {
         const message = this.getTelegramErrorMessage(
             error,
-            'Не удалось изменить Telegram-подписку аудитории.'
+            'Не удалось изменить подписку аудитории.'
         );
         this.telegramSubscriptionsError = message;
         this.notify.error(message);
@@ -2079,7 +2067,7 @@ export default {
                     Аудитория №{{ classroom.number }}
                   </p>
                   <p v-else>
-                    Telegram не подключён
+                    Требуется вход
                   </p>
                 </div>
                 <button
@@ -2157,7 +2145,7 @@ export default {
               </div>
 
               <div v-else class="audience-telegram-empty">
-                <p>Подключите Telegram в профиле, чтобы получать уведомления по этой аудитории.</p>
+                <p>Войдите в систему, чтобы получать уведомления по этой аудитории.</p>
                 <button type="button" @click="openTelegramProfileSettings">
                   Открыть профиль
                 </button>

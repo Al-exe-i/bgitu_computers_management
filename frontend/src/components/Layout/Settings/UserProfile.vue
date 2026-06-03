@@ -2,19 +2,19 @@
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import api from "@/services/api";
-import TelegramSection from "@/components/Layout/Settings/TelegramSection.vue";
+import RealtimeNotificationsSection from "@/components/Layout/Settings/RealtimeNotificationsSection.vue";
 
 export default {
   name: "UserProfile",
 
   components: {
-    TelegramSection
+    RealtimeNotificationsSection
   },
 
   data() {
     return {
       activeSection: "profile",
-      telegramSectionMounted: false,
+      notificationsSectionMounted: false,
       isSaving: false,
       isAvatarUploading: false,
       form: {
@@ -54,12 +54,12 @@ export default {
     },
 
     activeSectionTitle() {
-      return this.activeSection === "telegram" ? "Telegram" : "Личная информация";
+      return this.activeSection === "notifications" ? "Уведомления" : "Личная информация";
     },
 
     activeSectionSubtitle() {
-      return this.activeSection === "telegram"
-        ? "Привязка Telegram и управление подписками на события оборудования."
+      return this.activeSection === "notifications"
+        ? "Настройте realtime-подписки на события системы без Telegram."
         : "Управляйте своими личными данными и фотографией профиля.";
     }
   },
@@ -79,8 +79,8 @@ export default {
     "$route.query.section": {
       immediate: true,
       handler(section) {
-        if (section === "telegram") {
-          this.switchSection("telegram");
+        if (section === "notifications" || section === "telegram") {
+          this.switchSection("notifications");
         }
       }
     }
@@ -97,8 +97,8 @@ export default {
     switchSection(section) {
       this.activeSection = section;
 
-      if (section === "telegram") {
-        this.telegramSectionMounted = true;
+      if (section === "notifications") {
+        this.notificationsSectionMounted = true;
       }
     },
 
@@ -181,7 +181,7 @@ export default {
       <div class="profile-section-switch" role="tablist" aria-label="Разделы профиля">
         <span
           class="profile-section-indicator"
-          :class="{ 'is-telegram': activeSection === 'telegram' }"
+          :class="{ 'is-telegram': activeSection === 'notifications' }"
           aria-hidden="true"
         ></span>
 
@@ -206,16 +206,19 @@ export default {
         <button
           type="button"
           class="profile-section-btn"
-          :class="{ active: activeSection === 'telegram' }"
-          :aria-selected="activeSection === 'telegram'"
-          aria-controls="telegram-section-panel"
+          :class="{ active: activeSection === 'notifications' }"
+          :aria-selected="activeSection === 'notifications'"
+          aria-controls="notifications-section-panel"
           role="tab"
-          @click="switchSection('telegram')"
+          @click="switchSection('notifications')"
         >
           <span class="profile-section-icon" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001l-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15l4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
           </span>
-          <span>Telegram</span>
+          <span>Уведомления</span>
         </button>
       </div>
 
@@ -346,13 +349,13 @@ export default {
 
       <transition name="profile-panel-shift">
         <section
-          v-if="telegramSectionMounted"
-          v-show="activeSection === 'telegram'"
-          id="telegram-section-panel"
+          v-if="notificationsSectionMounted"
+          v-show="activeSection === 'notifications'"
+          id="notifications-section-panel"
           class="profile-panel"
           role="tabpanel"
         >
-          <TelegramSection :show-header="false" />
+          <RealtimeNotificationsSection :show-header="false" />
         </section>
       </transition>
     </div>

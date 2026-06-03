@@ -8,7 +8,7 @@ export const useNotificationsStore = defineStore('notifications', {
     }),
 
     actions: {
-        add({ text, type = 'info', timeout = 5000 })
+        add({ text, title = null, type = 'info', timeout = 5000 })
         {
             // Удаляем самое старое уведомление, если их слишком много
             if (this.notifications.length >= this.maxNotifications)
@@ -22,6 +22,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
             const notification = {
                 id,
+                title,
                 text,
                 type,
                 timerId,
@@ -108,6 +109,26 @@ export const useNotificationsStore = defineStore('notifications', {
         warning(text, timeout = 5000)
         {
             this.add({ text, type: 'warning', timeout })
+        },
+
+        realtime(notification, timeout = 7000)
+        {
+            const eventType = notification?.event_type;
+            const title = notification?.title || null;
+            const text = notification?.message || '\u041f\u043e\u043b\u0443\u0447\u0435\u043d\u043e \u043d\u043e\u0432\u043e\u0435 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435';
+            const typeByEvent = {
+                audience_changed: 'info',
+                hardware_fault: 'warning',
+                hardware_recovered: 'success',
+                auth_security: 'warning',
+            };
+
+            this.add({
+                title,
+                text,
+                type: typeByEvent[eventType] || 'info',
+                timeout,
+            });
         },
     },
 })

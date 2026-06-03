@@ -4,6 +4,9 @@ import AppHeader from "@/components/Layout/AppHeader.vue";
 import LoginModal from "@/components/Layout/LoginModal.vue";
 import NotificationsModal from "@/components/Layout/NotificationsModal.vue";
 import AppFooter from "@/components/Layout/AppFooter.vue";
+import {useAuthStore} from "@/stores/auth.js";
+import {useNotificationsStore} from "@/stores/notifications.js";
+import {getNotificationSseUrl} from "@/config/api.js";
 
 export default {
   name: "AppView",
@@ -12,6 +15,18 @@ export default {
   {
     return {
       isLoginModalOpen: false,
+      notificationEventSource: null,
+      notificationReconnectTimer: null,
+      notificationReconnectAttempts: 0,
+    }
+  },
+  computed: {
+    authStore() {
+      return useAuthStore();
+    },
+
+    notificationsStore() {
+      return useNotificationsStore();
     }
   },
   methods: {
@@ -29,6 +44,68 @@ export default {
       if (this.$route?.query?.login === '1') {
         this.isLoginModalOpen = true;
       }
+    },
+
+    syncNotificationStream() {
+      if (this.authStore.isAuthenticated) {
+        this.openNotificationStream();
+        return;
+      }
+
+      this.closeNotificationStream();
+    },
+
+    openNotificationStream() {
+      if (this.notificationEventSource || !this.authStore.isAuthenticated) {
+        return;
+      }
+
+      const source = new EventSource(getNotificationSseUrl(), { withCredentials: true });
+      this.notificationEventSource = source;
+
+      source.addEventListener('open', () => {
+        this.notificationReconnectAttempts = 0;
+      });
+
+      source.addEventListener('notification', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const notification = data.notification || data;
+          this.notificationsStore.realtime(notification);
+        } catch (error) {
+          console.warn('Realtime notification parse failed', error);
+        }
+      });
+
+      source.addEventListener('error', () => {
+        this.closeNotificationStream({ keepReconnectTimer: true });
+        this.scheduleNotificationReconnect();
+      });
+    },
+
+    scheduleNotificationReconnect() {
+      if (!this.authStore.isAuthenticated || this.notificationReconnectTimer) {
+        return;
+      }
+
+      const delay = Math.min(30000, 3000 * 2 ** this.notificationReconnectAttempts);
+      this.notificationReconnectAttempts += 1;
+      this.notificationReconnectTimer = window.setTimeout(() => {
+        this.notificationReconnectTimer = null;
+        this.openNotificationStream();
+      }, delay);
+    },
+
+    closeNotificationStream({ keepReconnectTimer = false } = {}) {
+      if (this.notificationEventSource) {
+        this.notificationEventSource.close();
+        this.notificationEventSource = null;
+      }
+
+      if (!keepReconnectTimer && this.notificationReconnectTimer) {
+        window.clearTimeout(this.notificationReconnectTimer);
+        this.notificationReconnectTimer = null;
+      }
     }
   },
   watch: {
@@ -37,7 +114,17 @@ export default {
       handler() {
         this.syncLoginModalWithRoute();
       }
+    },
+
+    'authStore.isAuthenticated': {
+      immediate: true,
+      handler() {
+        this.syncNotificationStream();
+      }
     }
+  },
+  beforeUnmount() {
+    this.closeNotificationStream();
   }
 }
 </script>

@@ -59,7 +59,7 @@ export default {
       >
         <div class="notification-icon">{{ getIcon(notif.type) }}</div>
         <div class="notification-content">
-          <div class="notification-title">{{ getTitle(notif.type) }}</div>
+          <div class="notification-title">{{ notif.title || getTitle(notif.type) }}</div>
           <div class="notification-message">{{ notif.text }}</div>
         </div>
         <button class="notification-close" @click="closeNotification(notif.id)">✕</button>
