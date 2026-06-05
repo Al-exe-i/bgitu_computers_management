@@ -305,21 +305,29 @@ export default {
       this.isNotificationsOpen = false
     },
 
-    getNotificationAudienceId(notification) {
+    getNotificationAudiencePublicId(notification) {
       const payload = notification?.payload || {}
-      const rawId = payload.audience_id
-          ?? payload.payload?.audience_id
-          ?? (payload.scope_type === 'audience' ? payload.scope_id : null)
-      const audienceId = Number(rawId)
+      const publicId = payload.audience_public_id
+          ?? payload.payload?.audience_public_id
+          ?? null
 
-      return Number.isInteger(audienceId) && audienceId > 0 ? audienceId : null
+      return typeof publicId === 'string' && publicId.trim() ? publicId : null
+    },
+
+    getNotificationAudienceLabel(notification) {
+      const payload = notification?.payload || {}
+      return payload.audience_number
+          ?? payload.payload?.audience_number
+          ?? payload.audience_id
+          ?? payload.payload?.audience_id
+          ?? ''
     },
 
     goNotificationAudience(notification) {
-      const audienceId = this.getNotificationAudienceId(notification)
-      if (!audienceId) return
+      const audiencePublicId = this.getNotificationAudiencePublicId(notification)
+      if (!audiencePublicId) return
 
-      router.push({ name: 'Audience', params: { audienceId } })
+      router.push({ name: 'Audience', params: { audiencePublicId } })
       this.isNotificationsOpen = false
     },
 
@@ -621,13 +629,13 @@ export default {
                   </div>
                   <p>{{ notification.text }}</p>
                   <div
-                      v-if="getNotificationAudienceId(notification)"
+                      v-if="getNotificationAudiencePublicId(notification)"
                       class="notification-preview-actions"
                   >
                     <button
                         type="button"
                         class="notification-audience-link"
-                        :aria-label="`Перейти к аудитории ${getNotificationAudienceId(notification)}`"
+                        :aria-label="`Перейти к аудитории ${getNotificationAudienceLabel(notification)}`"
                         @click.stop="goNotificationAudience(notification)"
                     >
                       <span>К аудитории</span>

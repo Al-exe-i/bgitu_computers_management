@@ -847,8 +847,8 @@ export default {
     },
 
     openAudience(item) {
-      if (item?.audience_id === null || item?.audience_id === undefined) return;
-      this.$router.push({ name: "Audience", params: { audienceId: item.audience_id } });
+      if (!item?.audience_public_id) return;
+      this.$router.push({ name: "Audience", params: { audiencePublicId: item.audience_public_id } });
     },
   },
 
@@ -1348,7 +1348,7 @@ export default {
                   <button
                     class="open-link audience-link-btn"
                     type="button"
-                    :disabled="item.audience_id === null || item.audience_id === undefined"
+                    :disabled="!item.audience_public_id"
                     @click="openAudience(item)"
                     aria-label="Перейти к аудитории"
                     title="Перейти к аудитории"
@@ -1528,7 +1528,7 @@ export default {
 
             <div class="modal-footer">
               <button
-                v-if="selectedItem.audience_id !== null && selectedItem.audience_id !== undefined"
+                v-if="selectedItem.audience_public_id"
                 class="btn btn-secondary analytics-modal-action-btn analytics-modal-action-btn-secondary"
                 type="button"
                 @click="openAudience(selectedItem)"

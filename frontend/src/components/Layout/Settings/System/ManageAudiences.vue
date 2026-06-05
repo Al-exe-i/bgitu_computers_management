@@ -92,7 +92,7 @@ export default {
     },
 
     goToGrid(a) {
-      this.$router.push({ name: 'ChangeAudience', params: { audienceId: a.id } });
+      this.$router.push({ name: 'ChangeAudience', params: { audiencePublicId: a.public_id } });
     },
 
     goToCreate() {
@@ -108,7 +108,7 @@ export default {
       this.deletingIds.push(a.id);
 
       try {
-        await api.delete(`/audiences/${a.id}`);
+        await api.delete(`/audiences/${a.public_id}`);
         // Реактивно выкидываем удаленную аудиторию из списка без перезагрузки всей страницы
         this.audiences = this.audiences.filter(x => x.id !== a.id);
         this.notify.success(`Аудитория №${this.audienceNumber(a)} успешно удалена`);

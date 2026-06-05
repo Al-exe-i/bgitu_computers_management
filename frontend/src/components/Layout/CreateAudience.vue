@@ -86,7 +86,7 @@ function buildLandmarksPayload(source = {}) {
 export default {
   name: 'CreateAudience',
   components: { TrustedSvgIcon },
-  props: ['id'],
+  props: ['publicId'],
   data() {
     return {
       classroomNumber: null,
@@ -125,7 +125,7 @@ export default {
   computed: {
     isEditMode()
     {
-      return !!this.id;
+      return !!this.publicId;
     },
 
     equipmentTypes() {
@@ -133,7 +133,7 @@ export default {
     },
 
     pageTitle() {
-      const number = this.classroomNumber || this.id;
+      const number = this.classroomNumber || this.publicId;
       return this.isEditMode ? `Редактирование аудитории №${number}` : 'Добавление новой аудитории';
     },
 
@@ -553,7 +553,7 @@ export default {
     async loadAudienceData() {
       this.loading = true;
       try {
-        const res = await api.get(`/audiences/${this.id}`);
+        const res = await api.get(`/audiences/${this.publicId}`);
         const data = res.data;
 
         this.classroomNumber = String(data.number ?? data.id);
@@ -657,12 +657,12 @@ export default {
       };
 
       if (this.isEditMode) {
-        api.put(`/audiences/${this.id}`, classroomData)
+        api.put(`/audiences/${this.publicId}`, classroomData)
             .then(() => {
               this.notify.success(`Аудитория обновлена!`);
               this.audienceContext.setOffice(classroomData.office_id);
               this.hasUnsavedChanges = false;
-              router.push({ name: "Audience", params: { audienceId: this.id } });
+              router.push({ name: "Audience", params: { audiencePublicId: this.publicId } });
             })
             .catch(err => {
               this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
@@ -670,14 +670,14 @@ export default {
       } else {
         api.post(`/audiences`, classroomData)
             .then((response) => {
-              const createdId = response.data?.id;
-              if (!createdId) {
-                this.notify.error(`Аудитория создана, но сервер не вернул ID для перехода.`);
+              const createdPublicId = response.data?.public_id;
+              if (!createdPublicId) {
+                this.notify.error(`Аудитория создана, но сервер не вернул UUID для перехода.`);
                 return;
               }
               this.notify.success(`Аудитория создана!`);
               this.hasUnsavedChanges = false;
-              router.push({ name: "Audience", params: { audienceId: createdId } });
+              router.push({ name: "Audience", params: { audiencePublicId: createdPublicId } });
             })
             .catch(err => {
               if (err.response?.status === 409) {
@@ -788,7 +788,7 @@ export default {
     }
 
     this.getOffices();
-    if (this.id)
+    if (this.publicId)
     {
       this.loadAudienceData();
     }

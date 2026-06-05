@@ -50,11 +50,11 @@ export default {
           return "Десятый"
       }
     },
-    handleAudienceClick(audienceId, officeId)
+    handleAudienceClick(audiencePublicId, officeId)
     {
       router.push({
         name: "Audience",
-        params: {audienceId: audienceId},
+        params: {audiencePublicId: audiencePublicId},
       })
       this.audienceContext.setOffice(officeId)
     },
@@ -105,7 +105,7 @@ export default {
           v-for="audience in audiences"
           class="classroom-card"
           :class="{ 'compact-mode': isCompactMode }"
-          @click="handleAudienceClick(audience.id, audience.office_id)"
+          @click="handleAudienceClick(audience.public_id, audience.office_id)"
         >
           <template v-if="isCompactMode">
             <div class="classroom-number compact-chip">{{ getAudienceNumber(audience) }}</div>

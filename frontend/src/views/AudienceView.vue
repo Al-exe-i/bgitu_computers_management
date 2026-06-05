@@ -20,7 +20,7 @@ const ALLOWED_HW_FILE_TYPES = ['image/', 'video/'];
 export default {
   name: 'AudienceView',
   components: { LoaderContainer, TrustedSvgIcon},
-  props: ['audienceId'],
+  props: ['audiencePublicId'],
   data() {
     return {
       classroom: null,
@@ -1226,7 +1226,7 @@ export default {
           : null;
 
       try {
-        const res = await api.get(`/audiences/${this.audienceId}`);
+        const res = await api.get(`/audiences/${this.audiencePublicId}`);
 
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
@@ -1265,6 +1265,7 @@ export default {
     mapBackendToFrontend(data) {
       return {
         id: data.id,
+        publicId: data.public_id,
         number: data.number ?? data.id,
         floor: data.floor,
 
@@ -1620,7 +1621,7 @@ export default {
     editClassroom() {
       router.push({
         name: 'ChangeAudience',
-        params: { audienceId: this.classroom.id }
+        params: { audiencePublicId: this.classroom.publicId }
       });
     },
 
@@ -1655,7 +1656,7 @@ export default {
 
     async deleteClassroom()
     {
-      await api.delete(`/audiences/${this.classroom.id}`).then((response) => {
+      await api.delete(`/audiences/${this.classroom.publicId}`).then((response) => {
         this.notify.info(`Аудитория №${this.classroom.number} удалена`)
         const officeIdToRedirect = this.classroom.office_id
         router.push({
