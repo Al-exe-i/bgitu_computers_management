@@ -40,6 +40,7 @@ class HardwareAnalyticsItem(BaseModel):
     office_address: str
     floor: int
     audience_id: int
+    audience_number: int
 
     x: int
     y: int

@@ -13,5 +13,5 @@ class Office(IntIdPkMixin, Base):
         back_populates="office",
         cascade="all, delete-orphan",
         passive_deletes=True,
-        order_by="Audience.id"
+        order_by="Audience.floor, Audience.number"
     )

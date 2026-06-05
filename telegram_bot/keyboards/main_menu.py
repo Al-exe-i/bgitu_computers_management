@@ -256,7 +256,7 @@ def build_subscription_delete_keyboard(
 
 def _render_delete_label(subscription: TelegramBotSubscriptionSnapshot) -> str:
     scope_label = {
-        "audience": f"Ауд. {subscription.scope_id}",
+        "audience": f"Ауд. ID {subscription.scope_id}",
         "office": f"Корпус {subscription.scope_id}",
         "user": "Безопасность",
     }.get(subscription.scope_type, f"{subscription.scope_type} {subscription.scope_id}")

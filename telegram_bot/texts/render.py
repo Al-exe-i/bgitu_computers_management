@@ -152,7 +152,7 @@ def _render_role(role: str | None) -> str:
 
 def _render_scope(subscription: TelegramBotSubscriptionSnapshot) -> str:
     if subscription.scope_type == "audience":
-        return f"Аудитория {subscription.scope_id}"
+        return f"Аудитория ID {subscription.scope_id}"
     if subscription.scope_type == "office":
         return f"Корпус {subscription.scope_id}"
     if subscription.scope_type == "user":

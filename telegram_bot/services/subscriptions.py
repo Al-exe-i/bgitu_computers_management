@@ -152,8 +152,9 @@ class TelegramBotSubscriptionFacade:
     @staticmethod
     def _build_audience_option(audience: Audience) -> TelegramBotScopeOption:
         suffix = f" · {audience.description}" if audience.description else ""
+        number = getattr(audience, "number", None) or audience.id
         label = (
-            f"Ауд. {audience.id} · корп. {audience.office_id} · этаж {audience.floor}"
+            f"Ауд. {number} · корп. {audience.office_id} · этаж {audience.floor}"
             f"{suffix}"
         )
         return TelegramBotScopeOption(

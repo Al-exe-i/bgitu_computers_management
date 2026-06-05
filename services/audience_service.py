@@ -76,7 +76,10 @@ class AudienceService:
         if update_data:
             for key, value in update_data.items():
                 setattr(current_audience, key, value)
-            await self.repo.flush()
+            try:
+                await self.repo.flush()
+            except IntegrityError as exc:
+                raise AudienceAlreadyExistsError() from exc
 
         if schema.hardware is not None:
             await self.grid.sync(audience_id, schema.hardware)

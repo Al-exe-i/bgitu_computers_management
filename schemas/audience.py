@@ -3,7 +3,7 @@ from schemas.hardware import HardwareFullResponse, HardwareShortResponse, Hardwa
 
 
 class AudienceBase(BaseModel):
-    id: int
+    number: int = Field(gt=0, description="Номер аудитории внутри корпуса")
     floor: int
     description: str | None = Field(default=None, max_length=200,
                                     description="Название или номер аудитории (напр. '105')")
@@ -18,6 +18,7 @@ class AudienceCreate(AudienceBase):
 
 
 class AudienceUpdate(BaseModel):
+    number: int | None = Field(default=None, gt=0)
     description: str | None = None
     office_id: int | None = None
     floor: int | None = None
@@ -28,10 +29,12 @@ class AudienceUpdate(BaseModel):
 
 
 class AudienceResponse(AudienceBase):
+    id: int
     hardware: list[HardwareFullResponse] = Field(default_factory=list)
 
 
 class AudienceShortResponse(AudienceBase):
+    id: int
     hardware: list[HardwareShortResponse] = Field(default_factory=list)
 
 class AudienceLandmarks(BaseModel):

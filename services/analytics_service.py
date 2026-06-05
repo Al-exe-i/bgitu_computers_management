@@ -24,7 +24,7 @@ class HardwareAnalyticsService:
         summary = await self.repo.summary(filters)
 
         items = []
-        for hw, audience_id, floor, office_id, office_address in rows:
+        for hw, audience_id, audience_number, floor, office_id, office_address in rows:
             items.append(
                 HardwareAnalyticsItem(
                     id=hw.id,
@@ -37,6 +37,7 @@ class HardwareAnalyticsService:
                     office_address=office_address,
                     floor=floor,
                     audience_id=audience_id,
+                    audience_number=audience_number,
                     x=hw.x,
                     y=hw.y,
                     width=hw.width,

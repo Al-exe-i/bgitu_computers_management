@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.base import Base
@@ -7,6 +7,11 @@ from .mixins import IntIdPkMixin
 
 
 class Audience(IntIdPkMixin, Base):
+    __table_args__ = (
+        UniqueConstraint("office_id", "number", name="uq_audiences_office_id_number"),
+    )
+
+    number: Mapped[int]
     floor: Mapped[int]
     description: Mapped[str | None] = mapped_column(String(200))
     office_id: Mapped[int] = mapped_column(ForeignKey('offices.id', ondelete='CASCADE'))

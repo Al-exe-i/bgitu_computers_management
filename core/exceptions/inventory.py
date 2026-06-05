@@ -7,7 +7,7 @@ class AudienceNotFoundError(InventoryError):
 
 
 class AudienceAlreadyExistsError(InventoryError):
-    detail = "Audience already exists"
+    detail = "Audience already exists in this office"
 
 
 class AudienceGridValidationError(InventoryError):

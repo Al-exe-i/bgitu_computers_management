@@ -11,9 +11,16 @@ from services.audience_service import AudienceService
 
 
 class FakeAudienceRepo:
-    def __init__(self, audience=None, *, create_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        audience=None,
+        *,
+        create_error: Exception | None = None,
+        flush_error: Exception | None = None,
+    ) -> None:
         self.audience = audience
         self.create_error = create_error
+        self.flush_error = flush_error
 
     async def get_by_id(self, audience_id: int):
         if self.audience and self.audience.id == audience_id:
@@ -24,6 +31,10 @@ class FakeAudienceRepo:
         if self.create_error is not None:
             raise self.create_error
         return audience
+
+    async def flush(self) -> None:
+        if self.flush_error is not None:
+            raise self.flush_error
 
 
 class FakeAudienceGrid:
@@ -67,7 +78,7 @@ def test_create_duplicate_audience_raises_domain_error() -> None:
         with pytest.raises(AudienceAlreadyExistsError):
             await service.create_audience(
                 AudienceCreate(
-                    id=12,
+                    number=212,
                     floor=2,
                     description="212",
                     office_id=1,
@@ -76,5 +87,21 @@ def test_create_duplicate_audience_raises_domain_error() -> None:
                     hardware=[],
                 )
             )
+
+    asyncio.run(scenario())
+
+
+def test_update_duplicate_audience_number_raises_domain_error() -> None:
+    async def scenario() -> None:
+        service = AudienceService(
+            FakeAudienceRepo(
+                SimpleNamespace(id=12, width=10, height=10),
+                flush_error=IntegrityError("update audiences", {}, Exception("duplicate")),
+            ),
+            FakeAudienceGrid(),
+        )
+
+        with pytest.raises(AudienceAlreadyExistsError):
+            await service.update_audience(12, AudienceUpdate(number=212))
 
     asyncio.run(scenario())

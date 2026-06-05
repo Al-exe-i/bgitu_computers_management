@@ -19,6 +19,7 @@ class AudienceRepository:
             .options(
                 selectinload(Audience.hardware).selectinload(Hardware.files)
             )
+            .order_by(Audience.office_id, Audience.floor, Audience.number)
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -79,7 +80,7 @@ class AudienceRepository:
         return result.scalars().first()
 
     async def list_short(self) -> Sequence[Audience]:
-        stmt = select(Audience).order_by(Audience.office_id, Audience.floor, Audience.id)
+        stmt = select(Audience).order_by(Audience.office_id, Audience.floor, Audience.number)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

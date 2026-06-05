@@ -19,6 +19,7 @@ class HardwareAnalyticsRepository:
             select(
                 Hardware,
                 Audience.id.label("audience_id"),
+                Audience.number.label("audience_number"),
                 Audience.floor.label("floor"),
                 Office.id.label("office_id"),
                 Office.address.label("office_address"),
@@ -76,7 +77,7 @@ class HardwareAnalyticsRepository:
 
     async def list(self, filters: HardwareAnalyticsFilters):
         stmt = self._apply_filters(self._base_stmt(), filters)
-        stmt = stmt.order_by(Office.id, Audience.floor, Audience.id, Hardware.id)
+        stmt = stmt.order_by(Office.id, Audience.floor, Audience.number, Hardware.id)
         stmt = stmt.limit(filters.limit).offset(filters.offset)
 
         result = await self.db.execute(stmt)
@@ -129,7 +130,11 @@ class HardwareAnalyticsRepository:
     async def filter_options(self) -> dict[str, Any]:
         offices_stmt = select(Office.id, Office.address).order_by(Office.id)
         floors_stmt = select(Audience.floor).distinct().order_by(Audience.floor)
-        audiences_stmt = select(Audience.id).order_by(Audience.id)
+        audiences_stmt = select(Audience.id, Audience.number, Audience.office_id).order_by(
+            Audience.office_id,
+            Audience.floor,
+            Audience.number,
+        )
 
         offices = (await self.db.execute(offices_stmt)).all()
         floors = (await self.db.execute(floors_stmt)).all()
@@ -138,7 +143,10 @@ class HardwareAnalyticsRepository:
         return {
             "offices": [{"value": oid, "label": address} for oid, address in offices],
             "floors": [{"value": floor, "label": str(floor)} for (floor,) in floors],
-            "audiences": [{"value": aid, "label": str(aid)} for (aid,) in audiences],
+            "audiences": [
+                {"value": aid, "label": f"№{number}, корпус №{office_id}"}
+                for aid, number, office_id in audiences
+            ],
             "states": [
                 {"value": True, "label": "Исправен"},
                 {"value": False, "label": "Неисправен"},
