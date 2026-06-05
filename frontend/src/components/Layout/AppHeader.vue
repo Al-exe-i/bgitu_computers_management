@@ -1018,6 +1018,51 @@ header {
   transform: rotate(180deg);
 }
 
+:global(html[data-theme='dark'] .office-mobile-trigger) {
+  background:
+      radial-gradient(circle at 12% 18%, rgba(96, 165, 250, 0.2), transparent 38%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96)) !important;
+  border-color: #334155 !important;
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.34) !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-trigger:hover),
+:global(html[data-theme='dark'] .office-mobile-trigger.active) {
+  border-color: rgba(96, 165, 250, 0.46) !important;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.48) !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-icon),
+:global(html[data-theme='dark'] .office-mobile-option-mark) {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(14, 165, 233, 0.18)) !important;
+  color: #93c5fd !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-kicker),
+:global(html[data-theme='dark'] .office-mobile-chevron),
+:global(html[data-theme='dark'] .office-mobile-option-subtitle) {
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-value),
+:global(html[data-theme='dark'] .office-mobile-option-title) {
+  color: #e2e8f0 !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-dropdown) {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-color: #334155 !important;
+  box-shadow: 0 24px 52px rgba(2, 6, 23, 0.52) !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-option:hover) {
+  background: rgba(30, 41, 59, 0.92) !important;
+}
+
+:global(html[data-theme='dark'] .office-mobile-option.active) {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.3), rgba(14, 165, 233, 0.16)) !important;
+}
+
 .office-mobile-dropdown {
   position: absolute;
   top: calc(100% + 10px);
@@ -1079,6 +1124,7 @@ header {
   --toggle-padding: 4px;
   --toggle-thumb-size: 30px;
   position: relative;
+  flex: 0 0 var(--toggle-width);
   width: var(--toggle-width);
   height: var(--toggle-height);
   padding: 0;
@@ -1901,17 +1947,26 @@ header {
   }
 
   .header-container {
-    gap: 8px;
+    gap: 6px;
+    padding: 12px 14px;
   }
 
   .logo-container {
     flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .logo {
+    width: 38px;
+    height: 38px;
+    margin-right: 0;
   }
 
   .office-switch-shell {
-    flex: 1 1 auto;
-    min-width: 0;
-    margin: 0 6px;
+    flex: 1 1 156px;
+    min-width: 112px;
+    max-width: 190px;
+    margin: 0 2px 0 4px;
   }
 
   .office-switch-desktop {
@@ -1924,27 +1979,47 @@ header {
   }
 
   .office-mobile-trigger {
-    padding: 7px 10px;
+    min-height: 40px;
+    padding: 6px 8px;
     border-radius: 15px;
-    gap: 8px;
+    gap: 7px;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.07);
   }
 
   .office-mobile-icon,
   .office-mobile-option-mark {
-    min-width: 32px;
-    height: 32px;
-    padding: 0 8px;
-    border-radius: 11px;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 7px;
+    border-radius: 10px;
     font-size: 12px;
   }
 
-  .office-mobile-value,
-  .office-mobile-option-title {
+  .office-mobile-copy {
+    gap: 1px;
+  }
+
+  .office-mobile-kicker {
     font-size: 9px;
+    letter-spacing: 0.06em;
+  }
+
+  .office-mobile-value {
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .office-mobile-option-title {
+    font-size: 13px;
   }
 
   .office-mobile-option-subtitle {
     font-size: 10px;
+  }
+
+  .office-mobile-chevron {
+    width: 16px;
+    height: 16px;
   }
 
   .office-mobile-dropdown {
@@ -1959,8 +2034,8 @@ header {
 
   .auth-container {
     flex: 0 0 auto;
-    margin-left: 8px;
-    gap: 8px;
+    margin-left: 2px;
+    gap: 6px;
   }
 
   .profile-name
@@ -1980,9 +2055,14 @@ header {
   }
 
   .notifications-trigger {
-    width: 40px;
-    height: 40px;
-    border-radius: 14px;
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+  }
+
+  .notifications-trigger svg {
+    width: 20px;
+    height: 20px;
   }
 
   .notifications-list {
@@ -1992,6 +2072,13 @@ header {
   .profile-trigger
   {
     padding: 0;
+    border-width: 1px;
+  }
+
+  .profile-img,
+  .profile-no-icon {
+    width: 38px;
+    height: 38px;
   }
 
   .theme-toggle {
@@ -1999,6 +2086,116 @@ header {
     --toggle-height: 36px;
     --toggle-padding: 3px;
     --toggle-thumb-size: 28px;
+  }
+}
+
+@media (max-width: 420px)
+{
+  .header-container {
+    gap: 5px;
+    padding: 10px;
+  }
+
+  .logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .office-switch-shell {
+    flex-basis: 128px;
+    min-width: 92px;
+    margin: 0 1px;
+  }
+
+  .office-mobile-trigger {
+    min-height: 36px;
+    padding: 5px 6px;
+    gap: 5px;
+    border-radius: 13px;
+  }
+
+  .office-mobile-icon {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    border-radius: 9px;
+    font-size: 11px;
+  }
+
+  .office-mobile-kicker {
+    display: none;
+  }
+
+  .office-mobile-value {
+    font-size: 12px;
+  }
+
+  .office-mobile-chevron {
+    width: 14px;
+    height: 14px;
+  }
+
+  .auth-container {
+    gap: 4px;
+    margin-left: 1px;
+  }
+
+  .notifications-trigger {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .notifications-trigger svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .notifications-trigger.unread::after {
+    top: 6px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
+  }
+
+  .notifications-badge {
+    top: -5px;
+    right: -5px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .profile-img,
+  .profile-no-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .profile-no-icon {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 360px)
+{
+  .header-container {
+    padding-inline: 8px;
+  }
+
+  .office-switch-shell {
+    flex-basis: 104px;
+    min-width: 78px;
+  }
+
+  .office-mobile-trigger {
+    justify-content: center;
+  }
+
+  .office-mobile-copy {
+    display: none;
   }
 }
 </style>
