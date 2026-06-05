@@ -133,7 +133,8 @@ export default {
     },
 
     pageTitle() {
-      return this.isEditMode ? `Редактирование аудитории №${this.id}` : 'Добавление новой аудитории';
+      const number = this.classroomNumber || this.id;
+      return this.isEditMode ? `Редактирование аудитории №${number}` : 'Добавление новой аудитории';
     },
 
     visibleEquipmentItems() {
@@ -555,7 +556,7 @@ export default {
         const res = await api.get(`/audiences/${this.id}`);
         const data = res.data;
 
-        this.classroomNumber = String(data.id);
+        this.classroomNumber = String(data.number ?? data.id);
         this.floorNumber = data.floor;
         this.officeNumber = data.office_id;
         this.gridWidth = data.width;
@@ -646,6 +647,7 @@ export default {
       }
 
       const classroomData = {
+        number: Number(this.classroomNumber),
         floor: this.floorNumber,
         width: this.gridWidth,
         height: this.gridHeight,
@@ -666,20 +668,20 @@ export default {
               this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
             });
       } else {
-        const createPayload = {
-          ...classroomData,
-          id: Number(this.classroomNumber)
-        };
-
-        api.post(`/audiences`, createPayload)
-            .then(() => {
+        api.post(`/audiences`, classroomData)
+            .then((response) => {
+              const createdId = response.data?.id;
+              if (!createdId) {
+                this.notify.error(`Аудитория создана, но сервер не вернул ID для перехода.`);
+                return;
+              }
               this.notify.success(`Аудитория создана!`);
               this.hasUnsavedChanges = false;
-              router.push({ name: "Audience", params: { audienceId: Number(this.classroomNumber) } });
+              router.push({ name: "Audience", params: { audienceId: createdId } });
             })
             .catch(err => {
               if (err.response?.status === 409) {
-                this.notify.error(`Такая аудитория уже существует!`);
+                this.notify.error(`В выбранном корпусе уже есть аудитория с таким номером!`);
               } else {
                 this.notify.error(`Не удалось создать аудиторию!`);
               }
@@ -780,6 +782,11 @@ export default {
 
   mounted()
   {
+    const officeIdFromQuery = Number(this.$route.query.office_id);
+    if (!this.isEditMode && Number.isInteger(officeIdFromQuery) && officeIdFromQuery > 0) {
+      this.officeNumber = officeIdFromQuery;
+    }
+
     this.getOffices();
     if (this.id)
     {

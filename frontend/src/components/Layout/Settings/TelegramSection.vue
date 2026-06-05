@@ -272,7 +272,8 @@ export default {
     getAudienceLabel(audience) {
       if (!audience) return "Аудитория";
 
-      const parts = [`Аудитория №${audience.id}`];
+      const number = audience.number ?? audience.id;
+      const parts = [`Аудитория №${number}`];
 
       if (audience.office_id !== null && audience.office_id !== undefined) {
         parts.push(`корпус ${audience.office_id}`);
@@ -356,7 +357,7 @@ export default {
       }
 
       const audience = this.audiences.find((item) => item.id === subscription.scope_id);
-      return audience ? this.getAudienceLabel(audience) : `Аудитория №${subscription.scope_id}`;
+      return audience ? this.getAudienceLabel(audience) : `Аудитория ID ${subscription.scope_id}`;
     },
 
     async initializeTelegram() {
@@ -459,7 +460,7 @@ export default {
               const floorDiff = (left.floor || 0) - (right.floor || 0);
               if (floorDiff !== 0) return floorDiff;
 
-              return (left.id || 0) - (right.id || 0);
+              return (left.number ?? left.id ?? 0) - (right.number ?? right.id ?? 0);
             })
           : [];
       } catch (error) {

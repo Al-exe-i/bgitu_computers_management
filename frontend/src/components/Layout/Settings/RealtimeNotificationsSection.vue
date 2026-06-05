@@ -177,7 +177,8 @@ export default {
     },
 
     getAudienceLabel(audience) {
-      const parts = [`Аудитория №${audience?.id}`];
+      const number = audience?.number ?? audience?.id;
+      const parts = [`Аудитория №${number}`];
       if (audience?.office_id) parts.push(`корпус №${audience.office_id}`);
       if (audience?.floor !== undefined && audience?.floor !== null) parts.push(`${audience.floor} этаж`);
       return parts.join(", ");
@@ -208,7 +209,7 @@ export default {
       }
 
       const audience = this.audiences.find((item) => Number(item.id) === Number(subscription.scope_id));
-      return audience ? this.getAudienceLabel(audience) : `Аудитория №${subscription.scope_id}`;
+      return audience ? this.getAudienceLabel(audience) : `Аудитория ID ${subscription.scope_id}`;
     },
 
     getSubscriptionKey(scopeType, scopeId, eventType) {
@@ -273,7 +274,7 @@ export default {
               if (officeDiff !== 0) return officeDiff;
               const floorDiff = (left.floor || 0) - (right.floor || 0);
               if (floorDiff !== 0) return floorDiff;
-              return (left.id || 0) - (right.id || 0);
+              return (left.number ?? left.id ?? 0) - (right.number ?? right.id ?? 0);
             })
           : [];
 

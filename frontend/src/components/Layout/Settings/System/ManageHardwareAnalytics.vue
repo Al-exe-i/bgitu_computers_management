@@ -799,7 +799,7 @@ export default {
 
     getAudienceText(item) {
       if (item?.audience_id === null || item?.audience_id === undefined) return "—";
-      return `№${item.audience_id}`;
+      return `№${item.audience_number ?? item.audience_id}`;
     },
 
     openDetails(item) {

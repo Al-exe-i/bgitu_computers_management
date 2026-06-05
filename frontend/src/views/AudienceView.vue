@@ -248,11 +248,11 @@ export default {
     },
 
     audienceTelegramSubscriptions() {
-      if (!this.classroom?.number) return [];
+      if (!this.classroom?.id) return [];
 
       return this.telegramSubscriptions.filter((subscription) =>
           subscription.scope_type === 'audience' &&
-          Number(subscription.scope_id) === Number(this.classroom.number)
+          Number(subscription.scope_id) === Number(this.classroom.id)
       );
     },
 
@@ -563,7 +563,7 @@ export default {
     currentAuthUserKey() {
       this.resetAudienceTelegramState();
 
-      if (this.authStore.isAuthenticated && this.classroom?.number) {
+      if (this.authStore.isAuthenticated && this.classroom?.id) {
         this.loadAudienceTelegramSubscriptions({ silent: true });
       }
     },
@@ -1080,7 +1080,7 @@ export default {
     },
 
     getTelegramSubscriptionKey(eventType) {
-      return `audience:${Number(this.classroom?.number)}:${eventType}`;
+      return `audience:${Number(this.classroom?.id)}:${eventType}`;
     },
 
     findAudienceTelegramSubscription(eventType) {
@@ -1110,14 +1110,14 @@ export default {
     },
 
     async loadAudienceTelegramSubscriptions({ silent = false } = {}) {
-      if (!this.authStore.isAuthenticated || !this.classroom?.number) {
+      if (!this.authStore.isAuthenticated || !this.classroom?.id) {
         this.resetAudienceTelegramState();
         return;
       }
 
       this.telegramSubscriptionsLoading = true;
       const requestUserKey = this.currentAuthUserKey;
-      const requestAudienceId = Number(this.classroom.number);
+      const requestAudienceId = Number(this.classroom.id);
 
       try {
         this.telegramStatus = {
@@ -1129,7 +1129,7 @@ export default {
 
         if (
             requestUserKey !== this.currentAuthUserKey ||
-            requestAudienceId !== Number(this.classroom?.number)
+            requestAudienceId !== Number(this.classroom?.id)
         ) {
           return;
         }
@@ -1141,7 +1141,7 @@ export default {
       } catch (error) {
         if (
             requestUserKey !== this.currentAuthUserKey ||
-            requestAudienceId !== Number(this.classroom?.number)
+            requestAudienceId !== Number(this.classroom?.id)
         ) {
           return;
         }
@@ -1159,7 +1159,7 @@ export default {
       } finally {
         if (
             requestUserKey === this.currentAuthUserKey &&
-            requestAudienceId === Number(this.classroom?.number)
+            requestAudienceId === Number(this.classroom?.id)
         ) {
           this.telegramSubscriptionsLoading = false;
         }
@@ -1167,7 +1167,7 @@ export default {
     },
 
     async toggleAudienceTelegramSubscription(eventType) {
-      if (!this.isTelegramConnected || !this.classroom?.number) {
+      if (!this.isTelegramConnected || !this.classroom?.id) {
         this.notify.warning('Войдите в систему, чтобы управлять подписками.');
         return;
       }
@@ -1189,7 +1189,7 @@ export default {
         } else {
           await createTelegramSubscriptionRequest({
             scope_type: 'audience',
-            scope_id: Number(this.classroom.number),
+            scope_id: Number(this.classroom.id),
             event_type: eventType
           });
         }
@@ -1264,7 +1264,8 @@ export default {
 
     mapBackendToFrontend(data) {
       return {
-        number: data.id,
+        id: data.id,
+        number: data.number ?? data.id,
         floor: data.floor,
 
         landmarks: data.landmarks,
@@ -1619,7 +1620,7 @@ export default {
     editClassroom() {
       router.push({
         name: 'ChangeAudience',
-        params: { id: this.classroom.number }
+        params: { audienceId: this.classroom.id }
       });
     },
 
@@ -1654,7 +1655,7 @@ export default {
 
     async deleteClassroom()
     {
-      await api.delete(`/audiences/${this.classroom.number}`).then((response) => {
+      await api.delete(`/audiences/${this.classroom.id}`).then((response) => {
         this.notify.info(`Аудитория №${this.classroom.number} удалена`)
         const officeIdToRedirect = this.classroom.office_id
         router.push({
@@ -1689,7 +1690,7 @@ export default {
     },
     /* Realtime events */
     connectRealtime() {
-      if (this.isUnmounted || !this.classroom?.number) {
+      if (this.isUnmounted || !this.classroom?.id) {
         return;
       }
 
@@ -1704,7 +1705,7 @@ export default {
         this.eventSource.close();
       }
 
-      this.eventSource = new EventSource(`${getSseUrl()}?audience_id=${this.classroom.number}`);
+      this.eventSource = new EventSource(`${getSseUrl()}?audience_id=${this.classroom.id}`);
 
       this.eventSource.onopen = () => {
         this.wsConnected = true;
@@ -1716,7 +1717,7 @@ export default {
       const handleRealtimeEvent = (event) => {
         const msg = JSON.parse(event.data);
         const audienceId = msg?.audience_updated ?? msg?.audience_id;
-        if (Number(audienceId) === Number(this.classroom?.number)) {
+        if (Number(audienceId) === Number(this.classroom?.id)) {
           this.scheduleRefresh();
         }
       };
@@ -2836,7 +2837,7 @@ export default {
         <div class="modal-content pt-1">
           <h2 class="modal-title">Удаление аудитории</h2>
           <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">
-            Вы уверены, что хотите удалить <strong>аудиторию №{{ audienceId }}</strong>?
+            Вы уверены, что хотите удалить <strong>аудиторию №{{ classroom.number }}</strong>?
           </p>
           <div class="warning-box">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

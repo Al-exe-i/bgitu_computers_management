@@ -59,7 +59,7 @@ export default {
 
         // Поиск по строке (ищем сразу везде: ID, описание, корпус, этаж)
         if (q) {
-          const hay = `${a.id} ${a.description || ""} ${a.office_id} ${a.floor}`.toLowerCase();
+          const hay = `${this.audienceNumber(a)} ${a.description || ""} ${a.office_id} ${a.floor}`.toLowerCase();
           if (!hay.includes(q)) return false;
         }
 
@@ -72,6 +72,10 @@ export default {
     officeLabel(office_id) {
       const o = this.officesMap.get(office_id);
       return o ? `№${o.id} — ${o.address}` : `Корпус №${office_id}`;
+    },
+
+    audienceNumber(audience) {
+      return audience?.number ?? audience?.id;
     },
 
     async fetchAll() {
@@ -88,7 +92,7 @@ export default {
     },
 
     goToGrid(a) {
-      this.$router.push({ name: 'ChangeAudience', params: { id: a.id } });
+      this.$router.push({ name: 'ChangeAudience', params: { audienceId: a.id } });
     },
 
     goToCreate() {
@@ -96,7 +100,7 @@ export default {
     },
 
     async deleteAudience(a) {
-      if (!confirm(`Удалить аудиторию №${a.id}?\n\nВнимание: всё привязанное оборудование также будет безвозвратно удалено.`)) {
+      if (!confirm(`Удалить аудиторию №${this.audienceNumber(a)}?\n\nВнимание: всё привязанное оборудование также будет безвозвратно удалено.`)) {
         return;
       }
 
@@ -107,7 +111,7 @@ export default {
         await api.delete(`/audiences/${a.id}`);
         // Реактивно выкидываем удаленную аудиторию из списка без перезагрузки всей страницы
         this.audiences = this.audiences.filter(x => x.id !== a.id);
-        this.notify.success(`Аудитория №${a.id} успешно удалена`);
+        this.notify.success(`Аудитория №${this.audienceNumber(a)} успешно удалена`);
       } catch (e) {
         const msg = e.response?.data?.detail || "Произошла ошибка при удалении";
         this.notify.error(msg);
@@ -177,7 +181,7 @@ export default {
         <!-- Если список пуст или грузится, скрываем строки, чтобы не мелькали пустые рамки -->
         <template v-if="!loading && filteredAudiences.length > 0">
           <tr v-for="a in filteredAudiences" :key="a.id" class="table-row">
-            <td><span class="aud-number">{{ a.id }}</span></td>
+            <td><span class="aud-number">{{ audienceNumber(a) }}</span></td>
             <td>
               <div class="office-cell">
                 <span class="office-name">{{ officeLabel(a.office_id) }}</span>

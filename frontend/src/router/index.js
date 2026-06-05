@@ -48,19 +48,29 @@ const routes = [
     },
 
     {
-        path: `/audience/:id/edit`,
-        name: 'ChangeAudience',
-        component: CreateAudience,
-        props: true,
-        meta: {requiresAuth: true, title: (route) => `Редактирование аудитории №${route.params.id}`},
+        path: `/audience/:audienceId/edit`,
+        redirect: to => ({ name: 'ChangeAudience', params: { audienceId: to.params.audienceId } }),
     },
 
     {
         path: `/audience/:audienceId`,
+        redirect: to => ({ name: 'Audience', params: { audienceId: to.params.audienceId } }),
+    },
+
+    {
+        path: `/audiences/:audienceId/edit`,
+        name: 'ChangeAudience',
+        component: CreateAudience,
+        props: route => ({ id: route.params.audienceId }),
+        meta: {requiresAuth: true, title: 'Редактирование аудитории'},
+    },
+
+    {
+        path: `/audiences/:audienceId`,
         name: 'Audience',
         component: AudienceView,
         props: true,
-        meta: {title: (route) => `Аудитория №${route.params.audienceId}`},
+        meta: {title: 'Аудитория'},
     },
 
     {

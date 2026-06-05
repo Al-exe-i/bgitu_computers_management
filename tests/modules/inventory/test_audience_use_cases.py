@@ -14,7 +14,7 @@ class FakeAudienceService:
 
     async def create_audience(self, data: AudienceCreate):
         self.created.append(data)
-        return SimpleNamespace(id=data.id)
+        return SimpleNamespace(id=12, number=data.number)
 
     async def update_audience(self, audience_id: int, data: AudienceUpdate):
         self.updated.append((audience_id, data))
@@ -40,7 +40,7 @@ def test_create_audience_logs_compact_payload_and_returns_event() -> None:
 
         result = await use_cases.create_audience(
             data=AudienceCreate(
-                id=12,
+                number=212,
                 floor=2,
                 description="212",
                 office_id=1,

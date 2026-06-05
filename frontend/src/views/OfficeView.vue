@@ -170,7 +170,7 @@ export default {
           // 2. Проверка по поиску (Search Field)
           let matchesSearch = true;
           if (searchText) {
-            matchesSearch = String(audience.id).toLowerCase().startsWith(searchText);
+            matchesSearch = String(audience.number ?? audience.id).toLowerCase().startsWith(searchText);
           }
 
           // Аудитория должна пройти ОБЕ проверки
@@ -221,7 +221,10 @@ export default {
 
     addNewAudience()
     {
-      router.push({name: "New Audience"})
+      router.push({
+        name: "New Audience",
+        query: { office_id: this.office?.id ?? this.officeNumber },
+      })
     }
   },
 

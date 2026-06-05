@@ -58,6 +58,10 @@ export default {
       })
       this.audienceContext.setOffice(officeId)
     },
+    getAudienceNumber(audience)
+    {
+      return audience?.number ?? audience?.id
+    },
     audienceStatus(faultyCnt)
     {
       if(faultyCnt === 0)
@@ -104,10 +108,10 @@ export default {
           @click="handleAudienceClick(audience.id, audience.office_id)"
         >
           <template v-if="isCompactMode">
-            <div class="classroom-number compact-chip">{{ audience.id }}</div>
+            <div class="classroom-number compact-chip">{{ getAudienceNumber(audience) }}</div>
 
             <div class="classroom-row-copy">
-              <div class="classroom-row-title">Аудитория {{ audience.id }}</div>
+              <div class="classroom-row-title">Аудитория {{ getAudienceNumber(audience) }}</div>
               <div class="classroom-row-meta">
                 <span class="classroom-quick-stat">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -133,7 +137,7 @@ export default {
           </template>
 
           <template v-else>
-            <div class="classroom-number">{{ audience.id }}</div>
+            <div class="classroom-number">{{ getAudienceNumber(audience) }}</div>
             <div class="classroom-info">
               <div class="info-item">
                 <div class="info-label">Оборудование</div>
