@@ -305,6 +305,24 @@ export default {
       this.isNotificationsOpen = false
     },
 
+    getNotificationAudienceId(notification) {
+      const payload = notification?.payload || {}
+      const rawId = payload.audience_id
+          ?? payload.payload?.audience_id
+          ?? (payload.scope_type === 'audience' ? payload.scope_id : null)
+      const audienceId = Number(rawId)
+
+      return Number.isInteger(audienceId) && audienceId > 0 ? audienceId : null
+    },
+
+    goNotificationAudience(notification) {
+      const audienceId = this.getNotificationAudienceId(notification)
+      if (!audienceId) return
+
+      router.push({ name: 'Audience', params: { audienceId } })
+      this.isNotificationsOpen = false
+    },
+
     getNotificationTime(value) {
       if (!value) return ''
 
@@ -325,16 +343,6 @@ export default {
       }).format(date)
     },
 
-    getNotificationTypeLabel(type) {
-      const labels = {
-        success: 'Исправно',
-        info: 'Инфо',
-        warning: 'Внимание',
-        error: 'Ошибка',
-      }
-
-      return labels[type] || 'Инфо'
-    }
   },
 
   watch: {
@@ -613,7 +621,22 @@ export default {
                     <span>{{ getNotificationTime(notification.receivedAt) }}</span>
                   </div>
                   <p>{{ notification.text }}</p>
-                  <em>{{ getNotificationTypeLabel(notification.type) }}</em>
+                  <div
+                      v-if="getNotificationAudienceId(notification)"
+                      class="notification-preview-actions"
+                  >
+                    <button
+                        type="button"
+                        class="notification-audience-link"
+                        :aria-label="`Перейти к аудитории ${getNotificationAudienceId(notification)}`"
+                        @click.stop="goNotificationAudience(notification)"
+                    >
+                      <span>К аудитории</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15">
+                        <path fill="currentColor" d="M8.293 2.293a1 1 0 0 1 1.414 0l4.5 4.5a1 1 0 0 1 0 1.414l-4.5 4.5a1 1 0 0 1-1.414-1.414L11 8.5H1.5a1 1 0 0 1 0-2H11L8.293 3.707a1 1 0 0 1 0-1.414"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </article>
             </div>
@@ -1471,21 +1494,56 @@ header {
 }
 
 .notification-preview-copy p {
-  margin: 5px 0 7px;
+  margin: 5px 0 0;
   color: #475569;
   font-size: 13px;
   line-height: 1.35;
 }
 
-.notification-preview-copy em {
+.notification-preview-actions {
+  display: flex;
+  margin-top: 8px;
+}
+
+.notification-audience-link {
   display: inline-flex;
-  padding: 3px 8px;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 7px 5px 10px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: #64748b;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
   font-size: 11px;
-  font-style: normal;
   font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      color 0.18s ease,
+      transform 0.18s ease;
+}
+
+.notification-audience-link svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  transition: transform 0.18s ease;
+}
+
+.notification-audience-link:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  box-shadow: 0 9px 18px rgba(37, 99, 235, 0.22);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.notification-audience-link:hover svg {
+  transform: translateX(2px);
 }
 
 .notifications-empty {
@@ -1628,9 +1686,17 @@ header {
   color: #94a3b8 !important;
 }
 
-:global(html[data-theme='dark'] .notification-preview-copy em) {
-  background: rgba(30, 41, 59, 0.9) !important;
-  color: #cbd5e1 !important;
+:global(html[data-theme='dark'] .notification-audience-link) {
+  background: rgba(37, 99, 235, 0.18) !important;
+  border-color: rgba(96, 165, 250, 0.24) !important;
+  color: #93c5fd !important;
+}
+
+:global(html[data-theme='dark'] .notification-audience-link:hover) {
+  background: #2563eb !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 9px 18px rgba(37, 99, 235, 0.34) !important;
+  color: #ffffff !important;
 }
 
 :global(html[data-theme='dark'] .notifications-panel-actions) {

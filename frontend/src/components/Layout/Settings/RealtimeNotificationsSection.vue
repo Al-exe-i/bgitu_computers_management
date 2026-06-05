@@ -408,7 +408,6 @@ export default {
   <section class="realtime-notifications-section" :class="{ 'is-embedded': !showHeader }">
     <div v-if="showHeader" class="realtime-notifications-header">
       <h3>Realtime-уведомления</h3>
-      <p>Настройте события, которые будут приходить прямо в интерфейс системы.</p>
     </div>
 
     <div v-if="error" class="rn-alert">
@@ -422,22 +421,6 @@ export default {
     </div>
 
     <template v-else>
-      <div class="rn-hero">
-        <div class="rn-hero-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-        </div>
-        <div class="rn-hero-copy">
-          <span class="rn-pill">SSE подключается автоматически</span>
-          <h4>Уведомления приходят без Telegram</h4>
-          <p>
-            Когда выбранное событие произойдёт, frontend получит его через realtime-канал
-            и покажет понятное уведомление в интерфейсе.
-          </p>
-        </div>
-      </div>
 
       <div class="rn-security-card">
         <div>
