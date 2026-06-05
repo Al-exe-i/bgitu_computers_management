@@ -25,6 +25,7 @@ class CachedUser:
     reg_date: datetime
     is_superuser: bool
     photo: str | None
+    access_token_version: int
     role: UserRole
 
 
@@ -109,6 +110,7 @@ class UserCache:
             "reg_date": self._datetime_to_str(user.reg_date),
             "is_superuser": user.is_superuser,
             "photo": user.photo,
+            "access_token_version": int(getattr(user, "access_token_version", 0) or 0),
             "role": self._role_to_name(user.role),
         }
         return json.dumps(payload, ensure_ascii=False)
@@ -130,6 +132,7 @@ class UserCache:
             reg_date=datetime.fromisoformat(data["reg_date"]),
             is_superuser=bool(data.get("is_superuser", False)),
             photo=data.get("photo"),
+            access_token_version=int(data.get("access_token_version", 0) or 0),
             role=UserRole[data["role"]],
         )
 

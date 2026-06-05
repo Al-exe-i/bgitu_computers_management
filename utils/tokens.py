@@ -36,8 +36,13 @@ def build_token_response(*, access_token: str, refresh_token: str) -> JSONRespon
     return response
 
 
-def issue_access_token(user_id: int) -> str:
-    return generate_access_token(data={"sub": str(user_id)})
+def issue_access_token(user_id: int, token_version: int = 0) -> str:
+    return generate_access_token(
+        data={
+            "sub": str(user_id),
+            "token_version": int(token_version),
+        }
+    )
 
 
 def new_refresh_token() -> str:

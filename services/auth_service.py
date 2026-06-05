@@ -85,7 +85,10 @@ class AuthService:
             user_id=user.id,
             user_email=getattr(user, "email", None),
             sid=sid,
-            access_token=issue_access_token(user.id),
+            access_token=issue_access_token(
+                user.id,
+                await self._access_token_version(user),
+            ),
             refresh_token=refresh_token,
         )
 
@@ -131,6 +134,7 @@ class AuthService:
         )
         if not rotated:
             await self.session_service.revoke(session.sid)
+            await self.user_service.bump_access_token_version(user.id)
             logger.warning(
                 "Refresh token reuse detected for user_id={} sid={}",
                 user.id,
@@ -143,7 +147,10 @@ class AuthService:
             user_id=user.id,
             user_email=getattr(user, "email", None),
             sid=session.sid,
-            access_token=issue_access_token(user.id),
+            access_token=issue_access_token(
+                user.id,
+                await self._access_token_version(user),
+            ),
             refresh_token=new_token,
         )
 
@@ -172,11 +179,13 @@ class AuthService:
             return LogoutResult(user_id=None, sid=None)
 
         await self.session_service.revoke(session.sid)
+        await self.user_service.bump_access_token_version(session.user_id)
         logger.info("Logout succeeded for user_id={} sid={}", session.user_id, session.sid)
         return LogoutResult(user_id=session.user_id, sid=session.sid)
 
     async def logout_all(self, *, user_id: int) -> None:
         await self.session_service.revoke_all_for_user(user_id)
+        await self.user_service.bump_access_token_version(user_id)
         logger.info("Logout all sessions for user_id={}", user_id)
 
     async def list_user_sessions(
@@ -217,5 +226,15 @@ class AuthService:
             logger.warning("Session revoke failed for user_id={} sid={}", user_id, sid)
             raise SessionNotFoundError()
 
+        await self.user_service.bump_access_token_version(user_id)
         logger.info("Session revoked for user_id={} sid={}", user_id, sid)
         return RevokeSessionResult(revoked_current_session=current_sid == sid)
+
+    async def _access_token_version(self, user: object) -> int:
+        get_version = getattr(self.user_service, "get_access_token_version", None)
+        if get_version is not None:
+            version = await get_version(user.id)
+            if version is not None:
+                return int(version)
+
+        return int(getattr(user, "access_token_version", 0) or 0)

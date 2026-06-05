@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.exceptions import InvalidCredentialsError
-from core.security import get_password_hash
+from core.security import get_password_hash, verify_access_token
 from services.auth_service import AuthService
 from utils.tokens import hash_refresh_token
 
@@ -13,6 +13,7 @@ from utils.tokens import hash_refresh_token
 class FakeUserService:
     def __init__(self, users: list[SimpleNamespace]) -> None:
         self.users = users
+        self.bumped_user_ids: list[int] = []
 
     async def get_by_email(self, email: str):
         return next((user for user in self.users if user.email == email), None)
@@ -20,13 +21,23 @@ class FakeUserService:
     async def get(self, user_id: int):
         return next((user for user in self.users if user.id == user_id), None)
 
+    async def bump_access_token_version(self, user_id: int) -> int:
+        self.bumped_user_ids.append(user_id)
+        return 1
+
 
 class FakeSessionService:
-    def __init__(self, rows: list[SimpleNamespace] | None = None) -> None:
+    def __init__(
+        self,
+        rows: list[SimpleNamespace] | None = None,
+        active_session: SimpleNamespace | None = None,
+    ) -> None:
         self.rows = rows or []
+        self.active_session = active_session
         self.created_sessions: list[dict] = []
         self.list_calls: list[dict] = []
         self.current_sid: str | None = None
+        self.revoked_sids: list[str] = []
 
     @staticmethod
     def new_sid() -> str:
@@ -35,6 +46,11 @@ class FakeSessionService:
     async def create_session(self, **kwargs):
         self.created_sessions.append(kwargs)
         return SimpleNamespace(**kwargs)
+
+    async def get_active_by_refresh_token(self, refresh_token: str):
+        if refresh_token == "refresh-token":
+            return self.active_session
+        return None
 
     async def get_current_sid(self, refresh_token: str | None):
         return self.current_sid if refresh_token else None
@@ -45,6 +61,9 @@ class FakeSessionService:
         )
         return self.rows
 
+    async def revoke(self, sid: str) -> None:
+        self.revoked_sids.append(sid)
+
 
 def test_login_creates_session_and_returns_token_pair() -> None:
     async def scenario() -> None:
@@ -52,6 +71,7 @@ def test_login_creates_session_and_returns_token_pair() -> None:
             id=7,
             email="user@example.com",
             password=get_password_hash("secret123"),
+            access_token_version=3,
         )
         sessions = FakeSessionService()
         service = AuthService(FakeUserService([user]), sessions)
@@ -65,7 +85,10 @@ def test_login_creates_session_and_returns_token_pair() -> None:
 
         assert result.user_id == 7
         assert result.sid == "sid-1"
-        assert result.access_token
+        payload = verify_access_token(result.access_token)
+        assert payload is not None
+        assert payload["sub"] == "7"
+        assert payload["token_version"] == 3
         assert sessions.created_sessions == [
             {
                 "user_id": 7,
@@ -85,6 +108,7 @@ def test_login_rejects_invalid_password() -> None:
             id=7,
             email="user@example.com",
             password=get_password_hash("secret123"),
+            access_token_version=0,
         )
         service = AuthService(FakeUserService([user]), FakeSessionService())
 
@@ -93,6 +117,23 @@ def test_login_rejects_invalid_password() -> None:
                 email="user@example.com",
                 password="wrong-password",
             )
+
+    asyncio.run(scenario())
+
+
+def test_logout_revokes_session_and_bumps_access_token_version() -> None:
+    async def scenario() -> None:
+        session = SimpleNamespace(user_id=7, sid="sid-1")
+        sessions = FakeSessionService(active_session=session)
+        users = FakeUserService([])
+        service = AuthService(users, sessions)
+
+        result = await service.logout(refresh_token="refresh-token")
+
+        assert result.user_id == 7
+        assert result.sid == "sid-1"
+        assert sessions.revoked_sids == ["sid-1"]
+        assert users.bumped_user_ids == [7]
 
     asyncio.run(scenario())
 

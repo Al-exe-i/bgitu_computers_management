@@ -50,6 +50,7 @@ class DummyUserService:
     def __init__(self, *, user_by_email=None, user_by_id=None) -> None:
         self.user_by_email = user_by_email
         self.user_by_id = user_by_id
+        self.bumped_user_ids: list[int] = []
 
     async def get_by_email(self, email: str):
         if self.user_by_email and self.user_by_email.email == email:
@@ -60,6 +61,10 @@ class DummyUserService:
         if self.user_by_id and self.user_by_id.id == user_id:
             return self.user_by_id
         return None
+
+    async def bump_access_token_version(self, user_id: int) -> int:
+        self.bumped_user_ids.append(user_id)
+        return 1
 
 
 class DummySessionRepo:
@@ -247,8 +252,9 @@ def test_refresh_endpoint_rotates_refresh_token() -> None:
 def test_logout_endpoint_revokes_current_session_and_clears_cookies() -> None:
     sessions = DummySessionService(current_session=SimpleNamespace(user_id=7, sid="sid-1"))
     audit = DummyAudit()
+    users = DummyUserService()
     override_dependencies(
-        user_service=DummyUserService(),
+        user_service=users,
         session_service=sessions,
         audit=audit,
     )
@@ -262,6 +268,7 @@ def test_logout_endpoint_revokes_current_session_and_clears_cookies() -> None:
         assert response.status_code == 200
         assert response.json() == {"message": "Successfully logged out"}
         assert sessions.revoked_sids == ["sid-1"]
+        assert users.bumped_user_ids == [7]
         assert audit.logs[0]["action"] == "auth.logout"
         assert audit.logs[0]["payload"]["sid"] == "sid-1"
 
@@ -275,8 +282,9 @@ def test_logout_endpoint_revokes_current_session_and_clears_cookies() -> None:
 def test_logout_all_endpoint_revokes_all_user_sessions() -> None:
     sessions = DummySessionService()
     user_audit = DummyUserAudit(user=SimpleNamespace(id=7))
+    users = DummyUserService()
     override_dependencies(
-        user_service=DummyUserService(),
+        user_service=users,
         session_service=sessions,
         user_audit=user_audit,
     )
@@ -288,6 +296,7 @@ def test_logout_all_endpoint_revokes_all_user_sessions() -> None:
         assert response.status_code == 200
         assert response.json() == {"message": "Successfully logged out"}
         assert sessions.revoked_user_ids == [7]
+        assert users.bumped_user_ids == [7]
         assert user_audit.logs[0]["action"] == "auth.logout_all"
         assert user_audit.logs[0]["payload"]["user_id"] == 7
     finally:

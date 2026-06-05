@@ -80,6 +80,7 @@ def make_user(user_id: int = 7):
         reg_date=datetime(2026, 5, 28, tzinfo=timezone.utc),
         is_superuser=False,
         photo=None,
+        access_token_version=2,
         role=UserRole.teacher,
     )
 
@@ -96,6 +97,7 @@ def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
         assert cached is not None
         assert cached.id == 7
         assert cached.password == "hashed-password"
+        assert cached.access_token_version == 2
         assert cached.role == UserRole.teacher
         assert redis.ttl["identity:user:7:v1"] == 600
         output = metrics.render()

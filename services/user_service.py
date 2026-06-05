@@ -47,6 +47,9 @@ class UserService:
     async def get_by_email(self, email: str) -> User:
         return await self.repo.get_by_email(email)
 
+    async def get_access_token_version(self, user_id: int) -> int | None:
+        return await self.repo.get_access_token_version(user_id)
+
     async def update(self, user_id: int, data: UserUpdate) -> UserOut | None:
         user = await self.repo.get(user_id)
         if not user:
@@ -70,6 +73,9 @@ class UserService:
             return False
         await self.repo.delete(user)
         return True
+
+    async def bump_access_token_version(self, user_id: int) -> int | None:
+        return await self.repo.bump_access_token_version(user_id)
 
     def get_photo(self, user: User) -> StoredAvatarFile | None:
         return self._avatar_storage().get_existing(user.photo)

@@ -18,6 +18,7 @@ def test_issue_access_token_creates_valid_jwt_for_user() -> None:
 
     assert payload is not None
     assert payload["sub"] == "42"
+    assert payload["token_version"] == 0
 
 
 def test_new_refresh_token_returns_unique_uuid_strings() -> None:

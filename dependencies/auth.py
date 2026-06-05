@@ -25,6 +25,7 @@ async def _validate_token_and_get_user(
 
     try:
         sub = int(payload.get("sub"))
+        token_version = int(payload.get("token_version", 0))
     except (TypeError, ValueError):
         raise credentials_exception
 
@@ -32,7 +33,23 @@ async def _validate_token_and_get_user(
     if user is None:
         raise credentials_exception
 
+    user_token_version = await _get_current_access_token_version(service, user)
+    if user_token_version is None or token_version != user_token_version:
+        raise credentials_exception
+
     return user
+
+
+async def _get_current_access_token_version(
+    service: user_service_dep,
+    user: UserOut,
+) -> int | None:
+    get_version = getattr(service, "get_access_token_version", None)
+    if get_version is not None:
+        version = await get_version(user.id)
+        return int(version) if version is not None else None
+
+    return int(getattr(user, "access_token_version", 0) or 0)
 
 
 async def get_current_user(
