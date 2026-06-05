@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
 from modules.inventory.events import AudienceUpdatedEvent, InventoryEvent
@@ -31,8 +32,8 @@ class InventoryAudienceUseCases:
         audiences = await self.audience_service.get_list()
         return list(audiences)
 
-    async def get_audience(self, *, audience_id: int) -> AudienceResponse:
-        return await self.audience_service.get_one(audience_id)
+    async def get_audience(self, *, audience_public_id: UUID) -> AudienceResponse:
+        return await self.audience_service.get_one_by_public_id(audience_public_id)
 
     async def create_audience(
         self,
@@ -57,40 +58,41 @@ class InventoryAudienceUseCases:
     async def update_audience(
         self,
         *,
-        audience_id: int,
+        audience_public_id: UUID,
         data: AudienceUpdate,
         audit: AuditLogger,
     ) -> UpdateAudienceResult:
-        updated = await self.audience_service.update_audience(audience_id, data)
+        updated = await self.audience_service.update_audience_by_public_id(audience_public_id, data)
 
         await audit.log(
             action="audience.update",
             entity_type="audience",
-            entity_id=audience_id,
+            entity_id=updated.id,
             payload=self._audit_payload(data),
         )
 
         return UpdateAudienceResult(
             audience=updated,
-            events=[AudienceUpdatedEvent(audience_id)],
+            events=[AudienceUpdatedEvent(updated.id)],
         )
 
     async def delete_audience(
         self,
         *,
-        audience_id: int,
+        audience_public_id: UUID,
         audit: AuditLogger,
     ) -> DeleteAudienceResult:
-        await self.audience_service.delete_audience(audience_id)
+        audience = await self.audience_service.get_one_by_public_id(audience_public_id)
+        await self.audience_service.delete_audience(audience.id)
 
         await audit.log(
             action="audience.delete",
             entity_type="audience",
-            entity_id=audience_id,
+            entity_id=audience.id,
             payload=None,
         )
 
-        return DeleteAudienceResult(events=[AudienceUpdatedEvent(audience_id)])
+        return DeleteAudienceResult(events=[AudienceUpdatedEvent(audience.id)])
 
     @staticmethod
     def _audit_payload(data: AudienceCreate | AudienceUpdate) -> dict | None:

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
@@ -10,5 +10,5 @@ class UUIDPrimaryKeyMixin:
     id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
         primary_key=True,
-        default=uuid4,
+        default=uuid7,
     )

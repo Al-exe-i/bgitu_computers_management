@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from uuid import uuid4
 
 from modules.inventory.application import InventoryAudienceUseCases
 from modules.inventory.events import AudienceUpdatedEvent
@@ -11,14 +12,24 @@ class FakeAudienceService:
         self.created: list[AudienceCreate] = []
         self.updated: list[tuple[int, AudienceUpdate]] = []
         self.deleted: list[int] = []
+        self.public_id = uuid4()
 
     async def create_audience(self, data: AudienceCreate):
         self.created.append(data)
-        return SimpleNamespace(id=12, number=data.number)
+        return SimpleNamespace(id=12, public_id=self.public_id, number=data.number)
+
+    async def get_one_by_public_id(self, public_id):
+        if public_id == self.public_id:
+            return SimpleNamespace(id=12, public_id=self.public_id)
+        return None
 
     async def update_audience(self, audience_id: int, data: AudienceUpdate):
         self.updated.append((audience_id, data))
         return SimpleNamespace(id=audience_id)
+
+    async def update_audience_by_public_id(self, public_id, data: AudienceUpdate):
+        self.updated.append((12, data))
+        return SimpleNamespace(id=12, public_id=public_id)
 
     async def delete_audience(self, audience_id: int) -> None:
         self.deleted.append(audience_id)
@@ -66,7 +77,7 @@ def test_delete_audience_logs_and_returns_event() -> None:
         audit = FakeAudit()
         use_cases = InventoryAudienceUseCases(service)
 
-        result = await use_cases.delete_audience(audience_id=12, audit=audit)
+        result = await use_cases.delete_audience(audience_public_id=service.public_id, audit=audit)
 
         assert service.deleted == [12]
         assert result.events == [AudienceUpdatedEvent(audience_id=12)]

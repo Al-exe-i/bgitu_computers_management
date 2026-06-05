@@ -1,5 +1,6 @@
 import enum
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -42,5 +43,6 @@ class RealtimeNotificationPayload(BaseModel):
     entity_type: str | None = None
     entity_id: int | None = None
     audience_id: int | None = None
+    audience_public_id: UUID | None = None
     payload: dict = Field(default_factory=dict)
     created_at: datetime

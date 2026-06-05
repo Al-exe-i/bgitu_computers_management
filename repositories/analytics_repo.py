@@ -20,6 +20,7 @@ class HardwareAnalyticsRepository:
                 Hardware,
                 Audience.id.label("audience_id"),
                 Audience.number.label("audience_number"),
+                Audience.public_id.label("audience_public_id"),
                 Audience.floor.label("floor"),
                 Office.id.label("office_id"),
                 Office.address.label("office_address"),

@@ -1,4 +1,5 @@
 from typing import Sequence
+from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 
@@ -40,6 +41,12 @@ class AudienceService:
             raise AudienceNotFoundError()
         return audience
 
+    async def get_one_by_public_id(self, public_id: UUID):
+        audience = await self.repo.get_by_public_id(public_id)
+        if not audience:
+            raise AudienceNotFoundError()
+        return audience
+
     async def create_audience(self, schema: AudienceCreate):
         self.grid.validate(schema.hardware, schema.width, schema.height)
 
@@ -62,6 +69,30 @@ class AudienceService:
         if not current_audience:
             raise AudienceNotFoundError()
 
+        return await self._update_existing_audience(current_audience, schema)
+
+    async def update_audience_by_public_id(self, public_id: UUID, schema: AudienceUpdate):
+        current_audience = await self.repo.get_by_public_id(public_id)
+        if not current_audience:
+            raise AudienceNotFoundError()
+
+        return await self._update_existing_audience(current_audience, schema)
+
+    async def delete_audience(self, audience_id: int) -> None:
+        await self.get_one(audience_id)
+        await self.repo.delete(audience_id)
+        self._invalidate_related_caches_after_commit()
+
+    async def delete_audience_by_public_id(self, public_id: UUID) -> None:
+        audience = await self.repo.get_one_short_by_public_id(public_id)
+        if not audience:
+            raise AudienceNotFoundError()
+
+        await self.repo.delete(audience.id)
+        self._invalidate_related_caches_after_commit()
+
+    async def _update_existing_audience(self, current_audience, schema: AudienceUpdate):
+        audience_id = current_audience.id
         update_data = schema.model_dump(exclude_unset=True, exclude={'hardware'})
 
         if "landmarks" in update_data:
@@ -88,11 +119,6 @@ class AudienceService:
         updated = await self.repo.get_by_id(audience_id)
         self._invalidate_related_caches_after_commit()
         return updated
-
-    async def delete_audience(self, audience_id: int) -> None:
-        await self.get_one(audience_id)
-        await self.repo.delete(audience_id)
-        self._invalidate_related_caches_after_commit()
 
     def _invalidate_related_caches_after_commit(self) -> None:
         invalidate_after_commit(

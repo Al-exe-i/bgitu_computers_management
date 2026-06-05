@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from uuid import uuid4
 
 from schemas.notification import NotificationEventType, NotificationScopeType
 from services.realtime_notification_service import (
@@ -34,8 +35,10 @@ class FakeSubscriptionRepo:
 
 
 class FakeAudienceRepo:
+    public_id = uuid4()
+
     async def get_one_short(self, audience_id: int):
-        return SimpleNamespace(id=audience_id, office_id=5)
+        return SimpleNamespace(id=audience_id, public_id=self.public_id, number=101, office_id=5)
 
 
 class FakePublisher:
@@ -108,6 +111,8 @@ def test_dispatcher_sends_hardware_fault_payload_to_recipients() -> None:
         assert payload["event_type"] == NotificationEventType.hardware_fault.value
         assert payload["title"] == "Оборудование неисправно"
         assert payload["entity_type"] == "hardware"
+        assert payload["audience_public_id"] == str(FakeAudienceRepo.public_id)
+        assert payload["payload"]["audience_number"] == 101
         assert payload["payload"]["hardware_id"] == 44
 
     asyncio.run(scenario())

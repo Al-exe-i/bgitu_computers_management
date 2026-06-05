@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.hardware import HardwareFullResponse, HardwareShortResponse, HardwareGridItem
 
@@ -30,11 +32,13 @@ class AudienceUpdate(BaseModel):
 
 class AudienceResponse(AudienceBase):
     id: int
+    public_id: UUID
     hardware: list[HardwareFullResponse] = Field(default_factory=list)
 
 
 class AudienceShortResponse(AudienceBase):
     id: int
+    public_id: UUID
     hardware: list[HardwareShortResponse] = Field(default_factory=list)
 
 class AudienceLandmarks(BaseModel):

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from typing import Sequence
 from sqlalchemy import update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,8 +38,22 @@ class AudienceRepository:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_by_public_id(self, public_id: UUID) -> Audience | None:
+        stmt = (
+            select(Audience)
+            .options(selectinload(Audience.hardware).selectinload(Hardware.files))
+            .where(Audience.public_id == public_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def get_one_short(self, audience_id: int) -> Audience | None:
         stmt = select(Audience).where(Audience.id == audience_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_one_short_by_public_id(self, public_id: UUID) -> Audience | None:
+        stmt = select(Audience).where(Audience.public_id == public_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

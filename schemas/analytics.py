@@ -1,4 +1,6 @@
 from typing import Any
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 from models.hardware import HardwareType
 
@@ -41,6 +43,7 @@ class HardwareAnalyticsItem(BaseModel):
     floor: int
     audience_id: int
     audience_number: int
+    audience_public_id: UUID
 
     x: int
     y: int

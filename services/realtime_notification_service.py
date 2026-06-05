@@ -117,6 +117,19 @@ class RealtimeNotificationRecipientService:
         audience_id: int,
         event_type: NotificationEventType,
     ) -> list[tuple[str, int]]:
+        audience = await self.get_audience_context(audience_id=audience_id, event_type=event_type)
+
+        return [
+            (NotificationScopeType.audience.value, audience_id),
+            (NotificationScopeType.office.value, audience.office_id),
+        ]
+
+    async def get_audience_context(
+        self,
+        *,
+        audience_id: int,
+        event_type: NotificationEventType,
+    ):
         audience = await self.audience_repo.get_one_short(audience_id)
         if audience is None:
             logger.warning(
@@ -126,10 +139,7 @@ class RealtimeNotificationRecipientService:
             )
             raise NotificationAudienceNotFoundError()
 
-        return [
-            (NotificationScopeType.audience.value, audience_id),
-            (NotificationScopeType.office.value, audience.office_id),
-        ]
+        return audience
 
 
 class RealtimeNotificationRenderer:
@@ -138,11 +148,14 @@ class RealtimeNotificationRenderer:
         notification: HardwareStateNotification,
         *,
         event_type: NotificationEventType,
+        audience_public_id=None,
+        audience_number: int | None = None,
     ) -> dict:
         is_fault = event_type == NotificationEventType.hardware_fault
         title = "Оборудование неисправно" if is_fault else "Оборудование восстановлено"
         hardware_label = notification.title or self._render_hardware_type(notification.hardware_type)
-        message_parts = [f"{hardware_label} в аудитории {notification.audience_id}"]
+        audience_label = audience_number if audience_number is not None else notification.audience_id
+        message_parts = [f"{hardware_label} в аудитории {audience_label}"]
 
         if notification.x is not None and notification.y is not None:
             message_parts.append(f"ряд {notification.y + 1}, позиция {notification.x + 1}")
@@ -157,7 +170,11 @@ class RealtimeNotificationRenderer:
             entity_type="hardware",
             entity_id=notification.hardware_id,
             audience_id=notification.audience_id,
+            audience_public_id=audience_public_id,
             payload={
+                "audience_id": notification.audience_id,
+                "audience_public_id": str(audience_public_id) if audience_public_id else None,
+                "audience_number": audience_number,
                 "hardware_id": notification.hardware_id,
                 "hardware_type": notification.hardware_type,
                 "title": notification.title,
@@ -190,18 +207,30 @@ class RealtimeNotificationRenderer:
         )
         return payload.model_dump(mode="json")
 
-    def build_audience_changed_payload(self, notification: AudienceChangedNotification) -> dict:
+    def build_audience_changed_payload(
+        self,
+        notification: AudienceChangedNotification,
+        *,
+        audience_public_id=None,
+        audience_number: int | None = None,
+    ) -> dict:
+        audience_label = audience_number if audience_number is not None else notification.audience_id
         payload = RealtimeNotificationPayload(
             notification_id=uuid4().hex,
             event_type=NotificationEventType.audience_changed,
             title="Аудитория обновлена",
-            message=f"Изменения в аудитории {notification.audience_id}",
+            message=f"Изменения в аудитории {audience_label}",
             scope_type=NotificationScopeType.audience,
             scope_id=notification.audience_id,
             entity_type="audience",
             entity_id=notification.audience_id,
             audience_id=notification.audience_id,
-            payload={"audience_id": notification.audience_id},
+            audience_public_id=audience_public_id,
+            payload={
+                "audience_id": notification.audience_id,
+                "audience_public_id": str(audience_public_id) if audience_public_id else None,
+                "audience_number": audience_number,
+            },
             created_at=datetime.now(timezone.utc),
         )
         return payload.model_dump(mode="json")
@@ -252,7 +281,20 @@ class RealtimeNotificationDispatcher:
         except NotificationAudienceNotFoundError:
             return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
 
-        payload = self.renderer.build_hardware_state_payload(notification, event_type=event_type)
+        try:
+            audience = await self.recipients.get_audience_context(
+                audience_id=notification.audience_id,
+                event_type=event_type,
+            )
+        except NotificationAudienceNotFoundError:
+            return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
+
+        payload = self.renderer.build_hardware_state_payload(
+            notification,
+            event_type=event_type,
+            audience_public_id=getattr(audience, "public_id", None),
+            audience_number=getattr(audience, "number", None),
+        )
         await self._publish_to_recipients(recipient_ids, payload)
         return RealtimeNotificationDispatchResult(sent=len(recipient_ids), event_type=event_type.value)
 
@@ -282,7 +324,19 @@ class RealtimeNotificationDispatcher:
         except NotificationAudienceNotFoundError:
             return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
 
-        payload = self.renderer.build_audience_changed_payload(notification)
+        try:
+            audience = await self.recipients.get_audience_context(
+                audience_id=notification.audience_id,
+                event_type=event_type,
+            )
+        except NotificationAudienceNotFoundError:
+            return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
+
+        payload = self.renderer.build_audience_changed_payload(
+            notification,
+            audience_public_id=getattr(audience, "public_id", None),
+            audience_number=getattr(audience, "number", None),
+        )
         await self._publish_to_recipients(recipient_ids, payload)
         return RealtimeNotificationDispatchResult(sent=len(recipient_ids), event_type=event_type.value)
 
