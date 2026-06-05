@@ -108,6 +108,7 @@ class InventoryHardwareUseCases:
 
         previous_state = current_hw.state
         updated_hw = await self.hardware_service.update(hardware_id, data)
+        state_changed = previous_state != updated_hw.state
 
         await audit.log(
             action="hardware.update",
@@ -119,16 +120,24 @@ class InventoryHardwareUseCases:
             },
         )
 
-        return UpdateHardwareResult(
-            hardware=updated_hw,
-            events=[
-                AudienceUpdatedEvent(updated_hw.audience_id),
+        events: list[InventoryEvent] = [
+            AudienceUpdatedEvent(
+                updated_hw.audience_id,
+                notify_subscribers=not state_changed,
+            )
+        ]
+        if state_changed:
+            events.append(
                 HardwareStateChangedEvent(
                     previous_state=previous_state,
                     hardware=updated_hw,
                     actor_user_id=actor.id,
-                ),
-            ],
+                )
+            )
+
+        return UpdateHardwareResult(
+            hardware=updated_hw,
+            events=events,
         )
 
     async def delete_file(

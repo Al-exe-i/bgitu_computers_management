@@ -95,7 +95,8 @@ async def _dispatch_event(event_type: str, payload: dict) -> None:
 
     if event_type == OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value:
         await _publish_audience_updated(payload["audience_id"])
-        await _send_realtime_audience_changed_notification(payload)
+        if payload.get("notify_subscribers", True):
+            await _send_realtime_audience_changed_notification(payload)
         return
 
     raise ValueError(f"Unsupported outbox event type: {event_type}")

@@ -16,7 +16,10 @@ class InventoryEventDispatcher:
             if isinstance(event, AudienceUpdatedEvent):
                 await self.outbox.publish(
                     event_type=OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
-                    payload={"audience_id": event.audience_id},
+                    payload={
+                        "audience_id": event.audience_id,
+                        "notify_subscribers": event.notify_subscribers,
+                    },
                 )
             elif isinstance(event, HardwareStateChangedEvent):
                 await self._dispatch_hardware_state_changed(event)

@@ -44,7 +44,7 @@ def test_inventory_event_dispatcher_writes_events_to_outbox() -> None:
         assert outbox.events == [
             {
                 "event_type": OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
-                "payload": {"audience_id": 12},
+                "payload": {"audience_id": 12, "notify_subscribers": True},
             },
             {
                 "event_type": OutboxEventType.INVENTORY_HARDWARE_STATE_CHANGED.value,
@@ -62,6 +62,27 @@ def test_inventory_event_dispatcher_writes_events_to_outbox() -> None:
                     "actor_user_id": 7,
                 },
             },
+        ]
+
+    asyncio.run(scenario())
+
+
+def test_inventory_event_dispatcher_preserves_audience_notification_flag() -> None:
+    async def scenario() -> None:
+        outbox = FakeOutboxPublisher()
+        dispatcher = InventoryEventDispatcher(outbox)
+
+        await dispatcher.dispatch(
+            [
+                AudienceUpdatedEvent(audience_id=12, notify_subscribers=False),
+            ]
+        )
+
+        assert outbox.events == [
+            {
+                "event_type": OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
+                "payload": {"audience_id": 12, "notify_subscribers": False},
+            }
         ]
 
     asyncio.run(scenario())

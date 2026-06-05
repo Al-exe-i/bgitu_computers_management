@@ -91,6 +91,30 @@ def test_dispatch_event_routes_audience_update_and_notification(monkeypatch) -> 
     ]
 
 
+def test_dispatch_event_can_skip_audience_changed_notification(monkeypatch) -> None:
+    calls: list[tuple[str, int | dict]] = []
+
+    async def fake_publish(audience_id: int) -> None:
+        calls.append(("audience_updated", audience_id))
+
+    async def fake_send(payload: dict) -> None:
+        calls.append(("audience_notification", payload))
+
+    monkeypatch.setattr(outbox, "_publish_audience_updated", fake_publish)
+    monkeypatch.setattr(outbox, "_send_realtime_audience_changed_notification", fake_send)
+
+    asyncio.run(
+        outbox._dispatch_event(
+            OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
+            {"audience_id": 10, "notify_subscribers": False},
+        )
+    )
+
+    assert calls == [
+        ("audience_updated", 10),
+    ]
+
+
 def test_dispatch_event_rejects_unknown_event_type() -> None:
     with pytest.raises(ValueError):
         asyncio.run(outbox._dispatch_event("unknown", {}))

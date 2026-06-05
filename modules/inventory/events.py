@@ -17,6 +17,7 @@ class HardwareStatePayload(Protocol):
 @dataclass(slots=True, frozen=True)
 class AudienceUpdatedEvent:
     audience_id: int
+    notify_subscribers: bool = True
 
 
 @dataclass(slots=True, frozen=True)
