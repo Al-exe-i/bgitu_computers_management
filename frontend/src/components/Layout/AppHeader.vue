@@ -581,7 +581,6 @@ export default {
           <div v-show="isNotificationsOpen" class="notifications-dropdown-content">
             <div class="notifications-panel-head">
               <div>
-                <span class="notifications-kicker">Realtime</span>
                 <h3>Уведомления</h3>
               </div>
               <button
@@ -1419,20 +1418,6 @@ header {
   margin-bottom: 14px;
 }
 
-.notifications-kicker {
-  display: inline-flex;
-  width: fit-content;
-  margin-bottom: 4px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
 .notifications-panel-head h3 {
   margin: 0;
   color: #0f172a;
@@ -1697,7 +1682,6 @@ header {
   color: #e2e8f0 !important;
 }
 
-:global(html[data-theme='dark'] .notifications-kicker),
 :global(html[data-theme='dark'] .notifications-empty-icon) {
   background: rgba(37, 99, 235, 0.22) !important;
   color: #93c5fd !important;
@@ -1829,6 +1813,11 @@ header {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes notificationsDropdownMobileIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 .profile-avatar-large {
@@ -2048,10 +2037,14 @@ header {
   }
 
   .notifications-dropdown-content {
-    right: -58px;
+    position: fixed;
+    left: 50%;
+    right: auto;
     top: 54px;
     width: min(360px, calc(100vw - 16px));
     padding: 13px;
+    transform: translateX(-50%);
+    animation: notificationsDropdownMobileIn 0.24s ease;
   }
 
   .notifications-trigger {
