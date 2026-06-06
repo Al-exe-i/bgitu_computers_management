@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import String, CheckConstraint
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models import Audience
 from models.base import Base
@@ -13,5 +13,5 @@ class Office(IntIdPkMixin, Base):
         back_populates="office",
         cascade="all, delete-orphan",
         passive_deletes=True,
-        order_by="Audience.floor, Audience.number"
+        order_by="Audience.floor, Audience.number",
     )
