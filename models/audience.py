@@ -1,4 +1,4 @@
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 from typing import List, TYPE_CHECKING
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -19,7 +19,7 @@ class Audience(IntIdPkMixin, Base):
     )
 
     public_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), default=uuid4, nullable=False
+        PGUUID(as_uuid=True), default=uuid7, nullable=False
     )
     number: Mapped[int]
     floor: Mapped[int]
