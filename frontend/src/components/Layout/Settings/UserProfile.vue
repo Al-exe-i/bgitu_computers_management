@@ -59,7 +59,7 @@ export default {
 
     activeSectionSubtitle() {
       return this.activeSection === "notifications"
-        ? "Настройте realtime-подписки на события системы без Telegram."
+        ? "Настройте realtime-подписки на события системы."
         : "Управляйте своими личными данными и фотографией профиля.";
     }
   },
@@ -79,7 +79,7 @@ export default {
     "$route.query.section": {
       immediate: true,
       handler(section) {
-        if (section === "notifications" || section === "telegram") {
+        if (section === "notifications") {
           this.switchSection("notifications");
         }
       }
@@ -181,7 +181,7 @@ export default {
       <div class="profile-section-switch" role="tablist" aria-label="Разделы профиля">
         <span
           class="profile-section-indicator"
-          :class="{ 'is-telegram': activeSection === 'notifications' }"
+          :class="{ 'is-notifications': activeSection === 'notifications' }"
           aria-hidden="true"
         ></span>
 
@@ -444,7 +444,7 @@ export default {
   z-index: 0;
 }
 
-.profile-section-indicator.is-telegram {
+.profile-section-indicator.is-notifications {
   transform: translateX(100%);
 }
 

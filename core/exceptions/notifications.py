@@ -6,42 +6,6 @@ class NotificationError(Exception):
         super().__init__(self.detail)
 
 
-class TelegramUserNotFoundError(NotificationError):
-    detail = "User not found"
-
-
-class TelegramLinkTokenInvalidError(NotificationError):
-    detail = "Telegram link token is invalid or expired"
-
-
-class TelegramAccountAlreadyLinkedError(NotificationError):
-    detail = "Telegram account is already linked to another user"
-
-
-class TelegramAccountNotLinkedError(NotificationError):
-    detail = "Telegram account is not linked"
-
-
-class TelegramSubscriptionAlreadyExistsError(NotificationError):
-    detail = "Telegram subscription already exists"
-
-
-class TelegramSubscriptionNotFoundError(NotificationError):
-    detail = "Telegram subscription not found"
-
-
-class TelegramScopeInvalidError(NotificationError):
-    detail = "Telegram subscription scope is invalid"
-
-
-class TelegramScopeNotFoundError(NotificationError):
-    detail = "Telegram subscription scope not found"
-
-
-class TelegramNotificationAudienceNotFoundError(NotificationError):
-    detail = "Audience not found"
-
-
 class NotificationUserNotFoundError(NotificationError):
     detail = "User not found"
 

@@ -7,8 +7,6 @@ from models.user import UserRole
 class UserBase(BaseModel):
     name: str | None = None
     surname: str | None = None
-    telegram_id: int | None = None
-    telegram_id_confirmed: bool = Field(default=False)
     photo: str | None = None
     role: UserRole
 

@@ -5,9 +5,6 @@ from .office import Office
 from .audit_log import AuditLog
 from .hardware_file import HardwareFile
 from .user_session import UserSession
-from .tg_link_token import TelegramLinkToken
-from .telegram_notification_delivery_log import TelegramNotificationDeliveryLog
-from .telegram_subscription import TelegramSubscription
 from .notification_subscription import NotificationSubscription
 from .invite_link import InviteLink
 from .outbox_event import OutboxEvent
@@ -20,9 +17,6 @@ __all__ = [
     "AuditLog",
     "HardwareFile",
     "UserSession",
-    "TelegramLinkToken",
-    "TelegramNotificationDeliveryLog",
-    "TelegramSubscription",
     "NotificationSubscription",
     "InviteLink",
     "OutboxEvent",

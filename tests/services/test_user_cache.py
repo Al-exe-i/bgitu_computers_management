@@ -74,8 +74,6 @@ def make_user(user_id: int = 7):
         name="Alex",
         surname="Ivanov",
         email=f"user{user_id}@example.com",
-        telegram_id=None,
-        telegram_id_confirmed=False,
         password="hashed-password",
         reg_date=datetime(2026, 5, 28, tzinfo=timezone.utc),
         is_superuser=False,

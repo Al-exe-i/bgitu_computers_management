@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from core.config import settings
 from dependencies.audit_actor import get_audit_ctx
 from dependencies.events import get_identity_event_dispatcher
 from dependencies.user import get_user_service
@@ -67,8 +66,6 @@ def test_login_endpoint_calls_auth_security_enqueue(monkeypatch) -> None:
     audit = DummyAudit()
     sessions = DummySessionService()
     calls: list[dict] = []
-
-    monkeypatch.setattr(settings.telegram, "enabled", True)
 
     class DummyEventDispatcher:
         async def dispatch(self, events) -> None:

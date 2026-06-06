@@ -1,1 +1,1 @@
-"""Notifications module: Telegram account linking and notification subscriptions."""
+"""Notifications module: realtime notification subscriptions."""

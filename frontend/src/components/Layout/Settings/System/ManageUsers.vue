@@ -209,7 +209,6 @@ export default {
         <tr>
           <th>Пользователь</th>
           <th>Роль</th>
-          <th>Telegram ID</th>
           <th v-if="isSuperuser" class="text-right">Действия</th>
         </tr>
         </thead>
@@ -217,7 +216,7 @@ export default {
         <tbody>
         <!-- Состояние загрузки (крутится по центру) -->
         <tr v-if="loading">
-          <td :colspan="isSuperuser ? 4 : 3" class="text-center py-8">
+          <td :colspan="isSuperuser ? 3 : 2" class="text-center py-8">
             <div class="spinner-large mx-auto"></div>
             <p class="text-muted mt-2">Загрузка списка...</p>
           </td>
@@ -265,12 +264,6 @@ export default {
                 </template>
               </div>
             </div>
-          </td>
-
-          <td>
-              <span :class="user.telegram_id ? 'font-mono' : 'text-muted'">
-                {{ user.telegram_id || 'Не привязан' }}
-              </span>
           </td>
 
           <td v-if="isSuperuser" class="text-right">

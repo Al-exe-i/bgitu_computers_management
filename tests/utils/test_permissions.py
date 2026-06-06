@@ -15,8 +15,6 @@ def make_target_user(*, user_id: int, is_superuser: bool) -> UserOut:
         email="user@example.com",
         name="Alex",
         surname="Ivanov",
-        telegram_id=None,
-        telegram_id_confirmed=False,
         photo=None,
         role=UserRole.admin,
         reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),

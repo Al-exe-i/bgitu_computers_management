@@ -41,7 +41,6 @@ def test_build_managed_user_hashes_password_and_sets_admin_role():
     assert user.email == "admin"
     assert user.role == UserRole.admin
     assert user.is_superuser is True
-    assert user.telegram_id_confirmed is False
     assert user.password != "secret123"
     assert verify_password("secret123", user.password)
 

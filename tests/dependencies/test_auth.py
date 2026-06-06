@@ -31,8 +31,6 @@ def make_user(*, user_id: int, role: UserRole = UserRole.admin, is_superuser: bo
         email=f"user{user_id}@example.com",
         name="Alex",
         surname="Ivanov",
-        telegram_id=None,
-        telegram_id_confirmed=False,
         photo=None,
         role=role,
         reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),

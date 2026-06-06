@@ -17,4 +17,3 @@ for key, value in ENV_DEFAULTS.items():
 
 os.environ["BGITU__WEBSOCKET__ENABLED"] = "1"
 os.environ["BGITU__WEBSOCKET__TRANSPORT"] = "inmemory"
-os.environ["BGITU__TELEGRAM__ENABLED"] = "0"

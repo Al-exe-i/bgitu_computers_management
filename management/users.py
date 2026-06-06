@@ -57,7 +57,6 @@ def build_managed_user(
         is_superuser=is_superuser,
         name=name,
         surname=surname,
-        telegram_id_confirmed=False,
     )
 
 

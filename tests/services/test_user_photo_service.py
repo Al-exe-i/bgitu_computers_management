@@ -37,7 +37,6 @@ class FakeUserRepo:
         user.id = 7
         user.reg_date = datetime(2026, 4, 21, tzinfo=timezone.utc)
         user.is_superuser = False
-        user.telegram_id_confirmed = False
         self.created_user = user
         return user
 
@@ -65,8 +64,6 @@ def make_user(*, photo: str | None = None) -> SimpleNamespace:
         email="user@example.com",
         name="Alex",
         surname="Ivanov",
-        telegram_id=None,
-        telegram_id_confirmed=False,
         photo=photo,
         role=UserRole.teacher,
         reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),

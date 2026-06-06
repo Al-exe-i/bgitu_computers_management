@@ -25,8 +25,6 @@ def make_user(
         email=f"user{user_id}@example.com",
         name="Alex",
         surname="Ivanov",
-        telegram_id=None,
-        telegram_id_confirmed=False,
         photo=photo,
         role=role,
         reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),

@@ -45,10 +45,6 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_telegram_id(self, telegram_id: int):
-        result = await self.db.execute(select(User).where(User.telegram_id == telegram_id))
-        return result.scalar_one_or_none()
-
     async def create(self, user: User):
         self.db.add(user)
         await self.db.flush()
@@ -73,22 +69,6 @@ class UserRepository:
         if new_version is not None:
             self._invalidate_cache_after_commit(user_id)
         return new_version
-
-    async def set_telegram_link(self, user: User, telegram_id: int, *, confirmed: bool) -> User:
-        user.telegram_id = telegram_id
-        user.telegram_id_confirmed = confirmed
-        await self.db.flush()
-        await self.db.refresh(user)
-        self._set_cache_after_commit(user)
-        return user
-
-    async def clear_telegram_link(self, user: User) -> User:
-        user.telegram_id = None
-        user.telegram_id_confirmed = False
-        await self.db.flush()
-        await self.db.refresh(user)
-        self._set_cache_after_commit(user)
-        return user
 
     def _set_cache_after_commit(self, user: User) -> None:
         if self.cache is None:

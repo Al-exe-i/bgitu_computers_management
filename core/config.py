@@ -112,16 +112,6 @@ class WebSocketConfig(BaseModel):
     instance_id: str | None = None
 
 
-class TelegramConfig(BaseModel):
-    enabled: bool = False
-    bot_token: str | None = None
-    bot_username: str | None = None
-    link_token_ttl_minutes: int = 15
-    request_timeout_seconds: float = 15.0
-    startup_retry_attempts: int = 3
-    startup_retry_delay_seconds: float = 2.0
-
-
 class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
@@ -134,7 +124,6 @@ class Settings(BaseSettings):
     cache: CacheConfig = CacheConfig()
     storage: StorageConfig = StorageConfig()
     websocket: WebSocketConfig = WebSocketConfig()
-    telegram: TelegramConfig = TelegramConfig()
     frontend_url: str = "http://localhost:5173"
     cors_origins: list[str] = Field(
         default_factory=lambda: [

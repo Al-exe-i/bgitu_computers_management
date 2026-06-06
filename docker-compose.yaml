@@ -157,28 +157,6 @@ services:
       - redis
     restart: unless-stopped
 
-  telegram_bot:
-    build: .
-    container_name: diplom_telegram_bot
-    command: python -m telegram_bot.main
-    cpus: "0.15"
-    mem_limit: 128m
-    memswap_limit: 128m
-    pids_limit: 128
-    logging: *default-logging
-    env_file:
-      - .env
-    environment:
-      <<: *app-db-pool
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    restart: unless-stopped
-    profiles:
-      - tg_bot
-
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: diplom_prometheus

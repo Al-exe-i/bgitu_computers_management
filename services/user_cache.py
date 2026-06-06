@@ -19,8 +19,6 @@ class CachedUser:
     name: str | None
     surname: str | None
     email: str
-    telegram_id: int | None
-    telegram_id_confirmed: bool
     password: str
     reg_date: datetime
     is_superuser: bool
@@ -104,8 +102,6 @@ class UserCache:
             "name": user.name,
             "surname": user.surname,
             "email": user.email,
-            "telegram_id": user.telegram_id,
-            "telegram_id_confirmed": user.telegram_id_confirmed,
             "password": user.password,
             "reg_date": self._datetime_to_str(user.reg_date),
             "is_superuser": user.is_superuser,
@@ -126,8 +122,6 @@ class UserCache:
             name=data.get("name"),
             surname=data.get("surname"),
             email=data["email"],
-            telegram_id=data.get("telegram_id"),
-            telegram_id_confirmed=bool(data.get("telegram_id_confirmed", False)),
             password=data["password"],
             reg_date=datetime.fromisoformat(data["reg_date"]),
             is_superuser=bool(data.get("is_superuser", False)),

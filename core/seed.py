@@ -16,7 +16,6 @@ USER = {
     "password": get_password_hash("admin777"),
     "is_superuser": True,
     "role": "admin",
-    "telegram_id_confirmed": False,
 }
 
 async def main():
@@ -35,8 +34,8 @@ async def main():
 
         await conn.execute(
             text("""
-                INSERT INTO users (email, password, is_superuser, role, telegram_id_confirmed)
-                VALUES (:email, :password, :is_superuser, :role, :telegram_id_confirmed)
+                INSERT INTO users (email, password, is_superuser, role)
+                VALUES (:email, :password, :is_superuser, :role)
                 ON CONFLICT (email) DO NOTHING
             """),
             USER,
