@@ -1,90 +1,222 @@
+<div align="center">
+
 # BGITU Hardware Management
 
-Backend-сервис для учёта компьютерного оборудования в корпусах и аудиториях.  
-Проект построен на FastAPI, PostgreSQL и Redis. Внутри есть CRUD по корпусам, аудиториям и оборудованию, аутентификация, аудит действий, работа с файлами, аналитика и realtime-обновления через SSE.
+### Backend-сервис для учета компьютерного оборудования в корпусах и аудиториях БГИТУ
 
-## Что есть в проекте
+<p>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white">
+  <img alt="Vue" src="https://img.shields.io/badge/Vue-Frontend-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-Cache%20%2F%20Broker-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+  <img alt="MinIO" src="https://img.shields.io/badge/MinIO-Object%20Storage-C72E49?style=for-the-badge&logo=minio&logoColor=white">
+  <img alt="Celery" src="https://img.shields.io/badge/Celery-Tasks-37814A?style=for-the-badge">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+  <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?style=for-the-badge&logo=prometheus&logoColor=white">
+  <img alt="Grafana" src="https://img.shields.io/badge/Grafana-Dashboards-F46800?style=for-the-badge&logo=grafana&logoColor=white">
+</p>
 
-- аутентификация с access token и refresh token
-- пользователи, роли и приглашения на регистрацию
-- корпуса, аудитории и оборудование с координатами на сетке
-- загрузка файлов к единицам оборудования
-- аудит действий пользователей
-- аналитика по оборудованию
-- Celery-задачи для фоновой очистки сессий
-- SSE для обновления данных аудиторий без перезагрузки страницы
+<p>
+  <b>Учет оборудования · аудит действий · файлы · аналитика · SSE realtime · уведомления · observability</b>
+</p>
 
-## Стек
+</div>
 
-- Python 3.13
-- FastAPI
-- SQLAlchemy 2.x + asyncpg
-- PostgreSQL
-- Redis
-- MinIO
-- Celery
-- Alembic
-- Loguru
-- uv
+---
+
+## Содержание
+
+- [О проекте](#о-проекте)
+- [Возможности](#возможности)
+- [Технологический стек](#технологический-стек)
+- [Архитектура](#архитектура)
+- [Структура проекта](#структура-проекта)
+- [Требования](#требования)
+- [Быстрый старт локально](#быстрый-старт-локально)
+- [Запуск через Docker Compose](#запуск-через-docker-compose)
+- [Конфигурация](#конфигурация)
+- [Хранение файлов](#хранение-файлов)
+- [SSE и realtime](#sse-и-realtime)
+- [Observability](#observability)
+- [API](#api)
+- [Seed-данные](#seed-данные)
+- [Roadmap](#roadmap)
+
+---
+
+## О проекте
+
+**BGITU Hardware Management** — backend-сервис для централизованного учета компьютерного оборудования, размещенного в учебных корпусах и аудиториях.
+
+Система помогает хранить сведения об аудиториях, оборудовании, файлах, пользователях и действиях в одном месте.
+Backend предоставляет REST API для frontend-приложения, поддерживает аутентификацию, аудит, аналитику, фоновые задачи, хранение файлов и realtime-обновления через SSE.
+
+Проект ориентирован на практическую эксплуатацию в образовательной организации: преподаватель или администратор может быстро открыть аудиторию, увидеть оборудование, изменить его состояние и зафиксировать событие в системе.
+
+---
+
+## Возможности
+
+### Учет оборудования
+
+- учет корпусов и аудиторий;
+- учет оборудования с координатами на сетке аудитории;
+- хранение инвентарных и серийных номеров;
+- хранение характеристик оборудования;
+- загрузка файлов и аватаров;
+- получение аналитики по оборудованию.
+
+### Пользователи и доступ
+
+- аутентификация через access token и refresh token;
+- пользователи, роли и приглашения на регистрацию;
+- хранение refresh-сессий;
+- фоновая очистка устаревших сессий;
+- разграничение доступа к защищенным endpoint-ам.
+
+### Аудит и realtime
+
+- журнал действий пользователей;
+- фиксация значимых операций;
+- SSE-обновления данных аудитории без перезагрузки страницы;
+- realtime-уведомления frontend-клиентов;
+- Redis-backed Pub/Sub для доставки realtime-событий между backend-инстансами.
+
+### Интеграции и инфраструктура
+
+- MinIO для объектного хранения файлов;
+- Celery для фоновых задач;
+- Prometheus, Loki, Promtail и Grafana для локальной наблюдаемости.
+
+---
+
+## Технологический стек
+
+
+| Область         | Технологии                                   |
+| --------------- | -------------------------------------------- |
+| Backend         | Python 3.13, FastAPI, Pydantic               |
+| Database        | PostgreSQL, SQLAlchemy 2.x, asyncpg, Alembic |
+| Cache / Broker  | Redis                                        |
+| Background jobs | Celery, Celery Beat                          |
+| File storage    | Local storage, MinIO                         |
+| Realtime        | SSE, Redis Pub/Sub                           |
+| Logging         | Loguru                                       |
+| Observability   | Prometheus, Loki, Promtail, Grafana          |
+| Tooling         | uv, Docker, Docker Compose                   |
+
+
+---
+
+## Архитектура
+
+```mermaid
+flowchart LR
+    Client[Frontend SPA / Browser] -->|REST API| API[FastAPI Backend]
+    Client -->|SSE /events| API
+
+    API --> DB[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    API --> Storage[(MinIO / Local storage)]
+    API --> Logs[Loguru logs]
+
+    Redis --> Celery[Celery worker]
+    Celery --> DB
+    Celery --> Redis
+
+    API --> Metrics[Prometheus metrics]
+
+    Prometheus[Prometheus] --> Grafana[Grafana]
+    Promtail[Promtail] --> Loki[Loki]
+    Loki --> Grafana
+```
+
+
+
+Основной поток работы:
+
+1. frontend отправляет запрос к backend API;
+2. backend проверяет пользователя и права доступа;
+3. сервисный слой выполняет бизнес-логику;
+4. данные сохраняются в PostgreSQL;
+5. при необходимости создается audit log;
+6. realtime-событие публикуется через Redis Pub/Sub;
+7. подключенные клиенты получают обновление через SSE.
+
+---
 
 ## Структура проекта
 
-- `api/` — HTTP endpoints
-- `core/` — конфиг, безопасность, логирование, seed
-- `db/` — создание engine и сессий
-- `models/` — ORM-модели
-- `schemas/` — Pydantic-схемы
-- `repositories/` — работа с базой
-- `services/` — бизнес-логика
-- `dependencies/` — FastAPI dependencies
-- `tasks/` — Celery tasks
-- `utils/` — вспомогательные функции
-- `websocket/` — realtime-логика и Redis-backed SSE
-- `alembic/` — миграции
-- `static/` — загруженные файлы и аватары
-- `logs/` — лог-файлы приложения
+```text
+.
+├── api/              # HTTP endpoints
+├── core/             # конфиг, безопасность, логирование, seed
+├── db/               # engine, sessions, database setup
+├── models/           # SQLAlchemy ORM-модели
+├── schemas/          # Pydantic-схемы
+├── repositories/     # слой доступа к данным
+├── services/         # бизнес-логика
+├── dependencies/     # FastAPI dependencies
+├── tasks/            # Celery tasks
+├── utils/            # вспомогательные функции
+├── websocket/        # realtime-логика и Redis-backed SSE
+├── alembic/          # миграции базы данных
+├── static/           # загруженные файлы и аватары
+├── logs/             # лог-файлы приложения
+└── scripts/          # служебные скрипты запуска
+```
+
+---
 
 ## Требования
+
+Для локального запуска понадобятся:
 
 - Python 3.13+
 - PostgreSQL 17+ или совместимая версия
 - Redis 7+
-- `uv` для локального запуска
-- Docker и Docker Compose, если запускать инфраструктуру контейнерами
+- MinIO, если используется объектное хранилище
+- `uv`
+- Docker и Docker Compose для контейнерного запуска
+
+---
 
 ## Быстрый старт локально
 
 ### 1. Подготовить переменные окружения
 
-Скопируйте пример:
-
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Проверьте минимум:
+Проверьте минимально необходимые группы переменных:
 
-- `BGITU__DB__*`
-- `BGITU__JWT__ACCESS_SECRET_KEY`
-- `BGITU__CELERY__BROKER_URL`
-- `BGITU__CELERY__RESULT_BACKEND`
-- `BGITU__STORAGE__*`
-- `BGITU__WEBSOCKET__*`
+```text
+BGITU__DB__*
+BGITU__JWT__ACCESS_SECRET_KEY
+BGITU__CELERY__BROKER_URL
+BGITU__CELERY__RESULT_BACKEND
+BGITU__STORAGE__*
+BGITU__WEBSOCKET__*
+```
 
-### 2. Поднять PostgreSQL и Redis
-
-Если локально базы нет, можно поднять только инфраструктуру:
+### 2. Поднять инфраструктуру
 
 ```powershell
 docker compose up -d db redis minio
 ```
 
-После этого будут доступны:
+После запуска будут доступны:
 
-- PostgreSQL на `localhost:5433`
-- Redis на `localhost:6379`
-- MinIO API на `localhost:9000`
-- MinIO Console на `http://localhost:9001`
+
+| Сервис        | Адрес                   |
+| ------------- | ----------------------- |
+| PostgreSQL    | `localhost:5433`        |
+| Redis         | `localhost:6379`        |
+| MinIO API     | `http://localhost:9000` |
+| MinIO Console | `http://localhost:9001` |
+
 
 ### 3. Установить зависимости
 
@@ -104,23 +236,24 @@ uv run alembic upgrade head
 uv run python -m core.seed
 ```
 
-Seed добавляет:
-
-- корпуса с `id=1` и `id=2`
-- суперпользователя `admin / admin`
-
 ### 6. Запустить backend
 
 ```powershell
 uv run uvicorn main:app --reload
 ```
 
-По умолчанию приложение будет доступно на `http://127.0.0.1:8000`.
+Приложение будет доступно по адресу:
 
-Документация OpenAPI:
+```text
+http://127.0.0.1:8000
+```
 
-- `http://127.0.0.1:8000/docs`
-- `http://127.0.0.1:8000/redoc`
+OpenAPI-документация:
+
+```text
+http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/redoc
+```
 
 ### 7. Запустить Celery
 
@@ -136,6 +269,8 @@ Beat:
 uv run celery -A celery_app:celery_app beat -l info
 ```
 
+---
+
 ## Запуск через Docker Compose
 
 Полный стек поднимается одной командой:
@@ -144,40 +279,64 @@ uv run celery -A celery_app:celery_app beat -l info
 docker compose up -d --build
 ```
 
-Если Docker уже успел создать stale-контейнеры со ссылкой на удаленную сеть, используйте безопасный запуск:
+Если Docker создал stale-контейнеры со ссылкой на удаленную сеть, используйте безопасный запуск:
 
 ```powershell
 .\scripts\docker-up.ps1
 ```
 
-Для Docker Compose в репозитории есть tracked-файл `.env.docker.example`. Локальные секреты и переопределения можно положить в `.env.docker`; этот файл игнорируется git.
+Для Docker Compose в репозитории есть tracked-файл:
+
+```text
+.env.docker.example
+```
+
+Локальные секреты и переопределения можно положить в:
+
+```text
+.env.docker
+```
+
+Этот файл игнорируется git.
+
+---
 
 ## Конфигурация
 
-Настройки приложения читаются из переменных с префиксом `BGITU__`.
+Настройки читаются из переменных окружения с префиксом `BGITU__`.
 
-Основные группы:
 
-- `BGITU__DB__*` — подключение к PostgreSQL
-- `BGITU__JWT__*` — access token и время жизни токенов
-- `BGITU__CELERY__*` — Redis broker и backend для Celery
-- `BGITU__STORAGE__*` — backend хранения файлов: `local` или `minio`
-- `BGITU__WEBSOCKET__*` — realtime и Redis для SSE
-- `BGITU__CORS_ORIGINS` — список разрешённых origin для фронтенда
-- `BGITU__FRONTEND_URL` — URL фронтенда, используется в приглашениях
+| Группа                | Назначение                                   |
+| --------------------- | -------------------------------------------- |
+| `BGITU__DB__*`        | подключение к PostgreSQL                     |
+| `BGITU__JWT__*`       | access token и время жизни токенов           |
+| `BGITU__CELERY__*`    | Redis broker и result backend для Celery     |
+| `BGITU__STORAGE__*`   | backend хранения файлов: `local` или `minio` |
+| `BGITU__WEBSOCKET__*` | realtime и Redis для SSE                     |
+| `BGITU__CORS_ORIGINS` | список разрешенных origin для frontend       |
+| `BGITU__FRONTEND_URL` | URL frontend, используется в приглашениях    |
 
-Для PostgreSQL в Docker также нужны `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`. В `.env.docker.example` они уже согласованы с `BGITU__DB__*`.
 
-Пример `BGITU__CORS_ORIGINS` должен быть JSON-массивом в одну строку:
+Для PostgreSQL в Docker также нужны:
+
+```text
+POSTGRES_USER
+POSTGRES_PASSWORD
+POSTGRES_DB
+```
+
+Пример `BGITU__CORS_ORIGINS`:
 
 ```env
 BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 ```
 
-## File storage
+---
+
+## Хранение файлов
 
 Файлы оборудования и аватары отдаются через backend API, а не напрямую из bucket.
-Это сохраняет проверку прав на endpoints:
+Так сохраняется проверка прав на endpoint-ах.
 
 ```text
 /api/v1/hardware/files/{file_id}
@@ -185,10 +344,16 @@ BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 /api/v1/users/me/photo
 ```
 
-В Docker Compose используется MinIO. Backend внутри Docker подключается к `minio:9000`, а с хоста доступны:
+В Docker Compose используется MinIO.
 
-- MinIO API: `http://localhost:9000`
-- MinIO Console: `http://localhost:9001`
+Доступ с хоста:
+
+
+| Компонент     | Адрес                   |
+| ------------- | ----------------------- |
+| MinIO API     | `http://localhost:9000` |
+| MinIO Console | `http://localhost:9001` |
+
 
 Основные переменные:
 
@@ -201,6 +366,8 @@ BGITU__STORAGE__BUCKET=bgitu-files
 BGITU__STORAGE__SECURE=false
 ```
 
+---
+
 ## SSE и realtime
 
 SSE endpoint:
@@ -209,69 +376,159 @@ SSE endpoint:
 /events
 ```
 
-Можно подключаться двумя способами:
+Подключение к конкретной аудитории:
 
-- `/events?audience_id=123` — получать обновления только по одной аудитории
-- `/events` — получать обновления по всем аудиториям
+```text
+/events?audience_id=123
+```
 
-Здесь `audience_id` — это именно `id` аудитории в базе, а не номер кабинета вроде `105`.
+Подключение ко всем аудиториям:
 
-Пример подключения с фронтенда:
+```text
+/events
+```
+
+`audience_id` — это `id` аудитории в базе, а не номер кабинета.
+
+Пример подключения с frontend:
 
 ```ts
-const events = new EventSource(`http://localhost:8000/events?audience_id=${audienceId}`);
+const events = new EventSource(
+  `http://localhost:8000/events?audience_id=${audienceId}`
+);
 ```
 
-Сейчас во внешний сокет уходит payload такого вида:
+Payload события:
 
 ```json
-{"audience_updated": 123}
+{
+  "audience_updated": 123
+}
 ```
 
-### Как это работает внутри
+### Как работает доставка событий
 
-- backend держит сами SSE-подключения только локально, в памяти процесса
-- Redis хранит реестр активных соединений и активных backend-инстансов
-- при изменении аудитории событие публикуется в Redis Pub/Sub
-- все backend-инстансы получают это событие
-- каждый инстанс отправляет сообщение только своим локальным сокетам
+```mermaid
+sequenceDiagram
+    participant API as Backend API
+    participant Redis as Redis Pub/Sub
+    participant Instance as Backend instance
+    participant Client as Frontend EventSource
+
+    API->>Redis: publish audience_updated
+    Redis-->>Instance: receive event
+    Instance-->>Client: send SSE message
+```
+
+
 
 Если `BGITU__WEBSOCKET__ENABLED=0`, то:
 
-- `/events` не принимает подключения
-- realtime-события из HTTP endpoints не публикуются
-- Redis-клиенты для SSE не создаются
-## Telegram bot
-
-В проект добавлен отдельный процесс `telegram_bot`, который живёт в этом же репозитории и использует те же модели, конфиг и базу данных.
-
-Сейчас бот умеет:
-
-- обрабатывать `/start`
-- подтверждать привязку Telegram через deep link вида `https://t.me/<bot>?start=link_<token>`
-- показывать `/help`
-
-Минимальные переменные окружения:
-
-- `BGITU__TELEGRAM__ENABLED=1`
-- `BGITU__TELEGRAM__BOT_TOKEN=<telegram bot token>`
-- `BGITU__TELEGRAM__BOT_USERNAME=<bot username without @>`
-- `BGITU__TELEGRAM__LINK_TOKEN_TTL_MINUTES=15`
-
-Локальный запуск:
-
-```powershell
-uv run python -m telegram_bot.main
-```
-Сервис `telegram_bot` поднимается вместе с остальным Docker Compose stack.
+- `/events` не принимает подключения;
+- realtime-события из HTTP endpoint-ов не публикуются;
+- Redis-клиенты для SSE не создаются.
 
 ## Observability
 
-Для локального мониторинга добавлен stack Prometheus + Loki + Promtail + Grafana.
+Для локального мониторинга добавлен стек:
+
+```text
+Prometheus + Loki + Promtail + Grafana
+```
 
 URL:
 
-- Backend metrics: `http://localhost:8000/metrics`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000` (`admin` / `admin`)
-- Loki: `http://localhost:3100`
+
+| Сервис          | Адрес                           |
+| --------------- | ------------------------------- |
+| Backend metrics | `http://localhost:8000/metrics` |
+| Prometheus      | `http://localhost:9090`         |
+| Grafana         | `http://localhost:3000`         |
+| Loki            | `http://localhost:3100`         |
+
+
+Стандартные учетные данные Grafana:
+
+```text
+admin / admin
+```
+
+---
+
+## API
+
+Основная документация API доступна через Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Основные группы endpoint-ов:
+
+```text
+/api/v1/auth
+/api/v1/users
+/api/v1/offices
+/api/v1/audiences
+/api/v1/hardware
+/api/v1/analytics/hardware
+/api/v1/notifications
+```
+
+---
+
+## Seed-данные
+
+Команда:
+
+```powershell
+uv run python -m core.seed
+```
+
+Добавляет:
+
+- корпус с `id=1`;
+- корпус с `id=2`;
+- суперпользователя `admin / admin`.
+
+> После первого запуска пароль суперпользователя лучше изменить.
+
+---
+
+## Roadmap
+
+- [x] CRUD по корпусам
+- [x] CRUD по аудиториям
+- [x] CRUD по оборудованию
+- [x] Координаты оборудования на сетке аудитории
+- [x] Access token и refresh token
+- [x] Роли пользователей
+- [x] Приглашения на регистрацию
+- [x] Загрузка файлов
+- [x] Аудит действий
+- [x] Аналитика по оборудованию
+- [x] SSE realtime-обновления
+- [x] Celery-задачи
+- [x] MinIO-хранилище
+- [x] Observability stack
+- [x] Frontend realtime-уведомления
+- [ ] Расширенная аналитика неисправностей
+- [ ] История обслуживания оборудования
+- [ ] Заявки на ремонт
+- [ ] Экспорт отчетов
+
+---
+
+## Автор
+
+**Мишин А.М.**
+
+ФГБОУ ВО «Брянский государственный инженерно-технологический университет»
+Кафедра «Информационные технологии»
+
+---
+
+
+
+**BGITU Hardware Management**
+Учебный проект для автоматизации учета компьютерного оборудования университета.

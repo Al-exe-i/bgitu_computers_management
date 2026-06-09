@@ -6,7 +6,7 @@ import NotificationsModal from "@/components/Layout/NotificationsModal.vue";
 import AppFooter from "@/components/Layout/AppFooter.vue";
 import {useAuthStore} from "@/stores/auth.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
-import {getNotificationSseUrl} from "@/config/api.js";
+import {getNotificationSseUrl, getRealtimeClientId, withSseParams} from "@/config/api.js";
 
 export default {
   name: "AppView",
@@ -60,7 +60,12 @@ export default {
         return;
       }
 
-      const source = new EventSource(getNotificationSseUrl(), { withCredentials: true });
+      const source = new EventSource(
+        withSseParams(getNotificationSseUrl(), {
+          client_id: getRealtimeClientId('notifications'),
+        }),
+        { withCredentials: true }
+      );
       this.notificationEventSource = source;
 
       source.addEventListener('open', () => {
@@ -106,6 +111,10 @@ export default {
         window.clearTimeout(this.notificationReconnectTimer);
         this.notificationReconnectTimer = null;
       }
+    },
+
+    handlePageLifecycleEnd() {
+      this.closeNotificationStream();
     }
   },
   watch: {
@@ -123,7 +132,11 @@ export default {
       }
     }
   },
+  mounted() {
+    window.addEventListener('pagehide', this.handlePageLifecycleEnd);
+  },
   beforeUnmount() {
+    window.removeEventListener('pagehide', this.handlePageLifecycleEnd);
     this.closeNotificationStream();
   }
 }

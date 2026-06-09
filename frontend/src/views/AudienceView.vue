@@ -5,7 +5,7 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 import {useAuthStore} from "@/stores/auth.js";
-import {getApiUrl, getSseUrl} from "@/config/api.js";
+import {getApiUrl, getRealtimeClientId, getSseUrl, withSseParams} from "@/config/api.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {markRaw} from "vue";
 
@@ -483,6 +483,15 @@ export default {
   },
 
   watch: {
+    async audiencePublicId() {
+      this.loading = true;
+      this.classroom = null;
+      this.closeRealtime();
+      document.title = 'Аудитория';
+      await this.getAudience({ keepModal: false });
+      this.connectRealtime();
+    },
+
     isWorkspace() {
       this.scheduleViewportScrollLock();
     },
@@ -927,6 +936,7 @@ export default {
 
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
+        this.updatePageTitle();
 
         this.audienceContext.setOffice(this.classroom.office_id);
 
@@ -993,6 +1003,16 @@ export default {
         office_id: data.office_id,
         description: data.description,
       };
+    },
+
+    updatePageTitle() {
+      if (!this.classroom) {
+        document.title = 'Аудитория';
+        return;
+      }
+
+      const number = this.classroom.number ?? this.classroom.id;
+      document.title = `Аудитория №${number}`;
     },
 
     getEquipment(row, col) {
@@ -1403,7 +1423,12 @@ export default {
         this.eventSource.close();
       }
 
-      this.eventSource = new EventSource(`${getSseUrl()}?audience_id=${this.classroom.id}`);
+      this.eventSource = new EventSource(
+          withSseParams(getSseUrl(), {
+            audience_id: this.classroom.id,
+            client_id: getRealtimeClientId(`audience:${this.classroom.id}`),
+          })
+      );
 
       this.eventSource.onopen = () => {
         this.wsConnected = true;
@@ -1460,6 +1485,7 @@ export default {
       if(this.eventSource)
       {
         this.eventSource.onopen = null;
+        this.eventSource.onmessage = null;
         this.eventSource.onerror = null;
         this.wsConnected = false;
         this.eventSource.close()
@@ -1686,16 +1712,22 @@ export default {
       }
     },
 
+    handlePageLifecycleEnd() {
+      this.closeRealtime();
+    },
+
   },
 
   async mounted() {
     this.isUnmounted = false;
+    window.addEventListener('pagehide', this.handlePageLifecycleEnd);
     await this.getAudience();
     this.connectRealtime();
   },
 
   beforeUnmount() {
     this.isUnmounted = true;
+    window.removeEventListener('pagehide', this.handlePageLifecycleEnd);
     this.clearStatusConfirmTimers();
     this.clearViewportScrollLock();
     this.closeRealtime()
@@ -1790,7 +1822,9 @@ export default {
             </div>
 
           </div>
-          <p v-if="authStore.isAuthenticated" class="grid-info">Кликните по ячейке для деталей</p>
+          <p v-if="authStore.isAuthenticated" class="grid-info">
+            Кликните по ячейке для деталей
+          </p>
         </div>
 
         <div class="grid-landmarks-shell">

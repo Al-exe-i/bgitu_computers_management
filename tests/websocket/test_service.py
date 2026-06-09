@@ -78,3 +78,38 @@ def test_realtime_service_inmemory_publishes_notifications_to_matching_user() ->
         await service.disconnect(other_id)
 
     asyncio.run(scenario())
+
+
+def test_realtime_service_replaces_existing_connection_with_same_client_id() -> None:
+    async def scenario() -> None:
+        service = RealtimeService(WebSocketConfig(enabled=True, transport="inmemory"))
+        old_connection = DummyWebSocket()
+        new_connection = DummyWebSocket()
+
+        old_id = await service.connect(
+            old_connection,
+            audience_id=5,
+            user_id=None,
+            ip=None,
+            user_agent=None,
+            client_id="audience:5:tab-1",
+        )
+        new_id = await service.connect(
+            new_connection,
+            audience_id=5,
+            user_id=None,
+            ip=None,
+            user_agent=None,
+            client_id="audience:5:tab-1",
+        )
+
+        await service.publish_audience_updated(5)
+
+        assert old_id != new_id
+        assert old_connection.closed is True
+        assert old_connection.messages == []
+        assert new_connection.messages == [{"audience_updated": 5}]
+
+        await service.disconnect(new_id)
+
+    asyncio.run(scenario())

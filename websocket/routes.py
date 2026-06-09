@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 
 from fastapi import APIRouter, HTTPException, Request, status
 from starlette.responses import StreamingResponse
@@ -7,6 +8,7 @@ from starlette.responses import StreamingResponse
 from dependencies.auth import user_dep
 
 router = APIRouter()
+CLIENT_ID_RE = re.compile(r"^[a-zA-Z0-9:_-]{1,160}$")
 
 
 class SSEConnection:
@@ -63,6 +65,20 @@ def _stream_response(event_stream):
     )
 
 
+def _client_id_from_request(request: Request) -> str | None:
+    client_id = request.query_params.get("client_id")
+    if not client_id:
+        return None
+
+    if not CLIENT_ID_RE.fullmatch(client_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid client_id",
+        )
+
+    return client_id
+
+
 @router.get("/events", include_in_schema=False)
 async def sse_endpoint(request: Request):
     realtime = request.app.state.realtime
@@ -89,6 +105,7 @@ async def sse_endpoint(request: Request):
         connection,
         audience_id=audience_id,
         user_id=None,
+        client_id=_client_id_from_request(request),
         ip=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
@@ -136,6 +153,7 @@ async def notifications_sse_endpoint(request: Request, user: user_dep):
         connection,
         audience_id=None,
         user_id=user.id,
+        client_id=_client_id_from_request(request),
         ip=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )

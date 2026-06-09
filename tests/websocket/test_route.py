@@ -50,6 +50,14 @@ def test_sse_route_rejects_invalid_audience_id() -> None:
     assert response.json()["detail"] == "Invalid audience_id"
 
 
+def test_sse_route_rejects_invalid_client_id() -> None:
+    with TestClient(app) as client:
+        response = client.get("/events?client_id=bad.client")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid client_id"
+
+
 def test_notifications_sse_route_requires_auth() -> None:
     with TestClient(app) as client:
         response = client.get("/events/notifications")

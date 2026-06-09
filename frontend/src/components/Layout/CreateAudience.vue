@@ -557,6 +557,7 @@ export default {
         const data = res.data;
 
         this.classroomNumber = String(data.number ?? data.id);
+        this.updatePageTitle();
         this.floorNumber = data.floor;
         this.officeNumber = data.office_id;
         this.gridWidth = data.width;
@@ -740,7 +741,16 @@ export default {
 
       if (!/^\d*[1-9]\d*$/.test(this.classroomNumber) || this.classroomNumber.length > 3)
         this.classroomNumber = this.classroomNumber.slice(0, -1);
-    }
+    },
+
+    updatePageTitle() {
+      if (this.isEditMode && this.classroomNumber) {
+        document.title = `Редактирование аудитории №${this.classroomNumber}`;
+        return;
+      }
+
+      document.title = this.isEditMode ? 'Редактирование аудитории' : 'Создание аудитории';
+    },
   },
 
   watch: {
@@ -777,11 +787,13 @@ export default {
 
     classroomNumber() {
       this.recomputeUnsavedChanges();
+      this.updatePageTitle();
     }
   },
 
   mounted()
   {
+    this.updatePageTitle();
     const officeIdFromQuery = Number(this.$route.query.office_id);
     if (!this.isEditMode && Number.isInteger(officeIdFromQuery) && officeIdFromQuery > 0) {
       this.officeNumber = officeIdFromQuery;

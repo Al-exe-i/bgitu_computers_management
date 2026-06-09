@@ -18,6 +18,7 @@ class LocalConnectionState:
     connection: RealtimeConnection
     audience_id: int | None
     user_id: int | None
+    client_id: str | None
     connected_at: datetime
     last_seen: datetime
 
@@ -27,7 +28,31 @@ class LocalConnectionManager:
         self._connections: dict[str, LocalConnectionState] = {}
         self._audience_to_connections: dict[int | None, set[str]] = {}
         self._user_to_connections: dict[int, set[str]] = {}
+        self._client_to_connection: dict[str, str] = {}
         self._lock = asyncio.Lock()
+
+    def _remove_locked(self, connection_id: str) -> LocalConnectionState | None:
+        state = self._connections.pop(connection_id, None)
+        if state is None:
+            return None
+
+        audience_connections = self._audience_to_connections.get(state.audience_id)
+        if audience_connections is not None:
+            audience_connections.discard(connection_id)
+            if not audience_connections:
+                self._audience_to_connections.pop(state.audience_id, None)
+
+        if state.user_id is not None:
+            user_connections = self._user_to_connections.get(state.user_id)
+            if user_connections is not None:
+                user_connections.discard(connection_id)
+                if not user_connections:
+                    self._user_to_connections.pop(state.user_id, None)
+
+        if state.client_id is not None and self._client_to_connection.get(state.client_id) == connection_id:
+            self._client_to_connection.pop(state.client_id, None)
+
+        return state
 
     async def accept(
         self,
@@ -36,7 +61,8 @@ class LocalConnectionManager:
         connection: RealtimeConnection,
         audience_id: int | None,
         user_id: int | None,
-    ) -> LocalConnectionState:
+        client_id: str | None = None,
+    ) -> tuple[LocalConnectionState, LocalConnectionState | None]:
         await connection.accept()
 
         now = datetime.now(timezone.utc)
@@ -45,38 +71,29 @@ class LocalConnectionManager:
             connection=connection,
             audience_id=audience_id,
             user_id=user_id,
+            client_id=client_id,
             connected_at=now,
             last_seen=now,
         )
 
         async with self._lock:
+            replaced = (
+                self._remove_locked(self._client_to_connection[client_id])
+                if client_id is not None and client_id in self._client_to_connection
+                else None
+            )
             self._connections[connection_id] = state
             self._audience_to_connections.setdefault(audience_id, set()).add(connection_id)
             if user_id is not None:
                 self._user_to_connections.setdefault(user_id, set()).add(connection_id)
+            if client_id is not None:
+                self._client_to_connection[client_id] = connection_id
 
-        return state
+        return state, replaced
 
     async def remove(self, connection_id: str) -> LocalConnectionState | None:
         async with self._lock:
-            state = self._connections.pop(connection_id, None)
-            if state is None:
-                return None
-
-            audience_connections = self._audience_to_connections.get(state.audience_id)
-            if audience_connections is not None:
-                audience_connections.discard(connection_id)
-                if not audience_connections:
-                    self._audience_to_connections.pop(state.audience_id, None)
-
-            if state.user_id is not None:
-                user_connections = self._user_to_connections.get(state.user_id)
-                if user_connections is not None:
-                    user_connections.discard(connection_id)
-                    if not user_connections:
-                        self._user_to_connections.pop(state.user_id, None)
-
-            return state
+            return self._remove_locked(connection_id)
 
     async def touch(self, connection_id: str) -> LocalConnectionState | None:
         async with self._lock:

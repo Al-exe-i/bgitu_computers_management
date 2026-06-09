@@ -28,6 +28,7 @@ class RedisConnectionMeta:
     last_seen: datetime
     ip: str | None
     user_agent: str | None
+    client_id: str | None = None
 
     @property
     def audience_key(self) -> str:
@@ -39,6 +40,7 @@ class RedisConnectionMeta:
             "instance_id": self.instance_id,
             "audience_key": self.audience_key,
             "user_id": "" if self.user_id is None else str(self.user_id),
+            "client_id": self.client_id or "",
             "connected_at": self.connected_at.isoformat(),
             "last_seen": self.last_seen.isoformat(),
             "ip": self.ip or "",
@@ -52,6 +54,7 @@ class RedisConnectionMeta:
             instance_id=data["instance_id"],
             audience_id=decode_audience_key(data.get("audience_key")),
             user_id=int(data["user_id"]) if data.get("user_id") else None,
+            client_id=data.get("client_id") or None,
             connected_at=datetime.fromisoformat(data["connected_at"]),
             last_seen=datetime.fromisoformat(data["last_seen"]),
             ip=data.get("ip") or None,

@@ -120,17 +120,32 @@ class RealtimeService:
         user_id: int | None,
         ip: str | None,
         user_agent: str | None,
+        client_id: str | None = None,
     ) -> str:
         if not self.config.enabled:
             raise RuntimeError("Realtime service is disabled")
 
         connection_id = str(uuid4())
-        state = await self.manager.accept(
+        state, replaced = await self.manager.accept(
             connection_id=connection_id,
             connection=connection,
             audience_id=audience_id,
             user_id=user_id,
+            client_id=client_id,
         )
+
+        if replaced is not None:
+            await self._unregister_state(replaced)
+            try:
+                await replaced.connection.close()
+            except Exception:
+                pass
+            logger.debug(
+                "Realtime client replaced: old_connection_id={} new_connection_id={} client_id={}",
+                replaced.connection_id,
+                connection_id,
+                client_id,
+            )
 
         if self.registry is not None:
             await self.registry.register_connection(
@@ -268,6 +283,7 @@ class RealtimeService:
             instance_id=self.instance_id,
             audience_id=state.audience_id,
             user_id=state.user_id,
+            client_id=state.client_id,
             connected_at=state.connected_at,
             last_seen=state.last_seen,
             ip=ip,

@@ -4,7 +4,7 @@ import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import ErrorContainer from "@/components/Common/ErrorContainer.vue";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
-import {getSseUrl} from "@/config/api.js";
+import {getRealtimeClientId, getSseUrl, withSseParams} from "@/config/api.js";
 
 export default {
   name: "HomeView",
@@ -79,7 +79,11 @@ export default {
         this.eventSource.close();
       }
 
-      this.eventSource = new EventSource(getSseUrl())
+      this.eventSource = new EventSource(
+          withSseParams(getSseUrl(), {
+            client_id: getRealtimeClientId('audiences-all'),
+          })
+      )
 
       this.eventSource.onopen = () => {
         this.wsConnected = true;
@@ -142,11 +146,16 @@ export default {
         this.eventSource.close()
         this.eventSource = null;
       }
+    },
+
+    handlePageLifecycleEnd() {
+      this.closeRealtime();
     }
   },
 
   mounted() {
     this.isUnmounted = false;
+    window.addEventListener('pagehide', this.handlePageLifecycleEnd);
     this.fetchOfficesData()
   },
 
@@ -159,6 +168,7 @@ export default {
 
   beforeUnmount() {
     this.isUnmounted = true;
+    window.removeEventListener('pagehide', this.handlePageLifecycleEnd);
     this.closeRealtime();
   }
 

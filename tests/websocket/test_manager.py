@@ -64,3 +64,40 @@ def test_manager_broadcasts_to_matching_user_connections_only() -> None:
         assert ws_global.messages == []
 
     asyncio.run(scenario())
+
+
+def test_manager_replaces_existing_connection_with_same_client_id() -> None:
+    async def scenario() -> None:
+        manager = LocalConnectionManager()
+        old_connection = DummyWebSocket()
+        new_connection = DummyWebSocket()
+
+        state, replaced = await manager.accept(
+            connection_id="old",
+            connection=old_connection,
+            audience_id=10,
+            user_id=None,
+            client_id="audience:10:tab-1",
+        )
+        assert state.connection_id == "old"
+        assert replaced is None
+
+        state, replaced = await manager.accept(
+            connection_id="new",
+            connection=new_connection,
+            audience_id=10,
+            user_id=None,
+            client_id="audience:10:tab-1",
+        )
+
+        assert state.connection_id == "new"
+        assert replaced is not None
+        assert replaced.connection_id == "old"
+        assert [item.connection_id for item in await manager.snapshot()] == ["new"]
+
+        await manager.broadcast_audience(10, {"audience_updated": 10})
+
+        assert old_connection.messages == []
+        assert new_connection.messages == [{"audience_updated": 10}]
+
+    asyncio.run(scenario())
