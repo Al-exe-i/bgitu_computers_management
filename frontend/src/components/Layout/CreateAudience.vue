@@ -198,6 +198,14 @@ export default {
       return this.equipmentItems.length > 0;
     },
 
+    isSaveDisabled() {
+      return this.isEditMode && !this.hasUnsavedChanges;
+    },
+
+    saveButtonTitle() {
+      return this.isSaveDisabled ? 'Нет изменений для сохранения' : '';
+    },
+
     clearGridConfirmText() {
       const count = this.equipmentItems.length;
 
@@ -538,9 +546,13 @@ export default {
       this.hasUnsavedChanges = false;
     },
 
+    hasAudienceChanges() {
+      return this.buildAudienceSnapshot() !== this.initialSnapshot;
+    },
+
     recomputeUnsavedChanges() {
       if (this.isHydrating) return;
-      this.hasUnsavedChanges = this.buildAudienceSnapshot() !== this.initialSnapshot;
+      this.hasUnsavedChanges = this.hasAudienceChanges();
     },
 
     async getOffices()
@@ -619,6 +631,12 @@ export default {
     saveClassroom() {
       if (!this.classroomNumber) {
         this.notify.warning('Введите номер аудитории!');
+        return;
+      }
+
+      if (this.isEditMode && !this.hasAudienceChanges()) {
+        this.hasUnsavedChanges = false;
+        this.notify.info('Изменений нет, аудитория не отправлялась на сервер');
         return;
       }
 
@@ -1026,6 +1044,8 @@ export default {
                 <button
                     type="button"
                     class="btn btn-primary grid-save-btn"
+                    :disabled="isSaveDisabled"
+                    :title="saveButtonTitle"
                     @click="saveClassroom"
                 >
                   {{ isEditMode ? 'Сохранить' : 'Создать' }}
@@ -1965,6 +1985,18 @@ export default {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-primary:hover:disabled {
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
