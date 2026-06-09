@@ -1398,7 +1398,7 @@ html[data-theme='dark'] .floor-section .classroom-status-badge.status-broken {
 }
 
 html[data-theme='dark'] .create-audience-page {
-  background: linear-gradient(165deg, #020617, #0f172a 52%, #111827) !important;
+  background: #020617 !important;
 }
 
 html[data-theme='dark'] .create-audience-page .page-title {
@@ -1568,7 +1568,9 @@ html[data-theme='dark'] .create-audience-page .clear-grid-confirm-text {
 }
 
 html[data-theme='dark'] .create-audience-leave-modal {
-  background: rgba(2, 6, 23, 0.68) !important;
+  background: rgba(2, 6, 23, 0.78) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 html[data-theme='dark'] .create-audience-leave-modal .leave-guard-card {
@@ -1915,6 +1917,141 @@ html[data-theme='dark'] .create-audience-page .remove-btn:hover {
 
 html[data-theme='dark'] .create-audience-page .empty-grid {
   color: #94a3b8 !important;
+}
+
+/* CreateAudience: remove the gray glass effect from dark mode. */
+html[data-theme='dark'] .create-audience-page,
+html[data-theme='dark'] .create-audience-page .panel,
+html[data-theme='dark'] .create-audience-page .grid-panel,
+html[data-theme='dark'] .create-audience-page .grid-container,
+html[data-theme='dark'] .create-audience-page .grid-cell,
+html[data-theme='dark'] .create-audience-page .stats-panel,
+html[data-theme='dark'] .create-audience-page .equipment-item,
+html[data-theme='dark'] .create-audience-page .grid-equipment,
+html[data-theme='dark'] .create-audience-page .history-actions,
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm,
+html[data-theme='dark'] .create-audience-page .landmark-edit-btn,
+html[data-theme='dark'] .create-audience-page .landmark-editor-popup,
+html[data-theme='dark'] .create-audience-leave-modal,
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page {
+  background: #020617 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .panel,
+html[data-theme='dark'] .create-audience-page .grid-panel {
+  background: #06101f !important;
+  border-color: #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .grid-container,
+html[data-theme='dark'] .create-audience-page .history-actions {
+  background: #020617 !important;
+  border-color: #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .grid-cell {
+  background: #081426 !important;
+  border-color: #1e293b !important;
+}
+
+html[data-theme='dark'] .create-audience-page .grid-cell:hover,
+html[data-theme='dark'] .create-audience-page .grid-cell.drag-over {
+  background: #102554 !important;
+  border-color: #60a5fa !important;
+}
+
+html[data-theme='dark'] .create-audience-page .equipment-item,
+html[data-theme='dark'] .create-audience-page .grid-equipment,
+html[data-theme='dark'] .create-audience-page .stats-panel,
+html[data-theme='dark'] .create-audience-page .form-input,
+html[data-theme='dark'] .create-audience-page .form-select,
+html[data-theme='dark'] .create-audience-page .landmark-editor-input,
+html[data-theme='dark'] .create-audience-page .size-btn,
+html[data-theme='dark'] .create-audience-page .btn-secondary,
+html[data-theme='dark'] .create-audience-page .collapse-icon,
+html[data-theme='dark'] .create-audience-page .landmark-edit-btn,
+html[data-theme='dark'] .create-audience-page .landmark-editor-popup,
+html[data-theme='dark'] .create-audience-page .landmark-editor-action {
+  background: #0b1220 !important;
+  border-color: #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .equipment-item:hover,
+html[data-theme='dark'] .create-audience-page .grid-equipment:hover,
+html[data-theme='dark'] .create-audience-page .size-btn:hover,
+html[data-theme='dark'] .create-audience-page .btn-secondary:hover,
+html[data-theme='dark'] .create-audience-page .collapse-icon:hover,
+html[data-theme='dark'] .create-audience-page .landmark-edit-btn:hover,
+html[data-theme='dark'] .create-audience-page .landmark-editor-action:hover {
+  background: #102554 !important;
+  border-color: #60a5fa !important;
+  color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .equipment-item.selected,
+html[data-theme='dark'] .create-audience-page .size-btn.active {
+  background: #12306b !important;
+  border-color: #60a5fa !important;
+  color: #dbeafe !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .grid-equipment.broken {
+  background: #3b1218 !important;
+  border-color: #fb7185 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm {
+  background: #160b13 !important;
+  border-color: #9f1239 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-confirm-icon {
+  background: #3b1218 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-btn {
+  background: #3b1218 !important;
+  border-color: #9f1239 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-btn:hover,
+html[data-theme='dark'] .create-audience-page .clear-grid-btn.is-armed {
+  background: #4c1420 !important;
+  border-color: #fb7185 !important;
+}
+
+html[data-theme='dark'] .create-audience-page .clear-grid-btn:disabled {
+  background: #0b1220 !important;
+  border-color: #1e293b !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal {
+  background: rgba(2, 6, 23, 0.92) !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-card,
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-close,
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-btn {
+  background: #06101f !important;
+  border-color: #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='dark'] .create-audience-leave-modal .leave-guard-icon {
+  background: #2a1b08 !important;
+  box-shadow: none !important;
 }
 
 html[data-theme='dark'] .page-viewer .classroom-number {

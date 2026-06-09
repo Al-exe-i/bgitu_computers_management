@@ -67,6 +67,8 @@ const LANDMARK_LABELS = Object.freeze({
   east: 'Восток',
 })
 
+const HISTORY_LIMIT = 40;
+
 function normalizeLandmarks(source = {}) {
   return {
     north: String(source?.north ?? source?.nord ?? '').trim(),
@@ -119,6 +121,9 @@ export default {
       bypassUnsavedLeaveGuard: false,
       isHydrating: false,
       initialSnapshot: '',
+      historySnapshots: [],
+      historyIndex: -1,
+      isApplyingHistory: false,
     };
   },
 
@@ -196,6 +201,14 @@ export default {
 
     canClearGrid() {
       return this.equipmentItems.length > 0;
+    },
+
+    canUndo() {
+      return this.historyIndex > 0;
+    },
+
+    canRedo() {
+      return this.historyIndex >= 0 && this.historyIndex < this.historySnapshots.length - 1;
     },
 
     isSaveDisabled() {
@@ -544,6 +557,91 @@ export default {
     captureInitialSnapshot() {
       this.initialSnapshot = this.buildAudienceSnapshot();
       this.hasUnsavedChanges = false;
+      this.resetHistory(this.initialSnapshot);
+    },
+
+    resetHistory(snapshot = this.buildAudienceSnapshot()) {
+      this.historySnapshots = [snapshot];
+      this.historyIndex = 0;
+    },
+
+    rememberHistoryStep() {
+      if (this.isHydrating || this.isApplyingHistory) return;
+
+      const snapshot = this.buildAudienceSnapshot();
+      const currentSnapshot = this.historySnapshots[this.historyIndex];
+
+      if (snapshot === currentSnapshot) {
+        return;
+      }
+
+      let nextSnapshots = this.historySnapshots.slice(0, this.historyIndex + 1);
+      nextSnapshots.push(snapshot);
+
+      if (nextSnapshots.length > HISTORY_LIMIT) {
+        nextSnapshots = nextSnapshots.slice(nextSnapshots.length - HISTORY_LIMIT);
+      }
+
+      this.historySnapshots = nextSnapshots;
+      this.historyIndex = nextSnapshots.length - 1;
+    },
+
+    applyAudienceSnapshot(snapshot) {
+      if (!snapshot) return;
+
+      let data;
+      try {
+        data = JSON.parse(snapshot);
+      } catch {
+        this.notify.error('Не удалось восстановить шаг истории');
+        return;
+      }
+
+      this.isApplyingHistory = true;
+      this.classroomNumber = data.classroomNumber ?? null;
+      this.floorNumber = Number(data.floorNumber ?? 1);
+      this.officeNumber = Number(data.officeNumber ?? 1);
+      this.gridWidth = Number(data.gridWidth ?? 1);
+      this.gridHeight = Number(data.gridHeight ?? 1);
+      this.landmarks = normalizeLandmarks(data.landmarks);
+      this.equipmentItems = (data.hardware ?? []).map((item, index) => ({
+        localId: item.id ? `db-${item.id}` : `history-${index}-${crypto.randomUUID()}`,
+        dbId: item.id || null,
+        type: item.type,
+        x: item.x,
+        y: item.y,
+        width: item.width ?? 1,
+        height: item.height ?? 1,
+        state: item.state ?? true,
+        description: item.description ?? null,
+        inv_number: item.inv_number ?? null,
+        title: item.title ?? null,
+        specs: item.specs ?? {},
+        files: []
+      }));
+
+      this.clearGridClicked = false;
+      this.closeLandmarkEditor();
+
+      this.$nextTick(() => {
+        this.isApplyingHistory = false;
+        this.recomputeUnsavedChanges();
+        this.updatePageTitle();
+      });
+    },
+
+    undoAudienceChange() {
+      if (!this.canUndo) return;
+
+      this.historyIndex -= 1;
+      this.applyAudienceSnapshot(this.historySnapshots[this.historyIndex]);
+    },
+
+    redoAudienceChange() {
+      if (!this.canRedo) return;
+
+      this.historyIndex += 1;
+      this.applyAudienceSnapshot(this.historySnapshots[this.historyIndex]);
     },
 
     hasAudienceChanges() {
@@ -553,6 +651,7 @@ export default {
     recomputeUnsavedChanges() {
       if (this.isHydrating) return;
       this.hasUnsavedChanges = this.hasAudienceChanges();
+      this.rememberHistoryStep();
     },
 
     async getOffices()
@@ -564,6 +663,7 @@ export default {
 
     async loadAudienceData() {
       this.loading = true;
+      this.isHydrating = true;
       try {
         const res = await api.get(`/audiences/${this.publicId}`);
         const data = res.data;
@@ -598,6 +698,7 @@ export default {
           this.isHydrating = false;
         });
       } catch (e) {
+        this.isHydrating = false;
         this.notify.error("Не удалось загрузить данные аудитории");
         await router.push('/');
       } finally {
@@ -811,6 +912,7 @@ export default {
 
   mounted()
   {
+    this.isHydrating = true;
     this.updatePageTitle();
     const officeIdFromQuery = Number(this.$route.query.office_id);
     if (!this.isEditMode && Number.isInteger(officeIdFromQuery) && officeIdFromQuery > 0) {
@@ -821,6 +923,11 @@ export default {
     if (this.publicId)
     {
       this.loadAudienceData();
+    } else {
+      this.$nextTick(() => {
+        this.captureInitialSnapshot();
+        this.isHydrating = false;
+      });
     }
   },
 
@@ -854,7 +961,7 @@ export default {
 </script>
 
 <template>
-  <div class="page-wrapper create-audience-page">
+  <div class="page-wrapper create-audience-page" :class="{ 'is-edit-mode': isEditMode }">
     <div class="container">
       <div class="header">
         <button class="back-btn" @click="goBack">
@@ -1032,6 +1139,34 @@ export default {
             </div>
             <div class="grid-header-actions">
               <div class="grid-action-cluster">
+                <div class="history-actions" role="group" aria-label="История изменений">
+                  <button
+                      type="button"
+                      class="history-btn"
+                      :disabled="!canUndo"
+                      title="Отменить последнее действие"
+                      @click="undoAudienceChange"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 14 4 9l5-5"/>
+                      <path d="M4 9h10a6 6 0 0 1 0 12h-3"/>
+                    </svg>
+                    Отменить
+                  </button>
+                  <button
+                      type="button"
+                      class="history-btn"
+                      :disabled="!canRedo"
+                      title="Повторить отменённое действие"
+                      @click="redoAudienceChange"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="m15 14 5-5-5-5"/>
+                      <path d="M20 9H10a6 6 0 0 0 0 12h3"/>
+                    </svg>
+                    Повторить
+                  </button>
+                </div>
                 <button
                     type="button"
                     class="clear-grid-btn"
@@ -1780,7 +1915,6 @@ export default {
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(16px);
 }
 
 .landmark-editor-popup.is-north {
@@ -2041,7 +2175,54 @@ export default {
 .grid-action-cluster {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.history-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: #f8fafc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.history-btn {
+  height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #475569;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+}
+
+.history-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.history-btn:hover:not(:disabled) {
+  background: #e0f2fe;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.history-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .grid-save-btn {
@@ -2099,6 +2280,77 @@ export default {
 .clear-grid-btn.is-danger:hover {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
   border-color: transparent;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .history-actions) {
+  background: #0f172a;
+  border-color: #334155;
+  box-shadow: none;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .history-btn) {
+  color: #cbd5e1;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .history-btn:hover:not(:disabled)) {
+  background: #1e3a8a;
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .history-btn:disabled) {
+  color: #64748b;
+  opacity: 0.46;
+}
+
+:global(html[data-theme='dark'] .create-audience-page) {
+  background: #020617 !important;
+  color-scheme: dark;
+  filter: none !important;
+}
+
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .panel),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-panel),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-container),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .history-actions),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .form-input),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .form-select),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .stats-panel) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .form-input:disabled) {
+  opacity: 1 !important;
+  background: #020617 !important;
+  border-color: #1e3a8a !important;
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-save-btn:disabled) {
+  opacity: 1 !important;
+  background: #052e2b !important;
+  border: 1px solid #047857 !important;
+  color: #86efac !important;
+  box-shadow: none !important;
+}
+
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .history-btn:disabled),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .clear-grid-btn:disabled) {
+  opacity: 1 !important;
+  background: #07111f !important;
+  border-color: #1e293b !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+}
+
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .history-actions) {
+  background: #020617 !important;
+  border-color: #1e3a8a !important;
+  box-shadow: none !important;
 }
 
 .clear-grid-confirm {
@@ -2184,9 +2436,7 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.58);
 }
 
 .leave-guard-card {
@@ -2660,6 +2910,15 @@ export default {
 
   .grid-action-cluster {
     width: 100%;
+  }
+
+  .history-actions {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .history-btn {
+    flex: 1 1 0;
   }
 
   .grid-action-cluster > .clear-grid-btn,
