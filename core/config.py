@@ -93,7 +93,7 @@ class CacheConfig(BaseModel):
 
 class StorageConfig(BaseModel):
     backend: Literal["local", "minio"] = "local"
-    endpoint: str = "localhost:9000"
+    endpoint: str = "localhost:9005"
     access_key: str = "minioadmin"
     secret_key: str = "minioadmin"
     bucket: str = "bgitu-files"

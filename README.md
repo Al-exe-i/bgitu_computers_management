@@ -203,8 +203,8 @@ docker compose up -d db redis minio
 | ------------- | ----------------------- |
 | PostgreSQL    | `localhost:5433`        |
 | Redis         | `localhost:6379`        |
-| MinIO API     | `http://localhost:9000` |
-| MinIO Console | `http://localhost:9001` |
+| MinIO API     | `http://localhost:9005` |
+| MinIO Console | `http://localhost:9006` |
 
 
 ### 3. Установить зависимости
@@ -334,15 +334,15 @@ BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 
 | Компонент     | Адрес                   |
 | ------------- | ----------------------- |
-| MinIO API     | `http://localhost:9000` |
-| MinIO Console | `http://localhost:9001` |
+| MinIO API     | `http://localhost:9005` |
+| MinIO Console | `http://localhost:9006` |
 
 
 Основные переменные:
 
 ```env
 BGITU__STORAGE__BACKEND=minio
-BGITU__STORAGE__ENDPOINT=localhost:9000
+BGITU__STORAGE__ENDPOINT=localhost:9005
 BGITU__STORAGE__ACCESS_KEY=minioadmin
 BGITU__STORAGE__SECRET_KEY=minioadmin
 BGITU__STORAGE__BUCKET=bgitu-files
