@@ -13,12 +13,10 @@
   <img alt="MinIO" src="https://img.shields.io/badge/MinIO-Object%20Storage-C72E49?style=for-the-badge&logo=minio&logoColor=white">
   <img alt="Celery" src="https://img.shields.io/badge/Celery-Tasks-37814A?style=for-the-badge">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white">
-  <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?style=for-the-badge&logo=prometheus&logoColor=white">
-  <img alt="Grafana" src="https://img.shields.io/badge/Grafana-Dashboards-F46800?style=for-the-badge&logo=grafana&logoColor=white">
 </p>
 
 <p>
-  <b>Учет оборудования · аудит действий · файлы · аналитика · SSE realtime · уведомления · observability</b>
+  <b>Учет оборудования · аудит действий · файлы · аналитика · SSE realtime · уведомления</b>
 </p>
 
 </div>
@@ -38,7 +36,6 @@
 - [Конфигурация](#конфигурация)
 - [Хранение файлов](#хранение-файлов)
 - [SSE и realtime](#sse-и-realtime)
-- [Observability](#observability)
 - [API](#api)
 - [Seed-данные](#seed-данные)
 - [Roadmap](#roadmap)
@@ -86,8 +83,7 @@ Backend предоставляет REST API для frontend-приложения
 ### Интеграции и инфраструктура
 
 - MinIO для объектного хранения файлов;
-- Celery для фоновых задач;
-- Prometheus, Loki, Promtail и Grafana для локальной наблюдаемости.
+- Celery для фоновых задач.
 
 ---
 
@@ -103,7 +99,6 @@ Backend предоставляет REST API для frontend-приложения
 | File storage    | Local storage, MinIO                         |
 | Realtime        | SSE, Redis Pub/Sub                           |
 | Logging         | Loguru                                       |
-| Observability   | Prometheus, Loki, Promtail, Grafana          |
 | Tooling         | uv, Docker, Docker Compose                   |
 
 
@@ -124,12 +119,6 @@ flowchart LR
     Redis --> Celery[Celery worker]
     Celery --> DB
     Celery --> Redis
-
-    API --> Metrics[Prometheus metrics]
-
-    Prometheus[Prometheus] --> Grafana[Grafana]
-    Promtail[Promtail] --> Loki[Loki]
-    Loki --> Grafana
 ```
 
 
@@ -428,33 +417,6 @@ sequenceDiagram
 - realtime-события из HTTP endpoint-ов не публикуются;
 - Redis-клиенты для SSE не создаются.
 
-## Observability
-
-Для локального мониторинга добавлен стек:
-
-```text
-Prometheus + Loki + Promtail + Grafana
-```
-
-URL:
-
-
-| Сервис          | Адрес                           |
-| --------------- | ------------------------------- |
-| Backend metrics | `http://localhost:8000/metrics` |
-| Prometheus      | `http://localhost:9090`         |
-| Grafana         | `http://localhost:3000`         |
-| Loki            | `http://localhost:3100`         |
-
-
-Стандартные учетные данные Grafana:
-
-```text
-admin / admin
-```
-
----
-
 ## API
 
 Основная документация API доступна через Swagger UI:
@@ -510,7 +472,6 @@ uv run python -m core.seed
 - [x] SSE realtime-обновления
 - [x] Celery-задачи
 - [x] MinIO-хранилище
-- [x] Observability stack
 - [x] Frontend realtime-уведомления
 - [ ] Расширенная аналитика неисправностей
 - [ ] История обслуживания оборудования

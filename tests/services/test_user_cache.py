@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 from redis.exceptions import RedisError
 
-from core.metrics import MetricsRegistry
 from db.post_commit import run_post_commit_hooks
 from models.user import UserRole
 from repositories.user_repo import UserRepository
@@ -86,8 +85,7 @@ def make_user(user_id: int = 7):
 def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
     async def scenario() -> None:
         redis = FakeRedis()
-        metrics = MetricsRegistry()
-        cache = UserCache(redis, ttl_seconds=600, metrics=metrics)
+        cache = UserCache(redis, ttl_seconds=600)
 
         await cache.set(make_user())
         cached = await cache.get(7)
@@ -98,9 +96,6 @@ def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
         assert cached.access_token_version == 2
         assert cached.role == UserRole.teacher
         assert redis.ttl["identity:user:7:v1"] == 600
-        output = metrics.render()
-        assert 'bgitu_cache_events_total{cache="identity_user",operation="set",result="success"} 1' in output
-        assert 'bgitu_cache_events_total{cache="identity_user",operation="get",result="hit"} 1' in output
 
     asyncio.run(scenario())
 
@@ -122,11 +117,10 @@ def test_user_service_uses_redis_cache_after_first_db_read() -> None:
     asyncio.run(scenario())
 
 
-def test_user_cache_records_miss_invalid_payload_and_redis_errors() -> None:
+def test_user_cache_handles_miss_invalid_payload_and_redis_errors() -> None:
     async def scenario() -> None:
         redis = FakeRedis()
-        metrics = MetricsRegistry()
-        cache = UserCache(redis, ttl_seconds=600, metrics=metrics)
+        cache = UserCache(redis, ttl_seconds=600)
 
         assert await cache.get(7) is None
 
@@ -144,15 +138,7 @@ def test_user_cache_records_miss_invalid_payload_and_redis_errors() -> None:
         redis.fail_delete = True
         await cache.invalidate(7)
 
-        output = metrics.render()
-        assert 'bgitu_cache_events_total{cache="identity_user",operation="get",result="miss"} 1' in output
-        assert (
-            'bgitu_cache_events_total{cache="identity_user",operation="get",result="invalid_payload"} 1'
-            in output
-        )
-        assert 'bgitu_cache_events_total{cache="identity_user",operation="get",result="error"} 1' in output
-        assert 'bgitu_cache_events_total{cache="identity_user",operation="set",result="error"} 1' in output
-        assert 'bgitu_cache_events_total{cache="identity_user",operation="delete",result="error"} 1' in output
+        assert redis.deleted == ["identity:user:7:v1"]
 
     asyncio.run(scenario())
 

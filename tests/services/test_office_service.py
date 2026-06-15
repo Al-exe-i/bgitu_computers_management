@@ -79,7 +79,6 @@ def test_get_all_short_uses_cache_after_first_repo_read() -> None:
             key="inventory:offices:short:v1",
             value_type=list[OfficeShort],
             ttl_seconds=300,
-            metrics_name="inventory_office_short_list",
         )
         repo = FakeOfficeRepo()
         service = OfficeService(repo, office_short_cache=cache)
@@ -102,14 +101,12 @@ def test_create_office_invalidates_related_caches_after_commit() -> None:
             key="inventory:offices:short:v1",
             value_type=list[OfficeShort],
             ttl_seconds=300,
-            metrics_name="inventory_office_short_list",
         )
         analytics_cache = RedisTypedCache(
             redis,
             key="analytics:hardware:filter_options:v1",
             value_type=dict,
             ttl_seconds=300,
-            metrics_name="analytics_filter_options",
         )
         repo = FakeOfficeRepo()
         service = OfficeService(repo, office_cache, analytics_cache)

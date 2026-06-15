@@ -10,7 +10,11 @@ class HardwareRepository:
         self.session = session
 
     async def get_by_id(self, hardware_id: int) -> Hardware | None:
-        stmt = select(Hardware).where(Hardware.id == hardware_id).options(selectinload(Hardware.files))
+        stmt = (
+            select(Hardware)
+            .where(Hardware.id == hardware_id)
+            .options(selectinload(Hardware.files))
+        )
         result = await self.session.execute(stmt)
         return result.scalars().first()
 

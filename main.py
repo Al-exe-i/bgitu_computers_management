@@ -8,7 +8,6 @@ from api import api_router
 from core.config import settings
 from core.exception_handlers import register_exception_handlers
 from core.logger import setup_logging
-from core.metrics import metrics_middleware, metrics_response
 from core.redis_client import close_cache_redis
 from websocket.routes import router as realtime_router
 from websocket.service import RealtimeService
@@ -45,8 +44,6 @@ app = FastAPI(
 
 register_exception_handlers(app)
 
-app.middleware("http")(metrics_middleware)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -62,8 +59,3 @@ app.include_router(realtime_router)
 @app.get("/ping")
 def ping():
     return {"message": "pong!"}
-
-
-@app.get("/metrics", include_in_schema=False)
-def metrics():
-    return metrics_response()

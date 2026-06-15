@@ -3,7 +3,6 @@ import asyncio
 from pydantic import BaseModel
 from redis.exceptions import RedisError
 
-from core.metrics import MetricsRegistry
 from services.response_cache import RedisTypedCache
 
 
@@ -33,17 +32,14 @@ class CachedItem(BaseModel):
     title: str
 
 
-def test_typed_cache_roundtrip_and_metrics() -> None:
+def test_typed_cache_roundtrip() -> None:
     async def scenario() -> None:
         redis = FakeRedis()
-        metrics = MetricsRegistry()
         cache = RedisTypedCache(
             redis,
             key="items:v1",
             value_type=list[CachedItem],
             ttl_seconds=300,
-            metrics_name="items",
-            metrics=metrics,
         )
 
         await cache.set([CachedItem(id=1, title="First")])
@@ -51,9 +47,6 @@ def test_typed_cache_roundtrip_and_metrics() -> None:
 
         assert cached == [CachedItem(id=1, title="First")]
         assert redis.ttl["items:v1"] == 300
-        output = metrics.render()
-        assert 'bgitu_cache_events_total{cache="items",operation="set",result="success"} 1' in output
-        assert 'bgitu_cache_events_total{cache="items",operation="get",result="hit"} 1' in output
 
     asyncio.run(scenario())
 
@@ -66,7 +59,6 @@ def test_typed_cache_invalid_payload_is_removed() -> None:
             key="items:v1",
             value_type=list[CachedItem],
             ttl_seconds=300,
-            metrics_name="items",
         )
         redis.store["items:v1"] = '{"broken": true}'
 

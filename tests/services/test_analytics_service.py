@@ -41,7 +41,6 @@ def test_filter_options_uses_cache_after_first_repo_read() -> None:
             key="analytics:hardware:filter_options:v1",
             value_type=HardwareAnalyticsFilterOptions,
             ttl_seconds=300,
-            metrics_name="analytics_filter_options",
         )
         repo = FakeAnalyticsRepo()
         service = HardwareAnalyticsService(repo, cache)

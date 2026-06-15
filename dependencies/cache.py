@@ -26,7 +26,6 @@ def get_office_short_list_cache() -> RedisTypedCache[list[OfficeShort]]:
         key="inventory:offices:short:v1",
         value_type=list[OfficeShort],
         ttl_seconds=settings.cache.office_short_ttl_seconds,
-        metrics_name="inventory_office_short_list",
     )
 
 
@@ -42,7 +41,6 @@ def get_analytics_filter_options_cache() -> RedisTypedCache[HardwareAnalyticsFil
         key="analytics:hardware:filter_options:v1",
         value_type=HardwareAnalyticsFilterOptions,
         ttl_seconds=settings.cache.analytics_filter_options_ttl_seconds,
-        metrics_name="analytics_filter_options",
     )
 
 

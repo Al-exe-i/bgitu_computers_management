@@ -9,7 +9,6 @@ from loguru import logger
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from core.metrics import MetricsRegistry, metrics_registry
 from models.user import UserRole
 
 
@@ -29,29 +28,24 @@ class CachedUser:
 
 class UserCache:
     key_prefix = "identity:user"
-    metrics_name = "identity_user"
 
     def __init__(
         self,
         redis: Redis,
         *,
         ttl_seconds: int,
-        metrics: MetricsRegistry | None = metrics_registry,
     ) -> None:
         self.redis = redis
         self.ttl_seconds = ttl_seconds
-        self.metrics = metrics
 
     async def get(self, user_id: int) -> CachedUser | None:
         try:
             raw = await self.redis.get(self._key(user_id))
         except RedisError as exc:
             logger.debug("User cache read failed for user_id={}: {}", user_id, exc)
-            self._observe("get", "error")
             return None
 
         if not raw:
-            self._observe("get", "miss")
             return None
 
         try:
@@ -60,11 +54,9 @@ class UserCache:
             logger.debug(
                 "User cache payload is invalid for user_id={}: {}", user_id, exc
             )
-            self._observe("get", "invalid_payload")
             await self.invalidate(user_id)
             return None
 
-        self._observe("get", "hit")
         return cached
 
     async def set(self, user: Any) -> None:
@@ -78,20 +70,16 @@ class UserCache:
                 self._serialize(user),
                 ex=self.ttl_seconds,
             )
-            self._observe("set", "success")
         except RedisError as exc:
             logger.debug("User cache write failed for user_id={}: {}", user_id, exc)
-            self._observe("set", "error")
 
     async def invalidate(self, user_id: int) -> None:
         try:
             await self.redis.delete(self._key(user_id))
-            self._observe("delete", "success")
         except RedisError as exc:
             logger.debug(
                 "User cache invalidation failed for user_id={}: {}", user_id, exc
             )
-            self._observe("delete", "error")
 
     def _key(self, user_id: int) -> str:
         return f"{self.key_prefix}:{user_id}:v1"
@@ -139,13 +127,3 @@ class UserCache:
         if isinstance(role, UserRole):
             return role.name
         return str(role)
-
-    def _observe(self, operation: str, result: str) -> None:
-        if self.metrics is None:
-            return
-
-        self.metrics.observe_cache_event(
-            cache=self.metrics_name,
-            operation=operation,
-            result=result,
-        )
