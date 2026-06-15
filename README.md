@@ -268,25 +268,19 @@ uv run celery -A celery_app:celery_app beat -l info
 docker compose up -d --build
 ```
 
-Если Docker создал stale-контейнеры со ссылкой на удаленную сеть, используйте безопасный запуск:
+Для Docker Compose используется обычный `.env`. В репозитории есть пример:
+
+```text
+.env.example
+```
+
+Создайте локальный файл окружения:
 
 ```powershell
-.\scripts\docker-up.ps1
+Copy-Item .env.example .env
 ```
 
-Для Docker Compose в репозитории есть tracked-файл:
-
-```text
-.env.docker.example
-```
-
-Локальные секреты и переопределения можно положить в:
-
-```text
-.env.docker
-```
-
-Этот файл игнорируется git.
+Локальные секреты и переопределения храните в `.env`. Этот файл игнорируется git.
 
 ---
 
