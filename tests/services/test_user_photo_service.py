@@ -114,7 +114,7 @@ def test_create_hashes_password_and_returns_user_out() -> None:
 
         result = await service.create(
             UserCreate(
-                email="user@example.com",
+                email="user@example.ru",
                 password="secret1",
                 role=UserRole.teacher,
             )
@@ -140,7 +140,7 @@ def test_create_translates_duplicate_user_to_domain_error() -> None:
         with pytest.raises(UserAlreadyExistsError):
             await service.create(
                 UserCreate(
-                    email="user@example.com",
+                    email="user@example.ru",
                     password="secret1",
                     role=UserRole.teacher,
                 )

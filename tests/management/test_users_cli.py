@@ -4,6 +4,7 @@ import pytest
 
 from core.security import verify_password
 from management.users import (
+    RU_EMAIL_ERROR,
     ManagementUserError,
     build_managed_user,
     build_parser,
@@ -32,13 +33,13 @@ def test_build_parser_parses_create_superuser_command():
 
 def test_build_managed_user_hashes_password_and_sets_admin_role():
     user = build_managed_user(
-        email=" admin ",
+        email=" admin@example.ru ",
         password="secret123",
         role=UserRole.admin,
         is_superuser=True,
     )
 
-    assert user.email == "admin"
+    assert user.email == "admin@example.ru"
     assert user.role == UserRole.admin
     assert user.is_superuser is True
     assert user.password != "secret123"
@@ -61,3 +62,13 @@ def test_validate_password_rejects_short_password(password):
 def test_normalize_email_rejects_empty_value():
     with pytest.raises(ManagementUserError):
         normalize_email("   ")
+
+
+def test_build_managed_user_rejects_non_ru_email():
+    with pytest.raises(ManagementUserError, match=RU_EMAIL_ERROR):
+        build_managed_user(
+            email="admin@example.com",
+            password="secret123",
+            role=UserRole.admin,
+            is_superuser=True,
+        )

@@ -54,7 +54,7 @@ class FakeInviteService:
                 expires_at=schema.expires_at,
                 note=schema.note,
             )
-            for email in (schema.emails or ["first@example.com", "second@example.com"])
+            for email in (schema.emails or ["first@example.ru", "second@example.ru"])
         ]
 
     async def list_all(self) -> list[InviteListItem]:
@@ -70,7 +70,7 @@ class FakeInviteService:
     def _list_item(invite_id: int) -> InviteListItem:
         return InviteListItem(
             id=invite_id,
-            target_email="invite@example.com",
+            target_email="invite@example.ru",
             target_role=UserRole.teacher,
             note="note",
             created_by_user_id=1,
@@ -100,7 +100,7 @@ def test_create_one_invite_writes_audit_payload(audit: FakeAudit) -> None:
         service = FakeInviteService()
         use_cases = IdentityInviteUseCases(service)
         data = InviteCreateOne(
-            target_email="invite@example.com",
+            target_email="invite@example.ru",
             target_role=UserRole.teacher,
             expires_at=EXPIRES_AT,
             note="note",
@@ -120,7 +120,7 @@ def test_create_one_invite_writes_audit_payload(audit: FakeAudit) -> None:
                 "entity_type": "invite",
                 "entity_id": 5,
                 "payload": {
-                    "target_email": "invite@example.com",
+                    "target_email": "invite@example.ru",
                     "target_role": "teacher",
                     "expires_at": EXPIRES_AT.isoformat(),
                 },
@@ -135,7 +135,7 @@ def test_create_batch_invite_writes_compact_audit_payload(audit: FakeAudit) -> N
         service = FakeInviteService()
         use_cases = IdentityInviteUseCases(service)
         data = InviteCreateBatch(
-            emails=["first@example.com", "second@example.com"],
+            emails=["first@example.ru", "second@example.ru"],
             target_role=UserRole.teacher,
             expires_at=EXPIRES_AT,
         )
@@ -182,7 +182,7 @@ def test_revoke_and_delete_invite_write_audit(audit: FakeAudit) -> None:
                 "entity_type": "invite",
                 "entity_id": 5,
                 "payload": {
-                    "target_email": "invite@example.com",
+                    "target_email": "invite@example.ru",
                     "target_role": "teacher",
                 },
             },

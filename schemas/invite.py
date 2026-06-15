@@ -2,10 +2,11 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 
 from models.user import UserRole
+from utils.email import RuEmailStr
 
 
 class InviteCreateOne(BaseModel):
-    target_email: EmailStr | None = None
+    target_email: RuEmailStr | None = None
     target_role: UserRole = UserRole.teacher
     expires_at: datetime
     note: str | None = None
@@ -13,7 +14,7 @@ class InviteCreateOne(BaseModel):
 
 class InviteCreateBatch(BaseModel):
     count: int | None = Field(default=None, ge=1, le=200)
-    emails: list[EmailStr] | None = None
+    emails: list[RuEmailStr] | None = None
     target_role: UserRole = UserRole.teacher
     expires_at: datetime
     note: str | None = None
@@ -57,7 +58,7 @@ class RegisterByInviteRequest(BaseModel):
     token: str
     name: str | None = None
     surname: str | None = None
-    email: EmailStr
+    email: RuEmailStr
     password: str
 
 

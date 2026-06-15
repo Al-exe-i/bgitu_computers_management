@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from models.user import UserRole
+from utils.email import RuEmailStr
 
 
 class UserBase(BaseModel):
@@ -12,7 +13,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    email: str  # Потом поменять на EmailStr, если добавлю логин
+    email: RuEmailStr
     password: str = Field(min_length=6)
 
 

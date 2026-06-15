@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import get_password_hash
 from db.session import engine, session_factory
 from models.user import User, UserRole
+from utils.email import RU_EMAIL_ERROR, validate_ru_email_domain
 
 
 class ManagementUserError(Exception):
@@ -35,6 +36,14 @@ def normalize_email(email: str) -> str:
     return value
 
 
+def validate_new_user_email(email: str) -> str:
+    value = normalize_email(email)
+    try:
+        return validate_ru_email_domain(value)
+    except ValueError as exc:
+        raise ManagementUserError(RU_EMAIL_ERROR) from exc
+
+
 def validate_password(password: str) -> str:
     if len(password) < 6:
         raise ManagementUserError("Password must contain at least 6 characters")
@@ -51,7 +60,7 @@ def build_managed_user(
     surname: str | None = None,
 ) -> User:
     return User(
-        email=normalize_email(email),
+        email=validate_new_user_email(email),
         password=get_password_hash(validate_password(password)),
         role=role,
         is_superuser=is_superuser,

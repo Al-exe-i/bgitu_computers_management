@@ -213,26 +213,26 @@ def test_register_by_invite_creates_user_marks_invite_used_and_writes_audit() ->
                 token="invite-token",
                 name="Alex",
                 surname="Ivanov",
-                email="new@example.com",
+                email="new@example.ru",
                 password="secret123",
             ),
             audit=audit,
         )
 
         assert result.registration.user_id == 7
-        assert result.registration.email == "new@example.com"
+        assert result.registration.email == "new@example.ru"
         assert result.registration.role == str(UserRole.teacher.value)
         assert invite_service.tokens == ["invite-token"]
         assert invite_service.marked_used == [{"invite_id": 5, "used_by_user_id": 7}]
-        assert user_service.lookup_emails == ["new@example.com"]
-        assert user_service.created[0].email == "new@example.com"
+        assert user_service.lookup_emails == ["new@example.ru"]
+        assert user_service.created[0].email == "new@example.ru"
         assert user_service.created[0].role == UserRole.teacher
         assert audit.logs == [
             {
                 "action": "auth.register_by_invite",
                 "entity_type": "user",
                 "entity_id": 7,
-                "payload": {"email": "new@example.com", "role": str(UserRole.teacher.value)},
+                "payload": {"email": "new@example.ru", "role": str(UserRole.teacher.value)},
                 "user_id": 7,
             }
         ]
@@ -246,7 +246,7 @@ def test_register_by_invite_rejects_email_mismatch_before_user_create() -> None:
         invite_service = FakeInviteService(
             InviteRegistrationData(
                 id=5,
-                target_email="target@example.com",
+                target_email="target@example.ru",
                 target_role=UserRole.teacher,
             )
         )
@@ -260,7 +260,7 @@ def test_register_by_invite_rejects_email_mismatch_before_user_create() -> None:
             await use_cases.register_by_invite(
                 data=RegisterByInviteRequest(
                     token="invite-token",
-                    email="other@example.com",
+                    email="other@example.ru",
                     password="secret123",
                 ),
                 audit=audit,
@@ -288,13 +288,13 @@ def test_register_by_invite_rejects_existing_user_before_marking_invite_used() -
             await use_cases.register_by_invite(
                 data=RegisterByInviteRequest(
                     token="invite-token",
-                    email="new@example.com",
+                    email="new@example.ru",
                     password="secret123",
                 ),
                 audit=audit,
             )
 
-        assert user_service.lookup_emails == ["new@example.com"]
+        assert user_service.lookup_emails == ["new@example.ru"]
         assert user_service.created == []
         assert invite_service.marked_used == []
         assert audit.logs == []
