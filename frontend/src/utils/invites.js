@@ -114,8 +114,22 @@ const INVITE_FIELD_LABELS = Object.freeze({
   password: 'Пароль',
 });
 
+export const RU_EMAIL_ERROR_MESSAGE = 'Email должен быть в домене .ru';
+export const RU_EMAIL_LIST_ERROR_MESSAGE = 'Все email-адреса должны быть в домене .ru';
+
 function normalizeInviteErrorText(value) {
   return String(value ?? '').trim().toLowerCase();
+}
+
+function isRuEmailDomainErrorText(value) {
+  const normalized = normalizeInviteErrorText(value);
+
+  return (
+    normalized.includes('.ru domain') ||
+    normalized.includes('must use a .ru') ||
+    normalized.includes('email must use') ||
+    normalized.includes('домене .ru')
+  );
 }
 
 function getInviteFieldLabel(field) {
@@ -126,6 +140,8 @@ function mapInviteKnownMessage(message) {
   const normalized = normalizeInviteErrorText(message);
 
   if (!normalized) return '';
+
+  if (isRuEmailDomainErrorText(normalized)) return RU_EMAIL_ERROR_MESSAGE;
 
   if (
     normalized.includes('invite not found') ||
@@ -191,10 +207,15 @@ function getInviteResponseDetail(data) {
 function mapInviteValidationDetail(detail) {
   const location = Array.isArray(detail?.loc) ? detail.loc : [];
   const field = String(location[location.length - 1] ?? '').trim();
+  const isEmailsField = location.map(item => String(item)).includes('emails');
   const label = getInviteFieldLabel(field);
   const message = normalizeInviteErrorText(detail?.msg);
   const type = normalizeInviteErrorText(detail?.type);
   const minLength = Number(detail?.ctx?.min_length);
+
+  if (isRuEmailDomainErrorText(message) || isRuEmailDomainErrorText(type)) {
+    return isEmailsField ? RU_EMAIL_LIST_ERROR_MESSAGE : RU_EMAIL_ERROR_MESSAGE;
+  }
 
   if (field === 'token') return 'Приглашение не найдено';
 
@@ -348,4 +369,11 @@ export function parseInviteEmails(rawValue) {
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email ?? '').trim());
+}
+
+export function isRuEmail(email) {
+  if (!isValidEmail(email)) return false;
+
+  const domain = String(email ?? '').trim().split('@').pop()?.toLowerCase() ?? '';
+  return domain.endsWith('.ru');
 }

@@ -3,6 +3,8 @@ import api from "@/services/api";
 import { useNotificationsStore } from "@/stores/notifications";
 import {
   INVITE_ROLE_OPTIONS,
+  RU_EMAIL_ERROR_MESSAGE,
+  RU_EMAIL_LIST_ERROR_MESSAGE,
   copyTextToClipboard,
   formatInviteDate,
   fromLocalDateTimeInputValue,
@@ -10,6 +12,7 @@ import {
   getInviteRoleLabel,
   getInviteStatus,
   getInviteStatusLabel,
+  isRuEmail,
   isValidEmail,
   mapInviteApiError,
   normalizeInviteCreateResponse,
@@ -193,6 +196,11 @@ export default {
         return;
       }
 
+      if (!isRuEmail(email)) {
+        this.notify.warning(RU_EMAIL_ERROR_MESSAGE);
+        return;
+      }
+
       this.createOneLoading = true;
 
       try {
@@ -220,6 +228,12 @@ export default {
       const invalidEmails = emails.filter(email => !isValidEmail(email));
       if (invalidEmails.length > 0) {
         this.notify.warning(`Некорректные email: ${invalidEmails.slice(0, 3).join(', ')}`);
+        return;
+      }
+
+      const nonRuEmails = emails.filter(email => !isRuEmail(email));
+      if (nonRuEmails.length > 0) {
+        this.notify.warning(`${RU_EMAIL_LIST_ERROR_MESSAGE}: ${nonRuEmails.slice(0, 3).join(', ')}`);
         return;
       }
 
@@ -365,7 +379,7 @@ export default {
                 v-model.trim="oneForm.target_email"
                 type="email"
                 class="form-input"
-                placeholder="teacher@example.com"
+                placeholder="teacher@example.ru"
                 required
             >
           </div>
@@ -429,7 +443,7 @@ export default {
                 v-model.trim="batchForm.emails"
                 class="form-textarea form-textarea-large"
                 rows="5"
-                placeholder="teacher1@example.com&#10;teacher2@example.com"
+                placeholder="teacher1@example.ru&#10;teacher2@example.ru"
                 required
             ></textarea>
             <p class="field-hint">По одному email в строке, либо через запятую</p>

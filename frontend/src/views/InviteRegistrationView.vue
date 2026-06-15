@@ -3,9 +3,11 @@ import router from "@/router/index.js";
 import api from "@/services/api.js";
 import { useNotificationsStore } from "@/stores/notifications.js";
 import {
+  RU_EMAIL_ERROR_MESSAGE,
   formatInviteDate,
   getInviteReasonText,
   getInviteRoleLabel,
+  isRuEmail,
   isValidEmail,
   mapInviteApiError,
 } from "@/utils/invites.js";
@@ -168,6 +170,11 @@ export default {
         return false;
       }
 
+      if (!isRuEmail(this.form.email)) {
+        this.notify.warning(RU_EMAIL_ERROR_MESSAGE);
+        return false;
+      }
+
       if (!this.form.password || this.form.password.length < 6) {
         this.notify.warning('Пароль должен быть не короче 6 символов');
         return false;
@@ -288,7 +295,7 @@ export default {
                 class="form-input"
                 :readonly="isEmailReadonly"
                 :class="{ readonly: isEmailReadonly }"
-                placeholder="teacher@example.com"
+                placeholder="teacher@example.ru"
                 required
               >
             </div>

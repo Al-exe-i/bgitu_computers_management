@@ -2,6 +2,12 @@
 import api from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
+import {
+  RU_EMAIL_ERROR_MESSAGE,
+  isRuEmail,
+  isValidEmail,
+  mapInviteApiError,
+} from "@/utils/invites.js";
 import noAvatar from '@/assets/user_no_icon.svg';
 
 export default {
@@ -83,14 +89,50 @@ export default {
       this.showPassword = !this.showPassword;
     },
 
+    validateCreateUserForm() {
+      const email = this.createForm.email.trim();
+
+      if (!isValidEmail(email)) {
+        this.notify.warning('Введите корректный email');
+        return false;
+      }
+
+      if (!isRuEmail(email)) {
+        this.notify.warning(RU_EMAIL_ERROR_MESSAGE);
+        return false;
+      }
+
+      if (!this.createForm.password || this.createForm.password.length < 6) {
+        this.notify.warning('Пароль должен быть не короче 6 символов');
+        return false;
+      }
+
+      return true;
+    },
+
+    getCreateUserErrorMessage(error) {
+      const status = error?.response?.status ?? error?.status;
+
+      if (status === 409) {
+        return 'Пользователь с таким Email уже существует';
+      }
+
+      return mapInviteApiError(error, 'Не удалось создать пользователя');
+    },
+
     async createUser() {
+      if (!this.validateCreateUserForm()) return;
+
       this.createLoading = true;
+
       try {
+        const email = this.createForm.email.trim();
+        const name = this.createForm.name.trim();
         const payload = {
-          email: this.createForm.email,
+          email,
           password: this.createForm.password,
           role: this.createForm.role,
-          ...(this.createForm.name && { name: this.createForm.name })
+          ...(name && { name })
         };
 
         await api.post('/users', payload);
@@ -99,10 +141,7 @@ export default {
         this.closeModal();
         await this.fetchUsers(); // Обновляем список, чтобы увидеть нового юзера
       } catch (error) {
-        const msg = error?.status === 409
-            ? "Пользователь с таким Email уже существует"
-            : "Не удалось создать пользователя";
-        this.notify.error(msg);
+        this.notify.error(this.getCreateUserErrorMessage(error));
       } finally {
         this.createLoading = false;
       }
@@ -297,7 +336,7 @@ export default {
 
             <div class="form-group">
               <label>Email (Логин) <span class="required">*</span></label>
-              <input type="email" v-model="createForm.email" class="form-input" required placeholder="user@example.com">
+              <input type="email" v-model="createForm.email" class="form-input" required placeholder="user@example.ru">
             </div>
 
             <div class="form-group">
