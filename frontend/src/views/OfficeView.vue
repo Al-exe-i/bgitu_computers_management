@@ -7,6 +7,34 @@ import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {useAuthStore} from "@/stores/auth.js";
 import {useThemeStore} from "@/stores/theme.js";
 
+const AUDIENCE_VIEW_MODE_STORAGE_KEY = 'bgitu-office-audience-view-mode';
+const DEFAULT_AUDIENCE_VIEW_MODE = 'cards';
+const AUDIENCE_VIEW_MODES = new Set(['cards', 'compact']);
+
+function normalizeAudienceViewMode(mode) {
+  return AUDIENCE_VIEW_MODES.has(mode) ? mode : DEFAULT_AUDIENCE_VIEW_MODE;
+}
+
+function readStoredAudienceViewMode() {
+  if (typeof window === 'undefined') return DEFAULT_AUDIENCE_VIEW_MODE;
+
+  try {
+    return normalizeAudienceViewMode(window.localStorage.getItem(AUDIENCE_VIEW_MODE_STORAGE_KEY));
+  } catch {
+    return DEFAULT_AUDIENCE_VIEW_MODE;
+  }
+}
+
+function storeAudienceViewMode(mode) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(AUDIENCE_VIEW_MODE_STORAGE_KEY, mode);
+  } catch {
+    // localStorage can be unavailable in private mode; the UI still works without persistence.
+  }
+}
+
 export default {
   name: "floor",
   components: {LoaderContainer, FloorSection},
@@ -22,7 +50,7 @@ export default {
       isStatusDropdownOpen: false,
       proxyFloors: null,
       searchField: ``,
-      audienceViewMode: "cards",
+      audienceViewMode: readStoredAudienceViewMode(),
     }
   },
 
@@ -216,7 +244,9 @@ export default {
 
     setAudienceViewMode(mode)
     {
-      this.audienceViewMode = mode;
+      const normalizedMode = normalizeAudienceViewMode(mode);
+      this.audienceViewMode = normalizedMode;
+      storeAudienceViewMode(normalizedMode);
     },
 
     addNewAudience()

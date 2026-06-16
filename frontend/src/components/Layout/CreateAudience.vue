@@ -1612,6 +1612,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 30px;
+  animation: createAudienceHeaderReveal 0.58s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .header-spacer {
@@ -1667,6 +1668,19 @@ export default {
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  animation: createAudiencePanelReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.left-panel .panel:nth-child(1) {
+  animation-delay: 0.08s;
+}
+
+.left-panel .panel:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.left-panel .panel:nth-child(3) {
+  animation-delay: 0.24s;
 }
 
 
@@ -1833,6 +1847,7 @@ export default {
 .grid-wrapper {
   overflow-x: auto;
   overflow-y: visible;
+  animation: createAudienceGridReveal 0.78s cubic-bezier(0.16, 1, 0.3, 1) 0.42s backwards;
 }
 
 .grid-landmarks-shell {
@@ -2064,6 +2079,35 @@ export default {
   align-items: center;
   gap: 8px;
   user-select: none;
+  animation: createAudienceItemReveal 0.46s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.equipment-item:nth-child(1) {
+  animation-delay: 0.24s;
+}
+
+.equipment-item:nth-child(2) {
+  animation-delay: 0.28s;
+}
+
+.equipment-item:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.equipment-item:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+.equipment-item:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+.equipment-item:nth-child(6) {
+  animation-delay: 0.44s;
+}
+
+.equipment-item:nth-child(7) {
+  animation-delay: 0.48s;
 }
 
 .equipment-item:hover {
@@ -2119,6 +2163,35 @@ export default {
   justify-content: space-between;
   padding: 6px 0;
   font-size: 14px;
+  animation: createAudienceStatsReveal 0.46s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.stat-item:nth-child(1) {
+  animation-delay: 0.28s;
+}
+
+.stat-item:nth-child(2) {
+  animation-delay: 0.32s;
+}
+
+.stat-item:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.stat-item:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.stat-item:nth-child(5) {
+  animation-delay: 0.44s;
+}
+
+.stat-item:nth-child(6) {
+  animation-delay: 0.48s;
+}
+
+.stat-item:nth-child(7) {
+  animation-delay: 0.52s;
 }
 
 .stat-label {
@@ -2177,6 +2250,7 @@ export default {
   padding: 24px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   min-height: 600px;
+  animation: createAudienceGridPanelReveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
 }
 
 .grid-header {
@@ -2185,6 +2259,7 @@ export default {
   align-items: flex-start;
   margin-bottom: 20px;
   gap: 18px;
+  animation: createAudiencePanelReveal 0.58s cubic-bezier(0.16, 1, 0.3, 1) 0.34s backwards;
 }
 
 .grid-info {
@@ -3118,6 +3193,84 @@ export default {
   .landmark-editor-action {
     width: 30px;
     height: 30px;
+  }
+}
+
+@keyframes createAudienceHeaderReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes createAudiencePanelReveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes createAudienceGridPanelReveal {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.988);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes createAudienceGridReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes createAudienceItemReveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes createAudienceStatsReveal {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .panel,
+  .equipment-item,
+  .stat-item,
+  .grid-panel,
+  .grid-header,
+  .grid-wrapper {
+    animation: none !important;
   }
 }
 </style>
