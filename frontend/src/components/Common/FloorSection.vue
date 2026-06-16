@@ -169,18 +169,7 @@ export default {
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   border: 2px solid #dbeafe;
   overflow: hidden;
-}
-
-.floor-section:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.floor-section:nth-child(3) {
-  animation-delay: 0.2s;
-}
-
-.floor-section:nth-child(4) {
-  animation-delay: 0.3s;
+  animation: floorSectionReveal 0.66s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .floor-header {
@@ -592,5 +581,21 @@ export default {
   }
 }
 
+@keyframes floorSectionReveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floor-section {
+    animation: none !important;
+  }
+}
 
 </style>

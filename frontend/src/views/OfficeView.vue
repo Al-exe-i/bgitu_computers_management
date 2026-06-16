@@ -483,10 +483,12 @@ export default {
 
     <floor-section
       v-if="floors"
-      v-for="floor in proxyFloors"
+      v-for="(floor, floorKey, floorIndex) in proxyFloors"
+      :key="`floor-${floorKey}`"
       :audiences="floor.audiences"
       :number="floor.number"
       :display-mode="audienceViewMode"
+      :style="{ animationDelay: `${0.42 + floorIndex * 0.08}s` }"
     ></floor-section>
 
     <div
@@ -545,6 +547,8 @@ body {
   border: 1px solid rgba(191, 219, 254, 0.85);
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
   margin-top: 1rem;
+  transform-origin: top center;
+  animation: officeHeroReveal 0.78s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .building-info::before,
@@ -595,6 +599,7 @@ body {
   display: flex;
   align-items: center;
   gap: 22px;
+  animation: officeContentRise 0.64s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .building-symbol {
@@ -610,6 +615,7 @@ body {
   background: linear-gradient(145deg, rgba(219, 234, 254, 0.96), rgba(239, 246, 255, 0.9));
   border: 1px solid rgba(191, 219, 254, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  animation: officeSymbolPop 0.7s cubic-bezier(0.18, 1.35, 0.32, 1) 0.16s both;
 }
 
 .building-symbol-backdrop {
@@ -732,6 +738,7 @@ body {
     linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.94));
   color: #0f172a;
   box-shadow: 0 16px 34px rgba(37, 99, 235, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  animation: officeSpotlightReveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
 .building-spotlight::before {
@@ -789,6 +796,8 @@ body {
   border-radius: inherit;
   background: linear-gradient(90deg, #22c55e, #38bdf8 58%, #2563eb);
   box-shadow: 0 4px 12px rgba(56, 189, 248, 0.24);
+  transform-origin: left center;
+  animation: officeProgressGrow 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.64s both;
 }
 
 .building-spotlight-footnote {
@@ -814,6 +823,23 @@ body {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(226, 232, 240, 0.92);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  animation: officeMetricReveal 0.58s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stat-card:nth-child(1) {
+  animation-delay: 0.24s;
+}
+
+.stat-card:nth-child(2) {
+  animation-delay: 0.31s;
+}
+
+.stat-card:nth-child(3) {
+  animation-delay: 0.38s;
+}
+
+.stat-card:nth-child(4) {
+  animation-delay: 0.45s;
 }
 
 .stat-icon {
@@ -963,6 +989,7 @@ body {
   gap: 20px;
   flex-wrap: wrap;
   align-items: center;
+  animation: officePanelReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
 }
 
 .search-box {
@@ -1375,6 +1402,7 @@ body {
   backdrop-filter: blur(20px);
   border-radius: 16px;
   border: 2px dashed #cbd5e1;
+  animation: officePanelReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
 }
 
 .empty-state svg {
@@ -1627,6 +1655,96 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes officeHeroReveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+    clip-path: inset(10% 0 0 0 round 28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    clip-path: inset(0 0 0 0 round 28px);
+  }
+}
+
+@keyframes officeContentRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes officeSymbolPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.82) rotate(-3deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes officeSpotlightReveal {
+  from {
+    opacity: 0;
+    transform: translateX(22px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes officeProgressGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes officeMetricReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes officePanelReveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .building-info,
+  .building-identity,
+  .building-symbol,
+  .building-spotlight,
+  .building-spotlight-fill,
+  .stat-card,
+  .controls-panel,
+  .empty-state {
+    animation: none !important;
   }
 }
 </style>
