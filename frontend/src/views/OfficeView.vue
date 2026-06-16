@@ -1020,6 +1020,8 @@ body {
   flex-wrap: wrap;
   align-items: center;
   animation: officePanelReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
+  position: relative;
+  z-index: 1;
 }
 
 .search-box {
