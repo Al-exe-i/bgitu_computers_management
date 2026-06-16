@@ -2025,8 +2025,21 @@ export default {
                 aria-live="polite"
             >
               <span class="status-inline-progress" aria-hidden="true"></span>
-              <span class="status-inline-label">
-                {{ statusConfirmTargetLabel }} через <strong>{{ statusConfirmRemainingSeconds }}</strong> сек.
+              <span class="status-inline-mark" aria-hidden="true">
+                <svg v-if="pendingWorkingStatus === true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 6 9 17l-5-5"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 8v5"/>
+                  <path d="M12 17h.01"/>
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+                </svg>
+              </span>
+              <span class="status-inline-copy">
+                <span class="status-inline-kicker">Подтверждение</span>
+                <span class="status-inline-label">
+                  {{ statusConfirmTargetLabel }} через <strong>{{ statusConfirmRemainingSeconds }}</strong> сек.
+                </span>
               </span>
               <button type="button" class="status-inline-btn" :disabled="statusConfirmLoading" @click="closeStatusConfirmModal">
                 Отмена
@@ -4265,6 +4278,10 @@ export default {
   color: #cbd5e1 !important;
 }
 
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-label) {
+  color: #dbe4ef !important;
+}
+
 
 :global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-card,
 :global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-meta-pill,
@@ -4444,6 +4461,13 @@ export default {
   box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.07) !important;
 }
 
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-select) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5l5 5l5-5' stroke='%23dbe4ef' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+}
+
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-icon),
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-meta-icon),
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-empty-icon) {
@@ -4593,17 +4617,21 @@ export default {
 
 .status-inline-confirm {
   --status-accent: #2563eb;
-  --sc-bg:          #f2f5ff;
-  --sc-border:      rgba(203, 213, 225, 0.88);
-  --sc-text:        #0f172a;
-  --sc-btn-bg:      rgba(255, 255, 255, 0.86);
-  --sc-btn-hover:   rgba(255, 255, 255, 0.98);
-  --sc-btn-text:    #475569;
-  --sc-fill-a:      color-mix(in srgb, var(--status-accent), transparent 80%);
-  --sc-fill-b:      color-mix(in srgb, var(--status-accent), transparent 64%);
-  --sc-fill-c:      color-mix(in srgb, var(--status-accent), transparent 48%);
-  --sc-edge:        color-mix(in srgb, var(--status-accent), white 35%);
-  --sc-line:        color-mix(in srgb, var(--status-accent), transparent 22%);
+  --sc-bg: #f8fbff;
+  --sc-glass: rgba(255, 255, 255, 0.74);
+  --sc-border: rgba(203, 213, 225, 0.9);
+  --sc-text: #0f172a;
+  --sc-muted: #64748b;
+  --sc-mark-inner: rgba(255, 255, 255, 0.92);
+  --sc-btn-bg: rgba(255, 255, 255, 0.82);
+  --sc-btn-hover: rgba(255, 255, 255, 0.98);
+  --sc-btn-text: #475569;
+  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 90%);
+  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 76%);
+  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 56%);
+  --sc-edge: color-mix(in srgb, var(--status-accent), white 28%);
+  --sc-line: color-mix(in srgb, var(--status-accent), transparent 24%);
+  --sc-ambient: color-mix(in srgb, var(--status-accent), transparent 82%);
 
   position: relative;
   isolation: isolate;
@@ -4611,22 +4639,48 @@ export default {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 48px;
+  min-height: 52px;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
-  padding: 6px;
-  border-radius: 14px;
+  padding: 7px;
+  border-radius: 18px;
   overflow: hidden;
-  background: var(--sc-bg);
+  background:
+      linear-gradient(135deg, var(--sc-glass), transparent 58%),
+      var(--sc-bg);
   border: 1px solid var(--sc-border);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 1px 4px rgba(0, 0, 0, 0.06),
-    inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 90%);
-  transition: box-shadow 0.25s ease;
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 10px 26px rgba(15, 23, 42, 0.08),
+      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 91%);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+.status-inline-confirm::before {
+  content: "";
+  position: absolute;
+  inset: -90% -28% -80% 36%;
+  z-index: 0;
+  background:
+      radial-gradient(circle at 30% 50%, var(--sc-ambient), transparent 58%),
+      radial-gradient(circle at 70% 54%, color-mix(in srgb, var(--status-accent), transparent 88%), transparent 54%);
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+.status-inline-confirm::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent 34%),
+      linear-gradient(90deg, transparent 0 62%, color-mix(in srgb, var(--status-accent), transparent 90%));
+  pointer-events: none;
 }
 
 .status-inline-confirm.is-working { --status-accent: #059669; }
@@ -4640,33 +4694,37 @@ export default {
 @keyframes scUrgentPulse {
   from {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      0 1px 4px rgba(0, 0, 0, 0.06),
-      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 90%);
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 10px 26px rgba(15, 23, 42, 0.08),
+        inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 91%);
   }
   to {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 62%),
-      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 50%);
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0 0 4px color-mix(in srgb, var(--status-accent), transparent 70%),
+        0 14px 30px color-mix(in srgb, var(--status-accent), transparent 86%),
+        inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 48%);
   }
 }
 
 /* Заливка-фон */
 .status-inline-progress {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--status-confirm-progress, 100%);
+  inset: 4px;
+  width: auto;
+  clip-path: inset(0 calc(100% - var(--status-confirm-progress, 100%)) 0 0 round 14px);
+  border-radius: 14px;
   background: linear-gradient(
     90deg,
     var(--sc-fill-a) 0%,
     var(--sc-fill-b) 55%,
     var(--sc-fill-c) 90%
   );
-  /* Тонкая линия-индикатор по нижнему краю */
-  box-shadow: inset 0 -2px 0 0 var(--sc-line);
-  transition: width 0.08s linear;
-  z-index: -1;
+  box-shadow:
+      inset 0 -2px 0 0 var(--sc-line),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: clip-path 0.08s linear;
+  z-index: 0;
   overflow: hidden;
 }
 
@@ -4692,10 +4750,10 @@ export default {
   top: 0;
   right: -1px;
   bottom: 0;
-  width: 12px;
+  width: 16px;
   background: var(--sc-edge);
-  filter: blur(5px);
-  opacity: 0.8;
+  filter: blur(6px);
+  opacity: 0.9;
 }
 
 @keyframes scShimmer {
@@ -4703,14 +4761,63 @@ export default {
   100% { background-position: 200% center; }
 }
 
-/* Текст лейбла */
+.status-inline-mark,
+.status-inline-copy,
+.status-inline-btn {
+  position: relative;
+  z-index: 2;
+}
+
+.status-inline-mark {
+  width: 34px;
+  height: 34px;
+  border: 2px solid transparent;
+  border-radius: 13px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--status-accent);
+  background:
+      linear-gradient(var(--sc-mark-inner), var(--sc-mark-inner)) padding-box,
+      conic-gradient(
+          var(--status-accent) var(--status-confirm-progress, 100%),
+          color-mix(in srgb, var(--status-accent), transparent 86%) 0
+      ) border-box;
+  box-shadow:
+      0 8px 16px color-mix(in srgb, var(--status-accent), transparent 86%),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.status-inline-mark svg {
+  width: 17px;
+  height: 17px;
+}
+
+.status-inline-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.status-inline-kicker {
+  color: var(--sc-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .status-inline-label {
   min-width: 0;
-  padding: 0 10px;
   color: var(--sc-text);
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.18;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4726,25 +4833,30 @@ export default {
 
 /* Кнопки */
 .status-inline-btn {
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 10px;
+  min-height: 34px;
+  padding: 0 13px;
+  border-radius: 12px;
   border: 1px solid rgba(203, 213, 225, 0.92);
   background: var(--sc-btn-bg);
   color: var(--sc-btn-text);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  backdrop-filter: blur(10px);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .status-inline-btn:hover:not(:disabled) {
   background: var(--sc-btn-hover);
-  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18) inset;
+  border-color: color-mix(in srgb, var(--status-accent), #cbd5e1 64%);
+  box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.16) inset,
+      0 8px 16px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .status-inline-btn.is-primary {
@@ -4756,7 +4868,9 @@ export default {
     var(--status-accent) 50%,
     color-mix(in srgb, var(--status-accent), black 14%) 100%
   );
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--status-accent), transparent 55%);
+  box-shadow:
+      0 8px 18px color-mix(in srgb, var(--status-accent), transparent 72%),
+      0 1px 0 rgba(255, 255, 255, 0.22) inset;
 }
 
 .status-inline-btn.is-primary:hover:not(:disabled) {
@@ -4767,8 +4881,8 @@ export default {
     color-mix(in srgb, var(--status-accent), black 10%) 100%
   );
   box-shadow:
-    0 2px 8px color-mix(in srgb, var(--status-accent), transparent 44%),
-    0 0 0 1px color-mix(in srgb, var(--status-accent), white 55%) inset;
+      0 10px 22px color-mix(in srgb, var(--status-accent), transparent 60%),
+      0 0 0 1px color-mix(in srgb, var(--status-accent), white 55%) inset;
 }
 
 .status-inline-btn:disabled {
@@ -4778,22 +4892,26 @@ export default {
 
 /* Тёмная тема */
 :global(html[data-theme='dark']) .status-inline-confirm {
-  --sc-bg:        rgba(15, 23, 42, 0.96);
-  --sc-border:    rgba(51, 65, 85, 0.86);
-  --sc-text:      #e2e8f0;
-  --sc-btn-bg:    rgba(30, 41, 59, 0.86);
+  --sc-bg: rgba(15, 23, 42, 0.96);
+  --sc-glass: rgba(30, 41, 59, 0.58);
+  --sc-border: rgba(71, 85, 105, 0.86);
+  --sc-text: #e2e8f0;
+  --sc-muted: #94a3b8;
+  --sc-mark-inner: rgba(15, 23, 42, 0.94);
+  --sc-btn-bg: rgba(30, 41, 59, 0.86);
   --sc-btn-hover: rgba(51, 65, 85, 0.95);
-  --sc-btn-text:  #cbd5e1;
-  --sc-fill-a:    color-mix(in srgb, var(--status-accent), transparent 70%);
-  --sc-fill-b:    color-mix(in srgb, var(--status-accent), transparent 54%);
-  --sc-fill-c:    color-mix(in srgb, var(--status-accent), transparent 38%);
-  --sc-edge:      color-mix(in srgb, var(--status-accent), white 24%);
-  --sc-line:      color-mix(in srgb, var(--status-accent), transparent 12%);
+  --sc-btn-text: #cbd5e1;
+  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 78%);
+  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 62%);
+  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 45%);
+  --sc-edge: color-mix(in srgb, var(--status-accent), white 22%);
+  --sc-line: color-mix(in srgb, var(--status-accent), transparent 12%);
+  --sc-ambient: color-mix(in srgb, var(--status-accent), transparent 72%);
   box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.55) inset,
-    inset 0 1px 0 rgba(148, 163, 184, 0.1),
-    0 1px 4px rgba(0, 0, 0, 0.32),
-    inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 84%);
+      0 0 0 1px rgba(15, 23, 42, 0.55) inset,
+      inset 0 1px 0 rgba(148, 163, 184, 0.1),
+      0 14px 28px rgba(2, 6, 23, 0.34),
+      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 84%);
 }
 
 :global(html[data-theme='dark']) .status-inline-btn {
@@ -4811,27 +4929,41 @@ export default {
 
   .status-inline-confirm {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
-        "label label"
+        "mark copy"
         "cancel confirm";
     align-items: stretch;
     gap: 6px;
     padding: 5px;
-    min-height: 72px;
+    min-height: 78px;
+  }
+
+  .status-inline-mark {
+    grid-area: mark;
+    align-self: center;
+    width: 32px;
+    height: 32px;
+  }
+
+  .status-inline-copy {
+    grid-area: copy;
+    min-height: 28px;
+    padding: 0 6px;
+    align-self: center;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .status-inline-kicker {
+    font-size: 8px;
   }
 
   .status-inline-label {
-    grid-area: label;
-    min-height: 28px;
-    padding: 0 6px;
     font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     white-space: normal;
     overflow: visible;
-    text-align: center;
+    text-align: left;
     text-overflow: clip;
   }
 
@@ -4852,6 +4984,19 @@ export default {
 
   .status-inline-btn.is-primary {
     grid-area: confirm;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-inline-confirm.is-urgent,
+  .status-inline-progress::before {
+    animation: none !important;
+  }
+
+  .status-inline-confirm,
+  .status-inline-progress,
+  .status-inline-btn {
+    transition: none !important;
   }
 }
 
