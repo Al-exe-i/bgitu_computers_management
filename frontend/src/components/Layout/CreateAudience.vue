@@ -1002,9 +1002,14 @@ export default {
 
             <div class="form-group">
               <label class="form-label">Корпус</label>
-              <select class="form-select" v-model.number="officeNumber">
-                <option v-for="office in offices_ids" :value="office">Корпус {{ office }}</option>
-              </select>
+              <div class="select-field">
+                <select class="form-select" v-model.number="officeNumber">
+                  <option v-for="office in offices_ids" :value="office">Корпус {{ office }}</option>
+                </select>
+                <svg class="select-field-arrow" viewBox="0 0 12 8" aria-hidden="true">
+                  <path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
             </div>
 
             <div class="form-group">
@@ -1799,6 +1804,30 @@ export default {
 .form-select:focus {
   outline: none;
   border-color: #3b82f6;
+}
+
+.select-field {
+  position: relative;
+}
+
+.select-field .form-select {
+  background-image: none !important;
+  padding-right: 42px !important;
+}
+
+.select-field-arrow {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 12px;
+  height: 8px;
+  color: #6b7280;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+:global(html[data-theme='dark']) .create-audience-page .select-field-arrow {
+  color: #cbd5e1;
 }
 
 .grid-wrapper {

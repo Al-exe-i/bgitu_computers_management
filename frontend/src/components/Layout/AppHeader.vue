@@ -2041,7 +2041,14 @@ header {
   }
 
   .profile-dropdown-content {
-    right: 50%;
+    position: fixed;
+    left: 50%;
+    right: auto;
+    top: 54px;
+    width: min(320px, calc(100vw - 16px));
+    min-width: 0;
+    transform: translateX(-50%);
+    animation: notificationsDropdownMobileIn 0.24s ease;
   }
 
   .notifications-dropdown-content {
