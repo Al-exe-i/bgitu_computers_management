@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
+from loguru import logger
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -10,26 +11,35 @@ from celery_app import celery_app
 from core.config import settings
 from models.user_session import UserSession
 
+# Singleton engine — создаётся один раз на весь процесс Celery worker'а.
+# pool_pre_ping=True обеспечивает переподключение при разрыве с БД.
+_engine = None
+_session_factory = None
+
+
+def _get_session_factory() -> async_sessionmaker:
+    global _engine, _session_factory
+    if _session_factory is None:
+        _engine = create_async_engine(
+            str(settings.db.url),
+            echo=False,
+            pool_pre_ping=True,
+            pool_size=2,
+            max_overflow=0,
+        )
+        _session_factory = async_sessionmaker(
+            bind=_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autoflush=False,
+        )
+    return _session_factory
+
 
 @asynccontextmanager
 async def open_task_session() -> AsyncIterator[AsyncSession]:
-    engine = create_async_engine(
-        str(settings.db.url),
-        echo=False,
-        pool_pre_ping=True,
-    )
-    session_factory = async_sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autoflush=False,
-    )
-
-    try:
-        async with session_factory() as session:
-            yield session
-    finally:
-        await engine.dispose()
+    async with _get_session_factory()() as session:
+        yield session
 
 
 async def _cleanup_user_sessions_async(retention_days: int) -> dict:
@@ -62,11 +72,6 @@ async def _cleanup_user_sessions_async(retention_days: int) -> dict:
 
 @celery_app.task(name="tasks.sessions.cleanup_user_sessions")
 def cleanup_user_sessions(retention_days: int = 7) -> dict:
-    """
-    Celery task: cleanup user sessions.
-    - deletes expired sessions
-    - deletes revoked sessions older than retention_days
-    """
     result = asyncio.run(_cleanup_user_sessions_async(retention_days))
-    print(f"[cleanup_user_sessions] {result}")
+    logger.info("[cleanup_user_sessions] {}", result)
     return result

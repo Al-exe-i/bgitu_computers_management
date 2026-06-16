@@ -12,7 +12,7 @@ from schemas.hardware_file import HardwareFileResponse
 from services.object_storage import ObjectStorage
 
 
-MAX_HARDWARE_FILE_SIZE_BYTES = 20 * 1024 * 1024
+MAX_HARDWARE_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 МБ — синхронно с фронтендом
 
 
 class UploadedHardwareFile(Protocol):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from api.v1.application_events import dispatch_result_events
@@ -8,8 +8,11 @@ from dependencies.events import inventory_event_dispatcher_dep
 from dependencies.hardware import hardware_file_streaming_service_dep
 from dependencies.inventory import inventory_hardware_use_cases_dep
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
+from services.hardware_file_service import MAX_HARDWARE_FILE_SIZE_BYTES
 
 router = APIRouter()
+
+_MAX_FILE_SIZE_MB = MAX_HARDWARE_FILE_SIZE_BYTES // (1024 * 1024)
 
 
 @router.post("/{hardware_id}/files")
@@ -20,6 +23,13 @@ async def add_hardware_file(
     audit: admin_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
+    for file in files:
+        if file.size is not None and file.size > MAX_HARDWARE_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Файл «{file.filename}» превышает максимально допустимый размер {_MAX_FILE_SIZE_MB} МБ",
+            )
+
     result = await dispatch_result_events(
         await use_cases.add_files(
             hardware_id=hardware_id,

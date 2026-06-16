@@ -126,7 +126,7 @@ services:
   celery_worker:
     build: .
     container_name: diplom_celery_worker
-    command: celery -A celery_app:celery_app worker -l info --concurrency=1 --prefetch-multiplier=1
+    command: celery -A celery_app:celery_app worker -l info --concurrency=1
     cpus: "0.35"
     mem_limit: 256m
     memswap_limit: 256m
@@ -137,7 +137,10 @@ services:
     environment:
       <<: *app-db-pool
     depends_on:
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
 
   celery_beat:
