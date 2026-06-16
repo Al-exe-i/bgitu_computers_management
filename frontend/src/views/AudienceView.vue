@@ -4583,6 +4583,10 @@ export default {
   align-items: stretch;
 }
 
+.status-action-zone > .status-inline-confirm {
+  grid-column: 1 / -1;
+}
+
 .status-inline-confirm {
   --status-accent: #2563eb;
   --status-inline-bg: #f8fafc;
@@ -5575,6 +5579,14 @@ export default {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin-top: 16px;
+  }
+
+  .equipment-modal .status-action-zone:has(.status-inline-confirm) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .equipment-modal .status-action-zone > .status-inline-confirm {
+    grid-column: 1 / -1;
   }
 
   .equipment-modal .action-btns > .action-btn:only-child {

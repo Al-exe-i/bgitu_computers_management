@@ -68,9 +68,9 @@ const LANDMARK_LABELS = Object.freeze({
 })
 
 const HISTORY_LIMIT = 40;
-const EQUIPMENT_SNAP_DURATION_MS = 820;
-const EQUIPMENT_SNAP_MIN_PARTICLES = 38;
-const EQUIPMENT_SNAP_MAX_PARTICLES = 86;
+const EQUIPMENT_SNAP_DURATION_MS = 1050;
+const EQUIPMENT_SNAP_MIN_PARTICLES = 90;
+const EQUIPMENT_SNAP_MAX_PARTICLES = 160;
 
 function normalizeLandmarks(source = {}) {
   return {
@@ -279,28 +279,42 @@ export default {
       const height = item.height ?? 1;
       const count = Math.min(
           EQUIPMENT_SNAP_MAX_PARTICLES,
-          Math.max(EQUIPMENT_SNAP_MIN_PARTICLES, 30 + width * height * 12)
+          Math.max(EQUIPMENT_SNAP_MIN_PARTICLES, 60 + width * height * 18)
       );
       const palette = [
         color,
-        '#f8fafc',
-        '#dbeafe',
-        '#93c5fd',
-        '#fbbf24',
-        '#2dd4bf',
+        '#ffffff',
+        '#e0f2fe',
+        '#7dd3fc',
+        '#fde68a',
+        '#5eead4',
+        '#c4b5fd',
+        '#fca5a5',
       ];
 
       const particles = Array.from({ length: count }, (_, index) => {
-        const x = 8 + Math.random() * 84;
-        const y = 8 + Math.random() * 84;
-        const drift = index / Math.max(count - 1, 1);
-        const tx = 18 + Math.random() * 58 + drift * 34;
-        const ty = -10 - Math.random() * 54 - drift * 28;
-        const size = 2 + Math.random() * 4.5;
-        const delay = Math.random() * 150 + drift * 90;
-        const duration = 470 + Math.random() * 220;
-        const rotate = -110 + Math.random() * 260;
-        const radius = Math.random() > 0.42 ? '999px' : '2px';
+        const x = 2 + Math.random() * 96;
+        const y = 2 + Math.random() * 96;
+
+        // Волна: правая сторона распадается первой (как у Таноса слева направо)
+        const waveFactor = x / 100;
+        const waveDelay = (1 - waveFactor) * 220 + Math.random() * 80;
+
+        // Полный разлёт в 360° со слабым смещением вверх
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 35 + Math.random() * 90;
+        const tx = Math.cos(angle) * speed;
+        const ty = Math.sin(angle) * speed - 16;
+
+        // Дуга: средняя точка слегка отклоняется от прямой линии
+        const midTx = tx * 0.46 + (Math.random() - 0.5) * 14;
+        const midTy = ty * 0.44 - Math.random() * 10;
+
+        const size = 1.5 + Math.random() * 6.5;
+        const duration = 560 + Math.random() * 400;
+        const rotate = -180 + Math.random() * 360;
+        const rnd = Math.random();
+        const radius = rnd > 0.55 ? '999px' : rnd > 0.25 ? '2px' : '1px';
 
         return {
           id: `${id}-${index}`,
@@ -309,14 +323,14 @@ export default {
             '--snap-y': `${y}%`,
             '--snap-tx': `${tx}px`,
             '--snap-ty': `${ty}px`,
-            '--snap-mid-tx': `${tx * 0.58}px`,
-            '--snap-mid-ty': `${ty * 0.58}px`,
+            '--snap-mid-tx': `${midTx}px`,
+            '--snap-mid-ty': `${midTy}px`,
             '--snap-size': `${size}px`,
-            '--snap-delay': `${delay}ms`,
+            '--snap-delay': `${waveDelay}ms`,
             '--snap-duration': `${duration}ms`,
             '--snap-rotate': `${rotate}deg`,
-            '--snap-mid-rotate': `${rotate * 0.62}deg`,
-            '--snap-early-rotate': `${rotate * 0.18}deg`,
+            '--snap-mid-rotate': `${rotate * 0.55}deg`,
+            '--snap-early-rotate': `${rotate * 0.14}deg`,
             '--snap-radius': radius,
             '--snap-color': palette[index % palette.length],
           },
@@ -2973,28 +2987,28 @@ export default {
   z-index: 8;
   pointer-events: none;
   overflow: visible;
-  animation: equipmentSnapCardVanish 0.82s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: equipmentSnapCardVanish 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .grid-equipment.is-removing::after {
   content: "";
   position: absolute;
-  inset: -18%;
+  inset: -28%;
   border-radius: inherit;
   pointer-events: none;
   z-index: 5;
   opacity: 0;
   background:
-      linear-gradient(118deg, transparent 0 35%, rgba(255, 255, 255, 0.74) 45%, transparent 57%),
-      radial-gradient(circle at center, rgba(96, 165, 250, 0.28), transparent 62%);
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.98) 0%, rgba(96, 165, 250, 0.6) 30%, transparent 64%),
+      linear-gradient(118deg, transparent 0 20%, rgba(255, 255, 255, 0.88) 34%, transparent 50%);
   mix-blend-mode: screen;
-  animation: equipmentSnapFlash 0.36s ease-out forwards;
+  animation: equipmentSnapFlash 0.44s ease-out forwards;
 }
 
 .grid-equipment.is-removing .cell-icon,
 .grid-equipment.is-removing .cell-label,
 .grid-equipment.is-removing .remove-btn {
-  animation: equipmentSnapContent 0.52s ease-in forwards;
+  animation: equipmentSnapContent 0.44s ease-in forwards;
 }
 
 .snap-particles {
@@ -3013,11 +3027,10 @@ export default {
   height: var(--snap-size);
   border-radius: var(--snap-radius);
   background: var(--snap-color);
-  box-shadow: 0 0 8px rgba(96, 165, 250, 0.35);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--snap-color) 58%, transparent);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--snap-color) 70%, transparent);
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.35) rotate(0deg);
-  animation: equipmentSnapParticle var(--snap-duration) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+  animation: equipmentSnapParticle var(--snap-duration) ease-out forwards;
   animation-delay: var(--snap-delay);
   will-change: transform, opacity, filter;
 }
@@ -3445,46 +3458,52 @@ export default {
 @keyframes equipmentSnapCardVanish {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1) rotate(0);
-    filter: saturate(1);
+    transform: scale(1) rotate(0deg) translateY(0);
+    filter: saturate(1) blur(0);
   }
-  34% {
-    opacity: 0.96;
-    transform: translateY(-1px) scale(1.015) rotate(-0.5deg);
-    filter: saturate(1.22);
+  10% {
+    opacity: 1;
+    transform: scale(1.05) rotate(-0.4deg) translateY(-1px);
+    filter: saturate(1.7) blur(0);
   }
-  64% {
-    opacity: 0.38;
-    transform: translate(4px, -4px) scale(0.98) rotate(1deg);
-    filter: blur(0.8px) saturate(1.35);
+  36% {
+    opacity: 0.8;
+    transform: scale(0.78) rotate(1.8deg) translateY(-4px);
+    filter: saturate(2) blur(1.5px);
+  }
+  68% {
+    opacity: 0.32;
+    transform: scale(0.55) rotate(3.5deg) translateY(-9px);
+    filter: saturate(1.3) blur(4.5px);
   }
   100% {
     opacity: 0;
-    transform: translate(10px, -12px) scale(0.92) rotate(3deg);
-    filter: blur(2.5px) saturate(1.5);
+    transform: scale(0.32) rotate(6deg) translateY(-16px);
+    filter: saturate(0.3) blur(9px);
   }
 }
 
 @keyframes equipmentSnapParticle {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.35) rotate(0deg);
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
     filter: blur(0);
   }
-  14% {
+  10% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(var(--snap-early-rotate));
+    transform: translate(-50%, -50%) scale(1.15) rotate(var(--snap-early-rotate));
+    filter: blur(0);
   }
-  58% {
-    opacity: 0.92;
+  52% {
+    opacity: 0.88;
     transform:
         translate(
             calc(-50% + var(--snap-mid-tx)),
             calc(-50% + var(--snap-mid-ty))
         )
-        scale(0.84)
+        scale(0.72)
         rotate(var(--snap-mid-rotate));
-    filter: blur(0.2px);
+    filter: blur(0.3px);
   }
   100% {
     opacity: 0;
@@ -3493,34 +3512,45 @@ export default {
             calc(-50% + var(--snap-tx)),
             calc(-50% + var(--snap-ty))
         )
-        scale(0.18)
+        scale(0.06)
         rotate(var(--snap-rotate));
-    filter: blur(1.2px);
+    filter: blur(2px);
   }
 }
 
 @keyframes equipmentSnapFlash {
   0% {
     opacity: 0;
-    transform: scale(0.82) rotate(0deg);
+    transform: scale(0.65);
   }
-  30% {
-    opacity: 0.88;
+  18% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.25);
   }
   100% {
     opacity: 0;
-    transform: scale(1.35) rotate(12deg);
+    transform: scale(1.7) rotate(6deg);
   }
 }
 
 @keyframes equipmentSnapContent {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+  35% {
+    opacity: 0.6;
+    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(-8px) scale(0.84);
+    transform: scale(0.65) translateY(-12px);
+    filter: blur(3px);
   }
 }
 
