@@ -596,7 +596,7 @@ export default {
                   class="notifications-sound-btn"
                   :class="{ active: notificationsStore.soundEnabled }"
                   :title="notificationsStore.soundEnabled ? 'Выключить звук' : 'Включить звук'"
-                  @click="toggleNotificationSound"
+                  @click.stop="toggleNotificationSound"
               >
                 <svg v-if="notificationsStore.soundEnabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 5 6 9H2v6h4l5 4V5z"></path>

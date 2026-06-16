@@ -68,6 +68,9 @@ const LANDMARK_LABELS = Object.freeze({
 })
 
 const HISTORY_LIMIT = 40;
+const EQUIPMENT_SNAP_DURATION_MS = 820;
+const EQUIPMENT_SNAP_MIN_PARTICLES = 38;
+const EQUIPMENT_SNAP_MAX_PARTICLES = 86;
 
 function normalizeLandmarks(source = {}) {
   return {
@@ -106,6 +109,9 @@ export default {
       suppressNextCellClick: false,
 
       equipmentItems: [],
+      deletingEquipmentIds: [],
+      equipmentRemovalTimers: {},
+      snapParticlesByEquipmentId: {},
       landmarks: normalizeLandmarks(),
       editingLandmark: null,
       landmarkDraft: '',
@@ -250,6 +256,95 @@ export default {
   },
 
   methods: {
+    getEquipmentIdentity(item) {
+      return item?.localId ?? item?.dbId ?? null;
+    },
+
+    isEquipmentDeleting(item) {
+      const id = this.getEquipmentIdentity(item);
+      return id !== null && this.deletingEquipmentIds.includes(id);
+    },
+
+    getEquipmentSnapParticles(item) {
+      const id = this.getEquipmentIdentity(item);
+      return id === null ? [] : this.snapParticlesByEquipmentId[String(id)] ?? [];
+    },
+
+    createEquipmentSnapParticles(item) {
+      const id = this.getEquipmentIdentity(item);
+      if (id === null) return;
+
+      const color = this.equipmentTypeMap[item.type]?.color ?? '#60a5fa';
+      const width = item.width ?? 1;
+      const height = item.height ?? 1;
+      const count = Math.min(
+          EQUIPMENT_SNAP_MAX_PARTICLES,
+          Math.max(EQUIPMENT_SNAP_MIN_PARTICLES, 30 + width * height * 12)
+      );
+      const palette = [
+        color,
+        '#f8fafc',
+        '#dbeafe',
+        '#93c5fd',
+        '#fbbf24',
+        '#2dd4bf',
+      ];
+
+      const particles = Array.from({ length: count }, (_, index) => {
+        const x = 8 + Math.random() * 84;
+        const y = 8 + Math.random() * 84;
+        const drift = index / Math.max(count - 1, 1);
+        const tx = 18 + Math.random() * 58 + drift * 34;
+        const ty = -10 - Math.random() * 54 - drift * 28;
+        const size = 2 + Math.random() * 4.5;
+        const delay = Math.random() * 150 + drift * 90;
+        const duration = 470 + Math.random() * 220;
+        const rotate = -110 + Math.random() * 260;
+        const radius = Math.random() > 0.42 ? '999px' : '2px';
+
+        return {
+          id: `${id}-${index}`,
+          style: {
+            '--snap-x': `${x}%`,
+            '--snap-y': `${y}%`,
+            '--snap-tx': `${tx}px`,
+            '--snap-ty': `${ty}px`,
+            '--snap-mid-tx': `${tx * 0.58}px`,
+            '--snap-mid-ty': `${ty * 0.58}px`,
+            '--snap-size': `${size}px`,
+            '--snap-delay': `${delay}ms`,
+            '--snap-duration': `${duration}ms`,
+            '--snap-rotate': `${rotate}deg`,
+            '--snap-mid-rotate': `${rotate * 0.62}deg`,
+            '--snap-early-rotate': `${rotate * 0.18}deg`,
+            '--snap-radius': radius,
+            '--snap-color': palette[index % palette.length],
+          },
+        };
+      });
+
+      this.snapParticlesByEquipmentId = {
+        ...this.snapParticlesByEquipmentId,
+        [String(id)]: particles,
+      };
+    },
+
+    clearEquipmentSnapParticles(id) {
+      const next = { ...this.snapParticlesByEquipmentId };
+      delete next[String(id)];
+      this.snapParticlesByEquipmentId = next;
+    },
+
+    clearEquipmentRemovalTimers() {
+      Object.values(this.equipmentRemovalTimers).forEach(timerId => {
+        clearTimeout(timerId);
+      });
+
+      this.equipmentRemovalTimers = {};
+      this.deletingEquipmentIds = [];
+      this.snapParticlesByEquipmentId = {};
+    },
+
     selectEquipment(id)
     {
       if(this.selectedEquipmentId !== null && this.selectedEquipmentId === id)
@@ -452,10 +547,20 @@ export default {
     },
 
     removeEquipment(item) {
-      const id = item.localId ?? item.dbId;
-      this.equipmentItems = this.equipmentItems.filter(
-          eq => (eq.localId ?? eq.dbId) !== id
-      );
+      const id = this.getEquipmentIdentity(item);
+      if (id === null || this.deletingEquipmentIds.includes(id)) return;
+
+      this.createEquipmentSnapParticles(item);
+      this.deletingEquipmentIds = [...this.deletingEquipmentIds, id];
+
+      this.equipmentRemovalTimers[id] = setTimeout(() => {
+        this.equipmentItems = this.equipmentItems.filter(
+            eq => this.getEquipmentIdentity(eq) !== id
+        );
+        this.deletingEquipmentIds = this.deletingEquipmentIds.filter(itemId => itemId !== id);
+        this.clearEquipmentSnapParticles(id);
+        delete this.equipmentRemovalTimers[id];
+      }, EQUIPMENT_SNAP_DURATION_MS);
     },
 
     resolveDropAnchorPosition(row, col, width = 1, height = 1) {
@@ -483,6 +588,7 @@ export default {
         return;
       }
 
+      this.clearEquipmentRemovalTimers();
       this.equipmentItems = [];
       this.clearGridClicked = false;
     },
@@ -597,6 +703,7 @@ export default {
         return;
       }
 
+      this.clearEquipmentRemovalTimers();
       this.isApplyingHistory = true;
       this.classroomNumber = data.classroomNumber ?? null;
       this.floorNumber = Number(data.floorNumber ?? 1);
@@ -929,6 +1036,11 @@ export default {
         this.isHydrating = false;
       });
     }
+  },
+
+  beforeUnmount()
+  {
+    this.clearEquipmentRemovalTimers();
   },
 
   beforeRouteLeave(to, from, next)
@@ -1383,11 +1495,12 @@ export default {
                         :class="{
                           broken: item.state === false,
                           'is-wide': item.width > item.height,
-                          'is-tall': item.height >= item.width
+                          'is-tall': item.height >= item.width,
+                          'is-removing': isEquipmentDeleting(item)
                         }"
                         :style="getEquipmentStyle(item)"
-                        draggable="true"
-                        @dragstart.stop="onGridItemDragStart($event, item)"
+                        :draggable="!isEquipmentDeleting(item)"
+                        @dragstart.stop="!isEquipmentDeleting(item) && onGridItemDragStart($event, item)"
                         @dragend="onDragEnd"
                     >
                       <div
@@ -1403,12 +1516,26 @@ export default {
 
                       <button
                           class="remove-btn"
+                          :disabled="isEquipmentDeleting(item)"
                           @click.stop="removeEquipment(item)"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
                           <path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/>
                         </svg>
                       </button>
+
+                      <div
+                          v-if="isEquipmentDeleting(item)"
+                          class="snap-particles"
+                          aria-hidden="true"
+                      >
+                        <span
+                            v-for="particle in getEquipmentSnapParticles(item)"
+                            :key="particle.id"
+                            class="snap-particle"
+                            :style="particle.style"
+                        ></span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2842,6 +2969,59 @@ export default {
   flex-direction: column;
 }
 
+.grid-equipment.is-removing {
+  z-index: 8;
+  pointer-events: none;
+  overflow: visible;
+  animation: equipmentSnapCardVanish 0.82s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.grid-equipment.is-removing::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  background:
+      linear-gradient(118deg, transparent 0 35%, rgba(255, 255, 255, 0.74) 45%, transparent 57%),
+      radial-gradient(circle at center, rgba(96, 165, 250, 0.28), transparent 62%);
+  mix-blend-mode: screen;
+  animation: equipmentSnapFlash 0.36s ease-out forwards;
+}
+
+.grid-equipment.is-removing .cell-icon,
+.grid-equipment.is-removing .cell-label,
+.grid-equipment.is-removing .remove-btn {
+  animation: equipmentSnapContent 0.52s ease-in forwards;
+}
+
+.snap-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.snap-particle {
+  position: absolute;
+  left: var(--snap-x);
+  top: var(--snap-y);
+  width: var(--snap-size);
+  height: var(--snap-size);
+  border-radius: var(--snap-radius);
+  background: var(--snap-color);
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.35);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--snap-color) 58%, transparent);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.35) rotate(0deg);
+  animation: equipmentSnapParticle var(--snap-duration) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--snap-delay);
+  will-change: transform, opacity, filter;
+}
+
 .cell-icon {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -3262,6 +3442,88 @@ export default {
   }
 }
 
+@keyframes equipmentSnapCardVanish {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+    filter: saturate(1);
+  }
+  34% {
+    opacity: 0.96;
+    transform: translateY(-1px) scale(1.015) rotate(-0.5deg);
+    filter: saturate(1.22);
+  }
+  64% {
+    opacity: 0.38;
+    transform: translate(4px, -4px) scale(0.98) rotate(1deg);
+    filter: blur(0.8px) saturate(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(10px, -12px) scale(0.92) rotate(3deg);
+    filter: blur(2.5px) saturate(1.5);
+  }
+}
+
+@keyframes equipmentSnapParticle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35) rotate(0deg);
+    filter: blur(0);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(var(--snap-early-rotate));
+  }
+  58% {
+    opacity: 0.92;
+    transform:
+        translate(
+            calc(-50% + var(--snap-mid-tx)),
+            calc(-50% + var(--snap-mid-ty))
+        )
+        scale(0.84)
+        rotate(var(--snap-mid-rotate));
+    filter: blur(0.2px);
+  }
+  100% {
+    opacity: 0;
+    transform:
+        translate(
+            calc(-50% + var(--snap-tx)),
+            calc(-50% + var(--snap-ty))
+        )
+        scale(0.18)
+        rotate(var(--snap-rotate));
+    filter: blur(1.2px);
+  }
+}
+
+@keyframes equipmentSnapFlash {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) rotate(0deg);
+  }
+  30% {
+    opacity: 0.88;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35) rotate(12deg);
+  }
+}
+
+@keyframes equipmentSnapContent {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.84);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .header,
   .panel,
@@ -3269,7 +3531,13 @@ export default {
   .stat-item,
   .grid-panel,
   .grid-header,
-  .grid-wrapper {
+  .grid-wrapper,
+  .grid-equipment.is-removing,
+  .grid-equipment.is-removing::after,
+  .grid-equipment.is-removing .cell-icon,
+  .grid-equipment.is-removing .cell-label,
+  .grid-equipment.is-removing .remove-btn,
+  .snap-particle {
     animation: none !important;
   }
 }
