@@ -17,6 +17,11 @@ export default {
       error: false,
       errorMsg: "",
 
+      // Направление анимации счётчика: { officeId: 'up' | 'down' }
+      officeCountDirs: {},
+      // Версия — меняется при каждом обновлении числа, чтобы :key сработал
+      officeCountVersions: {},
+
       // Realtime events
       eventSource: null,
       wsReconnectAttempts: 0,
@@ -41,12 +46,23 @@ export default {
         const res = await api.get('/offices/all_short');
         const officesList = Array.isArray(res.data) ? res.data : [];
 
-        this.offices = officesList.map((office) => ({
+        const newOffices = officesList.map((office) => ({
           ...office,
           faultyCount: Number.isFinite(Number(office.faulty_hw_count))
               ? Number(office.faulty_hw_count)
               : 0,
         }));
+
+        // Определяем направление анимации до обновления offices
+        newOffices.forEach(newOffice => {
+          const old = this.offices.find(o => o.id === newOffice.id);
+          if (old !== undefined && old.faultyCount !== newOffice.faultyCount) {
+            this.officeCountDirs[newOffice.id] = newOffice.faultyCount > old.faultyCount ? 'up' : 'down';
+            this.officeCountVersions[newOffice.id] = (this.officeCountVersions[newOffice.id] ?? 0) + 1;
+          }
+        });
+
+        this.offices = newOffices;
         this.loading = false;
 
         // Подключаем сокет только после первой успешной загрузки
@@ -206,12 +222,17 @@ export default {
 
           <div class="breakdowns-title">Неисправностей</div>
 
-          <!-- Счетчик CSS (var(--target-num)) -->
-          <div
-              class="breakdowns-count"
-              :class="{ red: office.faultyCount > 0 }"
-              :style="{ '--target-num': office.faultyCount }"
-          ></div>
+          <!-- Анимированный счётчик-одометр -->
+          <div class="breakdowns-count-wrap" :class="{ red: office.faultyCount > 0 }">
+            <div class="cnt-clip">
+              <transition :name="officeCountDirs[office.id] === 'down' ? 'cnt-down' : 'cnt-up'">
+                <div
+                  class="cnt-value-wrap"
+                  :key="(officeCountVersions[office.id] ?? 0) + '_' + office.faultyCount"
+                >{{ office.faultyCount }}</div>
+              </transition>
+            </div>
+          </div>
 
           <button @click="handleOfficeClick(office.id)" class="view-details-btn">
             Просмотреть детали
@@ -342,32 +363,104 @@ export default {
   margin-bottom: 10px;
 }
 
-@property --num {
-  syntax: "<integer>";
-  initial-value: 0;
-  inherits: false;
-}
+/* ── Одометр-счётчик ── */
 
-.breakdowns-count {
+.breakdowns-count-wrap {
   font-size: 48px;
   font-weight: 800;
   color: #10b981;
   margin-bottom: 15px;
-
-  transition: --num .5s linear;
-  --num: var(--target-num);
-
-  counter-reset: num var(--num);
+  width: 100%;
 }
 
-.breakdowns-count::after {
-  content: counter(num);
-}
-
-.breakdowns-count.red
-{
+.breakdowns-count-wrap.red {
   color: #ef4444;
 }
+
+.cnt-clip {
+  position: relative;
+  overflow: hidden;
+  height: 1.2em;
+}
+
+.cnt-value-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Число выросло — старое уезжает наверх, новое приходит снизу */
+.cnt-up-enter-active {
+  animation: cntUpIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cnt-up-leave-active {
+  animation: cntUpOut 0.22s ease-in;
+}
+
+/* Число уменьшилось — старое уезжает вниз, новое приходит сверху */
+.cnt-down-enter-active {
+  animation: cntDownIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cnt-down-leave-active {
+  animation: cntDownOut 0.22s ease-in;
+}
+
+@keyframes cntUpIn {
+  from {
+    transform: translateY(100%) scale(0.82);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes cntUpOut {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    transform: translateY(-100%) scale(0.82);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+@keyframes cntDownIn {
+  from {
+    transform: translateY(-100%) scale(0.82);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes cntDownOut {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    transform: translateY(100%) scale(0.82);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+/* ── Кнопка ── */
 
 .view-details-btn {
   background: #3b82f6;
