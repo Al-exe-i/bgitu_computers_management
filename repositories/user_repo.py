@@ -1,6 +1,6 @@
 from typing import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.future import select
 from db.post_commit import add_post_commit_hook
 from models.user import User
@@ -36,7 +36,12 @@ class UserRepository:
         return result.scalars().all()
 
     async def get_by_email(self, email: str):
-        result = await self.db.execute(select(User).where(User.email == email))
+        # Сравнение без учёта регистра: логины нормализуются в нижний регистр,
+        # но старые записи могли остаться в смешанном регистре
+        normalized = email.strip().lower()
+        result = await self.db.execute(
+            select(User).where(func.lower(User.email) == normalized)
+        )
         return result.scalar_one_or_none()
 
     async def get_access_token_version(self, user_id: int) -> int | None:

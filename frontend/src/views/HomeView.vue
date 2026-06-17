@@ -2,6 +2,7 @@
 import router from "@/router/index.js";
 import api from "@/services/api.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
+import {useAuthStore} from "@/stores/auth.js";
 import ErrorContainer from "@/components/Common/ErrorContainer.vue";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {getRealtimeClientId, getSseUrl, withSseParams} from "@/config/api.js";
@@ -179,6 +180,10 @@ export default {
     notify()
     {
       return useNotificationsStore()
+    },
+    authStore()
+    {
+      return useAuthStore()
     }
   },
 
@@ -220,19 +225,22 @@ export default {
             <span class="office-number">Корпус №{{ office.id }}</span>
           </div>
 
-          <div class="breakdowns-title">Неисправностей</div>
+          <!-- Статистику неисправностей видят только авторизованные пользователи -->
+          <template v-if="authStore.isAuthenticated">
+            <div class="breakdowns-title">Неисправностей</div>
 
-          <!-- Анимированный счётчик-одометр -->
-          <div class="breakdowns-count-wrap" :class="{ red: office.faultyCount > 0 }">
-            <div class="cnt-clip">
-              <transition :name="officeCountDirs[office.id] === 'down' ? 'cnt-down' : 'cnt-up'">
-                <div
-                  class="cnt-value-wrap"
-                  :key="(officeCountVersions[office.id] ?? 0) + '_' + office.faultyCount"
-                >{{ office.faultyCount }}</div>
-              </transition>
+            <!-- Анимированный счётчик-одометр -->
+            <div class="breakdowns-count-wrap" :class="{ red: office.faultyCount > 0 }">
+              <div class="cnt-clip">
+                <transition :name="officeCountDirs[office.id] === 'down' ? 'cnt-down' : 'cnt-up'">
+                  <div
+                    class="cnt-value-wrap"
+                    :key="(officeCountVersions[office.id] ?? 0) + '_' + office.faultyCount"
+                  >{{ office.faultyCount }}</div>
+                </transition>
+              </div>
             </div>
-          </div>
+          </template>
 
           <button @click="handleOfficeClick(office.id)" class="view-details-btn">
             Просмотреть детали

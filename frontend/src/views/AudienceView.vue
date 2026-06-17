@@ -123,8 +123,17 @@ export default {
       specsDraft: {},
       specsSaving: false,
       showSpecsModal: false,
+
+      /* Шаблоны характеристик */
+      specTemplates: [],
+      templatesLoading: false,
+      selectedTemplateId: '',
+      newTemplateName: '',
+      templateSaving: false,
+      templateApplyingAll: false,
       pendingWorkingStatus: null,
       statusConfirmLoading: false,
+      commentSaving: false,
       statusConfirmDurationMs: 5000,
       statusConfirmRemainingMs: 0,
       statusConfirmStartedAt: 0,
@@ -1168,11 +1177,138 @@ export default {
       this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
       this.specsEdit = false;
       this.showSpecsModal = true;
+
+      this.selectedTemplateId = '';
+      this.newTemplateName = '';
+      this.fetchSpecTemplates();
     },
 
     closeSpecsModal() {
       this.showSpecsModal = false;
       this.cancelSpecsEdit();
+    },
+
+    async fetchSpecTemplates() {
+      const type = this.selectedCell?.data?.type;
+      // Шаблоны — админский инструмент (эндпоинт требует admin)
+      if (!type || !this.havePermission) {
+        this.specTemplates = [];
+        return;
+      }
+
+      this.templatesLoading = true;
+      try {
+        const res = await api.get('/spec-templates', { params: { hardware_type: type } });
+        this.specTemplates = Array.isArray(res.data) ? res.data : [];
+      } catch (err) {
+        this.specTemplates = [];
+      } finally {
+        this.templatesLoading = false;
+      }
+    },
+
+    findSelectedTemplate() {
+      return this.specTemplates.find(tpl => tpl.id === this.selectedTemplateId) ?? null;
+    },
+
+    // Подставить характеристики из шаблона в черновик текущего устройства
+    applySpecTemplate() {
+      const tpl = this.findSelectedTemplate();
+      if (!tpl) return;
+
+      this.specsDraft = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+      this.specsEdit = true;
+      this.notify.success(`Шаблон «${tpl.name}» подставлен — проверьте и сохраните`);
+    },
+
+    // Сохранить текущий черновик характеристик как новый шаблон
+    async saveSpecsAsTemplate() {
+      const name = this.newTemplateName.trim();
+      if (!name) {
+        this.notify.warning('Введите название шаблона');
+        return;
+      }
+
+      const type = this.selectedCell?.data?.type;
+      if (!type) return;
+
+      this.templateSaving = true;
+      try {
+        const payload = this.normalizeSpecsDraft();
+        const res = await api.post('/spec-templates', {
+          name,
+          hardware_type: type,
+          specs: payload,
+        });
+
+        this.specTemplates.push(res.data);
+        this.selectedTemplateId = res.data.id;
+        this.newTemplateName = '';
+        this.notify.success('Шаблон сохранён');
+      } catch (err) {
+        this.notify.error('Не удалось сохранить шаблон');
+      } finally {
+        this.templateSaving = false;
+      }
+    },
+
+    async deleteSpecTemplate() {
+      const tpl = this.findSelectedTemplate();
+      if (!tpl) return;
+
+      try {
+        await api.delete(`/spec-templates/${tpl.id}`);
+        this.specTemplates = this.specTemplates.filter(item => item.id !== tpl.id);
+        this.selectedTemplateId = '';
+        this.notify.success('Шаблон удалён');
+      } catch (err) {
+        this.notify.error('Не удалось удалить шаблон');
+      }
+    },
+
+    // Применить шаблон сразу ко всему оборудованию того же типа в аудитории
+    async applyTemplateToAll() {
+      const tpl = this.findSelectedTemplate();
+      if (!tpl) {
+        this.notify.warning('Сначала выберите шаблон');
+        return;
+      }
+
+      const type = this.selectedCell?.data?.type;
+      const targets = (this.classroom?.equipment ?? []).filter(eq => eq.type === type && eq.dbId);
+      if (targets.length === 0) {
+        this.notify.info('В аудитории нет оборудования этого типа');
+        return;
+      }
+
+      this.templateApplyingAll = true;
+      this.wsSuspendedUntil = Date.now() + 1500 + targets.length * 60;
+
+      let applied = 0;
+      try {
+        for (const eq of targets) {
+          try {
+            await api.patch(`/hardware/${eq.dbId}`, { specs: tpl.specs });
+            eq.specs = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+            applied += 1;
+          } catch (err) {
+            // пропускаем сбойную единицу, продолжаем с остальными
+          }
+        }
+
+        this.specsDraft = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+        if (this.selectedCell?.data) {
+          this.selectedCell.data.specs = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+        }
+
+        if (applied === targets.length) {
+          this.notify.success(`Шаблон применён ко всем (${applied}) ед. оборудования`);
+        } else {
+          this.notify.warning(`Применено к ${applied} из ${targets.length} ед. оборудования`);
+        }
+      } finally {
+        this.templateApplyingAll = false;
+      }
     },
 
     openModal(row, col) {
@@ -1313,6 +1449,27 @@ export default {
       } catch (err) {
         this.notify.error(`Не удалось изменить состояние текущего оборудования!`);
         return false;
+      }
+    },
+
+    // Сохранить/доотправить комментарий о проблеме, не меняя статус
+    // (оборудование уже помечено как неисправное)
+    async submitProblemComment() {
+      if (!this.selectedCell || this.commentSaving) return;
+
+      const hardwareId = this.selectedCell.data.dbId;
+      const description = this.selectedCell.data.comment ?? '';
+
+      this.commentSaving = true;
+      this.wsSuspendedUntil = Date.now() + 1000;
+
+      try {
+        await api.patch(`/hardware/${hardwareId}`, { description });
+        this.notify.success('Комментарий сохранён');
+      } catch (err) {
+        this.notify.error('Не удалось сохранить комментарий');
+      } finally {
+        this.commentSaving = false;
       }
     },
 
@@ -1887,7 +2044,7 @@ export default {
                       </div>
 
                       <div class="equipment-label">
-                        {{ getEquipmentType(item.type).name }}
+                        {{ item.title || getEquipmentType(item.type).name }}
                       </div>
                     </div>
                   </div>
@@ -1994,7 +2151,7 @@ export default {
                 v-model="selectedCell.data.comment"
                 class="form-textarea"
                 placeholder="Опишите проблему или состояние оборудования..."
-                :disabled="!selectedCell.data.working"
+                :disabled="!authStore.isAuthenticated"
             ></textarea>
           </div>
 
@@ -2014,6 +2171,14 @@ export default {
                 @click="requestWorkingStatus(false)"
             >
               Неисправно
+            </button>
+            <button
+                class="action-btn resend-btn"
+                v-if="!selectedCell.data.working && authStore.isAuthenticated"
+                :disabled="commentSaving || statusConfirmLoading"
+                @click="submitProblemComment"
+            >
+              {{ commentSaving ? 'Сохранение…' : 'Сохранить комментарий' }}
             </button>
             </template>
 
@@ -2296,6 +2461,73 @@ export default {
                   <div class="specs-form-banner-text">
                     Заполняйте только подтверждённые данные. Пустые поля можно оставить без значения.
                   </div>
+                </div>
+              </div>
+
+              <!-- Шаблоны характеристик: применить готовый набор к одному
+                   устройству или сразу ко всем такого же типа в аудитории -->
+              <div class="specs-template-panel">
+                <div class="specs-template-head">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                  </svg>
+                  <span>Шаблоны характеристик</span>
+                </div>
+
+                <div class="specs-template-row">
+                  <select v-model="selectedTemplateId" class="spec-input spec-select specs-template-select">
+                    <option value="">{{ specTemplates.length ? '— выберите шаблон —' : 'Шаблоны ещё не созданы' }}</option>
+                    <option v-for="tpl in specTemplates" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
+                  </select>
+                  <button
+                      type="button"
+                      class="specs-btn specs-btn-secondary"
+                      :disabled="!selectedTemplateId"
+                      @click="applySpecTemplate"
+                  >
+                    Применить
+                  </button>
+                  <button
+                      type="button"
+                      class="specs-btn specs-btn-ghost-danger"
+                      :disabled="!selectedTemplateId"
+                      @click="deleteSpecTemplate"
+                      title="Удалить шаблон"
+                  >
+                    Удалить
+                  </button>
+                </div>
+
+                <button
+                    type="button"
+                    class="specs-template-apply-all"
+                    :disabled="!selectedTemplateId || templateApplyingAll"
+                    @click="applyTemplateToAll"
+                >
+                  {{ templateApplyingAll
+                    ? 'Применение…'
+                    : `Применить ко всем «${getEquipmentType(selectedCell.data.type).name}» в этой аудитории` }}
+                </button>
+
+                <div class="specs-template-save">
+                  <input
+                      v-model="newTemplateName"
+                      class="spec-input"
+                      type="text"
+                      maxlength="64"
+                      placeholder="Название нового шаблона"
+                  />
+                  <button
+                      type="button"
+                      class="specs-btn specs-btn-primary"
+                      :disabled="templateSaving || !newTemplateName.trim()"
+                      @click="saveSpecsAsTemplate"
+                  >
+                    {{ templateSaving ? 'Сохранение…' : 'Сохранить как шаблон' }}
+                  </button>
                 </div>
               </div>
 
@@ -3847,6 +4079,114 @@ export default {
   cursor: not-allowed;
 }
 
+.specs-btn-ghost-danger {
+  background: rgba(254, 226, 226, 0.7);
+  color: #dc2626;
+}
+
+.specs-btn-ghost-danger:hover:not(:disabled) {
+  background: rgba(254, 202, 202, 0.9);
+}
+
+/* ── Панель шаблонов характеристик ── */
+.specs-template-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px dashed rgba(96, 165, 250, 0.6);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.7), rgba(248, 250, 252, 0.6));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.specs-template-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.specs-template-head svg {
+  width: 18px;
+  height: 18px;
+}
+
+.specs-template-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.specs-template-select {
+  flex: 1;
+  min-width: 160px;
+}
+
+.specs-template-apply-all {
+  width: 100%;
+  border: 1px solid rgba(96, 165, 250, 0.7);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.specs-template-apply-all:hover:not(:disabled) {
+  background: rgba(191, 219, 254, 0.9);
+  transform: translateY(-1px);
+}
+
+.specs-template-apply-all:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.specs-template-save {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+  padding-top: 12px;
+}
+
+.specs-template-save .spec-input {
+  flex: 1;
+  min-width: 160px;
+}
+
+:global(html[data-theme='dark']) .specs-template-panel {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.5));
+}
+
+:global(html[data-theme='dark']) .specs-template-head {
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark']) .specs-template-apply-all {
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.18);
+}
+
+:global(html[data-theme='dark']) .specs-template-apply-all:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.3);
+}
+
+:global(html[data-theme='dark']) .specs-btn-ghost-danger {
+  background: rgba(127, 29, 29, 0.35);
+  color: #fca5a5;
+}
+
 .specs-view {
   display: flex;
   flex-direction: column;
@@ -4598,6 +4938,24 @@ export default {
   box-shadow:
       0 0 0 1px rgba(239, 68, 68, 0.18) inset,
       0 8px 18px rgba(220, 38, 38, 0.15);
+}
+
+.resend-btn {
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 44%),
+      linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+}
+
+.resend-btn:hover:not(:disabled) {
+  transform: none;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 44%),
+      linear-gradient(135deg, #2f7bf0, #1d4ed8);
+  box-shadow:
+      0 0 0 1px rgba(59, 130, 246, 0.18) inset,
+      0 8px 18px rgba(37, 99, 235, 0.16);
 }
 
 .action-btn:disabled {

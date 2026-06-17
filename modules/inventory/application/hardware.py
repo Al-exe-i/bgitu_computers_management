@@ -103,7 +103,11 @@ class InventoryHardwareUseCases:
             raise HardwarePermissionDeniedError("Teacher can't mark hardware as good state")
 
         if actor.role == UserRole.teacher:
-            data = HardwareUpdate(**data.model_dump(include={"state"}, exclude_unset=True))
+            # Преподаватель может менять только состояние и оставлять комментарий
+            # о проблеме — остальные поля игнорируем
+            data = HardwareUpdate(
+                **data.model_dump(include={"state", "description"}, exclude_unset=True)
+            )
         data = self._normalize_update(data)
 
         previous_state = current_hw.state

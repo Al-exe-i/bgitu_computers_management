@@ -66,6 +66,25 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    service: user_service_dep,
+    access_token_cookie: str | None = Cookie(None, alias="access_token"),
+    access_token_header: str | None = Depends(oauth2_scheme),
+) -> User | None:
+    """Возвращает пользователя, если он авторизован, иначе None (без ошибки).
+
+    Используется для эндпоинтов, доступных гостям, где часть данных нужно скрыть.
+    """
+    token = access_token_cookie if access_token_cookie else access_token_header
+    if token is None:
+        return None
+
+    try:
+        return await _validate_token_and_get_user(token, service)
+    except Exception:
+        return None
+
+
 async def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
@@ -79,5 +98,6 @@ async def get_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 user_dep = Annotated[User, Depends(get_current_user)]
+optional_user_dep = Annotated[User | None, Depends(get_optional_user)]
 superuser_dep = Annotated[User, Depends(get_current_superuser)]
 admin_dep = Annotated[User, Depends(get_admin)]

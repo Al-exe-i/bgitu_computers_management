@@ -8,6 +8,7 @@ from .endpoints import (
     hardware_analytics,
     notifications,
     offices,
+    spec_templates,
     users,
 )
 
@@ -22,5 +23,10 @@ api_router.include_router(
     hardware_analytics.router,
     prefix="/analytics/hardware",
     tags=["Аналитика оборудования (hardware_analytics)"],
+)
+api_router.include_router(
+    spec_templates.router,
+    prefix="/spec-templates",
+    tags=["Шаблоны характеристик (spec_templates)"],
 )
 api_router.include_router(notifications.router, tags=["Notifications"])

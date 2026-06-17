@@ -81,7 +81,7 @@ def test_update_files_stores_only_supported_files() -> None:
             [
                 FakeUpload(filename="photo.png", content_type="image/png"),
                 FakeUpload(filename="notes.txt", content_type="text/plain"),
-                FakeUpload(filename="big.mp4", content_type="video/mp4", size=21 * 1024 * 1024),
+                FakeUpload(filename="big.mp4", content_type="video/mp4", size=101 * 1024 * 1024),
             ],
         )
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from dependencies.audit_actor import admin_audit_actor_dep
+from dependencies.auth import optional_user_dep
 from dependencies.inventory import inventory_office_use_cases_dep
 from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
 
@@ -39,8 +40,21 @@ async def delete_office(
 
 
 @router.get("/all_short", response_model=list[OfficeShort])
-async def get_all_offices_short(use_cases: inventory_office_use_cases_dep):
-    return await use_cases.list_offices_short()
+async def get_all_offices_short(
+    use_cases: inventory_office_use_cases_dep,
+    user: optional_user_dep,
+):
+    offices = await use_cases.list_offices_short()
+
+    # Гостям не показываем количество неисправного оборудования.
+    # model_copy, а не мутация — список приходит из общего Redis-кэша.
+    if user is None:
+        offices = [
+            office.model_copy(update={"faulty_hw_count": None})
+            for office in offices
+        ]
+
+    return offices
 
 
 @router.get("/{office_id}", response_model=OfficeResponse)
