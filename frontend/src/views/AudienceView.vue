@@ -138,6 +138,8 @@ export default {
       /* Компактный список неисправностей текущего оборудования */
       problemDraft: [],
       maxProblems: 8,
+      showUnsavedProblemsConfirm: false,
+      unsavedProblemsSaving: false,
       statusConfirmRemainingMs: 0,
       statusConfirmStartedAt: 0,
       statusConfirmTimerId: null,
@@ -498,6 +500,27 @@ export default {
       return this.statusConfirmIsPending && this.statusConfirmRemainingMs <= 2000;
     },
 
+    problemDraftItems() {
+      return this.problemDraft
+        .map(item => item.trim())
+        .filter(Boolean);
+    },
+
+    problemDraftText() {
+      return this.problemDraftItems.join('\n');
+    },
+
+    unsavedProblemCount() {
+      return this.problemDraftItems.length;
+    },
+
+    hasUnsavedWorkingProblems() {
+      if (!this.selectedCell?.data?.working) return false;
+      if (!this.problemDraftText) return false;
+
+      return this.problemDraftText !== String(this.selectedCell.data.comment ?? '').trim();
+    },
+
   },
 
   watch: {
@@ -526,6 +549,10 @@ export default {
       this.scheduleViewportScrollLock();
     },
 
+    showUnsavedProblemsConfirm() {
+      this.scheduleViewportScrollLock();
+    },
+
     showSpecsModal() {
       this.scheduleViewportScrollLock();
     },
@@ -544,6 +571,7 @@ export default {
           this.selectedCell !== null ||
           this.previewIndex !== null ||
           this.showConfirmModal ||
+          this.showUnsavedProblemsConfirm ||
           this.showSpecsModal ||
           this.dropClassroomModalShow
       );
@@ -554,6 +582,7 @@ export default {
           this.selectedCell !== null ||
           this.previewIndex !== null ||
           this.showConfirmModal ||
+          this.showUnsavedProblemsConfirm ||
           this.showSpecsModal ||
           this.dropClassroomModalShow;
 
@@ -903,6 +932,12 @@ export default {
 
       if (event.key !== 'Escape') return;
 
+      if (this.showUnsavedProblemsConfirm) {
+        event.preventDefault();
+        this.cancelUnsavedProblemsClose();
+        return;
+      }
+
       if (this.showConfirmModal) {
         event.preventDefault();
         this.closeConfirmModal();
@@ -961,7 +996,7 @@ export default {
         // если модалка открыта — можно просто переоткрыть на те же координаты
         if (modalState) {
           const { row, col, showSpecsModal } = modalState;
-          this.closeModal();
+          this.closeModal({ force: true });
           this.openModal(row, col);
 
           if (showSpecsModal && this.hasSpecsEditor) {
@@ -1377,10 +1412,27 @@ export default {
       this.scheduleViewportScrollLock();
     },
 
-    closeModal() {
+    closeModal(options = {}) {
+      const force = options?.force === true;
+
+      if (this.unsavedProblemsSaving) return;
+
+      if (!force && this.hasUnsavedWorkingProblems) {
+        this.closeStatusConfirmModal();
+        this.showUnsavedProblemsConfirm = true;
+        this.scheduleViewportScrollLock();
+        return;
+      }
+
+      this.forceCloseEquipmentModal();
+    },
+
+    forceCloseEquipmentModal() {
       this.closeStatusConfirmModal();
       this.previewIndex = null;
       this.selectedCell = null;
+      this.showUnsavedProblemsConfirm = false;
+      this.unsavedProblemsSaving = false;
       this.pendingWorkingStatus = null;
       this.statusConfirmLoading = false;
 
@@ -1395,6 +1447,43 @@ export default {
       this.fileToDeleteId = null;
       this.dontAskAgain = false;
       this.scheduleViewportScrollLock();
+    },
+
+    cancelUnsavedProblemsClose() {
+      if (this.unsavedProblemsSaving) return;
+      this.showUnsavedProblemsConfirm = false;
+      this.scheduleViewportScrollLock();
+    },
+
+    discardUnsavedProblemsAndClose() {
+      if (this.unsavedProblemsSaving) return;
+      this.showUnsavedProblemsConfirm = false;
+      this.forceCloseEquipmentModal();
+    },
+
+    async saveUnsavedProblemsAndClose() {
+      if (!this.selectedCell || this.unsavedProblemsSaving) return;
+
+      if (!this.hasUnsavedWorkingProblems) {
+        this.discardUnsavedProblemsAndClose();
+        return;
+      }
+
+      if (this.problemDraftText.length > 255) {
+        this.notify.warning('Список неисправностей слишком длинный (макс. 255 символов)');
+        return;
+      }
+
+      this.unsavedProblemsSaving = true;
+      try {
+        const saved = await this.applyWorkingStatus(false);
+        if (!saved) return;
+
+        this.showUnsavedProblemsConfirm = false;
+        this.forceCloseEquipmentModal();
+      } finally {
+        this.unsavedProblemsSaving = false;
+      }
     },
 
     openDropClassroomModal() {
@@ -1515,10 +1604,7 @@ export default {
     // Собираем список обратно в строку description (по одной проблеме на строку)
     syncProblemsToComment() {
       if (!this.selectedCell) return;
-      this.selectedCell.data.comment = this.problemDraft
-        .map(item => item.trim())
-        .filter(Boolean)
-        .join('\n');
+      this.selectedCell.data.comment = this.problemDraftText;
     },
 
     async addProblem() {
@@ -2442,6 +2528,60 @@ export default {
         </div>
         </div>
     </Teleport>
+
+    <Teleport to="body">
+      <Transition>
+        <div
+            v-if="showUnsavedProblemsConfirm && selectedCell"
+            class="unsaved-problems-overlay audience-unsaved-problems-overlay"
+            @click.self="cancelUnsavedProblemsClose"
+        >
+          <section
+              class="unsaved-problems-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="unsaved-problems-title"
+          >
+
+            <div class="unsaved-problems-copy">
+              <h3 id="unsaved-problems-title">Сохранить добавленные проблемы?</h3>
+              <p>
+                Вы добавили {{ unsavedProblemCount }} {{ unsavedProblemCount === 1 ? 'проблему' : 'проблемы' }},
+                но оборудование всё ещё отмечено как исправное. Если просто закрыть окно, список не сохранится.
+              </p>
+            </div>
+
+            <div class="unsaved-problems-actions">
+              <button
+                  type="button"
+                  class="unsaved-problems-btn is-muted"
+                  :disabled="unsavedProblemsSaving"
+                  @click="discardUnsavedProblemsAndClose"
+              >
+                Закрыть без сохранения
+              </button>
+              <button
+                  type="button"
+                  class="unsaved-problems-btn"
+                  :disabled="unsavedProblemsSaving"
+                  @click="cancelUnsavedProblemsClose"
+              >
+                Вернуться
+              </button>
+              <button
+                  type="button"
+                  class="unsaved-problems-btn is-primary"
+                  :disabled="unsavedProblemsSaving"
+                  @click="saveUnsavedProblemsAndClose"
+              >
+                {{ unsavedProblemsSaving ? 'Сохраняем...' : 'Пометить неисправным' }}
+              </button>
+            </div>
+          </section>
+        </div>
+      </Transition>
+    </Teleport>
+
     <Teleport to="body">
       <div
           v-if="selectedCell && hasSpecsEditor && showSpecsModal"
@@ -3613,6 +3753,7 @@ export default {
 
 :global(body > .audience-equipment-modal),
 :global(body > .audience-specs-modal-overlay),
+:global(body > .audience-unsaved-problems-overlay),
 :global(body > .audience-drop-classroom-overlay),
 :global(body > .audience-file-confirm-overlay),
 :global(body > .audience-lightbox-overlay) {
@@ -3626,6 +3767,7 @@ export default {
 
 :global(body.audience-modal-events-locked > .audience-equipment-modal),
 :global(body.audience-modal-events-locked > .audience-specs-modal-overlay),
+:global(body.audience-modal-events-locked > .audience-unsaved-problems-overlay),
 :global(body.audience-modal-events-locked > .audience-drop-classroom-overlay),
 :global(body.audience-modal-events-locked > .audience-file-confirm-overlay),
 :global(body.audience-modal-events-locked > .audience-lightbox-overlay) {
@@ -5354,6 +5496,232 @@ export default {
   color: #fecaca;
 }
 
+.unsaved-problems-overlay {
+  position: fixed;
+  inset: 0;
+  top: var(--audience-modal-top, 0px);
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--audience-modal-vh, 100dvh);
+  z-index: 2600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background:
+      radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.18), transparent 36%),
+      rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.18s ease;
+}
+
+.unsaved-problems-dialog {
+  width: min(100%, 440px);
+  max-height: calc(100vh - 28px);
+  max-height: calc(100dvh - 28px);
+  max-height: calc(var(--audience-modal-vh, 100dvh) - 28px);
+  margin: auto;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  background:
+      radial-gradient(circle at top left, rgba(219, 234, 254, 0.92), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow:
+      0 28px 70px rgba(15, 23, 42, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  animation: scaleIn 0.2s ease;
+}
+
+.unsaved-problems-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: #2563eb;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.94), rgba(191, 219, 254, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.unsaved-problems-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.unsaved-problems-copy {
+  min-width: 0;
+}
+
+.unsaved-problems-kicker {
+  display: inline-flex;
+  margin-bottom: 5px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.unsaved-problems-copy h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  line-height: 1.14;
+  font-weight: 850;
+}
+
+.unsaved-problems-copy p {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.unsaved-problems-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 13px;
+  border: 1px solid rgba(252, 165, 165, 0.72);
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.9), rgba(255, 247, 237, 0.78));
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.unsaved-problems-note strong {
+  flex-shrink: 0;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.unsaved-problems-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.unsaved-problems-btn {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 11px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: rgba(255, 255, 255, 0.86);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.unsaved-problems-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.unsaved-problems-btn.is-muted {
+  color: #64748b;
+}
+
+.unsaved-problems-btn.is-primary {
+  border-color: rgba(239, 68, 68, 0.72);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(220, 38, 38, 0.16);
+}
+
+.unsaved-problems-btn.is-primary:hover:not(:disabled) {
+  border-color: rgba(220, 38, 38, 0.86);
+  background: linear-gradient(135deg, #f05252, #b91c1c);
+}
+
+.unsaved-problems-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay) {
+  background:
+      radial-gradient(circle at 50% 18%, rgba(37, 99, 235, 0.18), transparent 38%),
+      rgba(2, 6, 23, 0.74) !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-dialog) {
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 36%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96)) !important;
+  border-color: rgba(71, 85, 105, 0.95) !important;
+  box-shadow:
+      0 30px 76px rgba(2, 6, 23, 0.62),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-icon) {
+  color: #bfdbfe !important;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.42), rgba(14, 165, 233, 0.16)) !important;
+  box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-kicker) {
+  color: #93c5fd !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-copy h3) {
+  color: #f8fafc !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-copy p) {
+  color: #cbd5e1 !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-note) {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.32), rgba(124, 45, 18, 0.18)) !important;
+  border-color: rgba(248, 113, 113, 0.38) !important;
+  color: #cbd5e1 !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-note strong) {
+  color: #fca5a5 !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-btn) {
+  background: rgba(30, 41, 59, 0.92) !important;
+  border-color: rgba(71, 85, 105, 0.95) !important;
+  color: #dbe4ef !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-btn:hover:not(:disabled)) {
+  background: rgba(51, 65, 85, 0.94) !important;
+  border-color: rgba(100, 116, 139, 0.95) !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-btn.is-muted) {
+  color: #94a3b8 !important;
+}
+
+:global(html[data-theme='dark'] .audience-unsaved-problems-overlay .unsaved-problems-btn.is-primary) {
+  background: linear-gradient(135deg, #ef4444, #b91c1c) !important;
+  border-color: rgba(248, 113, 113, 0.68) !important;
+  color: #fff !important;
+  box-shadow: 0 14px 28px rgba(127, 29, 29, 0.32) !important;
+}
+
 .action-btns {
   display: flex;
   gap: 12px;
@@ -6394,6 +6762,34 @@ export default {
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .stats-section {
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    min-width: 0;
+    padding: 11px 12px;
+    border-radius: 13px;
+  }
+
+  .stat-card:hover {
+    transform: none;
+  }
+
+  .stat-label {
+    min-height: 22px;
+    margin-bottom: 4px;
+    font-size: 10px;
+    line-height: 1.1;
+    letter-spacing: 0.2px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    line-height: 1;
   }
 
   .grid-wrapper {
@@ -6646,6 +7042,48 @@ export default {
     font-size: 13px;
   }
 
+  .unsaved-problems-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .unsaved-problems-dialog {
+    width: min(100%, 400px);
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .unsaved-problems-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 8px;
+    border-radius: 13px;
+  }
+
+  .unsaved-problems-copy h3 {
+    font-size: 18px;
+  }
+
+  .unsaved-problems-copy p {
+    font-size: 12px;
+    line-height: 1.42;
+  }
+
+  .unsaved-problems-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .unsaved-problems-btn.is-primary {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .unsaved-problems-btn {
+    min-height: 32px;
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
   .equipment-modal .hw-files-section {
     margin-top: 5px;
     padding-top: 7px;
@@ -6835,9 +7273,68 @@ export default {
     font-size: 12px;
   }
 
+  .unsaved-problems-dialog {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .unsaved-problems-kicker {
+    font-size: 10px;
+    letter-spacing: 0.09em;
+  }
+
+  .unsaved-problems-copy h3 {
+    font-size: 17px;
+  }
+
+  .unsaved-problems-note {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .unsaved-problems-note strong {
+    font-size: 11px;
+  }
+
+  .unsaved-problems-actions {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .unsaved-problems-btn.is-primary {
+    order: -2;
+  }
+
   .equipment-modal .hw-file-card {
     width: 80px;
     height: 80px;
+  }
+
+  .stats-grid {
+    gap: 6px;
+  }
+
+  .stats-section {
+    margin-bottom: 12px;
+  }
+
+  .stat-card {
+    padding: 9px 10px;
+    border-radius: 12px;
+  }
+
+  .stat-label {
+    min-height: 20px;
+    margin-bottom: 3px;
+    font-size: 9px;
+    letter-spacing: 0.1px;
+  }
+
+  .stat-value {
+    font-size: 20px;
   }
 
   .equipment-grid {
