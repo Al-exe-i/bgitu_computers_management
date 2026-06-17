@@ -1486,9 +1486,30 @@ export default {
         .join('\n');
     },
 
-    addProblem() {
+    async addProblem() {
       if (this.problemDraft.length >= this.maxProblems) return;
       this.problemDraft.push('');
+      await this.$nextTick();
+
+      const scrollNode = this.$refs.problemScroll;
+      if (!scrollNode) return;
+
+      if (typeof scrollNode.scrollTo === 'function') {
+        scrollNode.scrollTo({
+          top: scrollNode.scrollHeight,
+          behavior: 'smooth',
+        });
+      } else {
+        scrollNode.scrollTop = scrollNode.scrollHeight;
+      }
+
+      const inputs = scrollNode.querySelectorAll('.problem-input');
+      const nextInput = inputs[inputs.length - 1];
+      try {
+        nextInput?.focus({ preventScroll: true });
+      } catch {
+        nextInput?.focus();
+      }
     },
 
     async removeProblem(index) {
@@ -2207,36 +2228,42 @@ export default {
             <!-- Компактный список: «Проблема 1», «Проблема 2»… -->
             <div class="problem-list">
               <div
-                  v-for="(problem, index) in problemDraft"
-                  :key="index"
-                  class="problem-row"
+                  ref="problemScroll"
+                  class="problem-list-scroll"
+                  :class="{ 'is-empty': problemDraft.length === 0 }"
               >
-                <span class="problem-index">{{ index + 1 }}</span>
-                <input
-                    v-model="problemDraft[index]"
-                    class="problem-input"
-                    type="text"
-                    maxlength="120"
-                    :placeholder="`Проблема ${index + 1}`"
-                    :disabled="!authStore.isAuthenticated"
-                    @blur="onProblemBlur"
-                    @keyup.enter="onProblemEnter(index)"
-                />
-                <button
-                    v-if="authStore.isAuthenticated"
-                    type="button"
-                    class="problem-remove"
-                    title="Удалить проблему"
-                    @click="removeProblem(index)"
+                <div
+                    v-for="(problem, index) in problemDraft"
+                    :key="index"
+                    class="problem-row"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <path d="M18 6 6 18M6 6l12 12"></path>
-                  </svg>
-                </button>
-              </div>
+                  <span class="problem-index">{{ index + 1 }}</span>
+                  <input
+                      v-model="problemDraft[index]"
+                      class="problem-input"
+                      type="text"
+                      maxlength="120"
+                      :placeholder="`Проблема ${index + 1}`"
+                      :disabled="!authStore.isAuthenticated"
+                      @blur="onProblemBlur"
+                      @keyup.enter="onProblemEnter(index)"
+                  />
+                  <button
+                      v-if="authStore.isAuthenticated"
+                      type="button"
+                      class="problem-remove"
+                      title="Удалить проблему"
+                      @click="removeProblem(index)"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M18 6 6 18M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
 
-              <div v-if="problemDraft.length === 0" class="problem-empty">
-                {{ authStore.isAuthenticated ? 'Список пуст — добавьте найденные неисправности' : 'Неисправности не указаны' }}
+                <div v-if="problemDraft.length === 0" class="problem-empty">
+                  {{ authStore.isAuthenticated ? 'Список пуст — добавьте найденные неисправности' : 'Неисправности не указаны' }}
+                </div>
               </div>
 
               <button
@@ -4278,6 +4305,75 @@ export default {
   color: #fca5a5;
 }
 
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel) {
+  background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 42%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.7)),
+      #020617 !important;
+  border-color: rgba(96, 165, 250, 0.34) !important;
+  box-shadow:
+      inset 0 1px 0 rgba(191, 219, 254, 0.08),
+      0 14px 30px rgba(2, 6, 23, 0.24) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-head) {
+  color: #bfdbfe !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-save) {
+  border-top-color: rgba(51, 65, 85, 0.9) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel .spec-input) {
+  background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.76)),
+      #020617 !important;
+  border-color: rgba(71, 85, 105, 0.94) !important;
+  color: #dbe4ef !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel .spec-input::placeholder) {
+  color: #64748b !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel .spec-input:focus) {
+  border-color: rgba(96, 165, 250, 0.9) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel .spec-select) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5l5 5l5-5' stroke='%23dbe4ef' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-apply-all) {
+  background:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(14, 165, 233, 0.12)),
+      rgba(15, 23, 42, 0.7) !important;
+  border-color: rgba(96, 165, 250, 0.48) !important;
+  color: #bfdbfe !important;
+  box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-apply-all:hover:not(:disabled)) {
+  background:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.36), rgba(14, 165, 233, 0.18)),
+      rgba(15, 23, 42, 0.84) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel .specs-btn-ghost-danger) {
+  background: rgba(127, 29, 29, 0.38) !important;
+  color: #fca5a5 !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel .specs-btn-ghost-danger:hover:not(:disabled)) {
+  background: rgba(153, 27, 27, 0.48) !important;
+  color: #fecaca !important;
+}
+
 .specs-view {
   display: flex;
   flex-direction: column;
@@ -4980,15 +5076,50 @@ export default {
 
 /* ── Компактный список неисправностей ── */
 .problem-list {
+  --problem-row-height: 42px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.problem-list-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(var(--problem-row-height) * 2 + 8px);
+  padding-right: 4px;
+  margin-right: -4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.72) transparent;
+}
+
+.problem-list-scroll.is-empty {
+  max-height: none;
+  padding-right: 0;
+  margin-right: 0;
+  overflow: visible;
+}
+
+.problem-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.problem-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.problem-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 999px;
 }
 
 .problem-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: var(--problem-row-height);
 }
 
 .problem-index {
@@ -5008,11 +5139,13 @@ export default {
 .problem-input {
   flex: 1;
   min-width: 0;
+  min-height: 40px;
   padding: 9px 12px;
   border: 2px solid #e2e8f0;
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -5090,13 +5223,35 @@ export default {
 }
 
 :global(html[data-theme='dark']) .problem-input {
-  background: #0f172a;
-  border-color: #334155;
-  color: #e2e8f0;
+  background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.74)),
+      #020617;
+  border-color: rgba(51, 65, 85, 0.96);
+  color: #dbe4ef;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+
+:global(html[data-theme='dark']) .problem-list-scroll {
+  scrollbar-color: rgba(96, 165, 250, 0.52) transparent;
+}
+
+:global(html[data-theme='dark']) .problem-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(96, 165, 250, 0.46);
+}
+
+:global(html[data-theme='dark']) .problem-input::placeholder {
+  color: #64748b;
+}
+
+:global(html[data-theme='dark']) .problem-input:focus {
+  border-color: rgba(96, 165, 250, 0.9);
+  box-shadow:
+      0 0 0 3px rgba(59, 130, 246, 0.16),
+      inset 0 1px 0 rgba(148, 163, 184, 0.08);
 }
 
 :global(html[data-theme='dark']) .problem-input:disabled {
-  background: #111827;
+  background: rgba(15, 23, 42, 0.68);
   color: #94a3b8;
 }
 
@@ -5106,8 +5261,9 @@ export default {
 }
 
 :global(html[data-theme='dark']) .problem-empty {
-  border-color: #334155;
-  color: #64748b;
+  border-color: rgba(51, 65, 85, 0.96);
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.46);
 }
 
 :global(html[data-theme='dark']) .problem-add {
@@ -5116,9 +5272,37 @@ export default {
   background: rgba(37, 99, 235, 0.18);
 }
 
+:global(html[data-theme='dark']) .problem-add:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.3);
+  border-color: rgba(147, 197, 253, 0.58);
+  color: #bfdbfe;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .problem-add) {
+  background:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.26), rgba(14, 165, 233, 0.12)),
+      rgba(15, 23, 42, 0.72) !important;
+  border-color: rgba(96, 165, 250, 0.54) !important;
+  color: #bfdbfe !important;
+  box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08) !important;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal .problem-add:hover:not(:disabled)) {
+  background:
+      linear-gradient(135deg, rgba(37, 99, 235, 0.36), rgba(14, 165, 233, 0.18)),
+      rgba(15, 23, 42, 0.86) !important;
+  border-color: rgba(147, 197, 253, 0.68) !important;
+  color: #dbeafe !important;
+}
+
 :global(html[data-theme='dark']) .problem-remove {
   background: rgba(127, 29, 29, 0.35);
   color: #fca5a5;
+}
+
+:global(html[data-theme='dark']) .problem-remove:hover {
+  background: rgba(153, 27, 27, 0.54);
+  color: #fecaca;
 }
 
 .action-btns {
@@ -6588,6 +6772,10 @@ export default {
 
   .equipment-modal .status-badge {
     padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .equipment-modal .problem-empty {
     font-size: 11px;
   }
 
