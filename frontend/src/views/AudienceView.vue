@@ -133,8 +133,11 @@ export default {
       templateApplyingAll: false,
       pendingWorkingStatus: null,
       statusConfirmLoading: false,
-      commentSaving: false,
       statusConfirmDurationMs: 5000,
+
+      /* Компактный список неисправностей текущего оборудования */
+      problemDraft: [],
+      maxProblems: 8,
       statusConfirmRemainingMs: 0,
       statusConfirmStartedAt: 0,
       statusConfirmTimerId: null,
@@ -1329,6 +1332,8 @@ export default {
       this.newInv_no = eq.invNumber;
       this.newHwTitle = eq.title;
 
+      this.problemDraft = this.parseProblems(eq.comment);
+
       this.specsEdit = false;
       this.specsDraft = JSON.parse(JSON.stringify(eq.specs ?? {}));
       this.showSpecsModal = false;
@@ -1364,6 +1369,14 @@ export default {
 
     async requestWorkingStatus(status) {
       if (!this.selectedCell || this.selectedCell.data.working === status || this.statusConfirmLoading) return;
+
+      if (status === false) {
+        this.syncProblemsToComment();
+        if ((this.selectedCell.data.comment ?? '').length > 255) {
+          this.notify.warning('Список неисправностей слишком длинный (макс. 255 символов)');
+          return;
+        }
+      }
 
       this.pendingWorkingStatus = status;
       this.startStatusConfirmCountdown();
@@ -1426,6 +1439,8 @@ export default {
     async applyWorkingStatus(status) {
       if (!this.selectedCell) return false;
 
+      this.syncProblemsToComment();
+
       const cell = this.selectedCell;
       const hardwareId = cell.data.dbId;
       const description = status === true ? `` : cell.data.comment;
@@ -1443,6 +1458,7 @@ export default {
 
         if (status) {
           this.selectedCell.data.comment = ``;
+          this.problemDraft = [];
         }
 
         return true;
@@ -1452,24 +1468,64 @@ export default {
       }
     },
 
-    // Сохранить/доотправить комментарий о проблеме, не меняя статус
-    // (оборудование уже помечено как неисправное)
-    async submitProblemComment() {
-      if (!this.selectedCell || this.commentSaving) return;
+    /* ── Компактный список неисправностей ── */
+
+    parseProblems(text) {
+      return String(text ?? '')
+        .split('\n')
+        .map(item => item.trim())
+        .filter(Boolean);
+    },
+
+    // Собираем список обратно в строку description (по одной проблеме на строку)
+    syncProblemsToComment() {
+      if (!this.selectedCell) return;
+      this.selectedCell.data.comment = this.problemDraft
+        .map(item => item.trim())
+        .filter(Boolean)
+        .join('\n');
+    },
+
+    addProblem() {
+      if (this.problemDraft.length >= this.maxProblems) return;
+      this.problemDraft.push('');
+    },
+
+    async removeProblem(index) {
+      this.problemDraft.splice(index, 1);
+      await this.persistProblemsIfBroken();
+    },
+
+    async onProblemBlur() {
+      await this.persistProblemsIfBroken();
+    },
+
+    onProblemEnter(index) {
+      // Enter на последней непустой строке — добавляем следующую проблему
+      if (index === this.problemDraft.length - 1 && this.problemDraft[index].trim()) {
+        this.addProblem();
+      }
+    },
+
+    // Для уже неисправного оборудования список сохраняется автоматически,
+    // без отдельной кнопки. У исправного — копится локально до пометки «Неисправно».
+    async persistProblemsIfBroken() {
+      if (!this.selectedCell || this.selectedCell.data.working) return;
+
+      this.syncProblemsToComment();
+      const description = this.selectedCell.data.comment ?? '';
+      if (description.length > 255) {
+        this.notify.warning('Список неисправностей слишком длинный (макс. 255 символов)');
+        return;
+      }
 
       const hardwareId = this.selectedCell.data.dbId;
-      const description = this.selectedCell.data.comment ?? '';
-
-      this.commentSaving = true;
       this.wsSuspendedUntil = Date.now() + 1000;
 
       try {
         await api.patch(`/hardware/${hardwareId}`, { description });
-        this.notify.success('Комментарий сохранён');
       } catch (err) {
-        this.notify.error('Не удалось сохранить комментарий');
-      } finally {
-        this.commentSaving = false;
+        this.notify.error('Не удалось сохранить список неисправностей');
       }
     },
 
@@ -2146,13 +2202,56 @@ export default {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Комментарий / Проблема</label>
-            <textarea
-                v-model="selectedCell.data.comment"
-                class="form-textarea"
-                placeholder="Опишите проблему или состояние оборудования..."
-                :disabled="!authStore.isAuthenticated"
-            ></textarea>
+            <label class="form-label">Неисправности</label>
+
+            <!-- Компактный список: «Проблема 1», «Проблема 2»… -->
+            <div class="problem-list">
+              <div
+                  v-for="(problem, index) in problemDraft"
+                  :key="index"
+                  class="problem-row"
+              >
+                <span class="problem-index">{{ index + 1 }}</span>
+                <input
+                    v-model="problemDraft[index]"
+                    class="problem-input"
+                    type="text"
+                    maxlength="120"
+                    :placeholder="`Проблема ${index + 1}`"
+                    :disabled="!authStore.isAuthenticated"
+                    @blur="onProblemBlur"
+                    @keyup.enter="onProblemEnter(index)"
+                />
+                <button
+                    v-if="authStore.isAuthenticated"
+                    type="button"
+                    class="problem-remove"
+                    title="Удалить проблему"
+                    @click="removeProblem(index)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M18 6 6 18M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div v-if="problemDraft.length === 0" class="problem-empty">
+                {{ authStore.isAuthenticated ? 'Список пуст — добавьте найденные неисправности' : 'Неисправности не указаны' }}
+              </div>
+
+              <button
+                  v-if="authStore.isAuthenticated"
+                  type="button"
+                  class="problem-add"
+                  :disabled="problemDraft.length >= maxProblems"
+                  @click="addProblem"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                Добавить проблему
+              </button>
+            </div>
           </div>
 
           <div class="action-btns status-action-zone">
@@ -2171,14 +2270,6 @@ export default {
                 @click="requestWorkingStatus(false)"
             >
               Неисправно
-            </button>
-            <button
-                class="action-btn resend-btn"
-                v-if="!selectedCell.data.working && authStore.isAuthenticated"
-                :disabled="commentSaving || statusConfirmLoading"
-                @click="submitProblemComment"
-            >
-              {{ commentSaving ? 'Сохранение…' : 'Сохранить комментарий' }}
             </button>
             </template>
 
@@ -4887,6 +4978,149 @@ export default {
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
+/* ── Компактный список неисправностей ── */
+.problem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.problem-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.problem-index {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.problem-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.problem-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.problem-input:disabled {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.problem-remove {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.7);
+  transition: all 0.2s ease;
+}
+
+.problem-remove:hover {
+  background: rgba(252, 165, 165, 0.9);
+}
+
+.problem-remove svg {
+  width: 15px;
+  height: 15px;
+}
+
+.problem-empty {
+  padding: 10px 12px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.problem-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px dashed rgba(59, 130, 246, 0.6);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  background: rgba(219, 234, 254, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.problem-add:hover:not(:disabled) {
+  background: rgba(191, 219, 254, 0.8);
+}
+
+.problem-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.problem-add svg {
+  width: 15px;
+  height: 15px;
+}
+
+:global(html[data-theme='dark']) .problem-input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark']) .problem-input:disabled {
+  background: #111827;
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark']) .problem-index {
+  background: rgba(127, 29, 29, 0.4);
+  color: #fca5a5;
+}
+
+:global(html[data-theme='dark']) .problem-empty {
+  border-color: #334155;
+  color: #64748b;
+}
+
+:global(html[data-theme='dark']) .problem-add {
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.18);
+}
+
+:global(html[data-theme='dark']) .problem-remove {
+  background: rgba(127, 29, 29, 0.35);
+  color: #fca5a5;
+}
+
 .action-btns {
   display: flex;
   gap: 12px;
@@ -4938,24 +5172,6 @@ export default {
   box-shadow:
       0 0 0 1px rgba(239, 68, 68, 0.18) inset,
       0 8px 18px rgba(220, 38, 38, 0.15);
-}
-
-.resend-btn {
-  background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 44%),
-      linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
-}
-
-.resend-btn:hover:not(:disabled) {
-  transform: none;
-  background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 44%),
-      linear-gradient(135deg, #2f7bf0, #1d4ed8);
-  box-shadow:
-      0 0 0 1px rgba(59, 130, 246, 0.18) inset,
-      0 8px 18px rgba(37, 99, 235, 0.16);
 }
 
 .action-btn:disabled {
