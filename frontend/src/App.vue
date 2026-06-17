@@ -203,6 +203,36 @@ body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
+/* ──────────────────────────────────────────────
+   Переключение темы: круговое раскрытие новой темы
+   из кнопки-переключателя (View Transitions API).
+   Точку и радиус задаёт stores/theme.js.
+   ────────────────────────────────────────────── */
+@keyframes themeRevealClip {
+  from {
+    clip-path: circle(0 at var(--theme-vt-x, 100%) var(--theme-vt-y, 0px));
+  }
+  to {
+    clip-path: circle(var(--theme-vt-r, 150%) at var(--theme-vt-x, 100%) var(--theme-vt-y, 0px));
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  /* отключаем стандартный кроссфейд — делаем своё раскрытие */
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 0;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+  animation: themeRevealClip 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 html[data-theme='dark'] a {
   color: #93c5fd;
 }

@@ -288,8 +288,15 @@ export default {
       this.isDropdownOpen = false
     },
 
-    toggleTheme() {
-      this.themeStore.toggleTheme()
+    toggleTheme(event) {
+      // Берём центр кнопки как точку, из которой расходится волна новой темы
+      let origin = null
+      const el = event?.currentTarget
+      if (el && typeof el.getBoundingClientRect === 'function') {
+        const rect = el.getBoundingClientRect()
+        origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      }
+      this.themeStore.toggleTheme(origin)
     },
 
     toggleNotificationSound() {
@@ -743,6 +750,52 @@ header {
   position: sticky;
   top: 0;
   z-index: 40;
+  animation: headerBarReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* ── Анимация появления header ── */
+@keyframes headerBarReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes headerItemReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Каскадный выход содержимого после «выезда» бара */
+.logo-container {
+  animation: headerItemReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.2s backwards;
+}
+
+.office-switch-shell {
+  animation: headerItemReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.32s backwards;
+}
+
+.auth-container {
+  animation: headerItemReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.42s backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header,
+  .logo-container,
+  .office-switch-shell,
+  .auth-container {
+    animation: none !important;
+  }
 }
 
 .header-container

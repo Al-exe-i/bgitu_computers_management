@@ -171,7 +171,9 @@ export default {
       viewportScrollY: 0,
       viewportScrollSnapshot: null,
       viewportResizeHandler: null,
-      viewportTouchStartY: 0
+      viewportTouchStartY: 0,
+      gridLabelMaxLength: 15,
+      gridLabelResizeHandler: null
     };
   },
   computed: {
@@ -1037,6 +1039,39 @@ export default {
 
     getEquipmentType(id) {
       return this.equipmentTypes[id];
+    },
+
+    getEquipmentDisplayName(item) {
+      const fallback = this.getEquipmentType(item?.type)?.name || 'Оборудование';
+      return String(item?.title || fallback).trim() || fallback;
+    },
+
+    formatEquipmentGridLabel(item) {
+      const label = this.getEquipmentDisplayName(item);
+      const chars = Array.from(label);
+      const maxLength = this.gridLabelMaxLength || 15;
+
+      if (chars.length <= maxLength) {
+        return label;
+      }
+
+      return `${chars.slice(0, Math.max(1, maxLength - 1)).join('').trimEnd()}…`;
+    },
+
+    updateGridLabelLimit() {
+      const width = window.innerWidth || document.documentElement.clientWidth || 0;
+
+      if (width <= 480) {
+        this.gridLabelMaxLength = 10;
+        return;
+      }
+
+      if (width <= 768) {
+        this.gridLabelMaxLength = 12;
+        return;
+      }
+
+      this.gridLabelMaxLength = 15;
     },
 
     getCellClasses(row, col) {
@@ -1958,6 +1993,10 @@ export default {
 
   async mounted() {
     this.isUnmounted = false;
+    this.updateGridLabelLimit();
+    this.gridLabelResizeHandler = () => this.updateGridLabelLimit();
+    window.addEventListener('resize', this.gridLabelResizeHandler, { passive: true });
+    window.addEventListener('orientationchange', this.gridLabelResizeHandler, { passive: true });
     window.addEventListener('pagehide', this.handlePageLifecycleEnd);
     await this.getAudience();
     this.connectRealtime();
@@ -1965,6 +2004,11 @@ export default {
 
   beforeUnmount() {
     this.isUnmounted = true;
+    if (this.gridLabelResizeHandler) {
+      window.removeEventListener('resize', this.gridLabelResizeHandler);
+      window.removeEventListener('orientationchange', this.gridLabelResizeHandler);
+      this.gridLabelResizeHandler = null;
+    }
     window.removeEventListener('pagehide', this.handlePageLifecycleEnd);
     this.clearStatusConfirmTimers();
     this.clearViewportScrollLock();
@@ -2120,8 +2164,11 @@ export default {
                         <TrustedSvgIcon :svg="getEquipmentType(item.type).icon" />
                       </div>
 
-                      <div class="equipment-label">
-                        {{ item.title || getEquipmentType(item.type).name }}
+                      <div
+                          class="equipment-label"
+                          :title="getEquipmentDisplayName(item)"
+                      >
+                        {{ formatEquipmentGridLabel(item) }}
                       </div>
                     </div>
                   </div>
@@ -3540,14 +3587,16 @@ export default {
 }
 
 .equipment-label {
+  display: block;
   font-size: var(--font-size);
   font-weight: var(--equipment-label-fw);
   line-height: 1.15;
   text-align: center;
   color: #334155;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  max-width: 100%;
+  max-width: min(100%, 15ch);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Modal */
@@ -6328,6 +6377,7 @@ export default {
   }
 
   .equipment-label {
+    max-width: min(100%, 12ch);
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
@@ -6795,6 +6845,10 @@ export default {
     --icon-div-size: calc(30px * var(--ui-scale));
     --icon-size: calc(18px * var(--ui-scale));
     --grid-gap: calc(4px * var(--ui-scale));
+  }
+
+  .equipment-label {
+    max-width: min(100%, 10ch);
   }
 
   .specs-entry-group {
