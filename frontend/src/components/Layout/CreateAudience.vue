@@ -88,6 +88,34 @@ function buildLandmarksPayload(source = {}) {
   return hasValue ? normalized : {};
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeNullableString(value) {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
+function cloneJsonObject(value) {
+  if (!isPlainObject(value)) return {};
+
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return {};
+  }
+}
+
+function sanitizeFileNamePart(value, fallback) {
+  const text = String(value ?? '').trim() || fallback;
+  return text
+      .replace(/[\\/:*?"<>|]+/g, '_')
+      .replace(/\s+/g, '_')
+      .replace(/_+/g, '_');
+}
+
 export default {
   name: 'CreateAudience',
   components: { TrustedSvgIcon },
@@ -117,6 +145,7 @@ export default {
       landmarkDraft: '',
 
       clearGridClicked: false,
+      isGridActionsOpen: false,
       paramsCollapsed: false,
       loading: false,
 
@@ -642,6 +671,297 @@ export default {
       this.closeLandmarkEditor();
     },
 
+    buildGridExportFileName() {
+      const audience = sanitizeFileNamePart(this.classroomNumber, 'new');
+      const floor = sanitizeFileNamePart(this.floorNumber, '1');
+      const office = sanitizeFileNamePart(this.officeNumber, '1');
+
+      return `Audience_${audience}_floor_${floor}_office_${office}.json`;
+    },
+
+    buildGridExportPayload() {
+      return {
+        schema: 'bgitu-audience-grid',
+        version: 1,
+        grid: {
+          width: Number(this.gridWidth),
+          height: Number(this.gridHeight),
+          landmarks: normalizeLandmarks(this.landmarks),
+        },
+        hardware: this.equipmentItems
+            .filter(item => !this.isEquipmentDeleting(item))
+            .map(item => ({
+              type: item.type,
+              x: Number(item.x),
+              y: Number(item.y),
+              width: Number(item.width ?? 1),
+              height: Number(item.height ?? 1),
+              state: item.state ?? true,
+              description: normalizeNullableString(item.description),
+              inv_number: normalizeNullableString(item.inv_number),
+              title: normalizeNullableString(item.title),
+              specs: cloneJsonObject(item.specs),
+            })),
+      };
+    },
+
+    async exportGridToJson() {
+      const payload = this.buildGridExportPayload();
+      const fileName = this.buildGridExportFileName();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json;charset=utf-8',
+      });
+
+      if (window.isSecureContext && 'showSaveFilePicker' in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [
+              {
+                description: 'JSON файл сетки аудитории',
+                accept: { 'application/json': ['.json'] },
+              },
+            ],
+          });
+          const writable = await handle.createWritable();
+
+          await writable.write(blob);
+          await writable.close();
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            return;
+          }
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    },
+
+    triggerGridJsonImport() {
+      this.$refs.gridJsonInput?.click();
+    },
+
+    normalizeImportedPositiveInteger(value) {
+      const number = Number(value);
+
+      if (!Number.isInteger(number) || number < 1) {
+        throw new Error('Invalid grid value');
+      }
+
+      return number;
+    },
+
+    normalizeImportedCoordinate(value) {
+      const number = Number(value);
+
+      if (!Number.isInteger(number) || number < 0) {
+        throw new Error('Invalid hardware coordinate');
+      }
+
+      return number;
+    },
+
+    parseImportedGridJson(data) {
+      if (!isPlainObject(data)) {
+        throw new Error('Invalid file');
+      }
+
+      if (data.schema !== undefined && data.schema !== 'bgitu-audience-grid') {
+        throw new Error('Invalid schema');
+      }
+
+      const gridSource = isPlainObject(data.grid) ? data.grid : data;
+      const gridWidth = this.normalizeImportedPositiveInteger(gridSource.width ?? data.gridWidth);
+      const gridHeight = this.normalizeImportedPositiveInteger(gridSource.height ?? data.gridHeight);
+      const rawHardware = Array.isArray(data.hardware)
+          ? data.hardware
+          : Array.isArray(data.equipment)
+              ? data.equipment
+              : null;
+
+      if (!rawHardware) {
+        throw new Error('Invalid hardware');
+      }
+
+      const occupied = new Set();
+      const hardware = rawHardware.map((item, index) => {
+        if (!isPlainObject(item)) {
+          throw new Error('Invalid hardware item');
+        }
+
+        const type = String(item.type ?? '').trim();
+        if (!this.equipmentTypeMap[type]) {
+          throw new Error('Invalid hardware type');
+        }
+
+        const x = this.normalizeImportedCoordinate(item.x);
+        const y = this.normalizeImportedCoordinate(item.y);
+        const width = this.normalizeImportedPositiveInteger(item.width ?? 1);
+        const height = this.normalizeImportedPositiveInteger(item.height ?? 1);
+
+        if (x + width > gridWidth || y + height > gridHeight) {
+          throw new Error('Hardware out of grid');
+        }
+
+        for (let row = y; row < y + height; row += 1) {
+          for (let col = x; col < x + width; col += 1) {
+            const key = `${row}:${col}`;
+            if (occupied.has(key)) {
+              throw new Error('Hardware overlaps');
+            }
+            occupied.add(key);
+          }
+        }
+
+        if (item.state !== undefined && item.state !== null && typeof item.state !== 'boolean') {
+          throw new Error('Invalid hardware state');
+        }
+
+        if (item.specs !== undefined && item.specs !== null && !isPlainObject(item.specs)) {
+          throw new Error('Invalid hardware specs');
+        }
+
+        return {
+          localId: `import-${index}-${crypto.randomUUID()}`,
+          dbId: null,
+          type,
+          x,
+          y,
+          width,
+          height,
+          state: item.state ?? true,
+          description: normalizeNullableString(item.description),
+          inv_number: normalizeNullableString(item.inv_number ?? item.invNumber),
+          title: normalizeNullableString(item.title),
+          specs: cloneJsonObject(item.specs),
+          files: [],
+        };
+      });
+
+      return {
+        gridWidth,
+        gridHeight,
+        landmarks: normalizeLandmarks(gridSource.landmarks ?? data.landmarks),
+        hardware,
+      };
+    },
+
+    async importGridFromJson(event) {
+      const input = event.target;
+      const file = input.files?.[0];
+
+      if (!file) return;
+
+      try {
+        const data = JSON.parse(await file.text());
+        const imported = this.parseImportedGridJson(data);
+
+        this.clearEquipmentRemovalTimers();
+        this.isApplyingHistory = true;
+        this.gridWidth = imported.gridWidth;
+        this.gridHeight = imported.gridHeight;
+        this.landmarks = imported.landmarks;
+        this.equipmentItems = imported.hardware;
+        this.clearGridClicked = false;
+        this.closeLandmarkEditor();
+
+        this.$nextTick(() => {
+          this.isApplyingHistory = false;
+          this.recomputeUnsavedChanges();
+        });
+
+        this.notify.success('Сетка загружена из JSON');
+      } catch {
+        this.notify.error('Вы выбрали не тот файл');
+      } finally {
+        input.value = '';
+      }
+    },
+
+    toggleGridActionsMenu() {
+      this.isGridActionsOpen = !this.isGridActionsOpen;
+    },
+
+    closeGridActionsMenu() {
+      this.isGridActionsOpen = false;
+    },
+
+    handleGridActionsOutsideClick(event) {
+      if (!this.isGridActionsOpen) return;
+
+      const menu = this.$refs.gridActionsMenu;
+      if (menu && !menu.contains(event.target)) {
+        this.closeGridActionsMenu();
+      }
+    },
+
+    async handleGridMenuExport() {
+      await this.exportGridToJson();
+      this.closeGridActionsMenu();
+    },
+
+    handleGridMenuImport() {
+      this.closeGridActionsMenu();
+      this.triggerGridJsonImport();
+    },
+
+    handleGridMenuUndo() {
+      this.undoAudienceChange();
+      this.closeGridActionsMenu();
+    },
+
+    handleGridMenuRedo() {
+      this.redoAudienceChange();
+      this.closeGridActionsMenu();
+    },
+
+    handleGridMenuClear() {
+      this.clearGrid();
+      this.closeGridActionsMenu();
+    },
+
+    isEditableShortcutTarget(target) {
+      if (!(target instanceof HTMLElement)) return false;
+
+      const tagName = target.tagName.toLowerCase();
+      return target.isContentEditable || ['input', 'textarea', 'select'].includes(tagName);
+    },
+
+    handleAudienceKeyboardShortcuts(event) {
+      if (event.key === 'Escape' && this.isGridActionsOpen) {
+        this.closeGridActionsMenu();
+        return;
+      }
+
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || this.isEditableShortcutTarget(event.target)) {
+        return;
+      }
+
+      const isZKey = event.code === 'KeyZ';
+      const isUndo = isZKey && !event.shiftKey;
+      const isRedo = isZKey && event.shiftKey;
+
+      if (isUndo && this.canUndo) {
+        event.preventDefault();
+        this.undoAudienceChange();
+        return;
+      }
+
+      if (isRedo && this.canRedo) {
+        event.preventDefault();
+        this.redoAudienceChange();
+      }
+    },
+
     buildAudienceSnapshot() {
       const normalizedItems = [...this.equipmentItems]
           .map(item => ({
@@ -1035,6 +1355,8 @@ export default {
   {
     this.isHydrating = true;
     this.updatePageTitle();
+    document.addEventListener('pointerdown', this.handleGridActionsOutsideClick);
+    window.addEventListener('keydown', this.handleAudienceKeyboardShortcuts);
     const officeIdFromQuery = Number(this.$route.query.office_id);
     if (!this.isEditMode && Number.isInteger(officeIdFromQuery) && officeIdFromQuery > 0) {
       this.officeNumber = officeIdFromQuery;
@@ -1054,6 +1376,8 @@ export default {
 
   beforeUnmount()
   {
+    document.removeEventListener('pointerdown', this.handleGridActionsOutsideClick);
+    window.removeEventListener('keydown', this.handleAudienceKeyboardShortcuts);
     this.clearEquipmentRemovalTimers();
   },
 
@@ -1270,43 +1594,139 @@ export default {
             </div>
             <div class="grid-header-actions">
               <div class="grid-action-cluster">
-                <div class="history-actions" role="group" aria-label="История изменений">
+                <div ref="gridActionsMenu" class="grid-actions-menu">
                   <button
                       type="button"
-                      class="history-btn"
-                      :disabled="!canUndo"
-                      title="Отменить последнее действие"
-                      @click="undoAudienceChange"
+                      class="grid-actions-trigger"
+                      :class="{ active: isGridActionsOpen }"
+                      :aria-expanded="String(isGridActionsOpen)"
+                      aria-haspopup="menu"
+                      title="Действия с сеткой"
+                      @click.stop="toggleGridActionsMenu"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M9 14 4 9l5-5"/>
-                      <path d="M4 9h10a6 6 0 0 1 0 12h-3"/>
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.02V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.02-.33H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.02V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.34.34.65.6 1 .28.26.64.4 1.02.4H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51.6Z"/>
                     </svg>
-                    Отменить
+                    Действия
                   </button>
-                  <button
-                      type="button"
-                      class="history-btn"
-                      :disabled="!canRedo"
-                      title="Повторить отменённое действие"
-                      @click="redoAudienceChange"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="m15 14 5-5-5-5"/>
-                      <path d="M20 9H10a6 6 0 0 0 0 12h3"/>
-                    </svg>
-                    Повторить
-                  </button>
+
+                  <transition name="grid-actions-dropdown">
+                    <div
+                        v-if="isGridActionsOpen"
+                        class="grid-actions-dropdown"
+                        role="menu"
+                        @click.stop
+                    >
+                      <button
+                          type="button"
+                          class="grid-action-menu-item"
+                          :disabled="!canUndo"
+                          role="menuitem"
+                          @click="handleGridMenuUndo"
+                      >
+                        <span class="grid-action-menu-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 14 4 9l5-5"/>
+                            <path d="M4 9h10a6 6 0 0 1 0 12h-3"/>
+                          </svg>
+                        </span>
+                        <span class="grid-action-menu-copy">
+                          <span class="grid-action-menu-title">Отменить</span>
+                          <span class="grid-action-menu-hint">Ctrl+Z</span>
+                        </span>
+                      </button>
+                      <button
+                          type="button"
+                          class="grid-action-menu-item"
+                          :disabled="!canRedo"
+                          role="menuitem"
+                          @click="handleGridMenuRedo"
+                      >
+                        <span class="grid-action-menu-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m15 14 5-5-5-5"/>
+                            <path d="M20 9H10a6 6 0 0 0 0 12h3"/>
+                          </svg>
+                        </span>
+                        <span class="grid-action-menu-copy">
+                          <span class="grid-action-menu-title">Повторить</span>
+                          <span class="grid-action-menu-hint">Ctrl+Shift+Z</span>
+                        </span>
+                      </button>
+
+                      <div class="grid-action-divider"></div>
+
+                      <button
+                          type="button"
+                          class="grid-action-menu-item"
+                          role="menuitem"
+                          @click="handleGridMenuExport"
+                      >
+                        <span class="grid-action-menu-icon is-blue">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v12"/>
+                            <path d="m7 10 5 5 5-5"/>
+                            <path d="M5 21h14"/>
+                          </svg>
+                        </span>
+                        <span class="grid-action-menu-copy">
+                          <span class="grid-action-menu-title">Выгрузить JSON</span>
+                          <span class="grid-action-menu-hint">Сетка и оборудование</span>
+                        </span>
+                      </button>
+                      <button
+                          type="button"
+                          class="grid-action-menu-item"
+                          role="menuitem"
+                          @click="handleGridMenuImport"
+                      >
+                        <span class="grid-action-menu-icon is-blue">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 21V9"/>
+                            <path d="m7 14 5-5 5 5"/>
+                            <path d="M5 3h14"/>
+                          </svg>
+                        </span>
+                        <span class="grid-action-menu-copy">
+                          <span class="grid-action-menu-title">Загрузить JSON</span>
+                          <span class="grid-action-menu-hint">Заменит текущую сетку</span>
+                        </span>
+                      </button>
+
+                      <div class="grid-action-divider"></div>
+
+                      <button
+                          type="button"
+                          class="grid-action-menu-item is-danger"
+                          :disabled="!canClearGrid"
+                          role="menuitem"
+                          @click="handleGridMenuClear"
+                      >
+                        <span class="grid-action-menu-icon is-danger">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18"/>
+                            <path d="M8 6V4.8c0-.66.54-1.2 1.2-1.2h5.6c.66 0 1.2.54 1.2 1.2V6"/>
+                            <path d="M19 6l-1 13.2A2 2 0 0 1 16.01 21H7.99A2 2 0 0 1 6 19.2L5 6"/>
+                            <path d="M10 10.5v6"/>
+                            <path d="M14 10.5v6"/>
+                          </svg>
+                        </span>
+                        <span class="grid-action-menu-copy">
+                          <span class="grid-action-menu-title">Очистить всё</span>
+                          <span class="grid-action-menu-hint">Потребуется подтверждение</span>
+                        </span>
+                      </button>
+                    </div>
+                  </transition>
                 </div>
-                <button
-                    type="button"
-                    class="clear-grid-btn"
-                    :class="{ 'is-armed': clearGridClicked }"
-                    :disabled="!canClearGrid"
-                    @click="clearGrid"
+                <input
+                    ref="gridJsonInput"
+                    class="grid-json-input"
+                    type="file"
+                    accept=".json,application/json"
+                    @change="importGridFromJson"
                 >
-                  Очистить всё
-                </button>
                 <button
                     type="button"
                     class="btn btn-primary grid-save-btn"
@@ -2425,49 +2845,164 @@ export default {
   gap: 10px;
 }
 
-.history-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 14px;
-  background: #f8fafc;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+.grid-actions-menu {
+  position: relative;
 }
 
-.history-btn {
-  height: 34px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: #475569;
+.grid-actions-trigger {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.95)),
+      #f8fafc;
+  color: #334155;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      0 10px 22px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.history-btn svg {
-  width: 15px;
-  height: 15px;
+.grid-actions-trigger svg {
+  width: 17px;
+  height: 17px;
 }
 
-.history-btn:hover:not(:disabled) {
-  background: #e0f2fe;
+.grid-actions-trigger:hover,
+.grid-actions-trigger.active {
   color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.42);
   transform: translateY(-1px);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 14px 28px rgba(37, 99, 235, 0.14);
 }
 
-.history-btn:disabled {
+.grid-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 12;
+  width: min(328px, calc(100vw - 48px));
+  padding: 8px;
+  border: 1px solid rgba(203, 213, 225, 0.86);
+  border-radius: 18px;
+  background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.16);
+}
+
+.grid-action-menu-item {
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: #1e293b;
+  font-family: inherit;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+.grid-action-menu-item:hover:not(:disabled) {
+  background: rgba(219, 234, 254, 0.72);
+  color: #1d4ed8;
+  transform: translateX(2px);
+}
+
+.grid-action-menu-item:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 0.46;
+}
+
+.grid-action-menu-item.is-danger:hover:not(:disabled) {
+  background: rgba(254, 226, 226, 0.86);
+  color: #b91c1c;
+}
+
+.grid-action-menu-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.grid-action-menu-icon.is-blue {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.grid-action-menu-icon.is-danger {
+  background: #fee2e2;
+  color: #be123c;
+}
+
+.grid-action-menu-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.grid-action-menu-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grid-action-menu-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.grid-action-menu-hint {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.grid-action-divider {
+  height: 1px;
+  margin: 6px 8px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.38), transparent);
+}
+
+.grid-actions-dropdown-enter-active,
+.grid-actions-dropdown-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.grid-actions-dropdown-enter-from,
+.grid-actions-dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
+
+.grid-json-input {
+  display: none;
 }
 
 .grid-save-btn {
@@ -2527,24 +3062,65 @@ export default {
   border-color: transparent;
 }
 
-:global(html[data-theme='dark'] .create-audience-page .history-actions) {
-  background: #0f172a;
+:global(html[data-theme='dark'] .create-audience-page .grid-actions-trigger) {
+  background:
+      linear-gradient(135deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.96)),
+      #0f172a;
   border-color: #334155;
+  color: #cbd5e1;
   box-shadow: none;
 }
 
-:global(html[data-theme='dark'] .create-audience-page .history-btn) {
+:global(html[data-theme='dark'] .create-audience-page .grid-actions-trigger:hover),
+:global(html[data-theme='dark'] .create-audience-page .grid-actions-trigger.active) {
+  border-color: #2563eb;
+  color: #bfdbfe;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.14);
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-actions-dropdown) {
+  background:
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 34%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+  border-color: #334155;
+  box-shadow: 0 24px 54px rgba(2, 6, 23, 0.48);
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-item) {
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-item:hover:not(:disabled)) {
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-item.is-danger:hover:not(:disabled)) {
+  background: rgba(127, 29, 29, 0.26);
+  color: #fecaca;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-icon) {
+  background: #111827;
   color: #cbd5e1;
 }
 
-:global(html[data-theme='dark'] .create-audience-page .history-btn:hover:not(:disabled)) {
-  background: #1e3a8a;
-  color: #93c5fd;
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-icon.is-blue) {
+  background: rgba(30, 64, 175, 0.36);
+  color: #bfdbfe;
 }
 
-:global(html[data-theme='dark'] .create-audience-page .history-btn:disabled) {
-  color: #64748b;
-  opacity: 0.46;
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-icon.is-danger) {
+  background: rgba(127, 29, 29, 0.32);
+  color: #fecaca;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-action-menu-hint) {
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-action-divider) {
+  background: linear-gradient(90deg, transparent, rgba(71, 85, 105, 0.72), transparent);
 }
 
 :global(html[data-theme='dark'] .create-audience-page) {
@@ -2557,7 +3133,8 @@ export default {
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .panel),
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-panel),
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-container),
-:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .history-actions),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-actions-trigger),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-actions-dropdown),
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .form-input),
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .form-select),
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .stats-panel) {
@@ -2583,7 +3160,7 @@ export default {
   box-shadow: none !important;
 }
 
-:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .history-btn:disabled),
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-action-menu-item:disabled),
 :global(html[data-theme='dark'] .create-audience-page.is-edit-mode .clear-grid-btn:disabled) {
   opacity: 1 !important;
   background: #07111f !important;
@@ -2592,7 +3169,7 @@ export default {
   box-shadow: none !important;
 }
 
-:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .history-actions) {
+:global(html[data-theme='dark'] .create-audience-page.is-edit-mode .grid-actions-trigger) {
   background: #020617 !important;
   border-color: #1e3a8a !important;
   box-shadow: none !important;
@@ -3209,16 +3786,20 @@ export default {
     width: 100%;
   }
 
-  .history-actions {
-    flex: 1 1 100%;
+  .grid-actions-menu {
+    flex: 0 0 auto;
+  }
+
+  .grid-actions-trigger {
     width: 100%;
   }
 
-  .history-btn {
-    flex: 1 1 0;
+  .grid-actions-dropdown {
+    left: 0;
+    right: auto;
+    width: min(328px, calc(100vw - 48px));
   }
 
-  .grid-action-cluster > .clear-grid-btn,
   .grid-action-cluster > .grid-save-btn {
     flex: 1 1 0;
     min-width: 0;
