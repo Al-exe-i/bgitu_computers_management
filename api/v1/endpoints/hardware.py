@@ -20,7 +20,7 @@ async def add_hardware_file(
     hardware_id: int,
     files: list[UploadFile],
     use_cases: inventory_hardware_use_cases_dep,
-    audit: admin_audit_actor_dep,
+    audit: user_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
     for file in files:

@@ -240,6 +240,11 @@ export default {
       return this.authStore.isAuthenticated && user && user.role < 2;
     },
 
+    canUploadHardwareFiles()
+    {
+      return this.authStore.isAuthenticated;
+    },
+
     // Плотность сетки
     gridDensityClass() {
       if (!this.classroom) return '';
@@ -1885,6 +1890,12 @@ export default {
     },
 
     async uploadFiles(files) {
+      if (!this.canUploadHardwareFiles)
+      {
+        this.notify.warning("У вас недостаточно прав для загрузки файлов");
+        return;
+      }
+
       const validFiles = this.validateHardwareFiles(files);
       if (!validFiles.length) return;
 
@@ -1911,7 +1922,7 @@ export default {
     },
 
     handleDrop(event) {
-      if(!this.havePermission)
+      if(!this.canUploadHardwareFiles)
       {
         this.isDragOver = false;
         this.notify.warning("У вас недостаточно прав для выполнения данного действия!")
@@ -2356,7 +2367,22 @@ export default {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Неисправности</label>
+            <div class="problem-header">
+              <label class="form-label">Неисправности</label>
+              <button
+                  v-if="authStore.isAuthenticated"
+                  type="button"
+                  class="problem-add"
+                  :disabled="problemDraft.length >= maxProblems"
+                  :title="problemDraft.length >= maxProblems ? 'Достигнут лимит неисправностей' : 'Добавить проблему'"
+                  aria-label="Добавить проблему"
+                  @click="addProblem"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+              </button>
+            </div>
 
             <!-- Компактный список: «Проблема 1», «Проблема 2»… -->
             <div class="problem-list">
@@ -2398,19 +2424,6 @@ export default {
                   {{ authStore.isAuthenticated ? 'Список пуст — добавьте найденные неисправности' : 'Неисправности не указаны' }}
                 </div>
               </div>
-
-              <button
-                  v-if="authStore.isAuthenticated"
-                  type="button"
-                  class="problem-add"
-                  :disabled="problemDraft.length >= maxProblems"
-                  @click="addProblem"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M12 5v14M5 12h14"></path>
-                </svg>
-                Добавить проблему
-              </button>
             </div>
           </div>
 
@@ -2475,7 +2488,7 @@ export default {
             <div class="hw-section-header">
               <span class="hw-section-title">Вложения ({{ selectedCell.data.files ? selectedCell.data.files.length : 0 }})</span>
               <!-- Компактная кнопка для ручного выбора -->
-              <button v-if="havePermission" class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
+              <button v-if="canUploadHardwareFiles" class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                 </svg>
@@ -5243,6 +5256,18 @@ export default {
   letter-spacing: 0.5px;
 }
 
+.problem-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.problem-header .form-label {
+  margin-bottom: 0;
+}
+
 .form-textarea {
   width: 100%;
   padding: 14px 16px;
@@ -5384,23 +5409,39 @@ export default {
 }
 
 .problem-add {
-  align-self: flex-start;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1px dashed rgba(59, 130, 246, 0.6);
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(59, 130, 246, 0.38);
   border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
   color: #2563eb;
-  background: rgba(219, 234, 254, 0.4);
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.8), transparent 58%),
+      rgba(219, 234, 254, 0.55);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      0 6px 16px rgba(37, 99, 235, 0.08);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease,
+      box-shadow 0.2s ease;
 }
 
 .problem-add:hover:not(:disabled) {
-  background: rgba(191, 219, 254, 0.8);
+  border-color: rgba(37, 99, 235, 0.62);
+  color: #1d4ed8;
+  background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.9), transparent 58%),
+      rgba(191, 219, 254, 0.82);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 8px 18px rgba(37, 99, 235, 0.12);
 }
 
 .problem-add:disabled {
@@ -5409,8 +5450,8 @@ export default {
 }
 
 .problem-add svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 :global(html[data-theme='dark']) .problem-input {
@@ -5460,13 +5501,23 @@ export default {
 :global(html[data-theme='dark']) .problem-add {
   border-color: rgba(96, 165, 250, 0.4);
   color: #93c5fd;
-  background: rgba(37, 99, 235, 0.18);
+  background:
+      linear-gradient(135deg, rgba(30, 41, 59, 0.78), transparent 58%),
+      rgba(37, 99, 235, 0.18);
+  box-shadow:
+      inset 0 1px 0 rgba(191, 219, 254, 0.08),
+      0 8px 20px rgba(2, 6, 23, 0.18);
 }
 
 :global(html[data-theme='dark']) .problem-add:hover:not(:disabled) {
-  background: rgba(37, 99, 235, 0.3);
+  background:
+      linear-gradient(135deg, rgba(30, 41, 59, 0.92), transparent 58%),
+      rgba(37, 99, 235, 0.3);
   border-color: rgba(147, 197, 253, 0.58);
   color: #bfdbfe;
+  box-shadow:
+      inset 0 1px 0 rgba(191, 219, 254, 0.12),
+      0 10px 22px rgba(2, 6, 23, 0.24);
 }
 
 :global(html[data-theme='dark'] .audience-equipment-modal .problem-add) {
@@ -5475,7 +5526,9 @@ export default {
       rgba(15, 23, 42, 0.72) !important;
   border-color: rgba(96, 165, 250, 0.54) !important;
   color: #bfdbfe !important;
-  box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08) !important;
+  box-shadow:
+      inset 0 1px 0 rgba(191, 219, 254, 0.08),
+      0 8px 20px rgba(2, 6, 23, 0.18) !important;
 }
 
 :global(html[data-theme='dark'] .audience-equipment-modal .problem-add:hover:not(:disabled)) {
@@ -7007,6 +7060,20 @@ export default {
   .equipment-modal .form-label {
     margin-bottom: 6px;
     font-size: 12px;
+  }
+
+  .equipment-modal .problem-header {
+    margin-bottom: 6px;
+  }
+
+  .equipment-modal .problem-header .form-label {
+    margin-bottom: 0;
+  }
+
+  .equipment-modal .problem-add {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
   }
 
   .equipment-modal .form-textarea {
