@@ -6152,43 +6152,60 @@ export default {
   }
 
   .status-action-zone:has(.status-inline-confirm) {
-    min-height: 76px;
+    min-height: 108px;
   }
 
   .status-inline-confirm {
     grid-column: 1 / -1;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(78px, 0.82fr) minmax(0, 1.18fr);
     grid-template-areas:
-        "mark copy"
+        "copy copy"
         "cancel confirm";
-    align-items: stretch;
-    gap: 6px;
-    padding: 5px;
-    min-height: 78px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 8px 14px;
+    min-height: 104px;
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--sc-bg), white 42%), var(--sc-bg));
+  }
+
+  :global(html[data-theme='dark']) .status-inline-confirm {
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
+  }
+
+  .status-inline-confirm::before {
+    opacity: 0;
   }
 
   .status-inline-mark {
-    grid-area: mark;
-    align-self: center;
-    width: 32px;
-    height: 32px;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 31px;
+    height: 31px;
+    border-radius: 12px;
   }
 
   .status-inline-copy {
     grid-area: copy;
-    min-height: 28px;
-    padding: 0 6px;
+    min-height: 32px;
+    padding: 1px 4px 0 44px;
     align-self: center;
     align-items: flex-start;
     justify-content: center;
+    gap: 3px;
   }
 
   .status-inline-kicker {
     font-size: 8px;
+    letter-spacing: 0.12em;
   }
 
   .status-inline-label {
-    font-size: 12px;
+    font-size: 12.5px;
+    line-height: 1.15;
     white-space: normal;
     overflow: visible;
     text-align: left;
@@ -6200,18 +6217,44 @@ export default {
   }
 
   .status-inline-btn {
-    min-height: 32px;
-    padding: 0 8px;
+    min-height: 33px;
+    padding: 0 10px;
+    border-radius: 12px;
     font-size: 12px;
     width: 100%;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        0 6px 14px rgba(15, 23, 42, 0.08);
   }
 
   .status-inline-btn:not(.is-primary) {
     grid-area: cancel;
+    justify-self: stretch;
   }
 
   .status-inline-btn.is-primary {
     grid-area: confirm;
+    justify-self: stretch;
+  }
+
+  .status-inline-progress {
+    inset: auto 8px 7px;
+    height: 4px;
+    border-radius: 999px;
+    clip-path: inset(0 calc(100% - var(--status-confirm-progress, 100%)) 0 0 round 999px);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 82%),
+        0 5px 14px color-mix(in srgb, var(--status-accent), transparent 74%);
+  }
+
+  .status-inline-progress::after {
+    width: 10px;
+    filter: blur(5px);
+  }
+
+  .status-inline-confirm::after {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 42%);
   }
 }
 
