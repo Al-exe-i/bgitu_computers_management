@@ -145,7 +145,9 @@ export default {
 <template>
   <app-header @open-login="isLoginModalOpen = true"></app-header>
   <login-modal :is-open="isLoginModalOpen" @close="handleLoginModalClose"></login-modal>
-  <router-view></router-view>
+  <main class="app-main">
+    <router-view></router-view>
+  </main>
   <NotificationsModal></NotificationsModal>
   <app-footer></app-footer>
 </template>
@@ -190,8 +192,7 @@ html[data-theme='dark'] {
 }
 
 html,
-body,
-#app {
+body {
   min-height: 100%;
 }
 
@@ -201,6 +202,30 @@ body {
   min-height: 100vh;
   padding: 0;
   transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* Прижатие футера к низу: приложение — флекс-колонка на всю высоту окна,
+   контент растягивается, футер всегда у нижней кромки */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Корень текущей страницы заполняет свободное место (важно для страниц
+   с собственным фоном, чтобы он доходил до футера) */
+.app-main > * {
+  flex: 1 0 auto;
+}
+
+.site-footer {
+  flex-shrink: 0;
 }
 
 /* ──────────────────────────────────────────────
