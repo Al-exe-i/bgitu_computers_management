@@ -486,18 +486,11 @@ export default {
       return Math.max(0, Math.ceil(this.statusConfirmRemainingMs / 1000));
     },
 
-    statusConfirmProgressPercent() {
-      if (!this.statusConfirmIsPending || this.statusConfirmDurationMs <= 0) return 0;
-
-      return Math.max(
-          0,
-          Math.min(100, (this.statusConfirmRemainingMs / this.statusConfirmDurationMs) * 100)
-      );
-    },
-
     statusConfirmProgressStyle() {
+      // Полосу отсчёта рисует одна CSS-анимация на всю длительность —
+      // сюда передаём только её время, без ежекадрового пересчёта ширины
       return {
-        '--status-confirm-progress': `${this.statusConfirmProgressPercent}%`
+        '--sc-duration': `${this.statusConfirmDurationMs}ms`
       };
     },
 
@@ -1542,7 +1535,9 @@ export default {
       this.clearStatusConfirmTimers();
       this.statusConfirmStartedAt = Date.now();
       this.statusConfirmRemainingMs = this.statusConfirmDurationMs;
-      this.statusConfirmTimerId = window.setInterval(this.updateStatusConfirmCountdown, 80);
+      // Таймер нужен только для цифры секунд и флага «срочно» — полоса едет на CSS,
+      // поэтому частоту можно снизить (стабильнее, меньше реактивных обновлений)
+      this.statusConfirmTimerId = window.setInterval(this.updateStatusConfirmCountdown, 250);
       this.statusConfirmEndTimerId = window.setTimeout(this.confirmWorkingStatus, this.statusConfirmDurationMs);
     },
 
@@ -5940,8 +5935,12 @@ export default {
   position: absolute;
   inset: 4px;
   width: auto;
-  clip-path: inset(0 calc(100% - var(--status-confirm-progress, 100%)) 0 0 round 14px);
   border-radius: 14px;
+  transform-origin: left center;
+  transform: scaleX(1);
+  /* Плавный обратный отсчёт одной CSS-анимацией: идёт на GPU, кадрово-точный
+     и не зависит от дрожания/троттлинга JS-таймеров */
+  animation: scCountdown var(--sc-duration, 5000ms) linear forwards;
   background: linear-gradient(
     90deg,
     var(--sc-fill-a) 0%,
@@ -5951,9 +5950,14 @@ export default {
   box-shadow:
       inset 0 -2px 0 0 var(--sc-line),
       inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transition: clip-path 0.08s linear;
   z-index: 0;
   overflow: hidden;
+  will-change: transform;
+}
+
+@keyframes scCountdown {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
 }
 
 /* Бегущий блик по заливке */
@@ -5971,19 +5975,6 @@ export default {
   animation: scShimmer 2.6s ease-in-out infinite;
 }
 
-/* Свечение ведущей кромки (правый край убывающей полосы) */
-.status-inline-progress::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -1px;
-  bottom: 0;
-  width: 16px;
-  background: var(--sc-edge);
-  filter: blur(6px);
-  opacity: 0.9;
-}
-
 @keyframes scShimmer {
   0%   { background-position: -200% center; }
   100% { background-position: 200% center; }
@@ -5994,6 +5985,14 @@ export default {
 .status-inline-btn {
   position: relative;
   z-index: 2;
+}
+
+/* Кольцо-индикатор вокруг иконки едет синхронно с полосой, тоже на CSS.
+   @property делает custom-property интерполируемой, поэтому угол меняется плавно. */
+@property --sc-ring {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 100%;
 }
 
 .status-inline-mark {
@@ -6007,12 +6006,18 @@ export default {
   background:
       linear-gradient(var(--sc-mark-inner), var(--sc-mark-inner)) padding-box,
       conic-gradient(
-          var(--status-accent) var(--status-confirm-progress, 100%),
+          var(--status-accent) var(--sc-ring, 100%),
           color-mix(in srgb, var(--status-accent), transparent 86%) 0
       ) border-box;
   box-shadow:
       0 8px 16px color-mix(in srgb, var(--status-accent), transparent 86%),
       inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  animation: scRing var(--sc-duration, 5000ms) linear forwards;
+}
+
+@keyframes scRing {
+  from { --sc-ring: 100%; }
+  to   { --sc-ring: 0%; }
 }
 
 .status-inline-mark svg {
@@ -6241,15 +6246,9 @@ export default {
     inset: auto 8px 7px;
     height: 4px;
     border-radius: 999px;
-    clip-path: inset(0 calc(100% - var(--status-confirm-progress, 100%)) 0 0 round 999px);
     box-shadow:
         0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 82%),
         0 5px 14px color-mix(in srgb, var(--status-accent), transparent 74%);
-  }
-
-  .status-inline-progress::after {
-    width: 10px;
-    filter: blur(5px);
   }
 
   .status-inline-confirm::after {
