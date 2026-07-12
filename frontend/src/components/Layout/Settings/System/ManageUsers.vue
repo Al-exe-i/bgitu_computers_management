@@ -2,6 +2,7 @@
 import api from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
+import { getApiUrl } from "@/config/api.js";
 import {
   RU_EMAIL_ERROR_MESSAGE,
   isRuEmail,
@@ -148,8 +149,23 @@ export default {
     },
 
     getUserAvatar(user) {
-      if (user.photo) return `${import.meta.env.VITE_API_BASE_URL}/admin/files/avatars/${user.photo}`;
+      if (user.photo) {
+        const apiBaseUrl = String(getApiUrl()).replace(/\/+$/, '');
+        const version = encodeURIComponent(user.photo);
+        return `${apiBaseUrl}/users/${user.id}/photo?v=${version}`;
+      }
+
       return noAvatar;
+    },
+
+    handleAvatarError(event) {
+      const image = event.currentTarget;
+      if (!image) return;
+
+      const fallbackUrl = new URL(noAvatar, window.location.href).href;
+      if (image.src !== fallbackUrl) {
+        image.src = noAvatar;
+      }
     },
 
     getRoleName(user) {
@@ -273,7 +289,12 @@ export default {
 
           <td>
             <div class="user-cell">
-              <img class="avatar-small" :src="getUserAvatar(user)" alt="Аватар">
+              <img
+                  class="avatar-small"
+                  :src="getUserAvatar(user)"
+                  alt="Аватар"
+                  @error="handleAvatarError"
+              >
               <div class="user-info">
                 <span class="user-email">{{ user.email }}</span>
                 <span class="user-name text-muted" v-if="user.name">{{ user.name }}</span>

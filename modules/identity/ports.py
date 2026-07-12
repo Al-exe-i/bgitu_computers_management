@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any, Protocol
 
 from schemas.invite import (
@@ -41,8 +41,10 @@ class UploadedAvatarFile(Protocol):
 
 
 class StoredAvatarFile(Protocol):
-    path: str
     media_type: str
+    filename: str
+
+    def iter_file(self) -> Iterator[bytes]: ...
 
 
 class UserPhotoUpdateResult(Protocol):

@@ -558,7 +558,9 @@ body {
 }
 
 .building-container {
+  width: 100%;
   max-width: 1200px;
+  min-width: 0;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -566,6 +568,7 @@ body {
 }
 
 .building-info {
+  width: 100%;
   position: relative;
   overflow: hidden;
   background:

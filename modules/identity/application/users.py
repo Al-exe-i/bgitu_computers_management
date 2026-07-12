@@ -93,8 +93,26 @@ class IdentityUserUseCases:
 
         return user
 
-    def get_current_photo(self, *, actor: IdentityActor) -> StoredAvatarFile | None:
-        return self.user_service.get_photo(actor)
+    async def get_user_photo(
+        self,
+        *,
+        user_id: int,
+        actor: IdentityActor,
+    ) -> StoredAvatarFile | None:
+        if actor.id != user_id and actor.role != UserRole.admin:
+            logger.warning(
+                "User photo read rejected: actor_id={} target_user_id={}",
+                actor.id,
+                user_id,
+            )
+            raise UserPermissionDeniedError()
+
+        user = await self.user_service.get(user_id)
+        if not user:
+            logger.warning("User photo read failed: target_user_id={} not found", user_id)
+            raise UserNotFoundError()
+
+        return self.user_service.get_photo(user)
 
     async def change_password(
         self,

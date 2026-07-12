@@ -2535,7 +2535,11 @@ export default {
               <span class="status-inline-copy">
                 <span class="status-inline-kicker">Подтверждение</span>
                 <span class="status-inline-label">
-                  {{ statusConfirmTargetLabel }} через <strong>{{ statusConfirmRemainingSeconds }}</strong> сек.
+                  <span>{{ statusConfirmTargetLabel }} через</span>
+                  <span class="status-inline-countdown">
+                    <strong>{{ statusConfirmRemainingSeconds }}</strong>
+                    <span>сек.</span>
+                  </span>
                 </span>
               </span>
               <button type="button" class="status-inline-btn" :disabled="statusConfirmLoading" @click="closeStatusConfirmModal">
@@ -5922,11 +5926,14 @@ export default {
   --sc-btn-bg: rgba(255, 255, 255, 0.82);
   --sc-btn-hover: rgba(255, 255, 255, 0.98);
   --sc-btn-text: #475569;
-  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 90%);
-  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 76%);
-  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 56%);
-  --sc-edge: color-mix(in srgb, var(--status-accent), white 28%);
-  --sc-line: color-mix(in srgb, var(--status-accent), transparent 24%);
+  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 70%);
+  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 82%);
+  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 92%);
+  --sc-edge: color-mix(in srgb, var(--status-accent), white 32%);
+  --sc-line: color-mix(in srgb, var(--status-accent), transparent 46%);
+  --sc-track: color-mix(in srgb, var(--status-accent), transparent 88%);
+  --sc-countdown-bg: color-mix(in srgb, var(--status-accent), transparent 92%);
+  --sc-countdown-border: color-mix(in srgb, var(--status-accent), transparent 72%);
   --sc-ambient: color-mix(in srgb, var(--status-accent), transparent 82%);
 
   position: relative;
@@ -5945,7 +5952,7 @@ export default {
   border-radius: 18px;
   overflow: hidden;
   background:
-      linear-gradient(135deg, var(--sc-glass), transparent 58%),
+      linear-gradient(180deg, var(--sc-glass), transparent 72%),
       var(--sc-bg);
   border: 1px solid var(--sc-border);
   box-shadow:
@@ -5958,12 +5965,10 @@ export default {
 .status-inline-confirm::before {
   content: "";
   position: absolute;
-  inset: -90% -28% -80% 36%;
+  inset: -120% -12% -110% 42%;
   z-index: 0;
-  background:
-      radial-gradient(circle at 30% 50%, var(--sc-ambient), transparent 58%),
-      radial-gradient(circle at 70% 54%, color-mix(in srgb, var(--status-accent), transparent 88%), transparent 54%);
-  opacity: 0.88;
+  background: radial-gradient(ellipse at center, var(--sc-ambient), transparent 64%);
+  opacity: 0.7;
   pointer-events: none;
 }
 
@@ -5973,9 +5978,8 @@ export default {
   inset: 0;
   z-index: 1;
   border-radius: inherit;
-  background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent 34%),
-      linear-gradient(90deg, transparent 0 62%, color-mix(in srgb, var(--status-accent), transparent 90%));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.48), transparent 38%);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--status-accent), transparent 52%);
   pointer-events: none;
 }
 
@@ -5984,7 +5988,8 @@ export default {
 
 /* Пульс при последних 2 секундах */
 .status-inline-confirm.is-urgent {
-  animation: scUrgentPulse 0.52s ease-in-out infinite alternate;
+  border-color: color-mix(in srgb, var(--status-accent), var(--sc-border) 54%);
+  animation: scUrgentPulse 0.8s ease-in-out infinite alternate;
 }
 
 @keyframes scUrgentPulse {
@@ -5997,32 +6002,35 @@ export default {
   to {
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 0 0 4px color-mix(in srgb, var(--status-accent), transparent 70%),
-        0 14px 30px color-mix(in srgb, var(--status-accent), transparent 86%),
-        inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 48%);
+        0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 78%),
+        0 14px 30px color-mix(in srgb, var(--status-accent), transparent 90%),
+        inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 60%);
   }
 }
 
 /* Заливка-фон */
 .status-inline-progress {
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   width: auto;
-  border-radius: 14px;
+  border-radius: 15px;
   transform-origin: left center;
   transform: scaleX(1);
   /* Плавный обратный отсчёт одной CSS-анимацией: идёт на GPU, кадрово-точный
      и не зависит от дрожания/троттлинга JS-таймеров */
   animation: scCountdown var(--sc-duration, 5000ms) linear forwards;
-  background: linear-gradient(
-    90deg,
-    var(--sc-fill-a) 0%,
-    var(--sc-fill-b) 55%,
-    var(--sc-fill-c) 90%
-  );
+  background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 52%),
+      linear-gradient(
+        90deg,
+        var(--sc-fill-a) 0%,
+        var(--sc-fill-b) 62%,
+        var(--sc-fill-c) 100%
+      );
   box-shadow:
-      inset 0 -2px 0 0 var(--sc-line),
-      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 88%),
+      inset 0 -1px 0 var(--sc-line),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38);
   z-index: 0;
   overflow: hidden;
   will-change: transform;
@@ -6039,13 +6047,29 @@ export default {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.36) 50%,
-    transparent 100%
+    105deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.3) 48%,
+    rgba(255, 255, 255, 0.12) 54%,
+    transparent 68%
   );
-  background-size: 200% 100%;
-  animation: scShimmer 2.6s ease-in-out infinite;
+  background-size: 240% 100%;
+  animation: scShimmer 3.2s ease-in-out infinite;
+}
+
+.status-inline-progress::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 2px;
+  bottom: 5px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--sc-edge);
+  box-shadow:
+      0 0 8px color-mix(in srgb, var(--status-accent), transparent 34%),
+      -4px 0 12px color-mix(in srgb, var(--status-accent), transparent 66%);
+  opacity: 0.82;
 }
 
 @keyframes scShimmer {
@@ -6069,10 +6093,10 @@ export default {
 }
 
 .status-inline-mark {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border: 2px solid transparent;
-  border-radius: 13px;
+  border-radius: 14px;
   display: inline-grid;
   place-items: center;
   color: var(--status-accent);
@@ -6083,8 +6107,9 @@ export default {
           color-mix(in srgb, var(--status-accent), transparent 86%) 0
       ) border-box;
   box-shadow:
-      0 8px 16px color-mix(in srgb, var(--status-accent), transparent 86%),
-      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      0 8px 18px color-mix(in srgb, var(--status-accent), transparent 88%),
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 90%);
   animation: scRing var(--sc-duration, 5000ms) linear forwards;
 }
 
@@ -6096,6 +6121,7 @@ export default {
 .status-inline-mark svg {
   width: 17px;
   height: 17px;
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--status-accent), transparent 72%));
 }
 
 .status-inline-copy {
@@ -6120,6 +6146,9 @@ export default {
 
 .status-inline-label {
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--sc-text);
   font-size: 13px;
   font-weight: 600;
@@ -6127,6 +6156,47 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.status-inline-label > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-inline-countdown {
+  flex-shrink: 0;
+  min-width: 47px;
+  min-height: 25px;
+  padding: 2px 7px;
+  border: 1px solid var(--sc-countdown-border);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  color: var(--status-accent);
+  background: var(--sc-countdown-bg);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.66),
+      0 5px 14px color-mix(in srgb, var(--status-accent), transparent 90%);
+  font-variant-numeric: tabular-nums;
+}
+
+.status-inline-countdown > span {
+  color: color-mix(in srgb, var(--status-accent), var(--sc-muted) 48%);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.status-inline-confirm.is-urgent .status-inline-countdown {
+  border-color: color-mix(in srgb, var(--status-accent), transparent 45%);
+  background: color-mix(in srgb, var(--status-accent), transparent 84%);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.58),
+      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 88%),
+      0 7px 18px color-mix(in srgb, var(--status-accent), transparent 82%);
 }
 
 /* Цифра обратного отсчёта */
@@ -6165,6 +6235,16 @@ export default {
   transform: translateY(-1px);
 }
 
+.status-inline-btn:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--status-accent), #cbd5e1 42%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 78%);
+}
+
+.status-inline-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
 .status-inline-btn.is-primary {
   color: white;
   border-color: transparent;
@@ -6191,6 +6271,13 @@ export default {
       0 0 0 1px color-mix(in srgb, var(--status-accent), white 55%) inset;
 }
 
+.status-inline-btn.is-primary:focus-visible {
+  box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 72%),
+      0 8px 18px color-mix(in srgb, var(--status-accent), transparent 72%),
+      0 1px 0 rgba(255, 255, 255, 0.22) inset;
+}
+
 .status-inline-btn:disabled {
   cursor: wait;
   opacity: 0.68;
@@ -6207,11 +6294,14 @@ export default {
   --sc-btn-bg: rgba(30, 41, 59, 0.86);
   --sc-btn-hover: rgba(51, 65, 85, 0.95);
   --sc-btn-text: #cbd5e1;
-  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 78%);
-  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 62%);
-  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 45%);
+  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 54%);
+  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 68%);
+  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 82%);
   --sc-edge: color-mix(in srgb, var(--status-accent), white 22%);
-  --sc-line: color-mix(in srgb, var(--status-accent), transparent 12%);
+  --sc-line: color-mix(in srgb, var(--status-accent), transparent 30%);
+  --sc-track: color-mix(in srgb, var(--status-accent), transparent 78%);
+  --sc-countdown-bg: color-mix(in srgb, var(--status-accent), transparent 84%);
+  --sc-countdown-border: color-mix(in srgb, var(--status-accent), transparent 58%);
   --sc-ambient: color-mix(in srgb, var(--status-accent), transparent 72%);
   box-shadow:
       0 0 0 1px rgba(15, 23, 42, 0.55) inset,
@@ -6245,11 +6335,13 @@ export default {
     min-height: 104px;
     border-radius: 18px;
     background:
+        linear-gradient(var(--sc-track), var(--sc-track)) left 8px bottom 7px / calc(100% - 16px) 4px no-repeat,
         linear-gradient(180deg, color-mix(in srgb, var(--sc-bg), white 42%), var(--sc-bg));
   }
 
   :global(html[data-theme='dark']) .status-inline-confirm {
     background:
+        linear-gradient(var(--sc-track), var(--sc-track)) left 8px bottom 7px / calc(100% - 16px) 4px no-repeat,
         linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
   }
 
@@ -6294,6 +6386,12 @@ export default {
     font-size: 14px;
   }
 
+  .status-inline-countdown {
+    min-width: 44px;
+    min-height: 23px;
+    padding: 1px 6px;
+  }
+
   .status-inline-btn {
     min-height: 33px;
     padding: 0 10px;
@@ -6319,14 +6417,26 @@ export default {
     inset: auto 8px 7px;
     height: 4px;
     border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--status-accent), white 18%),
+        var(--status-accent)
+    );
     box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 82%),
-        0 5px 14px color-mix(in srgb, var(--status-accent), transparent 74%);
+        0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 78%),
+        0 4px 12px color-mix(in srgb, var(--status-accent), transparent 72%);
+  }
+
+  .status-inline-progress::after {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 2px;
   }
 
   .status-inline-confirm::after {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 42%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 42%);
+    box-shadow: none;
   }
 }
 

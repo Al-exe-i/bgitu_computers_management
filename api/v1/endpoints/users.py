@@ -63,9 +63,32 @@ async def get_user_photo(
     user: user_dep,
     use_cases: identity_user_use_cases_dep,
 ):
-    photo = use_cases.get_current_photo(actor=user)
+    photo = await use_cases.get_user_photo(user_id=user.id, actor=user)
     if photo is None:
         logger.warning("User photo not found: user_id={} no photo assigned", user.id)
+        raise HTTP404("Photo not found")
+
+    return StreamingResponse(
+        photo.iter_file(),
+        media_type=photo.media_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{photo.filename}"',
+        },
+    )
+
+
+@router.get("/{user_id}/photo")
+async def get_user_photo_by_id(
+    user_id: int,
+    current_user: user_dep,
+    use_cases: identity_user_use_cases_dep,
+):
+    photo = await use_cases.get_user_photo(
+        user_id=user_id,
+        actor=current_user,
+    )
+    if photo is None:
+        logger.warning("User photo not found: user_id={} no photo assigned", user_id)
         raise HTTP404("Photo not found")
 
     return StreamingResponse(

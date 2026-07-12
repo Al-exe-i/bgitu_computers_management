@@ -16,13 +16,14 @@ def make_user(
     user_id: int,
     role: UserRole,
     is_superuser: bool = False,
+    photo: str | None = None,
 ) -> UserOut:
     return UserOut(
         id=user_id,
         email=f"user{user_id}@example.com",
         name="Alex",
         surname="Ivanov",
-        photo=None,
+        photo=photo,
         role=role,
         reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
         is_superuser=is_superuser,
@@ -40,6 +41,11 @@ class DummyUserService:
     async def get_all(self) -> list[UserOut]:
         return list(self.users.values())
 
+    def get_photo(self, user: UserOut):
+        if not user.photo:
+            return None
+        return DummyStoredPhoto(filename=user.photo)
+
     async def update(self, user_id: int, user_in):
         changes = user_in.model_dump(exclude_unset=True)
         self.updated.append((user_id, changes))
@@ -48,6 +54,15 @@ class DummyUserService:
         updated = user.model_copy(update=changes)
         self.users[user_id] = updated
         return updated
+
+
+@dataclass(slots=True)
+class DummyStoredPhoto:
+    filename: str
+    media_type: str = "image/png"
+
+    def iter_file(self):
+        yield b"avatar-content"
 
 
 @dataclass(slots=True)
@@ -172,6 +187,47 @@ def test_read_user_allows_admin_to_access_other_user() -> None:
 
         assert response.status_code == 200
         assert response.json()["id"] == 8
+    finally:
+        clear_dependency_overrides()
+
+
+def test_user_photo_allows_admin_to_access_other_user() -> None:
+    admin = make_user(user_id=1, role=UserRole.admin)
+    teacher = make_user(
+        user_id=8,
+        role=UserRole.teacher,
+        photo="avatar.png",
+    )
+    override_user_service(DummyUserService({1: admin, 8: teacher}))
+
+    try:
+        with TestClient(app) as client:
+            client.cookies.set("access_token", issue_access_token(1))
+            response = client.get("/api/v1/users/8/photo")
+
+        assert response.status_code == 200
+        assert response.content == b"avatar-content"
+        assert response.headers["content-type"] == "image/png"
+    finally:
+        clear_dependency_overrides()
+
+
+def test_user_photo_rejects_teacher_accessing_other_user() -> None:
+    teacher = make_user(user_id=7, role=UserRole.teacher)
+    other = make_user(
+        user_id=8,
+        role=UserRole.teacher,
+        photo="avatar.png",
+    )
+    override_user_service(DummyUserService({7: teacher, 8: other}))
+
+    try:
+        with TestClient(app) as client:
+            client.cookies.set("access_token", issue_access_token(7))
+            response = client.get("/api/v1/users/8/photo")
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Not enough permissions"
     finally:
         clear_dependency_overrides()
 
