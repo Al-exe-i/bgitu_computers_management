@@ -144,6 +144,7 @@ export default {
       statusConfirmStartedAt: 0,
       statusConfirmTimerId: null,
       statusConfirmEndTimerId: null,
+      statusConfirmRunId: 0,
 
       /* Раздел файлов оборудования в модалке */
       isDragOver: false,
@@ -154,6 +155,7 @@ export default {
       /* Realtime events */
       refreshTimer: null,
       refreshDebounceMs: 400,
+      refreshQueuedDuringStatus: false,
       wsSuspendedUntil: 0,
 
       eventSource: null,
@@ -985,6 +987,13 @@ export default {
       try {
         const res = await api.get(`/audiences/${this.audiencePublicId}`);
 
+        // Realtime refresh must not recreate the equipment modal while the
+        // confirmation countdown is active: that would reset its timers.
+        if (keepModal && (this.statusConfirmIsPending || this.statusConfirmLoading)) {
+          this.refreshQueuedDuringStatus = true;
+          return;
+        }
+
         this.classroom = this.mapBackendToFrontend(res.data);
         this.loading = false;
         this.updatePageTitle();
@@ -1014,10 +1023,42 @@ export default {
       if (Date.now() < this.wsSuspendedUntil) return;
       if (this.specsEdit || this.invNumEdit || this.hwTitleEdit) return;
 
+      if (this.statusConfirmIsPending || this.statusConfirmLoading) {
+        this.refreshQueuedDuringStatus = true;
+        return;
+      }
+
       if (this.refreshTimer) clearTimeout(this.refreshTimer);
       this.refreshTimer = setTimeout(() => {
+        this.refreshTimer = null;
+
+        if (this.statusConfirmIsPending || this.statusConfirmLoading) {
+          this.refreshQueuedDuringStatus = true;
+          return;
+        }
+
         this.getAudience({ keepModal: true });
       }, this.refreshDebounceMs);
+    },
+
+    flushQueuedRefreshAfterStatus() {
+      if (!this.refreshQueuedDuringStatus || this.statusConfirmIsPending || this.statusConfirmLoading) {
+        return;
+      }
+
+      this.refreshQueuedDuringStatus = false;
+
+      if (this.refreshTimer) {
+        clearTimeout(this.refreshTimer);
+      }
+
+      const suspensionLeft = Math.max(0, this.wsSuspendedUntil - Date.now());
+      const delay = Math.max(this.refreshDebounceMs, suspensionLeft);
+
+      this.refreshTimer = setTimeout(() => {
+        this.refreshTimer = null;
+        this.getAudience({ keepModal: true });
+      }, delay);
     },
 
     mapBackendToFrontend(data) {
@@ -1388,6 +1429,8 @@ export default {
       const eq = this.getEquipment(row, col);
       if (!eq) return;
 
+      this.statusConfirmRunId += 1;
+      this.clearStatusConfirmTimers();
       this.prepareEventsOnlyModalLock();
 
       this.selectedCell = {
@@ -1500,6 +1543,12 @@ export default {
         }
       }
 
+      if (this.refreshTimer) {
+        clearTimeout(this.refreshTimer);
+        this.refreshTimer = null;
+        this.refreshQueuedDuringStatus = true;
+      }
+
       this.pendingWorkingStatus = status;
       this.startStatusConfirmCountdown();
     },
@@ -1507,14 +1556,24 @@ export default {
     closeStatusConfirmModal() {
       if (this.statusConfirmLoading) return;
 
+      this.statusConfirmRunId += 1;
       this.clearStatusConfirmTimers();
       this.pendingWorkingStatus = null;
       this.statusConfirmStartedAt = 0;
       this.statusConfirmRemainingMs = 0;
+      this.flushQueuedRefreshAfterStatus();
     },
 
-    async confirmWorkingStatus() {
-      if (this.pendingWorkingStatus === null || this.statusConfirmLoading) return;
+    async confirmWorkingStatus(expectedRunId = null) {
+      const runId = Number.isInteger(expectedRunId)
+          ? expectedRunId
+          : this.statusConfirmRunId;
+
+      if (
+          runId !== this.statusConfirmRunId ||
+          this.pendingWorkingStatus === null ||
+          this.statusConfirmLoading
+      ) return;
 
       const status = this.pendingWorkingStatus;
       this.clearStatusConfirmTimers();
@@ -1524,24 +1583,36 @@ export default {
       try {
         await this.applyWorkingStatus(status);
       } finally {
+        if (runId !== this.statusConfirmRunId) return;
+
+        this.statusConfirmRunId += 1;
         this.pendingWorkingStatus = null;
         this.statusConfirmStartedAt = 0;
         this.statusConfirmRemainingMs = 0;
         this.statusConfirmLoading = false;
+        this.flushQueuedRefreshAfterStatus();
       }
     },
 
     startStatusConfirmCountdown() {
       this.clearStatusConfirmTimers();
+      const runId = ++this.statusConfirmRunId;
       this.statusConfirmStartedAt = Date.now();
       this.statusConfirmRemainingMs = this.statusConfirmDurationMs;
       // Таймер нужен только для цифры секунд и флага «срочно» — полоса едет на CSS,
       // поэтому частоту можно снизить (стабильнее, меньше реактивных обновлений)
-      this.statusConfirmTimerId = window.setInterval(this.updateStatusConfirmCountdown, 250);
-      this.statusConfirmEndTimerId = window.setTimeout(this.confirmWorkingStatus, this.statusConfirmDurationMs);
+      this.statusConfirmTimerId = window.setInterval(
+          () => this.updateStatusConfirmCountdown(runId),
+          250
+      );
+      this.statusConfirmEndTimerId = window.setTimeout(
+          () => this.confirmWorkingStatus(runId),
+          this.statusConfirmDurationMs
+      );
     },
 
-    updateStatusConfirmCountdown() {
+    updateStatusConfirmCountdown(runId) {
+      if (runId !== this.statusConfirmRunId) return;
       if (this.pendingWorkingStatus === null || !this.statusConfirmStartedAt) return;
 
       const elapsedMs = Date.now() - this.statusConfirmStartedAt;
@@ -1835,6 +1906,7 @@ export default {
     {
       clearTimeout(this.refreshTimer)
       this.refreshTimer = null;
+      this.refreshQueuedDuringStatus = false;
 
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
@@ -2096,6 +2168,7 @@ export default {
 
   beforeUnmount() {
     this.isUnmounted = true;
+    this.statusConfirmRunId += 1;
     if (this.gridLabelResizeHandler) {
       window.removeEventListener('resize', this.gridLabelResizeHandler);
       window.removeEventListener('orientationchange', this.gridLabelResizeHandler);
