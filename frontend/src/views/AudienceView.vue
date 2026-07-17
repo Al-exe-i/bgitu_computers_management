@@ -5917,24 +5917,22 @@ export default {
 
 .status-inline-confirm {
   --status-accent: #2563eb;
-  --sc-bg: #f8fbff;
-  --sc-glass: rgba(255, 255, 255, 0.74);
-  --sc-border: rgba(203, 213, 225, 0.9);
-  --sc-text: #0f172a;
-  --sc-muted: #64748b;
-  --sc-mark-inner: rgba(255, 255, 255, 0.92);
-  --sc-btn-bg: rgba(255, 255, 255, 0.82);
-  --sc-btn-hover: rgba(255, 255, 255, 0.98);
-  --sc-btn-text: #475569;
-  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 70%);
-  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 82%);
-  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 92%);
-  --sc-edge: color-mix(in srgb, var(--status-accent), white 32%);
-  --sc-line: color-mix(in srgb, var(--status-accent), transparent 46%);
-  --sc-track: color-mix(in srgb, var(--status-accent), transparent 88%);
-  --sc-countdown-bg: color-mix(in srgb, var(--status-accent), transparent 92%);
-  --sc-countdown-border: color-mix(in srgb, var(--status-accent), transparent 72%);
-  --sc-ambient: color-mix(in srgb, var(--status-accent), transparent 82%);
+  --status-action: #1d4ed8;
+  --status-action-hover: #1e40af;
+  --status-fill-start: #60a5fa;
+  --status-fill-end: #2563eb;
+  --sc-bg: #f7f9fb;
+  --sc-border: #d8e0e8;
+  --sc-text: #1b2533;
+  --sc-muted: #697789;
+  --sc-mark-inner: #eef4fb;
+  --sc-btn-bg: #ffffff;
+  --sc-btn-hover: #f1f4f7;
+  --sc-btn-text: #405064;
+  --sc-btn-border: #d4dde6;
+  --sc-track: #e1e7ed;
+  --sc-countdown-bg: #edf2f6;
+  --sc-countdown-border: #d2dce5;
 
   position: relative;
   isolation: isolate;
@@ -5942,97 +5940,101 @@ export default {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 52px;
+  min-height: 56px;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
-  padding: 7px;
-  border-radius: 18px;
+  padding: 7px 7px 14px;
+  border-radius: 16px;
   overflow: hidden;
-  background:
-      linear-gradient(180deg, var(--sc-glass), transparent 72%),
-      var(--sc-bg);
+  background: var(--sc-bg);
   border: 1px solid var(--sc-border);
   box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      0 10px 26px rgba(15, 23, 42, 0.08),
-      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 91%);
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      0 8px 22px rgba(15, 23, 42, 0.07);
   transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  animation: scConfirmEnter 0.24s cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
 .status-inline-confirm::before {
   content: "";
   position: absolute;
-  inset: -120% -12% -110% 42%;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  height: 5px;
   z-index: 0;
-  background: radial-gradient(ellipse at center, var(--sc-ambient), transparent 64%);
-  opacity: 0.7;
+  border-radius: 999px;
+  background: var(--sc-track);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.1);
   pointer-events: none;
 }
 
 .status-inline-confirm::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.48), transparent 38%);
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--status-accent), transparent 52%);
-  pointer-events: none;
+  display: none;
 }
 
-.status-inline-confirm.is-working { --status-accent: #059669; }
-.status-inline-confirm.is-broken  { --status-accent: #dc2626; }
+.status-inline-confirm.is-working {
+  --status-accent: #0d9669;
+  --status-action: #087b58;
+  --status-action-hover: #066a4b;
+  --status-fill-start: #40cc99;
+  --status-fill-end: #0d9669;
+  --sc-mark-inner: #eaf7f2;
+  --sc-countdown-bg: #eaf6f1;
+  --sc-countdown-border: #bcded1;
+  --sc-track: #dbe9e4;
+}
 
-/* Пульс при последних 2 секундах */
+.status-inline-confirm.is-broken {
+  --status-accent: #d94850;
+  --status-action: #c43640;
+  --status-action-hover: #aa2d36;
+  --status-fill-start: #fb7b81;
+  --status-fill-end: #d94850;
+  --sc-mark-inner: #fff0f1;
+  --sc-countdown-bg: #fceff0;
+  --sc-countdown-border: #efc5c8;
+  --sc-track: #eee0e1;
+}
+
 .status-inline-confirm.is-urgent {
-  border-color: color-mix(in srgb, var(--status-accent), var(--sc-border) 54%);
-  animation: scUrgentPulse 0.8s ease-in-out infinite alternate;
+  border-color: color-mix(in srgb, var(--status-accent), var(--sc-border) 66%);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 90%),
+      0 10px 24px color-mix(in srgb, var(--status-accent), transparent 91%);
 }
 
-@keyframes scUrgentPulse {
+@keyframes scConfirmEnter {
   from {
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 10px 26px rgba(15, 23, 42, 0.08),
-        inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 91%);
+    opacity: 0;
+    transform: translateY(3px);
   }
   to {
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 78%),
-        0 14px 30px color-mix(in srgb, var(--status-accent), transparent 90%),
-        inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 60%);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Заливка-фон */
 .status-inline-progress {
   position: absolute;
-  inset: 3px;
-  width: auto;
-  border-radius: 15px;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  height: 5px;
+  border-radius: 999px;
   transform-origin: left center;
   transform: scaleX(1);
-  /* Плавный обратный отсчёт одной CSS-анимацией: идёт на GPU, кадрово-точный
-     и не зависит от дрожания/троттлинга JS-таймеров */
   animation: scCountdown var(--sc-duration, 5000ms) linear forwards;
-  background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 52%),
-      linear-gradient(
-        90deg,
-        var(--sc-fill-a) 0%,
-        var(--sc-fill-b) 62%,
-        var(--sc-fill-c) 100%
-      );
+  background: linear-gradient(90deg, var(--status-fill-start), var(--status-fill-end));
   box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 88%),
-      inset 0 -1px 0 var(--sc-line),
-      inset 0 1px 0 rgba(255, 255, 255, 0.38);
-  z-index: 0;
-  overflow: hidden;
+      inset 0 1px 0 rgba(255, 255, 255, 0.42),
+      0 2px 8px color-mix(in srgb, var(--status-accent), transparent 76%);
+  z-index: 1;
+  overflow: visible;
   will-change: transform;
 }
 
@@ -6041,40 +6043,30 @@ export default {
   to   { transform: scaleX(0); }
 }
 
-/* Бегущий блик по заливке */
 .status-inline-progress::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 34%,
-    rgba(255, 255, 255, 0.3) 48%,
-    rgba(255, 255, 255, 0.12) 54%,
-    transparent 68%
-  );
-  background-size: 240% 100%;
-  animation: scShimmer 3.2s ease-in-out infinite;
+  top: 1px;
+  right: 1px;
+  left: 1px;
+  height: 1px;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.46);
+  opacity: 0.7;
 }
 
 .status-inline-progress::after {
   content: '';
   position: absolute;
-  top: 5px;
-  right: 2px;
-  bottom: 5px;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
   width: 2px;
   border-radius: 999px;
-  background: var(--sc-edge);
+  background: color-mix(in srgb, var(--status-fill-start), white 24%);
   box-shadow:
-      0 0 8px color-mix(in srgb, var(--status-accent), transparent 34%),
-      -4px 0 12px color-mix(in srgb, var(--status-accent), transparent 66%);
-  opacity: 0.82;
-}
-
-@keyframes scShimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+      0 0 5px color-mix(in srgb, var(--status-accent), transparent 42%),
+      -3px 0 8px color-mix(in srgb, var(--status-accent), transparent 72%);
 }
 
 .status-inline-mark,
@@ -6084,44 +6076,23 @@ export default {
   z-index: 2;
 }
 
-/* Кольцо-индикатор вокруг иконки едет синхронно с полосой, тоже на CSS.
-   @property делает custom-property интерполируемой, поэтому угол меняется плавно. */
-@property --sc-ring {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: 100%;
-}
-
 .status-inline-mark {
   width: 36px;
   height: 36px;
-  border: 2px solid transparent;
-  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--status-accent), transparent 70%);
+  border-radius: 12px;
   display: inline-grid;
   place-items: center;
   color: var(--status-accent);
-  background:
-      linear-gradient(var(--sc-mark-inner), var(--sc-mark-inner)) padding-box,
-      conic-gradient(
-          var(--status-accent) var(--sc-ring, 100%),
-          color-mix(in srgb, var(--status-accent), transparent 86%) 0
-      ) border-box;
+  background: var(--sc-mark-inner);
   box-shadow:
-      0 8px 18px color-mix(in srgb, var(--status-accent), transparent 88%),
-      inset 0 1px 0 rgba(255, 255, 255, 0.78),
-      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 90%);
-  animation: scRing var(--sc-duration, 5000ms) linear forwards;
-}
-
-@keyframes scRing {
-  from { --sc-ring: 100%; }
-  to   { --sc-ring: 0%; }
+      inset 0 1px 0 rgba(255, 255, 255, 0.64),
+      0 5px 12px color-mix(in srgb, var(--status-accent), transparent 90%);
 }
 
 .status-inline-mark svg {
   width: 17px;
   height: 17px;
-  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--status-accent), transparent 72%));
 }
 
 .status-inline-copy {
@@ -6178,8 +6149,8 @@ export default {
   color: var(--status-accent);
   background: var(--sc-countdown-bg);
   box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.66),
-      0 5px 14px color-mix(in srgb, var(--status-accent), transparent 90%);
+      inset 0 1px 0 rgba(255, 255, 255, 0.56),
+      0 3px 9px color-mix(in srgb, var(--status-accent), transparent 92%);
   font-variant-numeric: tabular-nums;
 }
 
@@ -6191,12 +6162,11 @@ export default {
 }
 
 .status-inline-confirm.is-urgent .status-inline-countdown {
-  border-color: color-mix(in srgb, var(--status-accent), transparent 45%);
-  background: color-mix(in srgb, var(--status-accent), transparent 84%);
+  border-color: color-mix(in srgb, var(--status-accent), transparent 52%);
+  background: color-mix(in srgb, var(--status-accent), var(--sc-bg) 86%);
   box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.58),
-      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 88%),
-      0 7px 18px color-mix(in srgb, var(--status-accent), transparent 82%);
+      inset 0 1px 0 rgba(255, 255, 255, 0.48),
+      0 0 0 2px color-mix(in srgb, var(--status-accent), transparent 90%);
 }
 
 /* Цифра обратного отсчёта */
@@ -6212,7 +6182,7 @@ export default {
   min-height: 34px;
   padding: 0 13px;
   border-radius: 12px;
-  border: 1px solid rgba(203, 213, 225, 0.92);
+  border: 1px solid var(--sc-btn-border);
   background: var(--sc-btn-bg);
   color: var(--sc-btn-text);
   font-size: 12.5px;
@@ -6222,23 +6192,22 @@ export default {
   justify-content: center;
   white-space: nowrap;
   cursor: pointer;
-  backdrop-filter: blur(10px);
   transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .status-inline-btn:hover:not(:disabled) {
   background: var(--sc-btn-hover);
-  border-color: color-mix(in srgb, var(--status-accent), #cbd5e1 64%);
+  border-color: color-mix(in srgb, var(--status-accent), var(--sc-btn-border) 72%);
   box-shadow:
-      0 0 0 1px rgba(148, 163, 184, 0.16) inset,
-      0 8px 16px rgba(15, 23, 42, 0.08);
+      inset 0 0 0 1px rgba(148, 163, 184, 0.1),
+      0 5px 12px rgba(15, 23, 42, 0.07);
   transform: translateY(-1px);
 }
 
 .status-inline-btn:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, var(--status-accent), #cbd5e1 42%);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 78%);
+  border-color: color-mix(in srgb, var(--status-accent), var(--sc-btn-border) 48%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 82%);
 }
 
 .status-inline-btn:active:not(:disabled) {
@@ -6247,35 +6216,26 @@ export default {
 
 .status-inline-btn.is-primary {
   color: white;
-  border-color: transparent;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--status-accent), white 22%) 0%,
-    var(--status-accent) 50%,
-    color-mix(in srgb, var(--status-accent), black 14%) 100%
-  );
+  border-color: color-mix(in srgb, var(--status-action), black 8%);
+  background: var(--status-action);
   box-shadow:
-      0 8px 18px color-mix(in srgb, var(--status-accent), transparent 72%),
-      0 1px 0 rgba(255, 255, 255, 0.22) inset;
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 6px 14px color-mix(in srgb, var(--status-action), transparent 78%);
 }
 
 .status-inline-btn.is-primary:hover:not(:disabled) {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--status-accent), white 30%) 0%,
-    color-mix(in srgb, var(--status-accent), white 10%) 50%,
-    color-mix(in srgb, var(--status-accent), black 10%) 100%
-  );
+  border-color: var(--status-action-hover);
+  background: var(--status-action-hover);
   box-shadow:
-      0 10px 22px color-mix(in srgb, var(--status-accent), transparent 60%),
-      0 0 0 1px color-mix(in srgb, var(--status-accent), white 55%) inset;
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 7px 16px color-mix(in srgb, var(--status-action), transparent 72%);
 }
 
 .status-inline-btn.is-primary:focus-visible {
   box-shadow:
-      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 72%),
-      0 8px 18px color-mix(in srgb, var(--status-accent), transparent 72%),
-      0 1px 0 rgba(255, 255, 255, 0.22) inset;
+      0 0 0 3px color-mix(in srgb, var(--status-accent), transparent 76%),
+      0 6px 14px color-mix(in srgb, var(--status-action), transparent 78%),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .status-inline-btn:disabled {
@@ -6285,33 +6245,45 @@ export default {
 
 /* Тёмная тема */
 :global(html[data-theme='dark']) .status-inline-confirm {
-  --sc-bg: rgba(15, 23, 42, 0.96);
-  --sc-glass: rgba(30, 41, 59, 0.58);
-  --sc-border: rgba(71, 85, 105, 0.86);
-  --sc-text: #e2e8f0;
-  --sc-muted: #94a3b8;
-  --sc-mark-inner: rgba(15, 23, 42, 0.94);
-  --sc-btn-bg: rgba(30, 41, 59, 0.86);
-  --sc-btn-hover: rgba(51, 65, 85, 0.95);
-  --sc-btn-text: #cbd5e1;
-  --sc-fill-a: color-mix(in srgb, var(--status-accent), transparent 54%);
-  --sc-fill-b: color-mix(in srgb, var(--status-accent), transparent 68%);
-  --sc-fill-c: color-mix(in srgb, var(--status-accent), transparent 82%);
-  --sc-edge: color-mix(in srgb, var(--status-accent), white 22%);
-  --sc-line: color-mix(in srgb, var(--status-accent), transparent 30%);
-  --sc-track: color-mix(in srgb, var(--status-accent), transparent 78%);
-  --sc-countdown-bg: color-mix(in srgb, var(--status-accent), transparent 84%);
-  --sc-countdown-border: color-mix(in srgb, var(--status-accent), transparent 58%);
-  --sc-ambient: color-mix(in srgb, var(--status-accent), transparent 72%);
+  --sc-bg: #111921;
+  --sc-border: #2b3945;
+  --sc-text: #dde6eb;
+  --sc-muted: #91a0aa;
+  --sc-mark-inner: #17222b;
+  --sc-btn-bg: #19242e;
+  --sc-btn-hover: #202d38;
+  --sc-btn-text: #c5d0d7;
+  --sc-btn-border: #344550;
+  --sc-track: #26343e;
+  --sc-countdown-bg: #17232c;
+  --sc-countdown-border: #344650;
   box-shadow:
-      0 0 0 1px rgba(15, 23, 42, 0.55) inset,
-      inset 0 1px 0 rgba(148, 163, 184, 0.1),
-      0 14px 28px rgba(2, 6, 23, 0.34),
-      inset 0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 84%);
+      inset 0 1px 0 rgba(148, 163, 184, 0.08),
+      0 10px 24px rgba(2, 6, 23, 0.3);
 }
 
-:global(html[data-theme='dark']) .status-inline-btn {
-  border-color: rgba(71, 85, 105, 0.86);
+:global(html[data-theme='dark']) .status-inline-confirm.is-working {
+  --status-accent: #4fd5a5;
+  --status-action: #147e5d;
+  --status-action-hover: #106a4f;
+  --status-fill-start: #63dfb2;
+  --status-fill-end: #28b986;
+  --sc-mark-inner: #132820;
+  --sc-countdown-bg: #14261f;
+  --sc-countdown-border: #295343;
+  --sc-track: #213a31;
+}
+
+:global(html[data-theme='dark']) .status-inline-confirm.is-broken {
+  --status-accent: #ff858b;
+  --status-action: #b83d47;
+  --status-action-hover: #9d333c;
+  --status-fill-start: #ff969b;
+  --status-fill-end: #e85e67;
+  --sc-mark-inner: #301a1e;
+  --sc-countdown-bg: #2b191d;
+  --sc-countdown-border: #633239;
+  --sc-track: #43262b;
 }
 
 @media (max-width: 520px) {
@@ -6334,19 +6306,12 @@ export default {
     padding: 8px 8px 14px;
     min-height: 104px;
     border-radius: 18px;
-    background:
-        linear-gradient(var(--sc-track), var(--sc-track)) left 8px bottom 7px / calc(100% - 16px) 4px no-repeat,
-        linear-gradient(180deg, color-mix(in srgb, var(--sc-bg), white 42%), var(--sc-bg));
-  }
-
-  :global(html[data-theme='dark']) .status-inline-confirm {
-    background:
-        linear-gradient(var(--sc-track), var(--sc-track)) left 8px bottom 7px / calc(100% - 16px) 4px no-repeat,
-        linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
+    background: var(--sc-bg);
   }
 
   .status-inline-confirm::before {
-    opacity: 0;
+    bottom: 7px;
+    height: 4px;
   }
 
   .status-inline-mark {
@@ -6398,9 +6363,7 @@ export default {
     border-radius: 12px;
     font-size: 12px;
     width: 100%;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.55),
-        0 6px 14px rgba(15, 23, 42, 0.08);
+    box-shadow: none;
   }
 
   .status-inline-btn:not(.is-primary) {
@@ -6411,17 +6374,18 @@ export default {
   .status-inline-btn.is-primary {
     grid-area: confirm;
     justify-self: stretch;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 5px 12px color-mix(in srgb, var(--status-action), transparent 76%);
   }
 
   .status-inline-progress {
-    inset: auto 8px 7px;
+    left: 8px;
+    right: 8px;
+    bottom: 7px;
     height: 4px;
     border-radius: 999px;
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--status-accent), white 18%),
-        var(--status-accent)
-    );
+    background: linear-gradient(90deg, var(--status-fill-start), var(--status-fill-end));
     box-shadow:
         0 0 0 1px color-mix(in srgb, var(--status-accent), transparent 78%),
         0 4px 12px color-mix(in srgb, var(--status-accent), transparent 72%);
@@ -6434,15 +6398,10 @@ export default {
     width: 2px;
   }
 
-  .status-inline-confirm::after {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 42%);
-    box-shadow: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .status-inline-confirm.is-urgent,
-  .status-inline-progress::before {
+  .status-inline-confirm {
     animation: none !important;
   }
 
