@@ -68,9 +68,18 @@ const LANDMARK_LABELS = Object.freeze({
 })
 
 const HISTORY_LIMIT = 40;
-const EQUIPMENT_SNAP_DURATION_MS = 1050;
-const EQUIPMENT_SNAP_MIN_PARTICLES = 90;
-const EQUIPMENT_SNAP_MAX_PARTICLES = 160;
+const EQUIPMENT_SNAP_DURATION_MS = 1450;
+const EQUIPMENT_SNAP_MIN_PARTICLES = 145;
+const EQUIPMENT_SNAP_MAX_PARTICLES = 230;
+
+function extractSolidColors(value) {
+  return [...new Set(String(value ?? '').match(/#[\da-f]{3,8}\b/gi) ?? [])];
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
 
 function normalizeLandmarks(source = {}) {
   return {
@@ -301,52 +310,61 @@ export default {
 
     createEquipmentSnapParticles(item) {
       const id = this.getEquipmentIdentity(item);
-      if (id === null) return;
+      if (id === null || prefersReducedMotion()) return;
 
-      const color = this.equipmentTypeMap[item.type]?.color ?? '#60a5fa';
+      const iconColors = extractSolidColors(this.equipmentTypeMap[item.type]?.color);
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      const surfaceColors = item.state === false
+          ? (isDark
+              ? ['#3b1218', '#7f1d1d', '#fb7185', '#fecdd3']
+              : ['#fef2f2', '#fee2e2', '#f87171', '#991b1b'])
+          : (isDark
+              ? ['#0b1220', '#111827', '#334155', '#cbd5e1']
+              : ['#ffffff', '#f8fafc', '#cbd5e1', '#475569']);
+      const palette = [
+        ...surfaceColors,
+        ...surfaceColors,
+        ...(iconColors.length ? iconColors : ['#60a5fa']),
+      ];
       const width = item.width ?? 1;
       const height = item.height ?? 1;
       const count = Math.min(
           EQUIPMENT_SNAP_MAX_PARTICLES,
-          Math.max(EQUIPMENT_SNAP_MIN_PARTICLES, 60 + width * height * 18)
+          Math.max(EQUIPMENT_SNAP_MIN_PARTICLES, 120 + width * height * 22)
       );
-      const palette = [
-        color,
-        '#ffffff',
-        '#e0f2fe',
-        '#7dd3fc',
-        '#fde68a',
-        '#5eead4',
-        '#c4b5fd',
-        '#fca5a5',
-      ];
 
       const particles = Array.from({ length: count }, (_, index) => {
-        const x = 2 + Math.random() * 96;
-        const y = 2 + Math.random() * 96;
-
-        // Волна: правая сторона распадается первой (как у Таноса слева направо)
-        const waveFactor = x / 100;
-        const waveDelay = (1 - waveFactor) * 220 + Math.random() * 80;
-
-        // Полный разлёт в 360° со слабым смещением вверх
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 35 + Math.random() * 90;
-        const tx = Math.cos(angle) * speed;
-        const ty = Math.sin(angle) * speed - 16;
-
-        // Дуга: средняя точка слегка отклоняется от прямой линии
-        const midTx = tx * 0.46 + (Math.random() - 0.5) * 14;
-        const midTy = ty * 0.44 - Math.random() * 10;
-
-        const size = 1.5 + Math.random() * 6.5;
-        const duration = 560 + Math.random() * 400;
-        const rotate = -180 + Math.random() * 360;
-        const rnd = Math.random();
-        const radius = rnd > 0.55 ? '999px' : rnd > 0.25 ? '2px' : '1px';
+        const x = 1 + Math.random() * 98;
+        const y = 1 + Math.random() * 98;
+        const waveDelay = (1 - x / 100) * 310 + Math.random() * 55;
+        const tx = -32 + Math.random() * 104;
+        const ty = -(58 + Math.random() * 112);
+        const midTx = tx * 0.36 + (Math.random() - 0.5) * 22;
+        const midTy = ty * 0.32 - 8 - Math.random() * 18;
+        const lateTx = tx * 0.75 + (Math.random() - 0.5) * 16;
+        const lateTy = ty * 0.72 - Math.random() * 12;
+        const kindRoll = Math.random();
+        const kind = kindRoll < 0.62 ? 'dust' : kindRoll < 0.93 ? 'shard' : 'spark';
+        const sizeRoll = Math.random();
+        const size = sizeRoll < 0.72
+            ? 1 + Math.random() * 2
+            : sizeRoll < 0.95
+                ? 2.5 + Math.random() * 2
+                : 4.5 + Math.random() * 1.5;
+        const duration = 760 + Math.random() * 300;
+        const rotate = -260 + Math.random() * 520;
+        const particleWidth = kind === 'shard'
+            ? size * (0.8 + Math.random() * 1.35)
+            : size;
+        const clip = kind === 'shard'
+            ? (Math.random() > 0.5
+                ? 'polygon(15% 0, 100% 22%, 72% 100%, 0 74%)'
+                : 'polygon(34% 0, 100% 48%, 58% 100%, 0 63%)')
+            : 'none';
 
         return {
           id: `${id}-${index}`,
+          kind,
           style: {
             '--snap-x': `${x}%`,
             '--snap-y': `${y}%`,
@@ -354,14 +372,17 @@ export default {
             '--snap-ty': `${ty}px`,
             '--snap-mid-tx': `${midTx}px`,
             '--snap-mid-ty': `${midTy}px`,
+            '--snap-late-tx': `${lateTx}px`,
+            '--snap-late-ty': `${lateTy}px`,
             '--snap-size': `${size}px`,
+            '--snap-width': `${particleWidth}px`,
             '--snap-delay': `${waveDelay}ms`,
             '--snap-duration': `${duration}ms`,
             '--snap-rotate': `${rotate}deg`,
-            '--snap-mid-rotate': `${rotate * 0.55}deg`,
-            '--snap-early-rotate': `${rotate * 0.14}deg`,
-            '--snap-radius': radius,
-            '--snap-color': palette[index % palette.length],
+            '--snap-mid-rotate': `${rotate * 0.42}deg`,
+            '--snap-late-rotate': `${rotate * 0.78}deg`,
+            '--snap-clip': clip,
+            '--snap-color': palette[Math.floor(Math.random() * palette.length)],
           },
         };
       });
@@ -596,6 +617,7 @@ export default {
       this.createEquipmentSnapParticles(item);
       this.deletingEquipmentIds = [...this.deletingEquipmentIds, id];
 
+      const removalDelay = prefersReducedMotion() ? 180 : EQUIPMENT_SNAP_DURATION_MS;
       this.equipmentRemovalTimers[id] = setTimeout(() => {
         this.equipmentItems = this.equipmentItems.filter(
             eq => this.getEquipmentIdentity(eq) !== id
@@ -603,7 +625,7 @@ export default {
         this.deletingEquipmentIds = this.deletingEquipmentIds.filter(itemId => itemId !== id);
         this.clearEquipmentSnapParticles(id);
         delete this.equipmentRemovalTimers[id];
-      }, EQUIPMENT_SNAP_DURATION_MS);
+      }, removalDelay);
     },
 
     resolveDropAnchorPosition(row, col, width = 1, height = 1) {
@@ -1937,26 +1959,28 @@ export default {
                         @dragstart.stop="!isEquipmentDeleting(item) && onGridItemDragStart($event, item)"
                         @dragend="onDragEnd"
                     >
-                      <div
-                          class="cell-icon"
-                          :style="{ background: equipmentTypeMap[item.type].color }"
-                      >
-                        <TrustedSvgIcon :svg="equipmentTypeMap[item.type].icon" />
-                      </div>
+                      <div class="equipment-card-content">
+                        <div
+                            class="cell-icon"
+                            :style="{ background: equipmentTypeMap[item.type].color }"
+                        >
+                          <TrustedSvgIcon :svg="equipmentTypeMap[item.type].icon" />
+                        </div>
 
-                      <div class="cell-label">
-                        {{ equipmentTypeMap[item.type].name }}
-                      </div>
+                        <div class="cell-label">
+                          {{ equipmentTypeMap[item.type].name }}
+                        </div>
 
-                      <button
-                          class="remove-btn"
-                          :disabled="isEquipmentDeleting(item)"
-                          @click.stop="removeEquipment(item)"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
-                          <path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/>
-                        </svg>
-                      </button>
+                        <button
+                            class="remove-btn"
+                            :disabled="isEquipmentDeleting(item)"
+                            @click.stop="removeEquipment(item)"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
+                            <path fill="currentColor" fill-rule="evenodd" d="M799.855 166.312c.023.007.043.018.084.059l57.69 57.69c.041.041.052.06.059.084a.118.118 0 0 1 0 .069c-.007.023-.018.042-.059.083L569.926 512l287.703 287.703c.041.04.052.06.059.083a.118.118 0 0 1 0 .07c-.007.022-.018.042-.059.083l-57.69 57.69c-.041.041-.06.052-.084.059a.118.118 0 0 1-.069 0c-.023-.007-.042-.018-.083-.059L512 569.926L224.297 857.629c-.04.041-.06.052-.083.059a.118.118 0 0 1-.07 0c-.022-.007-.042-.018-.083-.059l-57.69-57.69c-.041-.041-.052-.06-.059-.084a.118.118 0 0 1 0-.069c.007-.023.018-.042.059-.083L454.073 512L166.371 224.297c-.041-.04-.052-.06-.059-.083a.118.118 0 0 1 0-.07c.007-.022.018-.042.059-.083l57.69-57.69c.041-.041.06-.052.084-.059a.118.118 0 0 1 .069 0c.023.007.042.018.083.059L512 454.073l287.703-287.702c.04-.041.06-.052.083-.059a.118.118 0 0 1 .07 0Z"/>
+                          </svg>
+                        </button>
+                      </div>
 
                       <div
                           v-if="isEquipmentDeleting(item)"
@@ -1967,6 +1991,7 @@ export default {
                             v-for="particle in getEquipmentSnapParticles(item)"
                             :key="particle.id"
                             class="snap-particle"
+                            :class="`is-${particle.kind}`"
                             :style="particle.style"
                         ></span>
                       </div>
@@ -3512,6 +3537,10 @@ export default {
 }
 
 .grid-equipment {
+  --snap-surface: #ffffff;
+  --snap-border: #cbd5e1;
+  --snap-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+
   position: relative;
   z-index: 2;
 
@@ -3527,9 +3556,9 @@ export default {
 
   padding: 8px;
   border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  background: var(--snap-surface);
+  border: 1px solid var(--snap-border);
+  box-shadow: var(--snap-shadow);
 
   cursor: grab;
   overflow: hidden;
@@ -3547,6 +3576,9 @@ export default {
 }
 
 .grid-equipment.broken {
+  --snap-surface: #fef2f2;
+  --snap-border: #f87171;
+
   background: #fef2f2;
   border-color: #f87171;
 }
@@ -3560,32 +3592,83 @@ export default {
   flex-direction: column;
 }
 
+.equipment-card-content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: inherit;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  min-width: 0;
+  min-height: 0;
+  padding: inherit;
+  box-sizing: border-box;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-equipment) {
+  --snap-surface: #0b1220;
+  --snap-border: #1e3a8a;
+  --snap-shadow: none;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-equipment.broken) {
+  --snap-surface: #3b1218;
+  --snap-border: #fb7185;
+}
+
 .grid-equipment.is-removing {
   z-index: 8;
   pointer-events: none;
   overflow: visible;
-  animation: equipmentSnapCardVanish 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  animation: equipmentSnapImpact 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:global(html[data-theme='dark'] .create-audience-page .grid-equipment.is-removing) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.grid-equipment.is-removing::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 1px solid var(--snap-border);
+  border-radius: inherit;
+  background: var(--snap-surface);
+  box-shadow: var(--snap-shadow);
+  pointer-events: none;
+  animation: equipmentSnapSurface 920ms 90ms cubic-bezier(0.58, 0, 0.42, 1) forwards;
 }
 
 .grid-equipment.is-removing::after {
   content: "";
   position: absolute;
-  inset: -28%;
-  border-radius: inherit;
+  top: -10%;
+  bottom: -10%;
+  left: 100%;
+  width: 24%;
   pointer-events: none;
-  z-index: 5;
+  z-index: 6;
   opacity: 0;
   background:
-      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.98) 0%, rgba(96, 165, 250, 0.6) 30%, transparent 64%),
-      linear-gradient(118deg, transparent 0 20%, rgba(255, 255, 255, 0.88) 34%, transparent 50%);
+      radial-gradient(ellipse at 50% 34%, rgba(255, 255, 255, 0.82), transparent 54%),
+      linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.48), transparent);
+  filter: blur(2px);
   mix-blend-mode: screen;
-  animation: equipmentSnapFlash 0.44s ease-out forwards;
+  transform: translateX(-50%);
+  animation: equipmentSnapEdge 920ms 90ms cubic-bezier(0.58, 0, 0.42, 1) forwards;
 }
 
-.grid-equipment.is-removing .cell-icon,
-.grid-equipment.is-removing .cell-label,
-.grid-equipment.is-removing .remove-btn {
-  animation: equipmentSnapContent 0.44s ease-in forwards;
+.grid-equipment.is-removing .equipment-card-content {
+  animation: equipmentSnapSurface 920ms 90ms cubic-bezier(0.58, 0, 0.42, 1) forwards;
 }
 
 .snap-particles {
@@ -3600,16 +3683,28 @@ export default {
   position: absolute;
   left: var(--snap-x);
   top: var(--snap-y);
-  width: var(--snap-size);
+  width: var(--snap-width);
   height: var(--snap-size);
-  border-radius: var(--snap-radius);
   background: var(--snap-color);
-  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--snap-color) 70%, transparent);
+  clip-path: var(--snap-clip);
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
-  animation: equipmentSnapParticle var(--snap-duration) ease-out forwards;
+  transform: translate(-50%, -50%) scale(0.28) rotate(0deg);
+  animation: equipmentSnapParticle var(--snap-duration) cubic-bezier(0.16, 0.72, 0.24, 1) forwards;
   animation-delay: var(--snap-delay);
   will-change: transform, opacity, filter;
+}
+
+.snap-particle.is-dust {
+  border-radius: 999px;
+}
+
+.snap-particle.is-shard {
+  border-radius: 1px;
+}
+
+.snap-particle.is-spark {
+  border-radius: 999px;
+  box-shadow: 0 0 5px 1px var(--snap-color);
 }
 
 .cell-icon {
@@ -4036,55 +4131,77 @@ export default {
   }
 }
 
-@keyframes equipmentSnapCardVanish {
+@keyframes equipmentSnapImpact {
   0% {
-    opacity: 1;
-    transform: scale(1) rotate(0deg) translateY(0);
-    filter: saturate(1) blur(0);
+    transform: translateY(0) scale(1);
   }
-  10% {
-    opacity: 1;
-    transform: scale(1.05) rotate(-0.4deg) translateY(-1px);
-    filter: saturate(1.7) blur(0);
-  }
-  36% {
-    opacity: 0.8;
-    transform: scale(0.78) rotate(1.8deg) translateY(-4px);
-    filter: saturate(2) blur(1.5px);
-  }
-  68% {
-    opacity: 0.32;
-    transform: scale(0.55) rotate(3.5deg) translateY(-9px);
-    filter: saturate(1.3) blur(4.5px);
+  48% {
+    transform: translateY(-1px) scale(1.025);
   }
   100% {
-    opacity: 0;
-    transform: scale(0.32) rotate(6deg) translateY(-16px);
-    filter: saturate(0.3) blur(9px);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes equipmentSnapSurface {
+  0%, 8% {
+    clip-path: polygon(
+        0 0, 100% 0, 100% 12%, 100% 25%, 100% 39%,
+        100% 53%, 100% 67%, 100% 82%, 100% 100%, 0 100%
+    );
+  }
+  38% {
+    clip-path: polygon(
+        0 0, 72% 0, 78% 12%, 69% 25%, 75% 39%,
+        68% 53%, 74% 67%, 66% 82%, 71% 100%, 0 100%
+    );
+  }
+  72% {
+    clip-path: polygon(
+        0 0, 31% 0, 37% 12%, 27% 25%, 34% 39%,
+        26% 53%, 33% 67%, 24% 82%, 29% 100%, 0 100%
+    );
+  }
+  100% {
+    clip-path: polygon(
+        0 0, 0 0, 0 12%, 0 25%, 0 39%,
+        0 53%, 0 67%, 0 82%, 0 100%, 0 100%
+    );
   }
 }
 
 @keyframes equipmentSnapParticle {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+    transform: translate(-50%, -50%) scale(0.28) rotate(0deg);
     filter: blur(0);
   }
-  10% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.15) rotate(var(--snap-early-rotate));
+  13% {
+    opacity: 0.98;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
     filter: blur(0);
   }
-  52% {
-    opacity: 0.88;
+  48% {
+    opacity: 0.9;
     transform:
         translate(
             calc(-50% + var(--snap-mid-tx)),
             calc(-50% + var(--snap-mid-ty))
         )
-        scale(0.72)
+        scale(0.86)
         rotate(var(--snap-mid-rotate));
-    filter: blur(0.3px);
+    filter: blur(0.15px);
+  }
+  78% {
+    opacity: 0.48;
+    transform:
+        translate(
+            calc(-50% + var(--snap-late-tx)),
+            calc(-50% + var(--snap-late-ty))
+        )
+        scale(0.52)
+        rotate(var(--snap-late-rotate));
+    filter: blur(0.55px);
   }
   100% {
     opacity: 0;
@@ -4093,45 +4210,31 @@ export default {
             calc(-50% + var(--snap-tx)),
             calc(-50% + var(--snap-ty))
         )
-        scale(0.06)
+        scale(0.08)
         rotate(var(--snap-rotate));
-    filter: blur(2px);
+    filter: blur(1.8px);
   }
 }
 
-@keyframes equipmentSnapFlash {
+@keyframes equipmentSnapEdge {
   0% {
     opacity: 0;
-    transform: scale(0.65);
+    left: 100%;
   }
-  18% {
-    opacity: 1;
-    transform: scale(1.05);
+  12% {
+    opacity: 0.78;
   }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.25);
+  38% {
+    left: 72%;
+    opacity: 0.66;
+  }
+  72% {
+    left: 31%;
+    opacity: 0.42;
   }
   100% {
     opacity: 0;
-    transform: scale(1.7) rotate(6deg);
-  }
-}
-
-@keyframes equipmentSnapContent {
-  0% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0);
-  }
-  35% {
-    opacity: 0.6;
-    filter: blur(0);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.65) translateY(-12px);
-    filter: blur(3px);
+    left: 0;
   }
 }
 
@@ -4142,14 +4245,27 @@ export default {
   .stat-item,
   .grid-panel,
   .grid-header,
-  .grid-wrapper,
-  .grid-equipment.is-removing,
+  .grid-wrapper {
+    animation: none !important;
+  }
+
+  .grid-equipment.is-removing {
+    opacity: 0 !important;
+    animation: none !important;
+    transition: opacity 160ms ease !important;
+  }
+
+  .grid-equipment.is-removing::before,
   .grid-equipment.is-removing::after,
-  .grid-equipment.is-removing .cell-icon,
-  .grid-equipment.is-removing .cell-label,
-  .grid-equipment.is-removing .remove-btn,
+  .grid-equipment.is-removing .equipment-card-content,
   .snap-particle {
     animation: none !important;
+  }
+
+  .grid-equipment.is-removing::before,
+  .grid-equipment.is-removing::after,
+  .snap-particles {
+    display: none !important;
   }
 }
 </style>
