@@ -76,14 +76,6 @@ class CeleryConfig(BaseModel):
     timezone: str = "UTC"
 
 
-class OutboxConfig(BaseModel):
-    batch_size: int = 50
-    max_attempts: int = 5
-    retry_delay_seconds: int = 60
-    stale_after_seconds: int = 300
-    poll_interval_seconds: int = 10
-
-
 class CacheConfig(BaseModel):
     redis_url: str = "redis://localhost:6379/3"
     user_ttl_seconds: int = 600
@@ -120,7 +112,6 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     logger: LoggingConfig = LoggingConfig()
     celery: CeleryConfig
-    outbox: OutboxConfig = OutboxConfig()
     cache: CacheConfig = CacheConfig()
     storage: StorageConfig = StorageConfig()
     websocket: WebSocketConfig = WebSocketConfig()

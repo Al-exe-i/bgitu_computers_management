@@ -3,24 +3,43 @@ from typing import Annotated
 from fastapi import Depends
 
 from db.session import session_dep
-from repositories.outbox_event_repo import OutboxEventRepository
-from services.outbox_service import OutboxPublisher
+from dependencies.realtime import realtime_dep
 from modules.identity.adapters.fastapi_events import IdentityEventDispatcher
 from modules.inventory.adapters.fastapi_events import InventoryEventDispatcher
+from repositories.audience_repo import AudienceRepository
+from repositories.notification_subscription_repo import NotificationSubscriptionRepository
+from services.realtime_notification_service import (
+    RealtimeNotificationDispatcher,
+    RealtimeNotificationRecipientService,
+    RealtimeNotificationRenderer,
+)
 
 
-def get_outbox_publisher(session: session_dep) -> OutboxPublisher:
-    return OutboxPublisher(OutboxEventRepository(session))
+def get_realtime_notification_dispatcher(
+    session: session_dep,
+    realtime: realtime_dep,
+) -> RealtimeNotificationDispatcher:
+    return RealtimeNotificationDispatcher(
+        recipients=RealtimeNotificationRecipientService(
+            NotificationSubscriptionRepository(session),
+            AudienceRepository(session),
+        ),
+        renderer=RealtimeNotificationRenderer(),
+        publisher=realtime,
+    )
 
 
-outbox_publisher_dep = Annotated[
-    OutboxPublisher,
-    Depends(get_outbox_publisher),
+realtime_notification_dispatcher_dep = Annotated[
+    RealtimeNotificationDispatcher,
+    Depends(get_realtime_notification_dispatcher),
 ]
 
 
-def get_identity_event_dispatcher(outbox: outbox_publisher_dep) -> IdentityEventDispatcher:
-    return IdentityEventDispatcher(outbox)
+def get_identity_event_dispatcher(
+    session: session_dep,
+    notifications: realtime_notification_dispatcher_dep,
+) -> IdentityEventDispatcher:
+    return IdentityEventDispatcher(session, notifications)
 
 
 identity_event_dispatcher_dep = Annotated[
@@ -30,9 +49,11 @@ identity_event_dispatcher_dep = Annotated[
 
 
 def get_inventory_event_dispatcher(
-    outbox: outbox_publisher_dep,
+    session: session_dep,
+    realtime: realtime_dep,
+    notifications: realtime_notification_dispatcher_dep,
 ) -> InventoryEventDispatcher:
-    return InventoryEventDispatcher(outbox)
+    return InventoryEventDispatcher(session, realtime, notifications)
 
 
 inventory_event_dispatcher_dep = Annotated[

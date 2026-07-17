@@ -7,7 +7,6 @@ from .hardware_file import HardwareFile
 from .user_session import UserSession
 from .notification_subscription import NotificationSubscription
 from .invite_link import InviteLink
-from .outbox_event import OutboxEvent
 from .spec_template import SpecTemplate
 
 __all__ = [
@@ -20,6 +19,5 @@ __all__ = [
     "UserSession",
     "NotificationSubscription",
     "InviteLink",
-    "OutboxEvent",
     "SpecTemplate",
 ]

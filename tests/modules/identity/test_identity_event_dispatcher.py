@@ -1,22 +1,29 @@
 import asyncio
 
-from core.outbox import OutboxEventType
+from db.post_commit import run_post_commit_hooks
 from modules.identity.adapters.fastapi_events import IdentityEventDispatcher
 from modules.identity.events import AuthSecurityNotificationEvent
+from services.realtime_notification_service import AuthSecurityNotification
 
 
-class FakeOutboxPublisher:
+class FakeSession:
     def __init__(self) -> None:
-        self.events: list[dict] = []
-
-    async def publish(self, *, event_type: str, payload: dict) -> None:
-        self.events.append({"event_type": event_type, "payload": payload})
+        self.info = {}
 
 
-def test_identity_event_dispatcher_writes_auth_security_event_to_outbox() -> None:
+class FakeNotifications:
+    def __init__(self) -> None:
+        self.auth_security: list[AuthSecurityNotification] = []
+
+    async def send_auth_security(self, notification: AuthSecurityNotification) -> None:
+        self.auth_security.append(notification)
+
+
+def test_identity_event_dispatcher_sends_notification_after_commit() -> None:
     async def scenario() -> None:
-        outbox = FakeOutboxPublisher()
-        dispatcher = IdentityEventDispatcher(outbox)
+        session = FakeSession()
+        notifications = FakeNotifications()
+        dispatcher = IdentityEventDispatcher(session, notifications)
 
         await dispatcher.dispatch(
             [
@@ -29,16 +36,17 @@ def test_identity_event_dispatcher_writes_auth_security_event_to_outbox() -> Non
             ]
         )
 
-        assert outbox.events == [
-            {
-                "event_type": OutboxEventType.IDENTITY_AUTH_SECURITY.value,
-                "payload": {
-                    "user_id": 7,
-                    "event_name": "Login",
-                    "ip": "127.0.0.1",
-                    "user_agent": "pytest",
-                },
-            }
+        assert notifications.auth_security == []
+
+        await run_post_commit_hooks(session)
+
+        assert notifications.auth_security == [
+            AuthSecurityNotification(
+                user_id=7,
+                event_name="Login",
+                ip="127.0.0.1",
+                user_agent="pytest",
+            )
         ]
 
     asyncio.run(scenario())

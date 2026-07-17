@@ -1,23 +1,48 @@
 import asyncio
 from types import SimpleNamespace
 
-from core.outbox import OutboxEventType
+from db.post_commit import run_post_commit_hooks
 from modules.inventory.adapters.fastapi_events import InventoryEventDispatcher
 from modules.inventory.events import AudienceUpdatedEvent, HardwareStateChangedEvent
+from services.realtime_notification_service import (
+    AudienceChangedNotification,
+    HardwareStateNotification,
+)
 
 
-class FakeOutboxPublisher:
+class FakeSession:
     def __init__(self) -> None:
-        self.events: list[dict] = []
-
-    async def publish(self, *, event_type: str, payload: dict) -> None:
-        self.events.append({"event_type": event_type, "payload": payload})
+        self.info = {}
 
 
-def test_inventory_event_dispatcher_writes_events_to_outbox() -> None:
+class FakeRealtime:
+    def __init__(self, calls: list[tuple[str, object]]) -> None:
+        self.calls = calls
+
+    async def publish_audience_updated(self, audience_id: int) -> None:
+        self.calls.append(("audience_updated", audience_id))
+
+
+class FakeNotifications:
+    def __init__(self, calls: list[tuple[str, object]]) -> None:
+        self.calls = calls
+
+    async def send_audience_changed(self, notification: AudienceChangedNotification) -> None:
+        self.calls.append(("audience_notification", notification))
+
+    async def send_hardware_state(self, notification: HardwareStateNotification) -> None:
+        self.calls.append(("hardware_notification", notification))
+
+
+def test_inventory_event_dispatcher_sends_events_after_commit() -> None:
     async def scenario() -> None:
-        outbox = FakeOutboxPublisher()
-        dispatcher = InventoryEventDispatcher(outbox)
+        calls: list[tuple[str, object]] = []
+        session = FakeSession()
+        dispatcher = InventoryEventDispatcher(
+            session,
+            FakeRealtime(calls),
+            FakeNotifications(calls),
+        )
         hardware = SimpleNamespace(
             id=9,
             audience_id=12,
@@ -41,48 +66,49 @@ def test_inventory_event_dispatcher_writes_events_to_outbox() -> None:
             ]
         )
 
-        assert outbox.events == [
-            {
-                "event_type": OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
-                "payload": {"audience_id": 12, "notify_subscribers": True},
-            },
-            {
-                "event_type": OutboxEventType.INVENTORY_HARDWARE_STATE_CHANGED.value,
-                "payload": {
-                    "previous_state": True,
-                    "hardware_id": 9,
-                    "audience_id": 12,
-                    "state": False,
-                    "hardware_type": "computer",
-                    "title": "PC",
-                    "description": "Broken",
-                    "inv_number": "INV-1",
-                    "x": 1,
-                    "y": 2,
-                    "actor_user_id": 7,
-                },
-            },
+        assert calls == []
+
+        await run_post_commit_hooks(session)
+
+        assert calls == [
+            ("audience_updated", 12),
+            ("audience_notification", AudienceChangedNotification(audience_id=12)),
+            (
+                "hardware_notification",
+                HardwareStateNotification(
+                    previous_state=True,
+                    hardware_id=9,
+                    audience_id=12,
+                    state=False,
+                    hardware_type="computer",
+                    title="PC",
+                    description="Broken",
+                    inv_number="INV-1",
+                    x=1,
+                    y=2,
+                    actor_user_id=7,
+                ),
+            ),
         ]
 
     asyncio.run(scenario())
 
 
-def test_inventory_event_dispatcher_preserves_audience_notification_flag() -> None:
+def test_inventory_event_dispatcher_can_skip_audience_notification() -> None:
     async def scenario() -> None:
-        outbox = FakeOutboxPublisher()
-        dispatcher = InventoryEventDispatcher(outbox)
-
-        await dispatcher.dispatch(
-            [
-                AudienceUpdatedEvent(audience_id=12, notify_subscribers=False),
-            ]
+        calls: list[tuple[str, object]] = []
+        session = FakeSession()
+        dispatcher = InventoryEventDispatcher(
+            session,
+            FakeRealtime(calls),
+            FakeNotifications(calls),
         )
 
-        assert outbox.events == [
-            {
-                "event_type": OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
-                "payload": {"audience_id": 12, "notify_subscribers": False},
-            }
-        ]
+        await dispatcher.dispatch(
+            [AudienceUpdatedEvent(audience_id=12, notify_subscribers=False)]
+        )
+        await run_post_commit_hooks(session)
+
+        assert calls == [("audience_updated", 12)]
 
     asyncio.run(scenario())

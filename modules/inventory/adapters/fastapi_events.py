@@ -1,46 +1,68 @@
-from core.outbox import OutboxEventType
+from functools import partial
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.post_commit import add_post_commit_hook
 from modules.inventory.events import (
     AudienceUpdatedEvent,
     HardwareStateChangedEvent,
     InventoryEvent,
 )
-from services.outbox_service import OutboxPublisher
+from services.realtime_notification_service import (
+    AudienceChangedNotification,
+    HardwareStateNotification,
+    RealtimeNotificationDispatcher,
+)
+from websocket.service import RealtimeService
 
 
 class InventoryEventDispatcher:
-    def __init__(self, outbox: OutboxPublisher) -> None:
-        self.outbox = outbox
+    def __init__(
+        self,
+        session: AsyncSession,
+        realtime: RealtimeService,
+        notifications: RealtimeNotificationDispatcher,
+    ) -> None:
+        self.session = session
+        self.realtime = realtime
+        self.notifications = notifications
 
     async def dispatch(self, events: list[InventoryEvent]) -> None:
         for event in events:
             if isinstance(event, AudienceUpdatedEvent):
-                await self.outbox.publish(
-                    event_type=OutboxEventType.INVENTORY_AUDIENCE_UPDATED.value,
-                    payload={
-                        "audience_id": event.audience_id,
-                        "notify_subscribers": event.notify_subscribers,
-                    },
-                )
+                self._register_audience_updated(event)
             elif isinstance(event, HardwareStateChangedEvent):
-                await self._dispatch_hardware_state_changed(event)
+                self._register_hardware_state_changed(event)
 
-    async def _dispatch_hardware_state_changed(self, event: HardwareStateChangedEvent) -> None:
+    def _register_audience_updated(self, event: AudienceUpdatedEvent) -> None:
+        add_post_commit_hook(
+            self.session,
+            partial(self.realtime.publish_audience_updated, event.audience_id),
+        )
+
+        if event.notify_subscribers:
+            notification = AudienceChangedNotification(audience_id=event.audience_id)
+            add_post_commit_hook(
+                self.session,
+                partial(self.notifications.send_audience_changed, notification),
+            )
+
+    def _register_hardware_state_changed(self, event: HardwareStateChangedEvent) -> None:
         hardware = event.hardware
-        payload = {
-            "previous_state": event.previous_state,
-            "hardware_id": hardware.id,
-            "audience_id": hardware.audience_id,
-            "state": hardware.state,
-            "hardware_type": getattr(hardware.type, "value", hardware.type),
-            "title": hardware.title,
-            "description": hardware.description,
-            "inv_number": hardware.inv_number,
-            "x": hardware.x,
-            "y": hardware.y,
-            "actor_user_id": event.actor_user_id,
-        }
-
-        await self.outbox.publish(
-            event_type=OutboxEventType.INVENTORY_HARDWARE_STATE_CHANGED.value,
-            payload=payload,
+        notification = HardwareStateNotification(
+            previous_state=event.previous_state,
+            hardware_id=hardware.id,
+            audience_id=hardware.audience_id,
+            state=hardware.state,
+            hardware_type=getattr(hardware.type, "value", hardware.type),
+            title=hardware.title,
+            description=hardware.description,
+            inv_number=hardware.inv_number,
+            x=hardware.x,
+            y=hardware.y,
+            actor_user_id=event.actor_user_id,
+        )
+        add_post_commit_hook(
+            self.session,
+            partial(self.notifications.send_hardware_state, notification),
         )
