@@ -14,10 +14,16 @@ RUN pip install --no-cache-dir uv==${UV_VERSION}
 COPY pyproject.toml uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
+    uv sync --frozen --no-dev
 
 ENV PATH="/backend/.venv/bin:$PATH"
 
 COPY . .
+
+RUN groupadd --system app \
+    && useradd --system --gid app --home-dir /backend app \
+    && chown -R app:app /backend
+
+USER app
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
