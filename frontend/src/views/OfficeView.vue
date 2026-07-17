@@ -294,7 +294,7 @@ export default {
 
   <div class="building-container">
     <div v-if="!loading" class="building-info" :class="{ 'is-dark': themeStore.isDark }">
-      <div class="building-hero">
+      <div class="building-hero" :class="{ 'is-public': !authStore.isAuthenticated }">
         <div class="building-identity">
           <div class="building-symbol" aria-hidden="true">
             <div class="building-symbol-backdrop"></div>
@@ -315,8 +315,8 @@ export default {
               <span>{{ office.address }}</span>
             </div>
 
-            <div class="building-pills">
-              <div class="building-pill">
+            <div class="building-actions">
+              <div class="building-floor-meta">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1536" viewBox="0 0 1536 1536"><path fill="currentColor" d="M33 431q-18-9-25.5-19.5T0 383t7.5-28.5T33 335L670 17q39-19 98-17q59-2 98 17l637 318q18 9 25.5 19.5t7.5 28.5t-7.5 28.5T1503 431L866 749q-39 19-98 17q-59 2-98-17zm0 770q-18-9-25.5-19.5T0 1153t7.5-28.5T33 1105l160-80l477 238q40 19 98 16q58 3 98-16l477-238l160 80q18 9 25.5 19.5t7.5 28.5t-7.5 28.5t-25.5 19.5l-637 318q-40 19-98 16q-58 3-98-16zm0-384q-18-9-25.5-19.5T0 769t7.5-28.5T33 721l160-80l477 238q40 19 98 16q58 3 98-16l477-238l160 80q18 9 25.5 19.5t7.5 28.5t-7.5 28.5T1503 817l-637 318q-40 19-98 16q-58 3-98-16z"/></svg>
                 <span>Этажей: {{ floorCount }}</span>
               </div>
@@ -333,65 +333,76 @@ export default {
         </div>
 
         <div v-if="authStore.isAuthenticated" class="building-spotlight">
-          <span class="building-spotlight-label">Состояние оборудования</span>
-          <div class="building-spotlight-main">
-            <template v-if="hasHardwareStats">
-              <strong>{{ workingHardwareCount }}</strong>
-              <span>/ {{ totalHardware }}</span>
-            </template>
-            <strong v-else>—</strong>
+          <div class="building-spotlight-heading">
+            <span
+              class="building-spotlight-signal"
+              :class="{ 'is-alert': brokenHardware > 0 }"
+              aria-hidden="true"
+            ></span>
+            <span class="building-spotlight-label">Техническое состояние</span>
           </div>
-          <p class="building-spotlight-text">
-            {{ hasHardwareStats ? 'единиц оборудования исправны сейчас' : 'Статистика недоступна' }}
-          </p>
-          <div v-if="hasHardwareStats" class="building-spotlight-track" aria-hidden="true">
-            <span class="building-spotlight-fill" :style="{ width: `${hardwareHealthPercent}%` }"></span>
+
+          <template v-if="hasHardwareStats">
+            <div class="building-spotlight-main">
+              <strong>{{ hardwareHealthPercent }}<small>%</small></strong>
+              <span>{{ workingHardwareCount }} из {{ totalHardware }} единиц исправны</span>
+            </div>
+            <div class="building-spotlight-track" aria-hidden="true">
+              <span class="building-spotlight-fill" :style="{ width: `${hardwareHealthPercent}%` }"></span>
+            </div>
+            <span class="building-spotlight-footnote" :class="{ 'is-alert': brokenHardware > 0 }">
+              {{ brokenHardware > 0 ? `Требуют внимания: ${brokenHardware}` : 'Неисправностей не обнаружено' }}
+            </span>
+          </template>
+
+          <div v-else class="building-spotlight-main is-empty">
+            <strong>—</strong>
+            <span>Нет оборудования для расчёта</span>
           </div>
-          <span v-if="hasHardwareStats" class="building-spotlight-footnote">{{ hardwareHealthPercent }}% работоспособности</span>
         </div>
       </div>
 
-      <div v-if="this.authStore.isAuthenticated" class="stats-container">
-        <div class="stat-card">
-          <span class="stat-icon" aria-hidden="true">
+      <div v-if="this.authStore.isAuthenticated" class="building-stats">
+        <div class="building-stat">
+          <span class="building-stat-icon" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><path fill="currentColor" d="M1664 0v2048H384V0zm-128 128H512v1792h1024zm-192 1024q-26 0-45-19t-19-45t19-45t45-19t45 19t19 45t-19 45t-45 19"/></svg>
           </span>
-          <div class="stat-copy">
-            <div class="stat-label">Всего аудиторий</div>
-            <div class="stat-value">{{ audiencesCount }}</div>
+          <div class="building-stat-copy">
+            <div class="building-stat-label">Всего аудиторий</div>
+            <div class="building-stat-value">{{ audiencesCount }}</div>
           </div>
         </div>
 
-        <div class="stat-card">
-          <span class="stat-icon" aria-hidden="true">
+        <div class="building-stat">
+          <span class="building-stat-icon" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M9 18H4v-8h5zm6 0h-5V6h5zm6 0h-5V2h5zm1 4H3v-2h19z"/></svg>
           </span>
-          <div class="stat-copy">
-            <div class="stat-label">Всего оборудования</div>
-            <div class="stat-value">{{ totalHardware }}</div>
+          <div class="building-stat-copy">
+            <div class="building-stat-label">Всего оборудования</div>
+            <div class="building-stat-value">{{ totalHardware }}</div>
           </div>
         </div>
 
-        <div class="stat-card stat-card-success">
-          <span class="stat-icon" aria-hidden="true">
+        <div class="building-stat is-success">
+          <span class="building-stat-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="8"></circle>
               <path d="m8.8 12.3 2.2 2.2 4.3-4.6"></path>
             </svg>
           </span>
-          <div class="stat-copy">
-            <div class="stat-label">Исправно</div>
-            <div class="stat-value">{{ workingHardwareCount }}</div>
+          <div class="building-stat-copy">
+            <div class="building-stat-label">Исправно</div>
+            <div class="building-stat-value">{{ workingHardwareCount }}</div>
           </div>
         </div>
 
-        <div class="stat-card stat-card-danger">
-          <span class="stat-icon" aria-hidden="true">
+        <div class="building-stat is-danger">
+          <span class="building-stat-icon" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10.5v3.75m-9.303 3.376C1.83 19.126 2.914 21 4.645 21h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 4.88c-.866-1.501-3.032-1.501-3.898 0L2.697 17.626ZM12 17.25h.007v.008H12v-.008Z"/></svg>
           </span>
-          <div class="stat-copy">
-            <div class="stat-label">Неисправно</div>
-            <div class="stat-value">{{ this.brokenHardware }}</div>
+          <div class="building-stat-copy">
+            <div class="building-stat-label">Неисправно</div>
+            <div class="building-stat-value">{{ this.brokenHardware }}</div>
           </div>
         </div>
       </div>
@@ -571,67 +582,42 @@ body {
   width: 100%;
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 34%),
-    radial-gradient(circle at left bottom, rgba(37, 99, 235, 0.12), transparent 32%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
-  border-radius: 28px;
-  padding: 32px;
-  border: 1px solid rgba(191, 219, 254, 0.85);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+  border-radius: 20px;
+  padding: 0;
+  border: 1px solid #d8e0ea;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 18px 45px -36px rgba(15, 23, 42, 0.45);
   margin-top: 1rem;
   transform-origin: top center;
   animation: officeHeroReveal 0.78s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.building-info::before,
-.building-info::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.building-info::before {
-  width: 240px;
-  height: 240px;
-  right: -110px;
-  top: -120px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.16), transparent 68%);
-}
-
-.building-info::after {
-  width: 220px;
-  height: 220px;
-  left: -90px;
-  bottom: -120px;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.14), transparent 70%);
-}
-
 .building-info.is-dark {
-  background:
-    radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 34%),
-    radial-gradient(circle at left bottom, rgba(37, 99, 235, 0.18), transparent 30%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.98));
-  border-color: rgba(51, 65, 85, 0.92);
-  box-shadow: 0 20px 50px rgba(2, 6, 23, 0.36);
+  background: #101722 !important;
+  border-color: #293548 !important;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.35), 0 18px 50px -36px rgba(0, 0, 0, 0.9) !important;
 }
 
 .building-hero {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(250px, 0.9fr);
-  gap: 28px;
+  grid-template-columns: minmax(0, 1.65fr) minmax(270px, 0.65fr);
+  gap: 0;
   align-items: stretch;
-  margin-bottom: 24px;
+  margin: 0;
+}
+
+.building-hero.is-public {
+  grid-template-columns: 1fr;
 }
 
 .building-identity {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 26px;
+  padding: 36px 40px 34px;
   animation: officeContentRise 0.64s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
@@ -688,38 +674,40 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .building-title {
-  font-size: clamp(28px, 3vw, 40px);
-  line-height: 1.05;
-  font-weight: 800;
+  max-width: 720px;
+  font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-size: clamp(30px, 3.3vw, 44px);
+  line-height: 1.02;
+  font-weight: 750;
   color: #0f172a;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.045em;
 }
 
 .building-description {
   display: inline-flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 9px;
   width: fit-content;
   max-width: 100%;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  color: #334155;
-  font-size: 16px;
-  line-height: 1.55;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  color: #526176;
+  font-size: 15px;
+  line-height: 1.45;
 }
 
 .building-description-icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
-  color: #0ea5e9;
-  margin-top: 2px;
+  color: #2563eb;
+  margin-top: 0;
 }
 
 .building-description-icon svg {
@@ -727,202 +715,266 @@ body {
   height: 100%;
 }
 
-.building-pills {
+.building-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
 }
 
-.building-pill {
+.building-floor-meta {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 9px 14px;
-  border-radius: 999px;
-  background: rgba(248, 250, 252, 0.92);
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  color: #475569;
-  font-size: 14px;
-  font-weight: 600;
+  gap: 7px;
+  min-height: 0;
+  padding: 0 16px 0 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid #d6dde7;
+  color: #526176;
+  font-size: 13px;
+  font-weight: 650;
 }
 
-.building-pill svg {
-  width: 16px;
-  height: 16px;
+.building-floor-meta svg {
+  width: 15px;
+  height: 15px;
   color: #2563eb;
   flex-shrink: 0;
 }
 
+.building-info .add-classroom-btn-compact {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #1d4ed8;
+  border-radius: 9px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 650;
+  box-shadow: none;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.building-info .add-classroom-btn-compact:hover {
+  transform: none;
+  border-color: #1e40af;
+  background: #1d4ed8;
+  box-shadow: none;
+}
+
 .building-spotlight {
   position: relative;
-  overflow: hidden;
   z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 12px;
-  padding: 22px;
-  border-radius: 24px;
-  border: 1px solid rgba(191, 219, 254, 0.92);
-  background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.2), transparent 42%),
-    radial-gradient(circle at left bottom, rgba(34, 197, 94, 0.12), transparent 34%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.94));
+  gap: 14px;
+  padding: 32px 30px;
+  border-radius: 0;
+  border: 0;
+  border-left: 1px solid #d8e0ea;
+  background: #eef3f8;
   color: #0f172a;
-  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  animation: officeSpotlightReveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+  box-shadow: none;
+  animation: officeSpotlightReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
 .building-spotlight::before {
-  content: "";
-  position: absolute;
-  inset: 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.74);
-  pointer-events: none;
+  display: none;
+}
+
+.building-spotlight-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.building-spotlight-signal {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #16a36a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 106, 0.1);
+}
+
+.building-spotlight-signal.is-alert {
+  background: #e5484d;
+  box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.1);
 }
 
 .building-spotlight-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #2563eb;
+  color: #526176;
 }
 
 .building-spotlight-main {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
   line-height: 1;
 }
 
 .building-spotlight-main strong {
-  font-size: clamp(32px, 3vw, 42px);
-  font-weight: 800;
+  font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-size: clamp(38px, 4vw, 50px);
+  font-weight: 720;
+  letter-spacing: -0.055em;
+}
+
+.building-spotlight-main strong small {
+  margin-left: 2px;
+  font-size: 0.48em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #526176;
 }
 
 .building-spotlight-main span {
-  font-size: 18px;
-  font-weight: 700;
-  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 550;
+  color: #526176;
 }
 
-.building-spotlight-text {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #475569;
+.building-spotlight-main.is-empty {
+  gap: 8px;
 }
 
 .building-spotlight-track {
   position: relative;
-  height: 10px;
+  height: 4px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(191, 219, 254, 0.46);
+  background: #d4dde8;
 }
 
 .building-spotlight-fill {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e, #38bdf8 58%, #2563eb);
-  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.24);
+  background: #16a36a;
+  box-shadow: none;
   transform-origin: left center;
-  animation: officeProgressGrow 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.64s both;
+  animation: officeProgressGrow 0.82s cubic-bezier(0.16, 1, 0.3, 1) 0.54s both;
 }
 
 .building-spotlight-footnote {
   font-size: 12px;
-  font-weight: 700;
-  color: #2563eb;
+  line-height: 1.3;
+  font-weight: 600;
+  color: #16845a;
 }
 
-.stats-container {
+.building-spotlight-footnote.is-alert {
+  color: #c8373c;
+}
+
+.building-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
   position: relative;
   z-index: 1;
+  border-top: 1px solid #d8e0ea;
 }
 
-.stat-card {
-  display: flex;
+.building-stat {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  gap: 11px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 17px 22px;
+  border: 0;
+  border-right: 1px solid #d8e0ea;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   animation: officeMetricReveal 0.58s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.stat-card:nth-child(1) {
+.building-stat:last-child {
+  border-right: 0;
+}
+
+.building-stat:nth-child(1) {
   animation-delay: 0.24s;
 }
 
-.stat-card:nth-child(2) {
+.building-stat:nth-child(2) {
   animation-delay: 0.31s;
 }
 
-.stat-card:nth-child(3) {
+.building-stat:nth-child(3) {
   animation-delay: 0.38s;
 }
 
-.stat-card:nth-child(4) {
+.building-stat:nth-child(4) {
   animation-delay: 0.45s;
 }
 
-.stat-icon {
-  width: 42px;
-  height: 42px;
+.building-stat-icon {
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  background: rgba(219, 234, 254, 0.88);
-  color: #2563eb;
-  border: 1px solid rgba(191, 219, 254, 0.9);
+  border-radius: 0;
+  background: transparent;
+  color: #4f6b91;
+  border: 0;
 }
 
-.stat-icon svg {
-  width: 20px;
-  height: 20px;
+.building-stat-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
-.stat-copy {
+.building-stat-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
-.stat-value {
-  font-size: 28px;
-  font-weight: 800;
+.building-stat-value {
+  order: -1;
+  font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-size: 25px;
+  font-weight: 720;
   line-height: 1;
   color: #0f172a;
+  letter-spacing: -0.035em;
 }
 
-.stat-label {
-  font-size: 13px;
+.building-stat-label {
+  overflow: hidden;
+  color: #68778c;
+  font-size: 10px;
+  line-height: 1.2;
   font-weight: 700;
-  color: #64748b;
+  letter-spacing: 0.075em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.stat-card-success .stat-icon {
-  background: rgba(220, 252, 231, 0.9);
-  border-color: rgba(134, 239, 172, 0.9);
-  color: #16a34a;
+.building-stat.is-success .building-stat-icon {
+  color: #16845a;
 }
 
-.stat-card-danger .stat-icon {
-  background: rgba(254, 226, 226, 0.92);
-  border-color: rgba(252, 165, 165, 0.92);
-  color: #dc2626;
+.building-stat.is-danger .building-stat-icon {
+  color: #c8373c;
 }
 
 .building-info.is-dark .building-symbol {
@@ -936,80 +988,92 @@ body {
 }
 
 .building-info.is-dark .building-title,
-.building-info.is-dark .stat-value {
+.building-info.is-dark .building-stat-value {
   color: #f8fafc;
-}
-
-.building-info.is-dark .building-description,
-.building-info.is-dark .stat-card {
-  background: rgba(15, 23, 42, 0.74);
-  border-color: rgba(51, 65, 85, 0.9);
-  box-shadow: none;
 }
 
 .building-info.is-dark .building-description {
-  color: #cbd5e1;
+  color: #aebbd0 !important;
+  background: transparent;
+  border: 0;
 }
 
-.building-info.is-dark .building-pill {
-  background: rgba(15, 23, 42, 0.74);
-  border-color: rgba(51, 65, 85, 0.92);
-  color: #cbd5e1;
+.building-info.is-dark .building-floor-meta {
+  background: transparent;
+  border-color: #334156;
+  color: #aebbd0;
 }
 
-.building-info.is-dark .building-pill svg,
+.building-info.is-dark .building-floor-meta svg,
 .building-info.is-dark .building-description-icon {
-  color: #7dd3fc;
+  color: #7aa7f8;
 }
 
-.building-info.is-dark .stat-icon {
-  background: rgba(30, 41, 59, 0.92);
-  border-color: rgba(51, 65, 85, 0.92);
-  color: #93c5fd;
+.building-info.is-dark .building-stats {
+  border-color: #293548;
 }
 
-.building-info.is-dark .stat-card-success .stat-icon {
-  background: rgba(20, 83, 45, 0.5);
-  border-color: rgba(34, 197, 94, 0.28);
-  color: #86efac;
+.building-info.is-dark .building-stat {
+  background: transparent !important;
+  border-color: #293548 !important;
+  color: #edf2f8 !important;
+  box-shadow: none !important;
 }
 
-.building-info.is-dark .stat-card-danger .stat-icon {
-  background: rgba(127, 29, 29, 0.46);
-  border-color: rgba(248, 113, 113, 0.28);
-  color: #fca5a5;
+.building-info.is-dark .building-stat-icon {
+  background: transparent;
+  border: 0;
+  color: #84a9df;
 }
 
-.building-info.is-dark .stat-label {
-  color: #94a3b8;
+.building-info.is-dark .building-stat-label {
+  color: #8291a7 !important;
+}
+
+.building-info.is-dark .building-stat.is-success .building-stat-icon {
+  color: #56c596;
+}
+
+.building-info.is-dark .building-stat.is-danger .building-stat-icon {
+  color: #ff8b8f;
 }
 
 .building-info.is-dark .building-spotlight {
-  background: linear-gradient(160deg, rgba(2, 6, 23, 0.96), rgba(15, 23, 42, 0.98));
-  border-color: rgba(51, 65, 85, 0.9);
+  background: #0b111b;
+  border-color: #293548;
   color: #f8fafc;
-  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+  box-shadow: none;
 }
 
-.building-info.is-dark .building-spotlight::before {
-  border-color: rgba(148, 163, 184, 0.08);
+.building-info.is-dark .building-spotlight-label {
+  color: #8291a7;
 }
 
-.building-info.is-dark .building-spotlight-label,
+.building-info.is-dark .building-spotlight-main span,
+.building-info.is-dark .building-spotlight-main strong small {
+  color: #9eacc0;
+}
+
 .building-info.is-dark .building-spotlight-footnote {
-  color: rgba(191, 219, 254, 0.9);
+  color: #56c596;
 }
 
-.building-info.is-dark .building-spotlight-main span {
-  color: rgba(226, 232, 240, 0.78);
-}
-
-.building-info.is-dark .building-spotlight-text {
-  color: rgba(226, 232, 240, 0.84);
+.building-info.is-dark .building-spotlight-footnote.is-alert {
+  color: #ff8b8f;
 }
 
 .building-info.is-dark .building-spotlight-track {
-  background: rgba(148, 163, 184, 0.14);
+  background: #263244;
+}
+
+.building-info.is-dark .add-classroom-btn-compact {
+  border-color: #4679d8;
+  background: #2e63c7;
+}
+
+.building-info.is-dark .add-classroom-btn-compact:hover {
+  border-color: #5b8ce7;
+  background: #3970d2;
 }
 
 .controls-panel {
@@ -1493,6 +1557,37 @@ body {
   margin-top: -8px;
 }
 
+@media (max-width: 1024px) {
+  .building-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .building-spotlight {
+    border-left: 0;
+    border-top: 1px solid #d8e0ea;
+  }
+
+  .building-info.is-dark .building-spotlight {
+    border-top-color: #293548;
+  }
+
+  .building-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .building-stat:nth-child(2) {
+    border-right: 0;
+  }
+
+  .building-stat:nth-child(-n + 2) {
+    border-bottom: 1px solid #d8e0ea;
+  }
+
+  .building-info.is-dark .building-stat:nth-child(-n + 2) {
+    border-bottom-color: #293548 !important;
+  }
+}
+
 
 @media (max-width: 768px) {
   .page-title {
@@ -1500,18 +1595,20 @@ body {
   }
 
   .building-info {
-    padding: 22px;
-    border-radius: 24px;
+    padding: 0;
+    border-radius: 17px;
   }
 
   .building-hero {
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 0;
   }
 
   .building-identity {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    padding: 28px 26px 26px;
   }
 
   .building-symbol {
@@ -1521,20 +1618,20 @@ body {
   }
 
   .building-title {
-    font-size: 30px;
+    font-size: 32px;
   }
 
   .building-description {
-    width: 100%;
+    width: fit-content;
   }
 
   .building-spotlight {
-    padding: 18px;
-    border-radius: 20px;
+    padding: 24px 26px;
+    border-radius: 0;
   }
 
-  .stats-container {
-    grid-template-columns: 1fr;
+  .building-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .controls-panel {
@@ -1598,28 +1695,77 @@ body {
   }
 
   .building-info {
-    padding: 18px;
+    padding: 0;
+  }
+
+  .building-identity {
+    align-items: flex-start;
+    gap: 15px;
+    padding: 22px 18px 20px;
+  }
+
+  .building-copy {
+    gap: 9px;
   }
 
   .building-title {
-    font-size: 26px;
+    font-size: clamp(23px, 7vw, 27px);
+    line-height: 1.06;
   }
 
-  .building-pills {
-    width: 100%;
+  .building-description {
+    align-items: flex-start;
+    font-size: 13px;
   }
 
-  .building-pill {
+  .building-actions {
     width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .building-floor-meta {
+    width: auto;
     justify-content: flex-start;
+    padding: 0;
+    border-right: 0;
   }
 
   .building-spotlight-main strong {
-    font-size: 34px;
+    font-size: 38px;
   }
 
-  .stat-card {
-    padding: 14px 15px;
+  .building-spotlight {
+    padding: 20px 18px;
+  }
+
+  .building-spotlight-main {
+    gap: 6px;
+  }
+
+  .building-stat {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 72px;
+    padding: 12px 13px;
+  }
+
+  .building-stat-icon,
+  .building-stat-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .building-stat-value {
+    font-size: 22px;
+  }
+
+  .building-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.045em;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .view-mode-switch {
@@ -1696,20 +1842,18 @@ body {
 @keyframes officeHeroReveal {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.985);
-    clip-path: inset(10% 0 0 0 round 28px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    clip-path: inset(0 0 0 0 round 28px);
+    transform: translateY(0);
   }
 }
 
 @keyframes officeContentRise {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -1731,11 +1875,11 @@ body {
 @keyframes officeSpotlightReveal {
   from {
     opacity: 0;
-    transform: translateX(22px) scale(0.97);
+    transform: translateX(12px);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
   }
 }
 
@@ -1751,11 +1895,11 @@ body {
 @keyframes officeMetricReveal {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.97);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -1776,7 +1920,7 @@ body {
   .building-symbol,
   .building-spotlight,
   .building-spotlight-fill,
-  .stat-card,
+  .building-stat,
   .controls-panel,
   .empty-state {
     animation: none !important;
