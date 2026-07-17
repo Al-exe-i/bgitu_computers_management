@@ -4,19 +4,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
 from core.config import settings
-from core.security import get_password_hash
 
 OFFICES = [
     {"id": 1, "address": os.getenv("SEED_OFFICE_1", "Корпус №1")},
     {"id": 2, "address": os.getenv("SEED_OFFICE_2", "Корпус №2")},
 ]
-
-USER = {
-    "email": "administrator",
-    "password": get_password_hash("admin777"),
-    "is_superuser": True,
-    "role": "admin",
-}
 
 async def main():
     db_url = str(settings.db.url)
@@ -30,15 +22,6 @@ async def main():
                 ON CONFLICT (id) DO NOTHING
             """),
             OFFICES,
-        )
-
-        await conn.execute(
-            text("""
-                INSERT INTO users (email, password, is_superuser, role)
-                VALUES (:email, :password, :is_superuser, :role)
-                ON CONFLICT (email) DO NOTHING
-            """),
-            USER,
         )
 
     await engine.dispose()

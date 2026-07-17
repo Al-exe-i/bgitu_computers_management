@@ -45,7 +45,7 @@ export default {
     isFormValid() {
       return (
           this.form.current_password.length > 0 &&
-          this.form.new_password.length >= 4 &&
+          this.form.new_password.length >= 6 &&
           this.passwordsMatch
       );
     },
@@ -205,6 +205,8 @@ export default {
         this.form.new_password = '';
         this.form.confirm_password = '';
         this.showPassword = { current: false, new: false, confirm: false };
+
+        await this.authStore.logout();
 
       } catch (error) {
         const msg = error.response?.data?.detail || 'Не удалось изменить пароль';

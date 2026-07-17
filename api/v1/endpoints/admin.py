@@ -16,6 +16,7 @@ from dependencies.identity import identity_invite_use_cases_dep
 from dependencies.storage import object_storage_dep
 from schemas.audit_log import AuditLogListResponse
 from schemas.invite import InviteCreateBatch, InviteCreateOne, InviteCreateResult, InviteListItem
+from utils.file_responses import secure_file_headers
 
 router = APIRouter(prefix="")
 
@@ -40,6 +41,10 @@ async def get_protected_file(
     return StreamingResponse(
         storage.iter_range(object_key),
         media_type=media_type or "application/octet-stream",
+        headers=secure_file_headers(
+            PurePosixPath(object_key).name,
+            as_attachment=True,
+        ),
     )
 
 

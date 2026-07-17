@@ -1,7 +1,5 @@
-import mimetypes
 from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 
 from loguru import logger
 
@@ -14,6 +12,12 @@ from core.exceptions import (
 )
 from models.hardware_file import HardwareFile
 from repositories.hw_files_repo import HardwareFilesRepository
+from services.media_types import (
+    SAFE_DOWNLOAD_MEDIA_TYPES,
+    VIDEO_EXTENSIONS_BY_MEDIA_TYPE,
+    normalize_media_type,
+    safe_video_media_type_for_filename,
+)
 from services.object_storage import ObjectStorage, object_filename
 
 
@@ -56,9 +60,13 @@ class HardwareFileStreamingService:
 
     async def get_download(self, file_id: int) -> HardwareDownloadFile:
         db_file = await self._get_existing_file(file_id)
+        media_type = normalize_media_type(db_file.file_type)
+        if media_type not in SAFE_DOWNLOAD_MEDIA_TYPES:
+            raise HardwareFileUnsupportedMediaError()
+
         return HardwareDownloadFile(
             key=db_file.file_path,
-            media_type=db_file.file_type,
+            media_type=media_type,
             filename=object_filename(db_file.file_path),
             storage=self.storage,
         )
@@ -111,13 +119,14 @@ class HardwareFileStreamingService:
 
     @staticmethod
     def _detect_video_content_type(db_file: HardwareFile) -> str:
-        content_type = db_file.file_type or ""
-        if content_type.startswith("video/"):
+        content_type = normalize_media_type(db_file.file_type)
+        if content_type in VIDEO_EXTENSIONS_BY_MEDIA_TYPE:
             return content_type
 
-        mime_type, _ = mimetypes.guess_type(PurePosixPath(db_file.file_path).name)
-        if mime_type and mime_type.startswith("video/"):
-            return mime_type
+        if content_type == "application/octet-stream":
+            legacy_content_type = safe_video_media_type_for_filename(db_file.file_path)
+            if legacy_content_type is not None:
+                return legacy_content_type
 
         logger.warning(
             "Video stream rejected: file_id={} content_type={} path={}",

@@ -12,12 +12,13 @@ from core.exceptions import (
     UserNotFoundError,
     UserPermissionDeniedError,
 )
-from core.security import verify_password
 from models.user import UserRole
+from services.media_types import IMAGE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
 from modules.identity.ports import (
     AuditLogger,
+    AuthServicePort,
     IdentityActor,
     StoredAvatarFile,
     UploadedAvatarFile,
@@ -41,8 +42,13 @@ class IdentityUserCommandResult:
 
 
 class IdentityUserUseCases:
-    def __init__(self, user_service: UserServicePort) -> None:
+    def __init__(
+        self,
+        user_service: UserServicePort,
+        auth_service: AuthServicePort,
+    ) -> None:
         self.user_service = user_service
+        self.auth_service = auth_service
 
     async def list_users(self) -> list[UserOut]:
         users = await self.user_service.get_all()
@@ -123,7 +129,7 @@ class IdentityUserUseCases:
         ip: str | None,
         user_agent: str | None,
     ) -> IdentityUserCommandResult:
-        if not verify_password(data.current_password, actor.password):
+        if not await self.user_service.verify_password(actor.id, data.current_password):
             logger.warning(
                 "Password change rejected: invalid current password for user_id={}",
                 actor.id,
@@ -134,7 +140,11 @@ class IdentityUserUseCases:
             logger.warning("Password change rejected: new password equals old for user_id={}", actor.id)
             raise SamePasswordError()
 
-        await self.user_service.update(actor.id, UserUpdate(password=data.new_password))
+        updated = await self.user_service.update_password(actor.id, data.new_password)
+        if updated is None:
+            raise UserNotFoundError()
+
+        await self.auth_service.logout_all(user_id=actor.id)
         logger.info("Password changed for user_id={}", actor.id)
 
         await audit.log(
@@ -267,7 +277,7 @@ class IdentityUserUseCases:
 
         self._ensure_can_change_superuser(actor, user)
 
-        if not (file.content_type or "").startswith("image/"):
+        if normalize_media_type(file.content_type) not in IMAGE_EXTENSIONS_BY_MEDIA_TYPE:
             logger.warning(
                 "User photo upload rejected: invalid content type user_id={} filename={} content_type={}",
                 user_id,

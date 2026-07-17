@@ -8,6 +8,7 @@ from core.exceptions.auth import (
     SessionNotFoundError,
 )
 from core.exceptions.http import HTTP400, HTTP401, HTTP403, HTTP404, HTTP409
+from core.exceptions.files import UploadTooLargeError
 from core.exceptions.identity import (
     IdentityError,
     InviteAlreadyUsedError,
@@ -102,4 +103,5 @@ __all__ = [
     "UserNotFoundError",
     "UserAlreadyExistsError",
     "UserPermissionDeniedError",
+    "UploadTooLargeError",
 ]

@@ -20,12 +20,14 @@ class AudienceCreate(AudienceBase):
 
 
 class AudienceUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     number: int | None = Field(default=None, gt=0)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=200)
     office_id: int | None = None
     floor: int | None = None
-    width: int | None = None
-    height: int | None = None
+    width: int | None = Field(default=None, gt=0, le=20)
+    height: int | None = Field(default=None, gt=0, le=20)
     hardware: list[HardwareGridItem] | None = None
     landmarks: dict | None = None
 

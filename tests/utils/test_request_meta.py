@@ -61,6 +61,21 @@ def test_get_request_meta_trusts_x_forwarded_for_from_trusted_proxy(monkeypatch)
     assert get_request_meta(request)["ip"] == "203.0.113.10"
 
 
+def test_get_request_meta_ignores_spoofed_leftmost_forwarded_ip(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "trusted_proxy_ips", ["10.0.0.0/8"])
+    request = make_request(
+        headers=[
+            (
+                b"x-forwarded-for",
+                b"198.51.100.99, 203.0.113.10, 10.0.0.3",
+            ),
+        ],
+        client=("10.0.0.2", 12345),
+    )
+
+    assert get_request_meta(request)["ip"] == "203.0.113.10"
+
+
 def test_get_request_meta_falls_back_to_x_real_ip_for_trusted_proxy(monkeypatch) -> None:
     monkeypatch.setattr(settings, "trusted_proxy_ips", ["10.0.0.2"])
     proxy_request = make_request(
@@ -76,3 +91,18 @@ def test_get_request_meta_falls_back_to_client_host(monkeypatch) -> None:
     direct_request = make_request(headers=[], client=("192.0.2.33", 4444))
 
     assert get_request_meta(direct_request)["ip"] == "192.0.2.33"
+
+
+def test_get_request_meta_truncates_database_backed_fields(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "trusted_proxy_ips", [])
+    request = make_request(
+        path="/" + ("x" * 300),
+        method="VERYLONGMETHOD",
+        headers=[(b"user-agent", b"a" * 300)],
+    )
+
+    meta = get_request_meta(request)
+
+    assert len(meta["user_agent"]) == 255
+    assert len(meta["path"]) == 255
+    assert meta["method"] == "VERYLONG"

@@ -18,7 +18,6 @@ class CachedUser:
     name: str | None
     surname: str | None
     email: str
-    password: str
     reg_date: datetime
     is_superuser: bool
     photo: str | None
@@ -82,7 +81,7 @@ class UserCache:
             )
 
     def _key(self, user_id: int) -> str:
-        return f"{self.key_prefix}:{user_id}:v1"
+        return f"{self.key_prefix}:{user_id}:v2"
 
     def _serialize(self, user: Any) -> str:
         payload = {
@@ -90,7 +89,6 @@ class UserCache:
             "name": user.name,
             "surname": user.surname,
             "email": user.email,
-            "password": user.password,
             "reg_date": self._datetime_to_str(user.reg_date),
             "is_superuser": user.is_superuser,
             "photo": user.photo,
@@ -110,7 +108,6 @@ class UserCache:
             name=data.get("name"),
             surname=data.get("surname"),
             email=data["email"],
-            password=data["password"],
             reg_date=datetime.fromisoformat(data["reg_date"]),
             is_superuser=bool(data.get("is_superuser", False)),
             photo=data.get("photo"),

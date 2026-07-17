@@ -1,23 +1,27 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from models.user import UserRole
 from utils.email import RuEmailStr
 
 
 class InviteCreateOne(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     target_email: RuEmailStr | None = None
     target_role: UserRole = UserRole.teacher
     expires_at: datetime
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=255)
 
 
 class InviteCreateBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     count: int | None = Field(default=None, ge=1, le=200)
     emails: list[RuEmailStr] | None = None
     target_role: UserRole = UserRole.teacher
     expires_at: datetime
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=255)
 
 
 class InviteCreateResult(BaseModel):
@@ -43,7 +47,7 @@ class InviteListItem(BaseModel):
 
 
 class InvitePreviewRequest(BaseModel):
-    token: str
+    token: str = Field(min_length=20, max_length=256)
 
 
 class InvitePreviewResponse(BaseModel):
@@ -55,11 +59,13 @@ class InvitePreviewResponse(BaseModel):
 
 
 class RegisterByInviteRequest(BaseModel):
-    token: str
-    name: str | None = None
-    surname: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=20, max_length=256)
+    name: str | None = Field(default=None, max_length=64)
+    surname: str | None = Field(default=None, max_length=64)
     email: RuEmailStr
-    password: str
+    password: str = Field(min_length=6, max_length=128)
 
 
 class RegisterByInviteResponse(BaseModel):

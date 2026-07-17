@@ -47,6 +47,8 @@ def validate_new_user_email(email: str) -> str:
 def validate_password(password: str) -> str:
     if len(password) < 6:
         raise ManagementUserError("Password must contain at least 6 characters")
+    if len(password) > 128:
+        raise ManagementUserError("Password must contain at most 128 characters")
     return password
 
 

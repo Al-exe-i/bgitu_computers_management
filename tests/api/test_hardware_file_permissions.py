@@ -88,6 +88,7 @@ def test_teacher_can_upload_hardware_files() -> None:
             client.cookies.set("access_token", issue_access_token(7))
             response = client.post(
                 "/api/v1/hardware/42/files",
+                headers={"Origin": "http://localhost:5173"},
                 files=[("files", ("photo.png", b"image", "image/png"))],
             )
 

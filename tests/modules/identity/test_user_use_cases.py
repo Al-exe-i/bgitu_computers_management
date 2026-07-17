@@ -61,6 +61,13 @@ class FakeUserService:
         self.users[user_id] = updated
         return updated
 
+    async def verify_password(self, user_id: int, password: str) -> bool:
+        return user_id in self.users and password == "oldpass"
+
+    async def update_password(self, user_id: int, password: str) -> UserOut | None:
+        self.updated.append((user_id, {"password": password}))
+        return self.users.get(user_id)
+
     async def upload_photo(self, user_id: int, file) -> UserPhotoUpdateResult | None:
         self.uploaded.append(user_id)
         user = self.users.get(user_id)
@@ -70,6 +77,14 @@ class FakeUserService:
         updated = user.model_copy(update={"photo": "avatar.jpg"})
         self.users[user_id] = updated
         return UserPhotoUpdateResult(user=updated, had_photo=bool(user.photo))
+
+
+class FakeAuthService:
+    def __init__(self) -> None:
+        self.logged_out_user_ids: list[int] = []
+
+    async def logout_all(self, *, user_id: int) -> None:
+        self.logged_out_user_ids.append(user_id)
 
 
 class FakeAudit:
@@ -101,7 +116,7 @@ def test_regular_user_update_self_strips_role_and_logs_changed_fields(audit: Fak
     async def scenario() -> None:
         actor = Actor(id=7, role=UserRole.teacher)
         service = FakeUserService({7: make_user(user_id=7)})
-        use_cases = IdentityUserUseCases(service)
+        use_cases = IdentityUserUseCases(service, FakeAuthService())
 
         result = await use_cases.update_user(
             user_id=7,
@@ -140,7 +155,7 @@ def test_admin_cannot_update_another_superuser(audit: FakeAudit) -> None:
                 )
             }
         )
-        use_cases = IdentityUserUseCases(service)
+        use_cases = IdentityUserUseCases(service, FakeAuthService())
 
         with pytest.raises(UserPermissionDeniedError) as exc:
             await use_cases.update_user(
@@ -161,7 +176,8 @@ def test_change_password_writes_audit_and_returns_security_event(audit: FakeAudi
     async def scenario() -> None:
         actor = Actor(id=7, role=UserRole.teacher)
         service = FakeUserService({7: make_user(user_id=7)})
-        use_cases = IdentityUserUseCases(service)
+        auth_service = FakeAuthService()
+        use_cases = IdentityUserUseCases(service, auth_service)
 
         result = await use_cases.change_password(
             data=ChangePasswordSchema(current_password="oldpass", new_password="newpass"),
@@ -172,6 +188,7 @@ def test_change_password_writes_audit_and_returns_security_event(audit: FakeAudi
         )
 
         assert service.updated == [(7, {"password": "newpass"})]
+        assert auth_service.logged_out_user_ids == [7]
         assert audit.logs == [
             {
                 "action": "user.password_change",
@@ -196,7 +213,7 @@ def test_invalid_photo_content_type_rejected_before_upload(audit: FakeAudit) -> 
     async def scenario() -> None:
         actor = Actor(id=7, role=UserRole.teacher)
         service = FakeUserService({7: make_user(user_id=7)})
-        use_cases = IdentityUserUseCases(service)
+        use_cases = IdentityUserUseCases(service, FakeAuthService())
 
         with pytest.raises(InvalidUserPhotoError):
             await use_cases.upload_user_photo(
@@ -208,5 +225,27 @@ def test_invalid_photo_content_type_rejected_before_upload(audit: FakeAudit) -> 
 
         assert service.uploaded == []
         assert audit.logs == []
+
+    asyncio.run(scenario())
+
+
+def test_svg_photo_is_rejected_before_upload(audit: FakeAudit) -> None:
+    async def scenario() -> None:
+        actor = Actor(id=7, role=UserRole.teacher)
+        service = FakeUserService({7: make_user(user_id=7)})
+        use_cases = IdentityUserUseCases(service, FakeAuthService())
+
+        with pytest.raises(InvalidUserPhotoError):
+            await use_cases.upload_user_photo(
+                user_id=7,
+                file=FakeUploadFile(
+                    filename="avatar.svg",
+                    content_type="image/svg+xml",
+                ),
+                actor=actor,
+                audit=audit,
+            )
+
+        assert service.uploaded == []
 
     asyncio.run(scenario())

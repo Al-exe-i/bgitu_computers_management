@@ -1,4 +1,5 @@
 import asyncio
+import re
 import tempfile
 import uuid
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from typing import Iterator, Protocol
 from loguru import logger
 from minio import Minio
 from minio.error import S3Error
+
+from core.exceptions import UploadTooLargeError
 
 
 READ_CHUNK_SIZE_BYTES = 64 * 1024
@@ -28,7 +31,14 @@ class ObjectStat:
 
 
 class ObjectStorage(Protocol):
-    async def save_upload(self, file: UploadedObjectFile, *, prefix: str) -> str: ...
+    async def save_upload(
+        self,
+        file: UploadedObjectFile,
+        *,
+        prefix: str,
+        extension: str | None = None,
+        max_size_bytes: int | None = None,
+    ) -> str: ...
 
     def delete(self, key: str) -> bool: ...
 
@@ -39,8 +49,16 @@ class ObjectStorage(Protocol):
     def iter_range(self, key: str, *, offset: int = 0, length: int | None = None) -> Iterator[bytes]: ...
 
 
-def build_object_key(*, prefix: str, filename: str | None) -> str:
-    suffix = Path(filename or "").suffix
+def build_object_key(
+    *,
+    prefix: str,
+    filename: str | None,
+    extension: str | None = None,
+) -> str:
+    suffix = extension if extension is not None else Path(filename or "").suffix
+    suffix = suffix.lower()
+    if suffix and not re.fullmatch(r"\.[a-z0-9]{1,10}", suffix):
+        suffix = ""
     safe_prefix = prefix.strip("/")
     return str(PurePosixPath(safe_prefix) / f"{uuid.uuid4()}{suffix}")
 
@@ -53,17 +71,35 @@ class LocalObjectStorage:
     def __init__(self, root_dir: str | Path) -> None:
         self.root_dir = Path(root_dir)
 
-    async def save_upload(self, file: UploadedObjectFile, *, prefix: str) -> str:
-        key = build_object_key(prefix=prefix, filename=file.filename)
+    async def save_upload(
+        self,
+        file: UploadedObjectFile,
+        *,
+        prefix: str,
+        extension: str | None = None,
+        max_size_bytes: int | None = None,
+    ) -> str:
+        key = build_object_key(
+            prefix=prefix,
+            filename=file.filename,
+            extension=extension,
+        )
         path = self._path_for_key(key)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
             import aiofiles
 
+            size = 0
             async with aiofiles.open(path, "wb") as out_file:
                 while content := await file.read(WRITE_CHUNK_SIZE_BYTES):
+                    size += len(content)
+                    if max_size_bytes is not None and size > max_size_bytes:
+                        raise UploadTooLargeError(max_size_bytes)
                     await out_file.write(content)
+        except Exception:
+            path.unlink(missing_ok=True)
+            raise
         finally:
             close = getattr(file, "close", None)
             if callable(close):
@@ -144,8 +180,19 @@ class MinioObjectStorage:
         )
         self._bucket_checked = False
 
-    async def save_upload(self, file: UploadedObjectFile, *, prefix: str) -> str:
-        key = build_object_key(prefix=prefix, filename=file.filename)
+    async def save_upload(
+        self,
+        file: UploadedObjectFile,
+        *,
+        prefix: str,
+        extension: str | None = None,
+        max_size_bytes: int | None = None,
+    ) -> str:
+        key = build_object_key(
+            prefix=prefix,
+            filename=file.filename,
+            extension=extension,
+        )
         content_type = file.content_type or "application/octet-stream"
 
         try:
@@ -153,6 +200,8 @@ class MinioObjectStorage:
                 size = 0
                 while content := await file.read(WRITE_CHUNK_SIZE_BYTES):
                     size += len(content)
+                    if max_size_bytes is not None and size > max_size_bytes:
+                        raise UploadTooLargeError(max_size_bytes)
                     buffer.write(content)
 
                 buffer.seek(0)

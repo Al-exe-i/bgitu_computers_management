@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import UserAlreadyExistsError
-from core.security import get_password_hash
+from core.security import get_password_hash, verify_password
 from models import User
 from repositories.user_repo import UserRepository
 from schemas.user import UserUpdate, UserOut, UserCreate
@@ -57,6 +57,17 @@ class UserService:
         user = await self.repo.update(user, data)
         return UserOut.model_validate(user, from_attributes=True)
 
+    async def verify_password(self, user_id: int, password: str) -> bool:
+        user = await self.repo.get(user_id)
+        return user is not None and verify_password(password, user.password)
+
+    async def update_password(self, user_id: int, password: str) -> UserOut | None:
+        user = await self.repo.get(user_id)
+        if not user:
+            return None
+        user = await self.repo.update_password(user, password)
+        return UserOut.model_validate(user, from_attributes=True)
+
     async def create(self, data: UserCreate) -> UserOut | None:
         data.password = get_password_hash(data.password)
         user_data = data.model_dump(exclude_unset=True)
@@ -95,9 +106,8 @@ class UserService:
         if old_photo:
             self._avatar_storage().delete(old_photo)
 
-        updated_user = await self.update(user_id, UserUpdate(photo=new_photo))
-        if updated_user is None:
-            return None
+        updated = await self.repo.update_photo(user, new_photo)
+        updated_user = UserOut.model_validate(updated, from_attributes=True)
 
         return UserPhotoUpdateResult(
             user=updated_user,
@@ -113,9 +123,8 @@ class UserService:
         if old_photo:
             self._avatar_storage().delete(old_photo)
 
-        updated_user = await self.update(user_id, UserUpdate(photo=None))
-        if updated_user is None:
-            return None
+        updated = await self.repo.update_photo(user, None)
+        updated_user = UserOut.model_validate(updated, from_attributes=True)
 
         return UserPhotoUpdateResult(
             user=updated_user,

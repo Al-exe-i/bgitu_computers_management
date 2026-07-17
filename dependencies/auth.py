@@ -25,8 +25,11 @@ async def _validate_token_and_get_user(
 
     try:
         sub = int(payload.get("sub"))
-        token_version = int(payload.get("token_version", 0))
-    except (TypeError, ValueError):
+        token_version = int(payload["token_version"])
+    except (KeyError, TypeError, ValueError):
+        raise credentials_exception
+
+    if payload.get("token_type") != "access":
         raise credentials_exception
 
     user = await service.get(sub)

@@ -31,6 +31,16 @@ class FakeUserRepo:
             setattr(user, key, value)
         return user
 
+    async def update_photo(self, user, photo: str | None):
+        self.updates.append({"photo": photo})
+        user.photo = photo
+        return user
+
+    async def update_password(self, user, password: str):
+        self.updates.append({"password": password})
+        user.password = password
+        return user
+
     async def create(self, user):
         if self.create_error is not None:
             raise self.create_error
@@ -68,6 +78,7 @@ def make_user(*, photo: str | None = None) -> SimpleNamespace:
         role=UserRole.teacher,
         reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
         is_superuser=False,
+        password="hashed-password",
     )
 
 

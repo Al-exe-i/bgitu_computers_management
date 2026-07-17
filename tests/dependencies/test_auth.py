@@ -122,13 +122,12 @@ def test_validate_token_rejects_stale_access_token_version() -> None:
     asyncio.run(scenario())
 
 
-def test_validate_token_treats_legacy_token_without_version_as_zero() -> None:
+def test_validate_token_rejects_legacy_token_without_version() -> None:
     async def scenario() -> None:
         user = SimpleNamespace(id=7, access_token_version=0)
         token = generate_access_token({"sub": "7"})
 
-        result = await _validate_token_and_get_user(token, DummyUserService({7: user}))
-
-        assert result is user
+        with pytest.raises(HTTP401, match="Couldn't validate credentials"):
+            await _validate_token_and_get_user(token, DummyUserService({7: user}))
 
     asyncio.run(scenario())

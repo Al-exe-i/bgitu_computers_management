@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, status
+from fastapi import APIRouter, File, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -15,6 +15,8 @@ from dependencies.auth import admin_dep, user_dep
 from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_user_use_cases_dep
 from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
+from utils.file_responses import secure_file_headers
+from utils.tokens import clear_auth_cookies
 
 router = APIRouter()
 
@@ -71,9 +73,7 @@ async def get_user_photo(
     return StreamingResponse(
         photo.iter_file(),
         media_type=photo.media_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{photo.filename}"',
-        },
+        headers=secure_file_headers(photo.filename),
     )
 
 
@@ -94,15 +94,14 @@ async def get_user_photo_by_id(
     return StreamingResponse(
         photo.iter_file(),
         media_type=photo.media_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{photo.filename}"',
-        },
+        headers=secure_file_headers(photo.filename),
     )
 
 
 @router.post("/me/password", status_code=200)
 async def change_password(
     data: ChangePasswordSchema,
+    response: Response,
     use_cases: identity_user_use_cases_dep,
     audit: user_audit_actor_dep,
     events: identity_event_dispatcher_dep,
@@ -117,6 +116,8 @@ async def change_password(
         ),
         events,
     )
+
+    clear_auth_cookies(response)
 
     return {"message": "Password updated successfully"}
 

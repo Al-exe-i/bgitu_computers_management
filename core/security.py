@@ -26,7 +26,14 @@ def generate_access_token(data: dict) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({"exp": expire, "iat": now, "nbf": now})
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": now,
+            "nbf": now,
+            "token_type": "access",
+        }
+    )
 
     return jwt.encode(
         payload=to_encode,
@@ -41,6 +48,7 @@ def verify_access_token(token: str) -> dict | None:
             token,
             settings.jwt.ACCESS_SECRET_KEY,
             algorithms=[settings.jwt.ALGORITHM],
+            options={"require": ["exp", "iat", "nbf", "sub", "token_type"]},
         )
     except PyJWTError:
         return None

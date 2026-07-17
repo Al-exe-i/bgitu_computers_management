@@ -9,6 +9,7 @@ from dependencies.hardware import hardware_file_streaming_service_dep
 from dependencies.inventory import inventory_hardware_use_cases_dep
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from services.hardware_file_service import MAX_HARDWARE_FILE_SIZE_BYTES
+from utils.file_responses import secure_file_headers
 
 router = APIRouter()
 
@@ -74,9 +75,10 @@ async def get_file(
     return StreamingResponse(
         file.iter_file(),
         media_type=file.media_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{file.filename}"',
-        },
+        headers=secure_file_headers(
+            file.filename,
+            as_attachment=file.media_type == "application/pdf",
+        ),
     )
 
 
@@ -95,7 +97,7 @@ async def stream_video(
     return StreamingResponse(
         stream.iter_file(),
         status_code=stream.status_code,
-        headers=stream.headers,
+        headers={**stream.headers, **secure_file_headers()},
         media_type=stream.media_type,
     )
 

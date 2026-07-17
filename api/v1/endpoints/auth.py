@@ -15,7 +15,7 @@ from schemas.invite import (
     RegisterByInviteResponse,
 )
 from schemas.user_session import UserSessionOut
-from utils.tokens import build_token_response
+from utils.tokens import build_token_response, clear_auth_cookies
 
 router = APIRouter()
 
@@ -77,8 +77,7 @@ async def logout_user(
         audit=audit,
     )
 
-    response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/")
+    clear_auth_cookies(response)
 
     return {"message": "Successfully logged out"}
 
@@ -102,8 +101,7 @@ async def logout_all_user_sessions(
         events,
     )
 
-    response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/")
+    clear_auth_cookies(response)
 
     return {"message": "Successfully logged out"}
 
@@ -138,8 +136,7 @@ async def revoke_session(
     )
 
     if result.session.revoked_current_session:
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/")
+        clear_auth_cookies(response)
 
 
 @router.post("/auth/invite/preview", response_model=InvitePreviewResponse)

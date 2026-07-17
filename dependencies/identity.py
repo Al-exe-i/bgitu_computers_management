@@ -32,8 +32,12 @@ identity_auth_use_cases_dep = Annotated[
 
 def get_identity_user_use_cases(
     user_service: user_service_dep,
+    auth_service: auth_service_dep,
 ) -> IdentityUserUseCases:
-    return IdentityUserUseCases(user_service=user_service)
+    return IdentityUserUseCases(
+        user_service=user_service,
+        auth_service=auth_service,
+    )
 
 
 identity_user_use_cases_dep = Annotated[

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, computed_field, PostgresDsn
+from pydantic import BaseModel, Field, PostgresDsn, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,10 +64,10 @@ class DatabaseConfig(BaseModel):
 
 
 class JWTConfig(BaseModel):
-    ACCESS_SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_SECRET_KEY: str = Field(min_length=32)
+    ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=10, gt=0, le=60)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0, le=30)
 
 
 class CeleryConfig(BaseModel):
@@ -134,6 +134,25 @@ class Settings(BaseSettings):
         env_prefix="BGITU__",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def reject_insecure_production_defaults(self) -> "Settings":
+        if self.DEBUG:
+            return self
+
+        if self.jwt.ACCESS_SECRET_KEY.startswith("replace-with-"):
+            raise ValueError("Placeholder JWT secret is forbidden when DEBUG is disabled")
+
+        if self.db.password.startswith("replace-with-"):
+            raise ValueError("Placeholder database password is forbidden when DEBUG is disabled")
+
+        if self.storage.backend == "minio" and any(
+            value == "minioadmin" or value.startswith("replace-with-")
+            for value in (self.storage.access_key, self.storage.secret_key)
+        ):
+            raise ValueError("Default MinIO credentials are forbidden when DEBUG is disabled")
+
+        return self
 
 
 settings = Settings()

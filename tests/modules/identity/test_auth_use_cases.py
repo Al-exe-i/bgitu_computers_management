@@ -210,7 +210,7 @@ def test_register_by_invite_creates_user_marks_invite_used_and_writes_audit() ->
 
         result = await use_cases.register_by_invite(
             data=RegisterByInviteRequest(
-                token="invite-token",
+                token="invite-token-with-enough-entropy",
                 name="Alex",
                 surname="Ivanov",
                 email="new@example.ru",
@@ -222,7 +222,7 @@ def test_register_by_invite_creates_user_marks_invite_used_and_writes_audit() ->
         assert result.registration.user_id == 7
         assert result.registration.email == "new@example.ru"
         assert result.registration.role == str(UserRole.teacher.value)
-        assert invite_service.tokens == ["invite-token"]
+        assert invite_service.tokens == ["invite-token-with-enough-entropy"]
         assert invite_service.marked_used == [{"invite_id": 5, "used_by_user_id": 7}]
         assert user_service.lookup_emails == ["new@example.ru"]
         assert user_service.created[0].email == "new@example.ru"
@@ -259,7 +259,7 @@ def test_register_by_invite_rejects_email_mismatch_before_user_create() -> None:
         with pytest.raises(InviteAssignedToAnotherEmailError):
             await use_cases.register_by_invite(
                 data=RegisterByInviteRequest(
-                    token="invite-token",
+                    token="invite-token-with-enough-entropy",
                     email="other@example.ru",
                     password="secret123",
                 ),
@@ -287,7 +287,7 @@ def test_register_by_invite_rejects_existing_user_before_marking_invite_used() -
         with pytest.raises(InviteUserAlreadyExistsError):
             await use_cases.register_by_invite(
                 data=RegisterByInviteRequest(
-                    token="invite-token",
+                    token="invite-token-with-enough-entropy",
                     email="new@example.ru",
                     password="secret123",
                 ),

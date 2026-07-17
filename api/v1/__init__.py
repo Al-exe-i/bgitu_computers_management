@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from dependencies.origin import enforce_trusted_origin
 
 from .endpoints import (
     admin,
@@ -12,7 +14,7 @@ from .endpoints import (
     users,
 )
 
-api_router = APIRouter()
+api_router = APIRouter(dependencies=[Depends(enforce_trusted_origin)])
 api_router.include_router(admin.router, prefix="/admin", tags=["Администрирование (admin)"])
 api_router.include_router(users.router, prefix="/users", tags=["Пользователи (users)"])
 api_router.include_router(audiences.router, prefix="/audiences", tags=["Аудитории (audiences)"])

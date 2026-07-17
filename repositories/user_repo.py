@@ -16,9 +16,18 @@ class UserRepository:
 
     async def update(self, orm_model: User, schema: UserUpdate) -> User:
         update_data = schema.model_dump(exclude_unset=True)
-        if "password" in update_data:
-            update_data["password"] = get_password_hash(update_data["password"])
+        return await self._update_fields(orm_model, update_data)
 
+    async def update_password(self, orm_model: User, password: str) -> User:
+        return await self._update_fields(
+            orm_model,
+            {"password": get_password_hash(password)},
+        )
+
+    async def update_photo(self, orm_model: User, photo: str | None) -> User:
+        return await self._update_fields(orm_model, {"photo": photo})
+
+    async def _update_fields(self, orm_model: User, update_data: dict) -> User:
         for field, value in update_data.items():
             setattr(orm_model, field, value)
 

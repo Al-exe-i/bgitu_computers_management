@@ -4,6 +4,7 @@ from uuid import UUID
 from core.config import settings
 from core.security import verify_access_token
 from utils.tokens import (
+    REFRESH_COOKIE_PATH,
     build_token_response,
     hash_refresh_token,
     issue_access_token,
@@ -56,8 +57,10 @@ def test_build_token_response_sets_body_and_cookies() -> None:
         in cookies[1]
     )
 
+    assert "Path=/" in cookies[0]
+    assert f"Path={REFRESH_COOKIE_PATH}" in cookies[1]
+
     for cookie in cookies:
         assert "HttpOnly" in cookie
-        assert "Path=/" in cookie
         assert "SameSite=lax" in cookie
         assert ("Secure" in cookie) is (not settings.DEBUG)

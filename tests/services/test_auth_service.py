@@ -14,8 +14,10 @@ class FakeUserService:
     def __init__(self, users: list[SimpleNamespace]) -> None:
         self.users = users
         self.bumped_user_ids: list[int] = []
+        self.lookup_emails: list[str] = []
 
     async def get_by_email(self, email: str):
+        self.lookup_emails.append(email)
         return next((user for user in self.users if user.email == email), None)
 
     async def get(self, user_id: int):
@@ -117,6 +119,22 @@ def test_login_rejects_invalid_password() -> None:
                 email="user@example.com",
                 password="wrong-password",
             )
+
+    asyncio.run(scenario())
+
+
+def test_login_rejects_oversized_credentials_before_database_lookup() -> None:
+    async def scenario() -> None:
+        users = FakeUserService([])
+        service = AuthService(users, FakeSessionService())
+
+        with pytest.raises(InvalidCredentialsError):
+            await service.login(
+                email="user@example.com",
+                password="x" * 129,
+            )
+
+        assert users.lookup_emails == []
 
     asyncio.run(scenario())
 

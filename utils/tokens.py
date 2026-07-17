@@ -1,10 +1,13 @@
 import hashlib
 from uuid import uuid4
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from core.config import settings
 from core.security import generate_access_token
+
+
+REFRESH_COOKIE_PATH = f"{settings.api.prefix}{settings.api.v1.prefix}"
 
 
 def build_token_response(*, access_token: str, refresh_token: str) -> JSONResponse:
@@ -29,11 +32,16 @@ def build_token_response(*, access_token: str, refresh_token: str) -> JSONRespon
         key="refresh_token",
         value=refresh_token,
         max_age=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        path="/",
+        path=REFRESH_COOKIE_PATH,
         **cookie_params,
     )
 
     return response
+
+
+def clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path=REFRESH_COOKIE_PATH)
 
 
 def issue_access_token(user_id: int, token_version: int = 0) -> str:

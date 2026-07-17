@@ -1,5 +1,5 @@
 from uuid import UUID, uuid7
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import JSONB
@@ -32,7 +32,7 @@ class Audience(IntIdPkMixin, Base):
         JSONB, nullable=False, default=dict
     )
 
-    hardware: Mapped[List["Hardware"]] = relationship(
+    hardware: Mapped[list["Hardware"]] = relationship(
         back_populates="audience", cascade="all, delete-orphan", passive_deletes=True
     )
 

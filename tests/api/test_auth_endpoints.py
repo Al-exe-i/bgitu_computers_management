@@ -235,7 +235,10 @@ def test_refresh_endpoint_rotates_refresh_token() -> None:
     try:
         with TestClient(app) as client:
             client.cookies.set("refresh_token", "old-refresh-token")
-            response = client.post("/api/v1/refresh")
+            response = client.post(
+                "/api/v1/refresh",
+                headers={"Origin": "http://localhost:5173"},
+            )
 
         assert response.status_code == 200
         assert response.json()["status"] == "success"
@@ -263,7 +266,10 @@ def test_logout_endpoint_revokes_current_session_and_clears_cookies() -> None:
         with TestClient(app) as client:
             client.cookies.set("access_token", "access-token")
             client.cookies.set("refresh_token", "old-refresh-token")
-            response = client.post("/api/v1/logout")
+            response = client.post(
+                "/api/v1/logout",
+                headers={"Origin": "http://localhost:5173"},
+            )
 
         assert response.status_code == 200
         assert response.json() == {"message": "Successfully logged out"}

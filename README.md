@@ -343,8 +343,8 @@ BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 ```env
 BGITU__STORAGE__BACKEND=minio
 BGITU__STORAGE__ENDPOINT=localhost:9005
-BGITU__STORAGE__ACCESS_KEY=minioadmin
-BGITU__STORAGE__SECRET_KEY=minioadmin
+BGITU__STORAGE__ACCESS_KEY=replace-with-minio-access-key
+BGITU__STORAGE__SECRET_KEY=replace-with-minio-secret-key
 BGITU__STORAGE__BUCKET=bgitu-files
 BGITU__STORAGE__SECURE=false
 ```
@@ -445,9 +445,12 @@ uv run python -m core.seed
 
 - корпус с `id=1`;
 - корпус с `id=2`;
-- суперпользователя `admin / admin`.
 
-> После первого запуска пароль суперпользователя лучше изменить.
+Учётные записи seed-команда не создаёт. Суперпользователь создаётся отдельно, пароль вводится интерактивно:
+
+```powershell
+uv run python -m management.users create-su --email admin@example.ru
+```
 
 ---
 

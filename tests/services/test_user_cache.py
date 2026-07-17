@@ -82,7 +82,7 @@ def make_user(user_id: int = 7):
     )
 
 
-def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
+def test_user_cache_roundtrip_excludes_password_hash() -> None:
     async def scenario() -> None:
         redis = FakeRedis()
         cache = UserCache(redis, ttl_seconds=600)
@@ -92,10 +92,11 @@ def test_user_cache_roundtrip_preserves_internal_auth_fields() -> None:
 
         assert cached is not None
         assert cached.id == 7
-        assert cached.password == "hashed-password"
+        assert not hasattr(cached, "password")
         assert cached.access_token_version == 2
         assert cached.role == UserRole.teacher
-        assert redis.ttl["identity:user:7:v1"] == 600
+        assert "hashed-password" not in redis.store["identity:user:7:v2"]
+        assert redis.ttl["identity:user:7:v2"] == 600
 
     asyncio.run(scenario())
 
@@ -111,7 +112,7 @@ def test_user_service_uses_redis_cache_after_first_db_read() -> None:
 
         assert first.id == 7
         assert second.id == 7
-        assert second.password == "hashed-password"
+        assert not hasattr(second, "password")
         assert repo.calls == 1
 
     asyncio.run(scenario())
@@ -124,7 +125,7 @@ def test_user_cache_handles_miss_invalid_payload_and_redis_errors() -> None:
 
         assert await cache.get(7) is None
 
-        redis.store["identity:user:7:v1"] = '{"id": 7}'
+        redis.store["identity:user:7:v2"] = '{"id": 7}'
         assert await cache.get(7) is None
 
         redis.fail_get = True
@@ -138,7 +139,7 @@ def test_user_cache_handles_miss_invalid_payload_and_redis_errors() -> None:
         redis.fail_delete = True
         await cache.invalidate(7)
 
-        assert redis.deleted == ["identity:user:7:v1"]
+        assert redis.deleted == ["identity:user:7:v2"]
 
     asyncio.run(scenario())
 
@@ -155,11 +156,11 @@ def test_user_repository_updates_cache_only_after_commit_hook() -> None:
 
         assert redis.store == {}
         await run_post_commit_hooks(session)
-        assert "identity:user:7:v1" in redis.store
+        assert "identity:user:7:v2" in redis.store
 
         await repo.delete(user)
         assert redis.deleted == []
         await run_post_commit_hooks(session)
-        assert redis.deleted == ["identity:user:7:v1"]
+        assert redis.deleted == ["identity:user:7:v2"]
 
     asyncio.run(scenario())

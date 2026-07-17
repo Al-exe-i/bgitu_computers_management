@@ -43,6 +43,7 @@ from core.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
     UserPermissionDeniedError,
+    UploadTooLargeError,
 )
 
 
@@ -88,6 +89,7 @@ DOMAIN_EXCEPTION_STATUS: dict[type[Exception], int] = {
     HardwareFileRangeNotSatisfiableError: HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
     OfficeAlreadyExistsError: HTTPStatus.CONFLICT,
     OfficeNotFoundError: HTTPStatus.NOT_FOUND,
+    UploadTooLargeError: HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
 }
 
 

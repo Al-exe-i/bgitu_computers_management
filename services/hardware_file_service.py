@@ -9,6 +9,7 @@ from models import Hardware
 from models.hardware_file import HardwareFile
 from repositories.hw_files_repo import HardwareFilesRepository
 from schemas.hardware_file import HardwareFileResponse
+from services.media_types import HARDWARE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 from services.object_storage import ObjectStorage
 
 
@@ -43,8 +44,13 @@ class HardwareFileStorage:
         self.storage = storage
         self.prefix = prefix
 
-    async def save(self, file: UploadedHardwareFile) -> str:
-        return await self.storage.save_upload(file, prefix=self.prefix)
+    async def save(self, file: UploadedHardwareFile, *, extension: str) -> str:
+        return await self.storage.save_upload(
+            file,
+            prefix=self.prefix,
+            extension=extension,
+            max_size_bytes=MAX_HARDWARE_FILE_SIZE_BYTES,
+        )
 
     def delete(self, file_path: str) -> bool:
         return self.storage.delete(file_path)
@@ -74,8 +80,9 @@ class HardwareFileService:
         created_files: list[HardwareFileResponse] = []
 
         for file in files:
-            content_type = file.content_type or ""
-            if not self._is_supported_content_type(content_type):
+            content_type = normalize_media_type(file.content_type)
+            extension = HARDWARE_EXTENSIONS_BY_MEDIA_TYPE.get(content_type)
+            if extension is None:
                 logger.warning(
                     "Hardware file skipped due to unsupported content type: hardware_id={} audience_id={} filename={} content_type={}",
                     hardware_id,
@@ -96,7 +103,7 @@ class HardwareFileService:
                 )
                 continue
 
-            file_path = await self.storage.save(file)
+            file_path = await self.storage.save(file, extension=extension)
             db_file = HardwareFile(
                 hardware_id=hardware_id,
                 file_type=content_type,
@@ -153,4 +160,4 @@ class HardwareFileService:
 
     @staticmethod
     def _is_supported_content_type(content_type: str) -> bool:
-        return content_type.startswith("image/") or content_type.startswith("video/")
+        return normalize_media_type(content_type) in HARDWARE_EXTENSIONS_BY_MEDIA_TYPE

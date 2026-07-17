@@ -47,9 +47,9 @@ class FakeStorage:
         self.saved: list[object] = []
         self.deleted: list[str] = []
 
-    async def save(self, file) -> str:
+    async def save(self, file, *, extension: str) -> str:
         self.saved.append(file)
-        return f"uploads/{file.filename}"
+        return f"uploads/file{extension}"
 
     def delete(self, file_path: str) -> bool:
         self.deleted.append(file_path)
@@ -80,6 +80,7 @@ def test_update_files_stores_only_supported_files() -> None:
             9,
             [
                 FakeUpload(filename="photo.png", content_type="image/png"),
+                FakeUpload(filename="unsafe.svg", content_type="image/svg+xml"),
                 FakeUpload(filename="notes.txt", content_type="text/plain"),
                 FakeUpload(filename="big.mp4", content_type="video/mp4", size=101 * 1024 * 1024),
             ],
@@ -87,7 +88,7 @@ def test_update_files_stores_only_supported_files() -> None:
 
         assert result.audience_id == 12
         assert len(result.files) == 1
-        assert result.files[0].file_path == "uploads/photo.png"
+        assert result.files[0].file_path == "uploads/file.png"
         assert result.files[0].file_type == "image/png"
         assert [file.filename for file in storage.saved] == ["photo.png"]
         assert len(files_repo.created) == 1

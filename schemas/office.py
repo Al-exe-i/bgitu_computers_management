@@ -1,11 +1,11 @@
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from schemas.audience import AudienceShortResponse
 
 
 class OfficeBase(BaseModel):
-    id: int
-    address: str
+    id: int = Field(gt=0)
+    address: str = Field(min_length=1, max_length=100)
 
 
 class OfficeCreate(OfficeBase):
@@ -22,4 +22,6 @@ class OfficeShort(OfficeBase):
 
 
 class OfficeUpdate(BaseModel):
-    address: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    address: str | None = Field(default=None, min_length=1, max_length=100)

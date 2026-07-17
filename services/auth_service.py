@@ -11,7 +11,7 @@ from core.exceptions.auth import (
     RefreshUserNotFoundError,
     SessionNotFoundError,
 )
-from core.security import verify_password
+from core.security import get_password_hash, verify_password
 from schemas.user_session import UserSessionOut
 from services.user_service import UserService
 from services.user_session_service import UserSessionService
@@ -20,6 +20,11 @@ from utils.tokens import (
     issue_access_token,
     new_refresh_token,
 )
+
+
+_DUMMY_PASSWORD_HASH = get_password_hash("timing-normalization-password")
+MAX_LOGIN_EMAIL_LENGTH = 254
+MAX_LOGIN_PASSWORD_LENGTH = 128
 
 
 @dataclass(slots=True)
@@ -59,8 +64,19 @@ class AuthService:
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> TokenIssueResult:
+        if len(email) > MAX_LOGIN_EMAIL_LENGTH or len(password) > MAX_LOGIN_PASSWORD_LENGTH:
+            verify_password("invalid-login-input", _DUMMY_PASSWORD_HASH)
+            logger.warning(
+                "Login rejected due to oversized credentials ip={} user_agent={}",
+                ip,
+                user_agent,
+            )
+            raise InvalidCredentialsError()
+
         user = await self.user_service.get_by_email(email)
-        if not user or not verify_password(password, user.password):
+        password_hash = user.password if user is not None else _DUMMY_PASSWORD_HASH
+        password_matches = verify_password(password, password_hash)
+        if user is None or not password_matches:
             logger.warning(
                 "Login failed for email={} ip={} user_agent={}",
                 email,

@@ -13,6 +13,12 @@ class RequestMeta(TypedDict):
     method: str | None
 
 
+def _truncate(value: str | None, max_length: int) -> str | None:
+    if value is None:
+        return None
+    return value[:max_length]
+
+
 def _parse_ip(value: str | None) -> str | None:
     if not value:
         return None
@@ -52,10 +58,17 @@ def _get_forwarded_ip(request: Request) -> str | None:
 
     xff = request.headers.get("x-forwarded-for")
     if xff:
-        first_ip = xff.split(",", maxsplit=1)[0]
-        parsed_ip = _parse_ip(first_ip)
-        if parsed_ip:
-            return parsed_ip
+        forwarded_ips = [
+            parsed_ip
+            for value in xff.split(",")
+            if (parsed_ip := _parse_ip(value)) is not None
+        ]
+        for forwarded_ip in reversed(forwarded_ips):
+            if not _is_trusted_proxy(forwarded_ip):
+                return forwarded_ip
+
+        if forwarded_ips:
+            return forwarded_ips[0]
 
     return _parse_ip(request.headers.get("x-real-ip"))
 
@@ -74,7 +87,7 @@ def _get_client_ip(request: Request) -> str | None:
 def get_request_meta(request: Request) -> RequestMeta:
     return {
         "ip": _get_client_ip(request),
-        "user_agent": request.headers.get("user-agent"),
-        "path": request.url.path,
-        "method": request.method,
+        "user_agent": _truncate(request.headers.get("user-agent"), 255),
+        "path": _truncate(request.url.path, 255),
+        "method": _truncate(request.method, 8),
     }
