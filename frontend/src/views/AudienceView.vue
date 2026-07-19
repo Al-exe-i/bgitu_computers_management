@@ -169,6 +169,7 @@ export default {
 
       /* Preview */
       previewIndex: null,
+      equipmentModalLeaving: false,
       viewportScrollLocked: false,
       viewportScrollLockMode: null,
       viewportScrollLockFrame: null,
@@ -569,6 +570,7 @@ export default {
       return (
           this.isWorkspace ||
           this.selectedCell !== null ||
+          this.equipmentModalLeaving ||
           this.previewIndex !== null ||
           this.showConfirmModal ||
           this.showUnsavedProblemsConfirm ||
@@ -580,6 +582,7 @@ export default {
     getViewportScrollLockMode() {
       const hasBlockingModal =
           this.selectedCell !== null ||
+          this.equipmentModalLeaving ||
           this.previewIndex !== null ||
           this.showConfirmModal ||
           this.showUnsavedProblemsConfirm ||
@@ -605,6 +608,21 @@ export default {
           this.syncViewportScrollLock();
         });
       });
+    },
+
+    onEquipmentModalEnter() {
+      this.equipmentModalLeaving = false;
+      this.scheduleViewportScrollLock();
+    },
+
+    onEquipmentModalBeforeLeave() {
+      this.equipmentModalLeaving = true;
+      this.scheduleViewportScrollLock();
+    },
+
+    onEquipmentModalAfterLeave() {
+      this.equipmentModalLeaving = false;
+      this.scheduleViewportScrollLock();
     },
 
     syncViewportScrollLock() {
@@ -2360,7 +2378,14 @@ export default {
     </div>
 
     <Teleport to="body">
-      <div v-if="selectedCell" class="modal active equipment-modal audience-equipment-modal" @click.self="closeModal">
+      <Transition
+          name="modal-fade"
+          @before-enter="onEquipmentModalEnter"
+          @before-leave="onEquipmentModalBeforeLeave"
+          @after-leave="onEquipmentModalAfterLeave"
+          @leave-cancelled="onEquipmentModalEnter"
+      >
+        <div v-if="selectedCell" class="modal active equipment-modal audience-equipment-modal" @click.self="closeModal">
         <div class="modal-content equipment-modal-content">
           <div class="modal-close-upper">
             <button @click="closeModal" class="close">
@@ -2612,6 +2637,7 @@ export default {
           </div>
         </div>
         </div>
+      </Transition>
     </Teleport>
 
     <Teleport to="body">
@@ -3122,45 +3148,142 @@ export default {
     </Teleport>
 
     <Teleport to="body">
-    <div v-if="previewIndex !== null && selectedCell" class="hw-lightbox audience-lightbox-overlay" @click.self="closePreview">
-
-      <button class="hw-lb-close" @click="closePreview">&times;</button>
-
-      <button
-          v-if="selectedCell?.data?.files.length > 1"
-          class="hw-lb-nav hw-lb-prev"
-          @click.stop="prevPreview"
+      <div
+          v-if="previewIndex !== null && selectedCell"
+          class="hw-lightbox audience-lightbox-overlay"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="`Предпросмотр вложений: ${selectedEquipmentDisplayName}`"
+          @click.self="closePreview"
       >
-        &#10094; </button>
+        <header class="hw-lb-header">
+          <div class="hw-lb-context">
+            <span class="hw-lb-kind-icon" aria-hidden="true">
+              <svg v-if="isPreviewImage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                <circle cx="8.5" cy="9" r="1.5"></circle>
+                <path d="m4 17 4.5-4.5 3.5 3 2.5-2.5 5.5 5"></path>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="14" height="14" rx="3"></rect>
+                <path d="m17 10 4-2v8l-4-2z"></path>
+              </svg>
+            </span>
+            <span class="hw-lb-context-copy">
+              <span class="hw-lb-eyebrow">Вложения оборудования</span>
+              <strong>{{ selectedEquipmentDisplayName }}</strong>
+            </span>
+          </div>
 
-      <div class="hw-lb-content" @click.stop>
+          <div class="hw-lb-header-actions">
+            <div class="hw-lb-counter" aria-live="polite">
+              <strong>{{ previewIndex + 1 }}</strong>
+              <span>/</span>
+              <span>{{ selectedCell.data.files.length }}</span>
+            </div>
+            <button
+                type="button"
+                class="hw-lb-close"
+                aria-label="Закрыть предпросмотр"
+                title="Закрыть (Esc)"
+                @click="closePreview"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M6 6l12 12M18 6 6 18"></path>
+              </svg>
+            </button>
+          </div>
+        </header>
 
-        <img
-            v-if="isPreviewImage"
-            :src="resolveFileUrl(currentPreviewFile.url)"
-            class="hw-lb-image"
-        />
+        <button
+            v-if="selectedCell.data.files.length > 1"
+            type="button"
+            class="hw-lb-nav hw-lb-prev"
+            aria-label="Предыдущее вложение"
+            title="Предыдущее вложение (←)"
+            @click.stop="prevPreview"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m14.5 5-7 7 7 7"></path>
+          </svg>
+        </button>
 
-        <video
-            v-if="isPreviewVideo"
-            :src="getVideoStreamUrl(currentPreviewFile.id)"
-            controls
-            autoplay
-            class="hw-lb-video"
-        ></video>
+        <main class="hw-lb-content" @click.stop>
+          <div class="hw-lb-stage">
+            <Transition name="hw-media-swap" mode="out-in">
+              <img
+                  v-if="isPreviewImage"
+                  :key="`image-${currentPreviewFile.id}`"
+                  :src="resolveFileUrl(currentPreviewFile.url)"
+                  :alt="`Фото оборудования ${selectedEquipmentDisplayName}`"
+                  class="hw-lb-image"
+                  draggable="false"
+              />
 
-        <div class="hw-lb-caption">
-          Файл {{ previewIndex + 1 }} из {{ selectedCell?.data.files.length }}
-        </div>
+              <video
+                  v-else-if="isPreviewVideo"
+                  :key="`video-${currentPreviewFile.id}`"
+                  :src="getVideoStreamUrl(currentPreviewFile.id)"
+                  controls
+                  autoplay
+                  playsinline
+                  class="hw-lb-video"
+              ></video>
+            </Transition>
+
+            <span class="hw-lb-media-kind">
+              {{ isPreviewImage ? 'Фото' : 'Видео' }}
+            </span>
+          </div>
+        </main>
+
+        <button
+            v-if="selectedCell.data.files.length > 1"
+            type="button"
+            class="hw-lb-nav hw-lb-next"
+            aria-label="Следующее вложение"
+            title="Следующее вложение (→)"
+            @click.stop="nextPreview"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9.5 5 7 7-7 7"></path>
+          </svg>
+        </button>
+
+        <footer class="hw-lb-footer">
+          <div class="hw-lb-filmstrip" aria-label="Список вложений">
+            <button
+                v-for="(file, index) in selectedCell.data.files"
+                :key="`preview-thumb-${file.id}`"
+                type="button"
+                class="hw-lb-thumb"
+                :class="{ 'is-active': index === previewIndex }"
+                :aria-label="`Открыть вложение ${index + 1}`"
+                :aria-current="index === previewIndex ? 'true' : undefined"
+                @click="openPreview(index)"
+            >
+              <img
+                  v-if="file.file_type.startsWith('image/')"
+                  :src="resolveFileUrl(file.url)"
+                  alt=""
+                  loading="lazy"
+                  draggable="false"
+              />
+              <span v-else class="hw-lb-video-thumb" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8.2 6.8a1 1 0 0 1 1.53-.85l7.2 4.7a1 1 0 0 1 0 1.7l-7.2 4.7a1 1 0 0 1-1.53-.84z"></path>
+                </svg>
+              </span>
+              <span class="hw-lb-thumb-index">{{ index + 1 }}</span>
+            </button>
+          </div>
+
+          <span v-if="selectedCell.data.files.length > 1" class="hw-lb-shortcut">
+            <kbd>←</kbd><kbd>→</kbd>
+            для навигации
+          </span>
+        </footer>
       </div>
-
-      <button
-          v-if="selectedCell.data.files.length > 1"
-          class="hw-lb-nav hw-lb-next"
-          @click.stop="nextPreview"
-      >
-        &#10095; </button>
-    </div>
     </Teleport>
 
   </div>
@@ -3941,12 +4064,31 @@ export default {
 }
 
 .equipment-modal-content {
+  position: relative;
   margin: 0;
+  padding-top: 20px;
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
   max-height: calc(var(--audience-modal-vh, 100dvh) - 40px);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+.equipment-modal .modal-close-upper {
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  z-index: 4;
+  padding: 0;
+}
+
+.equipment-modal .modal-close-upper button {
+  margin: 0;
+}
+
+.equipment-modal .modal-title {
+  margin-top: 0;
+  padding-right: 52px;
 }
 
 :global(html[data-theme='dark']) .audience-equipment-modal {
@@ -6838,101 +6980,642 @@ export default {
 /* Конец стилей модалки подтверждения удаления файла */
 
 /* Просмотр фото и видео */
-/* --- LIGHTBOX (Оверлей) --- */
 .hw-lightbox {
+  --lb-surface: rgba(17, 25, 38, 0.76);
+  --lb-surface-strong: rgba(10, 16, 26, 0.92);
+  --lb-stage: #080c13;
+  --lb-border: rgba(226, 232, 240, 0.16);
+  --lb-border-strong: rgba(226, 232, 240, 0.28);
+  --lb-text: #f5f7fa;
+  --lb-muted: #a9b5c4;
+  --lb-accent: #73a7ff;
+
   position: fixed;
-  inset: 0; /* top:0, left:0, right:0, bottom:0 */
-  background: rgba(0, 0, 0, 0.9); /* Очень темный фон */
+  inset: 0;
   z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 72px 24px 64px;
-  backdrop-filter: blur(5px);
-  animation: fadeIn 0.2s ease;
   height: 100vh;
   height: 100dvh;
   height: var(--audience-modal-vh, 100dvh);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding:
+      max(18px, env(safe-area-inset-top))
+      clamp(18px, 3vw, 44px)
+      max(16px, env(safe-area-inset-bottom));
+  color: var(--lb-text);
+  background:
+      radial-gradient(circle at 13% 8%, rgba(62, 113, 196, 0.24), transparent 31%),
+      radial-gradient(circle at 88% 92%, rgba(20, 145, 132, 0.13), transparent 27%),
+      linear-gradient(145deg, rgba(10, 17, 29, 0.96), rgba(3, 7, 13, 0.98));
+  backdrop-filter: blur(16px) saturate(1.08);
   overflow: hidden;
   overscroll-behavior: contain;
+  animation: hwLightboxEnter 0.22s ease-out both;
 }
 
-/* --- Контент (обертка) --- */
-.hw-lb-content {
+.hw-lightbox::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, black, transparent 82%);
+}
+
+:global(html[data-theme='dark']) .hw-lightbox {
+  --lb-surface: rgba(12, 18, 28, 0.82);
+  --lb-surface-strong: rgba(5, 9, 16, 0.95);
+  --lb-stage: #05080d;
+  --lb-border: rgba(148, 163, 184, 0.16);
+  --lb-border-strong: rgba(148, 163, 184, 0.28);
+  --lb-text: #e7edf4;
+  --lb-muted: #8e9bab;
+  --lb-accent: #82adf7;
+  background:
+      radial-gradient(circle at 14% 7%, rgba(36, 76, 137, 0.2), transparent 32%),
+      radial-gradient(circle at 88% 92%, rgba(17, 94, 89, 0.12), transparent 28%),
+      linear-gradient(145deg, rgba(5, 9, 16, 0.98), rgba(1, 3, 7, 0.99));
+}
+
+.hw-lb-header,
+.hw-lb-content,
+.hw-lb-footer,
+.hw-lb-nav {
   position: relative;
-  width: min(92vw, 1280px);
-  height: calc(100vh - 136px);
-  height: calc(100dvh - 136px);
-  height: calc(var(--audience-modal-vh, 100dvh) - 136px);
+  z-index: 1;
+}
+
+.hw-lb-header,
+.hw-lb-footer {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+  border: 1px solid var(--lb-border);
+  background: var(--lb-surface);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 16px 38px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.hw-lb-header {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 9px 8px 14px;
+  border-radius: 18px;
+}
+
+.hw-lb-context,
+.hw-lb-header-actions,
+.hw-lb-context-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.hw-lb-context {
+  gap: 11px;
+}
+
+.hw-lb-kind-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  color: var(--lb-accent);
+  border: 1px solid rgba(115, 167, 255, 0.25);
+  border-radius: 13px;
+  background: rgba(115, 167, 255, 0.1);
+}
+
+.hw-lb-kind-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.hw-lb-context-copy {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.hw-lb-eyebrow {
+  color: var(--lb-muted);
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.hw-lb-context-copy strong {
+  max-width: min(48vw, 620px);
+  color: var(--lb-text);
+  font-size: 14px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hw-lb-header-actions {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.hw-lb-counter {
+  min-width: 62px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 11px;
+  color: var(--lb-muted);
+  border: 1px solid var(--lb-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hw-lb-counter strong {
+  color: var(--lb-text);
+  font-size: 14px;
+}
+
+.hw-lb-close,
+.hw-lb-nav,
+.hw-lb-thumb {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.hw-lb-close {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  color: #dbe4ed;
+  border: 1px solid var(--lb-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.hw-lb-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hw-lb-content {
+  width: min(100%, 1440px);
+  min-height: 0;
+  margin-inline: auto;
+  padding-inline: clamp(58px, 6vw, 88px);
+  display: grid;
+  place-items: stretch;
+}
+
+.hw-lb-stage {
+  position: relative;
+  min-width: 0;
   min-height: 220px;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--lb-border);
+  border-radius: 24px;
+  background:
+      radial-gradient(circle at center, rgba(51, 65, 85, 0.2), transparent 58%),
+      var(--lb-stage);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      0 26px 60px rgba(0, 0, 0, 0.34);
+  animation: hwLightboxStageEnter 0.28s cubic-bezier(0.2, 0.75, 0.2, 1) both;
 }
 
-/* --- Картинка и Видео --- */
-.hw-lb-image, .hw-lb-video {
+.hw-lb-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+      linear-gradient(115deg, rgba(255, 255, 255, 0.035), transparent 28%),
+      radial-gradient(circle at 50% 110%, rgba(115, 167, 255, 0.09), transparent 42%);
+}
+
+.hw-lb-image,
+.hw-lb-video {
+  position: relative;
+  z-index: 1;
   width: auto;
   height: auto;
-  max-width: min(100%, 1100px);
-  max-height: min(82vh, calc(100dvh - 156px));
-  max-height: min(82vh, calc(var(--audience-modal-vh, 100dvh) - 156px));
-  object-fit: contain; /* Сохраняем пропорции */
-  border-radius: 4px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  user-select: none;
 }
 
-/* --- Кнопки навигации (< >) --- */
+.hw-lb-video {
+  width: min(100%, 1200px);
+  background: #000;
+}
+
+.hw-lb-media-kind {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  padding: 6px 9px;
+  color: #dce6f0;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 9px;
+  background: rgba(7, 12, 20, 0.68);
+  backdrop-filter: blur(12px);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .hw-lb-nav {
   position: absolute;
   top: 50%;
+  z-index: 3;
+  width: 48px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  color: #e7edf4;
+  border: 1px solid var(--lb-border);
+  border-radius: 17px;
+  background: var(--lb-surface-strong);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 12px 28px rgba(0, 0, 0, 0.28);
   transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 3rem;
-  cursor: pointer;
-  padding: 20px;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  z-index: 10001;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 
-.hw-lb-nav:hover {
+.hw-lb-nav svg {
+  width: 22px;
+  height: 22px;
+}
+
+.hw-lb-prev {
+  left: clamp(18px, 3vw, 44px);
+}
+
+.hw-lb-next {
+  right: clamp(18px, 3vw, 44px);
+}
+
+.hw-lb-footer {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 9px;
+  border-radius: 18px;
+}
+
+.hw-lb-filmstrip {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.hw-lb-filmstrip::-webkit-scrollbar {
+  display: none;
+}
+
+.hw-lb-thumb {
+  position: relative;
+  width: 54px;
+  height: 42px;
+  flex: 0 0 54px;
+  padding: 2px;
+  overflow: hidden;
+  color: var(--lb-muted);
+  border: 1px solid var(--lb-border);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+  opacity: 0.62;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.hw-lb-thumb img,
+.hw-lb-video-thumb {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.hw-lb-video-thumb {
+  color: #c7d8f5;
+  background: linear-gradient(145deg, #25344b, #121b29);
+}
+
+.hw-lb-video-thumb svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hw-lb-thumb-index {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  min-width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  padding-inline: 3px;
+  color: #f8fafc;
+  border-radius: 5px;
+  background: rgba(2, 6, 13, 0.74);
+  font-size: 8px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.hw-lb-thumb.is-active {
   opacity: 1;
+  border-color: rgba(115, 167, 255, 0.82);
+  background: rgba(115, 167, 255, 0.14);
+  box-shadow: 0 0 0 2px rgba(115, 167, 255, 0.15);
 }
 
-.hw-lb-prev { left: 20px; }
-.hw-lb-next { right: 20px; }
-
-/* --- Кнопка закрытия (X) --- */
-.hw-lb-close {
-  position: absolute;
-  top: 20px;
-  right: 30px;
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 2.5rem;
-  cursor: pointer;
-  z-index: 10002;
-  opacity: 0.7;
-}
-
-.hw-lb-close:hover { opacity: 1; }
-
-/* --- Подпись --- */
-.hw-lb-caption {
-  position: absolute;
-  left: 50%;
-  bottom: -36px;
-  transform: translateX(-50%);
-  margin: 0;
-  color: #ccc;
-  font-family: sans-serif;
-  font-size: 0.9rem;
+.hw-lb-shortcut {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-right: 6px;
+  color: var(--lb-muted);
+  font-size: 11px;
   white-space: nowrap;
 }
-/**/
+
+.hw-lb-shortcut kbd {
+  min-width: 25px;
+  height: 25px;
+  display: inline-grid;
+  place-items: center;
+  color: #dbe5ef;
+  border: 1px solid var(--lb-border-strong);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.hw-media-swap-enter-active,
+.hw-media-swap-leave-active {
+  transition: opacity 0.16s ease, transform 0.2s ease;
+}
+
+.hw-media-swap-enter-from {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
+.hw-media-swap-leave-to {
+  opacity: 0;
+  transform: scale(0.995);
+}
+
+@media (hover: hover) {
+  .hw-lb-close:hover,
+  .hw-lb-nav:hover {
+    color: #ffffff;
+    border-color: var(--lb-border-strong);
+    background: rgba(45, 58, 76, 0.92);
+  }
+
+  .hw-lb-close:hover {
+    transform: rotate(4deg);
+  }
+
+  .hw-lb-prev:hover {
+    transform: translateY(-50%) translateX(-2px);
+  }
+
+  .hw-lb-next:hover {
+    transform: translateY(-50%) translateX(2px);
+  }
+
+  .hw-lb-thumb:hover {
+    opacity: 0.9;
+    border-color: var(--lb-border-strong);
+    transform: translateY(-1px);
+  }
+}
+
+.hw-lb-close:focus-visible,
+.hw-lb-nav:focus-visible,
+.hw-lb-thumb:focus-visible {
+  outline: 2px solid var(--lb-accent);
+  outline-offset: 2px;
+}
+
+@keyframes hwLightboxEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes hwLightboxStageEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 800px) {
+  .hw-lightbox {
+    gap: 9px;
+    padding:
+        max(10px, env(safe-area-inset-top))
+        10px
+        max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hw-lb-header {
+    min-height: 50px;
+    padding: 6px 7px 6px 10px;
+    border-radius: 16px;
+  }
+
+  .hw-lb-kind-icon {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 12px;
+  }
+
+  .hw-lb-context-copy strong {
+    max-width: 42vw;
+    font-size: 13px;
+  }
+
+  .hw-lb-content {
+    padding-inline: 0;
+  }
+
+  .hw-lb-stage {
+    min-height: 180px;
+    border-radius: 18px;
+  }
+
+  .hw-lb-image,
+  .hw-lb-video {
+    border-radius: 11px;
+  }
+
+  .hw-lb-media-kind {
+    top: 10px;
+    left: 10px;
+  }
+
+  .hw-lb-nav {
+    width: 40px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .hw-lb-nav svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .hw-lb-prev {
+    left: 16px;
+  }
+
+  .hw-lb-next {
+    right: 16px;
+  }
+
+  .hw-lb-footer {
+    min-height: 52px;
+    padding: 6px 7px;
+    border-radius: 16px;
+  }
+
+  .hw-lb-shortcut {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .hw-lb-eyebrow {
+    display: none;
+  }
+
+  .hw-lb-context-copy strong {
+    max-width: 38vw;
+  }
+
+  .hw-lb-counter {
+    min-width: 52px;
+    padding-inline: 8px;
+  }
+
+  .hw-lb-thumb {
+    width: 46px;
+    height: 36px;
+    flex-basis: 46px;
+    border-radius: 10px;
+  }
+
+  .hw-lb-filmstrip {
+    gap: 6px;
+  }
+}
+
+@media (max-height: 620px) {
+  .hw-lightbox {
+    gap: 7px;
+    padding-top: max(7px, env(safe-area-inset-top));
+    padding-bottom: max(7px, env(safe-area-inset-bottom));
+  }
+
+  .hw-lb-header,
+  .hw-lb-footer {
+    min-height: 46px;
+  }
+
+  .hw-lb-header {
+    padding-block: 4px;
+  }
+
+  .hw-lb-eyebrow {
+    display: none;
+  }
+
+  .hw-lb-kind-icon,
+  .hw-lb-close,
+  .hw-lb-counter {
+    height: 34px;
+  }
+
+  .hw-lb-kind-icon,
+  .hw-lb-close {
+    width: 34px;
+    flex-basis: 34px;
+  }
+
+  .hw-lb-footer {
+    padding-block: 4px;
+  }
+
+  .hw-lb-thumb {
+    width: 44px;
+    height: 34px;
+    flex-basis: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-lightbox,
+  .hw-lb-stage {
+    animation: none;
+  }
+
+  .hw-media-swap-enter-active,
+  .hw-media-swap-leave-active,
+  .hw-lb-close,
+  .hw-lb-nav,
+  .hw-lb-thumb {
+    transition: none;
+  }
+}
 
 /* Responsive */
 @media (max-width: 1024px) {
@@ -7095,8 +7778,9 @@ export default {
   }
 
   .equipment-modal .modal-close-upper {
+    top: 12px;
+    right: 14px;
     padding-top: 0;
-    margin-bottom: 4px;
   }
 
   .equipment-modal .modal-close-upper button {
@@ -7110,6 +7794,7 @@ export default {
     font-size: 20px;
     line-height: 1.08;
     margin-bottom: 12px;
+    padding-right: 48px;
   }
 
   .equipment-modal .modal-subtitle {
