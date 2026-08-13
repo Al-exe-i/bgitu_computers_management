@@ -1,9 +1,10 @@
 import enum
 from typing import Any
 
-from sqlalchemy import String, Enum, ForeignKey, Integer
+from sqlalchemy import Enum, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from models import Audience
 from models.base import Base
 from models.hardware_file import HardwareFile

@@ -1,10 +1,12 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from models.base import Base
-from sqlalchemy import String, DateTime, func, Integer
-from sqlalchemy import Enum as SQLEnum
-from datetime import datetime
-from models.mixins.int_id_pk_mixin import IntIdPkMixin
 import enum
+from datetime import datetime
+
+from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from models.base import Base
+from models.mixins.int_id_pk_mixin import IntIdPkMixin
 
 
 class UserRole(enum.Enum):

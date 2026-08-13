@@ -1,7 +1,7 @@
-from typing import Any
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 

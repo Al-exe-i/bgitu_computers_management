@@ -1,8 +1,10 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped, relationship, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from models.base import Base
 from models.mixins import IntIdPkMixin
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from models.hardware import Hardware

@@ -1,10 +1,13 @@
-from uuid import UUID, uuid7
 from typing import TYPE_CHECKING
+from uuid import UUID, uuid7
+
 from sqlalchemy import ForeignKey, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from models.base import Base
+
 from .mixins import IntIdPkMixin
 
 if TYPE_CHECKING:

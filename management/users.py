@@ -4,9 +4,9 @@ import argparse
 import asyncio
 import os
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from getpass import getpass
-from typing import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

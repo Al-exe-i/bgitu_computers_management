@@ -1,7 +1,7 @@
 # models/base.py
+import inflection
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase, declared_attr
-import inflection
 
 from core.config import settings
 
