@@ -2,7 +2,6 @@ from redis.asyncio import Redis
 
 from core.config import settings
 
-
 _cache_redis: Redis | None = None
 
 

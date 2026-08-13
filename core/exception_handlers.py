@@ -40,12 +40,11 @@ from core.exceptions import (
     SelfDeleteForbiddenError,
     SessionNotFoundError,
     SuperuserDeleteForbiddenError,
+    UploadTooLargeError,
     UserAlreadyExistsError,
     UserNotFoundError,
     UserPermissionDeniedError,
-    UploadTooLargeError,
 )
-
 
 ExceptionHandler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 

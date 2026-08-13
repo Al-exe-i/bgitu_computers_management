@@ -1,6 +1,7 @@
 # core/logger.py
 import logging
 import sys
+
 from loguru import logger
 
 # Настройка формата логов

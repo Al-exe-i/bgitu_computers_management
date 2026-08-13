@@ -1,7 +1,8 @@
-import os
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine
+import os
+
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from core.config import settings
 
