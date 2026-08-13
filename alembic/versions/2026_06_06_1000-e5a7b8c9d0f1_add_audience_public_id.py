@@ -10,9 +10,9 @@ from collections.abc import Sequence
 from uuid import uuid4
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e5a7b8c9d0f1"
