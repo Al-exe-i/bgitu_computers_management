@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from dependencies.cache import analytics_filter_options_cache_dep
 from db.session import session_dep
+from dependencies.cache import analytics_filter_options_cache_dep
 from repositories.analytics_repo import HardwareAnalyticsRepository
 from services.analytics_service import HardwareAnalyticsService
 

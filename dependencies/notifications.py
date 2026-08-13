@@ -6,7 +6,9 @@ from db.session import session_dep
 from dependencies.cache import user_cache_dep
 from modules.notifications.application import RealtimeNotificationSubscriptionUseCases
 from repositories.audience_repo import AudienceRepository
-from repositories.notification_subscription_repo import NotificationSubscriptionRepository
+from repositories.notification_subscription_repo import (
+    NotificationSubscriptionRepository,
+)
 from repositories.office_repo import OfficeRepository
 from repositories.user_repo import UserRepository
 from services.notification_subscription_service import NotificationSubscriptionService

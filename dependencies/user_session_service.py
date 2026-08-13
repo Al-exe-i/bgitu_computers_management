@@ -1,5 +1,7 @@
 from typing import Annotated
+
 from fastapi import Depends
+
 from db.session import session_dep
 from repositories.user_session_repo import UserSessionRepository
 from services.user_session_service import UserSessionService

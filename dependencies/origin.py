@@ -5,7 +5,6 @@ from fastapi import Request
 from core.config import settings
 from core.exceptions import HTTP403
 
-
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 

@@ -1,10 +1,12 @@
 #dependencies/user.py
 
 from typing import Annotated
+
 from fastapi import Depends
+
+from db.session import session_dep
 from dependencies.cache import user_cache_dep
 from dependencies.storage import object_storage_dep
-from db.session import session_dep
 from repositories.user_repo import UserRepository
 from services.avatar_storage import AvatarStorage
 from services.user_service import UserService

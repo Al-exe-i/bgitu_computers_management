@@ -2,8 +2,11 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from dependencies.cache import analytics_filter_options_cache_dep, office_short_list_cache_dep
 from db.session import session_dep
+from dependencies.cache import (
+    analytics_filter_options_cache_dep,
+    office_short_list_cache_dep,
+)
 from repositories.audience_repo import AudienceRepository
 from repositories.hardware_repo import HardwareRepository
 from services.audience_grid_service import AudienceGridService

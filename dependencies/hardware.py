@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from db.session import session_dep
 from dependencies.cache import office_short_list_cache_dep
 from dependencies.storage import object_storage_dep
-from db.session import session_dep
 from repositories.hardware_repo import HardwareRepository
 from repositories.hw_files_repo import HardwareFilesRepository
 from services.hardware_file_service import HardwareFileService, HardwareFileStorage

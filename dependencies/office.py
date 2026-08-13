@@ -1,7 +1,12 @@
 from typing import Annotated
+
 from fastapi import Depends
-from dependencies.cache import analytics_filter_options_cache_dep, office_short_list_cache_dep
+
 from db.session import session_dep
+from dependencies.cache import (
+    analytics_filter_options_cache_dep,
+    office_short_list_cache_dep,
+)
 from repositories.office_repo import OfficeRepository
 from services.office_service import OfficeService
 

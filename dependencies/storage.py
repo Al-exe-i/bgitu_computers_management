@@ -4,7 +4,11 @@ from typing import Annotated, Any
 from fastapi import Depends
 
 from core.config import settings
-from services.object_storage import LocalObjectStorage, MinioObjectStorage, ObjectStorage
+from services.object_storage import (
+    LocalObjectStorage,
+    MinioObjectStorage,
+    ObjectStorage,
+)
 
 
 @lru_cache

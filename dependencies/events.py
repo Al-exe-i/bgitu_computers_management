@@ -7,7 +7,9 @@ from dependencies.realtime import realtime_dep
 from modules.identity.adapters.fastapi_events import IdentityEventDispatcher
 from modules.inventory.adapters.fastapi_events import InventoryEventDispatcher
 from repositories.audience_repo import AudienceRepository
-from repositories.notification_subscription_repo import NotificationSubscriptionRepository
+from repositories.notification_subscription_repo import (
+    NotificationSubscriptionRepository,
+)
 from services.realtime_notification_service import (
     RealtimeNotificationDispatcher,
     RealtimeNotificationRecipientService,
