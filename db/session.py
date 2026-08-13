@@ -1,7 +1,10 @@
 # db/session.py
-from typing import AsyncGenerator, Annotated
+from collections.abc import AsyncGenerator
+from typing import Annotated
+
 from fastapi import Depends
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from core.config import settings
 from db.post_commit import clear_post_commit_hooks, run_post_commit_hooks
 
@@ -22,7 +25,7 @@ session_factory = async_sessionmaker(
 )
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     async with session_factory() as session:
         try:
             yield session

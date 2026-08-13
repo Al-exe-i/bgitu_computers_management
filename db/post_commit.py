@@ -7,7 +7,6 @@ from typing import Any
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 PostCommitHook = Callable[[], Any | Awaitable[Any]]
 
 _POST_COMMIT_HOOKS_KEY = "post_commit_hooks"
