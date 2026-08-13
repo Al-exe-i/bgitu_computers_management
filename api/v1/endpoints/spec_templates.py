@@ -47,7 +47,7 @@ async def update_spec_template(
 async def delete_spec_template(
     template_id: int,
     service: spec_template_service_dep,
-    user: admin_dep,
+    _: admin_dep,
 ):
     deleted = await service.delete(template_id)
     if not deleted:

@@ -3,10 +3,15 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from api.v1.application_events import dispatch_result_events
+from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.events import inventory_event_dispatcher_dep
 from dependencies.inventory import inventory_audience_use_cases_dep
-from dependencies.audit_actor import admin_audit_actor_dep
-from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
+from schemas.audience import (
+    AudienceCreate,
+    AudienceResponse,
+    AudienceShortResponse,
+    AudienceUpdate,
+)
 
 router = APIRouter()
 

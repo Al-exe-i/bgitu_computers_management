@@ -3,9 +3,9 @@ from fastapi import APIRouter
 from dependencies.analytics import analytics_service_dep
 from dependencies.auth import admin_dep
 from schemas.analytics import (
+    HardwareAnalyticsFilterOptions,
     HardwareAnalyticsFilters,
     HardwareAnalyticsResponse,
-    HardwareAnalyticsFilterOptions,
 )
 
 router = APIRouter()

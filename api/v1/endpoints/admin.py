@@ -15,7 +15,12 @@ from dependencies.auth import admin_dep
 from dependencies.identity import identity_invite_use_cases_dep
 from dependencies.storage import object_storage_dep
 from schemas.audit_log import AuditLogListResponse
-from schemas.invite import InviteCreateBatch, InviteCreateOne, InviteCreateResult, InviteListItem
+from schemas.invite import (
+    InviteCreateBatch,
+    InviteCreateOne,
+    InviteCreateResult,
+    InviteListItem,
+)
 from utils.file_responses import secure_file_headers
 
 router = APIRouter(prefix="")
