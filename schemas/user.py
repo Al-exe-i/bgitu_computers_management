@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.user import UserRole
 from utils.email import RuEmailStr

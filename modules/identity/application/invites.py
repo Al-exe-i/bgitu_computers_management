@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
+from modules.identity.ports import AuditLogger, InviteServicePort
 from schemas.invite import (
     InviteCreateBatch,
     InviteCreateOne,
     InviteCreateResult,
     InviteListItem,
 )
-from modules.identity.ports import AuditLogger, InviteServicePort
 
 
 @dataclass(slots=True, frozen=True)

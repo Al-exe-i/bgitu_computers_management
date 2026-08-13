@@ -1,11 +1,13 @@
-from typing import Sequence
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Sequence
+
 from sqlalchemy import func, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from core.security import get_password_hash
 from db.post_commit import add_post_commit_hook
 from models.user import User
 from schemas.user import UserUpdate
-from core.security import get_password_hash
 from services.user_cache import UserCache
 
 

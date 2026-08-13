@@ -13,8 +13,6 @@ from core.exceptions import (
     UserPermissionDeniedError,
 )
 from models.user import UserRole
-from services.media_types import IMAGE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
-from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
 from modules.identity.ports import (
     AuditLogger,
@@ -24,8 +22,9 @@ from modules.identity.ports import (
     UploadedAvatarFile,
     UserServicePort,
 )
+from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
+from services.media_types import IMAGE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 from utils.audit import changed_fields
-
 
 PASSWORD_CHANGED_EVENT_NAME = "Изменён пароль аккаунта"
 

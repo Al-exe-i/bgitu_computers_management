@@ -1,13 +1,11 @@
-from dataclasses import dataclass
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from loguru import logger
 
 from core.exceptions import HardwareNotFoundError, HardwarePermissionDeniedError
 from models import Hardware
 from models.user import UserRole
-from schemas.hardware import HardwareUpdate
-from schemas.hardware_file import HardwareFileResponse
 from modules.inventory.events import (
     AudienceUpdatedEvent,
     HardwareStateChangedEvent,
@@ -20,6 +18,8 @@ from modules.inventory.ports import (
     InventoryActor,
     UploadedHardwareFile,
 )
+from schemas.hardware import HardwareUpdate
+from schemas.hardware_file import HardwareFileResponse
 from utils.audit import clean_sensitive
 
 

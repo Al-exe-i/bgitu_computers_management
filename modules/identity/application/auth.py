@@ -9,9 +9,6 @@ from core.exceptions import (
     RefreshTokenReuseDetectedError,
     UserAlreadyExistsError,
 )
-from schemas.invite import InvitePreviewResponse, RegisterByInviteRequest, RegisterByInviteResponse
-from schemas.user import UserCreate
-from schemas.user_session import UserSessionOut
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
 from modules.identity.ports import (
     AuditLogger,
@@ -22,7 +19,13 @@ from modules.identity.ports import (
     TokenIssueResult,
     UserServicePort,
 )
-
+from schemas.invite import (
+    InvitePreviewResponse,
+    RegisterByInviteRequest,
+    RegisterByInviteResponse,
+)
+from schemas.user import UserCreate
+from schemas.user_session import UserSessionOut
 
 LOGIN_EVENT_NAME = "Выполнен вход в аккаунт"
 LOGOUT_ALL_EVENT_NAME = "Выполнен выход на всех устройствах"

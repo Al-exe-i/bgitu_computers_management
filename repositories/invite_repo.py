@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,7 @@ class InviteRepository:
         return result.scalar_one_or_none()
 
     async def get_active_by_token_hash_for_update(self, token_hash: str) -> InviteLink | None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         stmt = (
             select(InviteLink)
@@ -49,13 +49,13 @@ class InviteRepository:
         return result.scalar_one_or_none()
 
     async def revoke(self, invite: InviteLink) -> InviteLink:
-        invite.revoked_at = datetime.now(timezone.utc)
+        invite.revoked_at = datetime.now(UTC)
         await self.db.flush()
         await self.db.refresh(invite)
         return invite
 
     async def mark_used(self, invite: InviteLink, *, used_by_user_id: int) -> InviteLink:
-        invite.used_at = datetime.now(timezone.utc)
+        invite.used_at = datetime.now(UTC)
         invite.used_by_user_id = used_by_user_id
         await self.db.flush()
         await self.db.refresh(invite)

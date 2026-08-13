@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from core.exceptions import OfficeNotFoundError
 from models import Office
-from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
 from modules.inventory.ports import AuditLogger, OfficeServicePort
+from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
 from utils.audit import changed_fields
 
 

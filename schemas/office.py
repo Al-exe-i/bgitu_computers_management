@@ -1,5 +1,6 @@
-from typing import List
+
 from pydantic import BaseModel, ConfigDict, Field
+
 from schemas.audience import AudienceShortResponse
 
 
@@ -13,7 +14,7 @@ class OfficeCreate(OfficeBase):
 
 
 class OfficeResponse(OfficeBase):
-    audiences: List[AudienceShortResponse]
+    audiences: list[AudienceShortResponse]
 
 
 class OfficeShort(OfficeBase):

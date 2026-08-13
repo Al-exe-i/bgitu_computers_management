@@ -1,11 +1,11 @@
 from collections import defaultdict
 from typing import Any
 
-from sqlalchemy import select, func, cast, Integer, Float, Boolean
+from sqlalchemy import Boolean, Float, Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.hardware import Hardware, HardwareType
 from models.audience import Audience
+from models.hardware import Hardware, HardwareType
 from models.office import Office
 from schemas.analytics import HardwareAnalyticsFilters
 

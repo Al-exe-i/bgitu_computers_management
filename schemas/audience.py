@@ -1,7 +1,12 @@
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
-from schemas.hardware import HardwareFullResponse, HardwareShortResponse, HardwareGridItem
+from pydantic import BaseModel, ConfigDict, Field
+
+from schemas.hardware import (
+    HardwareFullResponse,
+    HardwareGridItem,
+    HardwareShortResponse,
+)
 
 
 class AudienceBase(BaseModel):

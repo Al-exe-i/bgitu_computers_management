@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+
 from models.hardware import HardwareType
 from schemas.hardware_file import HardwareFileResponse
 

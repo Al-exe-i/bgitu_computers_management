@@ -1,5 +1,7 @@
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class MemoryUnit(str, Enum):
     mb = "mb"

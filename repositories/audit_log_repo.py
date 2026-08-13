@@ -1,9 +1,12 @@
 # repositories/audit_log_repo.py
-from typing import Any, Sequence
-from sqlalchemy import select, func, or_
+from collections.abc import Sequence
+from typing import Any
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.audit_log import AuditLog
+
 
 class AuditLogRepository:
     def __init__(self, db: AsyncSession):

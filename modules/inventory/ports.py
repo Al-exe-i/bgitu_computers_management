@@ -2,7 +2,12 @@ from collections.abc import Sequence
 from typing import Any, Protocol
 from uuid import UUID
 
-from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
+from schemas.audience import (
+    AudienceCreate,
+    AudienceResponse,
+    AudienceShortResponse,
+    AudienceUpdate,
+)
 from schemas.hardware import HardwareUpdate
 from schemas.hardware_file import HardwareFileResponse
 from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate

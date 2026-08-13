@@ -1,10 +1,10 @@
+from collections.abc import Sequence
 from uuid import UUID
 
-from typing import Sequence
-from sqlalchemy import update, delete
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+
 from models import Hardware
 from models.audience import Audience
 

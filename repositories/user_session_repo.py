@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +25,7 @@ class UserSessionRepository:
     async def list_by_user(
         self, user_id: int, include_inactive: bool = False
     ) -> Sequence[UserSession]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = select(UserSession).where(UserSession.user_id == user_id)
 
         if not include_inactive:
@@ -41,7 +42,7 @@ class UserSessionRepository:
     async def get_active_by_refresh_token_hash(
         self, token_hash: str
     ) -> UserSession | None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = select(UserSession).where(
             UserSession.refresh_token_hash == token_hash,
             UserSession.revoked_at.is_(None),
@@ -53,7 +54,7 @@ class UserSessionRepository:
     async def rotate_refresh_token_hash(
         self, *, sid: str, old_hash: str, new_hash: str
     ) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(UserSession)
             .where(
@@ -69,7 +70,7 @@ class UserSessionRepository:
         return res.scalar_one_or_none() is not None
 
     async def revoke(self, sid: str) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(UserSession)
             .where(UserSession.sid == sid, UserSession.revoked_at.is_(None))
@@ -78,7 +79,7 @@ class UserSessionRepository:
         await self.db.execute(stmt)
 
     async def revoke_by_sid_and_user(self, sid: str, user_id: int) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(UserSession)
             .where(
@@ -93,7 +94,7 @@ class UserSessionRepository:
         return res.scalar_one_or_none() is not None
 
     async def revoke_all_for_user(self, user_id: int) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(UserSession)
             .where(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))

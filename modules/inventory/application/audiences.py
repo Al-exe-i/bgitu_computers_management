@@ -1,9 +1,14 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from schemas.audience import AudienceCreate, AudienceResponse, AudienceShortResponse, AudienceUpdate
 from modules.inventory.events import AudienceUpdatedEvent, InventoryEvent
-from modules.inventory.ports import AuditLogger, AudienceServicePort
+from modules.inventory.ports import AudienceServicePort, AuditLogger
+from schemas.audience import (
+    AudienceCreate,
+    AudienceResponse,
+    AudienceShortResponse,
+    AudienceUpdate,
+)
 from utils.audit import clean_sensitive
 
 
