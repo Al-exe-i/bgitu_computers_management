@@ -2388,7 +2388,7 @@ export default {
         <div v-if="selectedCell" class="modal active equipment-modal audience-equipment-modal" @click.self="closeModal">
         <div class="modal-content equipment-modal-content">
           <div class="modal-close-upper">
-            <button @click="closeModal" class="close">
+            <button type="button" @click="closeModal" class="close" aria-label="Закрыть" title="Закрыть (Esc)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -2396,10 +2396,24 @@ export default {
             </button>
           </div>
 
-          <h2 class="modal-title">
-            {{ getEquipmentType(selectedCell.data.type).name }}
-            <span class="modal-subtitle">Ряд {{ selectedCell.row + 1 }}, Место {{ selectedCell.col + 1 }}</span>
-          </h2>
+          <header class="equipment-modal-heading">
+            <div class="equipment-modal-heading-copy">
+              <span class="equipment-modal-kicker">Оборудование</span>
+              <h2 class="modal-title">
+                {{ getEquipmentType(selectedCell.data.type).name }}
+                <span class="modal-subtitle">Ряд {{ selectedCell.row + 1 }}, место {{ selectedCell.col + 1 }}</span>
+              </h2>
+            </div>
+
+            <div
+                class="status-badge"
+                :class="selectedCell.data.working ? 'working' : 'broken'"
+                role="status"
+                :aria-label="`Текущий статус: ${selectedCell.data.working ? 'исправно' : 'неисправно'}`"
+            >
+              {{ selectedCell.data.working ? 'Исправно' : 'Неисправно' }}
+            </div>
+          </header>
 
           <div class="modal-equipment-info">
             <div
@@ -2411,25 +2425,46 @@ export default {
             <div class="modal-equipment-details">
               <div v-if="!hwTitleEdit">
                 <h3>{{ selectedCell.data.title || getEquipmentType(selectedCell.data.type).name }}</h3>
-                <svg v-if="havePermission" @click="hwTitleEdit = true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
+                <button
+                    v-if="havePermission"
+                    type="button"
+                    class="modal-inline-icon-button"
+                    aria-label="Изменить название"
+                    title="Изменить название"
+                    @click="hwTitleEdit = true"
+                >
+                  <svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m16.475 5.408l2.117 2.117m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53c.41-.082.786-.283 1.082-.579l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621"/><path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/></g></svg>
+                </button>
               </div>
 
               <div v-if="hwTitleEdit" class="modal-equipment-inline-edit is-title">
-                <input v-model="newHwTitle" class="modal-equipment-inline-input">
-                <svg @click="saveHwTitle" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
+                <input v-model="newHwTitle" class="modal-equipment-inline-input" aria-label="Название оборудования">
+                <button type="button" class="modal-inline-icon-button is-save" aria-label="Сохранить название" title="Сохранить" @click="saveHwTitle">
+                  <svg viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
+                </button>
               </div>
 
               <div v-if="invNumEdit" class="modal-equipment-inline-edit is-inv">
-                <input v-model="newInv_no" class="modal-equipment-inline-input">
-                <svg @click="saveInv_no" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
+                <input v-model="newInv_no" class="modal-equipment-inline-input" aria-label="Инвентарный номер">
+                <button type="button" class="modal-inline-icon-button is-save" aria-label="Сохранить инвентарный номер" title="Сохранить" @click="saveInv_no">
+                  <svg viewBox="0 0 20 20"><path fill="currentColor" d="m15.3 5.3l-6.8 6.8l-2.8-2.8l-1.4 1.4l4.2 4.2l8.2-8.2z"/></svg>
+                </button>
               </div>
 
               <div v-if="!invNumEdit">
                 <p>Инвентарный №: {{ selectedCell.data.invNumber || `н\\д` }}</p>
-                <svg v-if="havePermission" @click="invNumEdit = true" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="currentColor"
-                        d="M3.995 17.207V19.5a.5.5 0 0 0 .5.5h2.298a.5.5 0 0 0 .353-.146l9.448-9.448l-3-3l-9.452 9.448a.5.5 0 0 0-.147.353m10.837-11.04l3 3l1.46-1.46a1 1 0 0 0 0-1.414l-1.585-1.586a1 1 0 0 0-1.414 0z"/>
-                </svg>
+                <button
+                    v-if="havePermission"
+                    type="button"
+                    class="modal-inline-icon-button"
+                    aria-label="Изменить инвентарный номер"
+                    title="Изменить инвентарный номер"
+                    @click="invNumEdit = true"
+                >
+                  <svg viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M3.995 17.207V19.5a.5.5 0 0 0 .5.5h2.298a.5.5 0 0 0 .353-.146l9.448-9.448l-3-3l-9.452 9.448a.5.5 0 0 0-.147.353m10.837-11.04l3 3l1.46-1.46a1 1 0 0 0 0-1.414l-1.585-1.586a1 1 0 0 0-1.414 0z"/>
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -2455,11 +2490,7 @@ export default {
             </div>
           </div>
 
-          <div class="status-badge" :class="selectedCell.data.working ? 'working' : 'broken'">
-            Текущий статус: {{ selectedCell.data.working ? 'исправно' : 'неисправно' }}
-          </div>
-
-          <div class="form-group">
+          <div class="form-group equipment-modal-section">
             <div class="problem-header">
               <label class="form-label">Неисправности</label>
               <button
@@ -2520,22 +2551,38 @@ export default {
             </div>
           </div>
 
-          <div class="action-btns status-action-zone">
+          <div
+              v-if="statusConfirmIsPending || selectedCell.data.working || havePermission"
+              class="action-btns status-action-zone"
+          >
             <template v-if="!statusConfirmIsPending">
             <button
+                v-if="havePermission && !selectedCell.data.working"
+                type="button"
                 class="action-btn fix-btn"
-                :disabled="selectedCell.data.working || statusConfirmIsPending || statusConfirmLoading"
+                :disabled="statusConfirmLoading"
+                aria-label="Отметить оборудование исправным"
                 @click="requestWorkingStatus(true)"
-                v-if="havePermission"
             >
-              Исправно
+              <svg class="action-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5"/>
+              </svg>
+              <span>Отметить исправным</span>
             </button>
             <button
+                v-if="selectedCell.data.working"
+                type="button"
                 class="action-btn break-btn"
-                :disabled="!selectedCell.data.working || statusConfirmIsPending || statusConfirmLoading"
+                :disabled="statusConfirmLoading"
+                aria-label="Отметить оборудование неисправным"
                 @click="requestWorkingStatus(false)"
             >
-              Неисправно
+              <svg class="action-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 8v5"/>
+                <path d="M12 17h.01"/>
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+              </svg>
+              <span>Отметить неисправным</span>
             </button>
             </template>
 
@@ -2577,7 +2624,7 @@ export default {
           </div>
           <!-- Список файлов (фото и видео) -->
           <div
-              class="hw-files-section"
+              class="hw-files-section equipment-modal-section"
               @dragenter.prevent="isDragOver = true"
               @dragover.prevent
           >
@@ -2585,7 +2632,7 @@ export default {
             <div class="hw-section-header">
               <span class="hw-section-title">Вложения ({{ selectedCell.data.files ? selectedCell.data.files.length : 0 }})</span>
               <!-- Компактная кнопка для ручного выбора -->
-              <button v-if="canUploadHardwareFiles" class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
+              <button v-if="canUploadHardwareFiles" type="button" class="hw-add-btn-small" @click="$refs.fileInput.click()" title="Прикрепить файл">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                 </svg>
@@ -2595,15 +2642,25 @@ export default {
 
             <!-- Сетка файлов -->
             <div v-if="selectedCell.data.files && selectedCell.data.files.length > 0" class="hw-files-grid">
-              <div @click="openPreview(index)" v-for="(file, index) in selectedCell.data.files" :key="file.id" class="hw-file-card">
+              <div
+                  v-for="(file, index) in selectedCell.data.files"
+                  :key="file.id"
+                  class="hw-file-card"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="`Открыть вложение ${index + 1}`"
+                  @click="openPreview(index)"
+                  @keydown.enter.prevent="openPreview(index)"
+                  @keydown.space.prevent="openPreview(index)"
+              >
 
-                <img v-if="file.file_type.startsWith('image/')" :src="resolveFileUrl(file.url)" class="hw-file-preview" />
+                <img v-if="file.file_type.startsWith('image/')" :src="resolveFileUrl(file.url)" class="hw-file-preview" alt="" />
 
-                <video v-else class="hw-file-preview">
+                <video v-else class="hw-file-preview" muted playsinline preload="metadata">
                   <source :src="getVideoStreamUrl(file.id)" :type="file.file_type">
                 </video>
 
-                <button v-if="havePermission" @click.stop="requestDeleteFile(file.id)" class="hw-delete-btn" title="Удалить">
+                <button v-if="havePermission" type="button" @click.stop="requestDeleteFile(file.id)" class="hw-delete-btn" title="Удалить" aria-label="Удалить вложение">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><path fill="currentColor" d="M17.414 16L24 9.414L22.586 8L16 14.586L9.414 8L8 9.414L14.586 16L8 22.586L9.414 24L16 17.414L22.586 24L24 22.586z"/></svg>
                 </button>
               </div>
@@ -3148,39 +3205,39 @@ export default {
     </Teleport>
 
     <Teleport to="body">
-      <div
-          v-if="previewIndex !== null && selectedCell"
-          class="hw-lightbox audience-lightbox-overlay"
-          role="dialog"
-          aria-modal="true"
-          :aria-label="`Предпросмотр вложений: ${selectedEquipmentDisplayName}`"
-          @click.self="closePreview"
-      >
-        <header class="hw-lb-header">
-          <div class="hw-lb-context">
-            <span class="hw-lb-kind-icon" aria-hidden="true">
-              <svg v-if="isPreviewImage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="16" rx="3"></rect>
-                <circle cx="8.5" cy="9" r="1.5"></circle>
-                <path d="m4 17 4.5-4.5 3.5 3 2.5-2.5 5.5 5"></path>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="5" width="14" height="14" rx="3"></rect>
-                <path d="m17 10 4-2v8l-4-2z"></path>
-              </svg>
-            </span>
-            <span class="hw-lb-context-copy">
-              <span class="hw-lb-eyebrow">Вложения оборудования</span>
-              <strong>{{ selectedEquipmentDisplayName }}</strong>
-            </span>
-          </div>
-
-          <div class="hw-lb-header-actions">
-            <div class="hw-lb-counter" aria-live="polite">
-              <strong>{{ previewIndex + 1 }}</strong>
-              <span>/</span>
-              <span>{{ selectedCell.data.files.length }}</span>
+      <Transition name="hw-lightbox-fade">
+        <div
+            v-if="previewIndex !== null && selectedCell"
+            class="hw-lightbox audience-lightbox-overlay"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="`Предпросмотр вложений: ${selectedEquipmentDisplayName}`"
+            @click.self="closePreview"
+        >
+          <div class="hw-lb-shell" @click.self="closePreview">
+          <div class="hw-lb-header">
+            <div class="hw-lb-context">
+              <span class="hw-lb-kind-icon" aria-hidden="true">
+                <svg v-if="isPreviewImage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                  <circle cx="8.5" cy="9" r="1.5"></circle>
+                  <path d="m4 17 4.5-4.5 3.5 3 2.5-2.5 5.5 5"></path>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="5" width="14" height="14" rx="3"></rect>
+                  <path d="m17 10 4-2v8l-4-2z"></path>
+                </svg>
+              </span>
+              <span class="hw-lb-context-copy">
+                <strong>{{ selectedEquipmentDisplayName }}</strong>
+                <span class="hw-lb-meta" aria-live="polite">
+                  <span>{{ isPreviewImage ? 'Фото' : 'Видео' }}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{{ previewIndex + 1 }} из {{ selectedCell.data.files.length }}</span>
+                </span>
+              </span>
             </div>
+
             <button
                 type="button"
                 class="hw-lb-close"
@@ -3193,97 +3250,90 @@ export default {
               </svg>
             </button>
           </div>
-        </header>
 
-        <button
-            v-if="selectedCell.data.files.length > 1"
-            type="button"
-            class="hw-lb-nav hw-lb-prev"
-            aria-label="Предыдущее вложение"
-            title="Предыдущее вложение (←)"
-            @click.stop="prevPreview"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m14.5 5-7 7 7 7"></path>
-          </svg>
-        </button>
-
-        <main class="hw-lb-content" @click.stop>
-          <div class="hw-lb-stage">
-            <Transition name="hw-media-swap" mode="out-in">
-              <img
-                  v-if="isPreviewImage"
-                  :key="`image-${currentPreviewFile.id}`"
-                  :src="resolveFileUrl(currentPreviewFile.url)"
-                  :alt="`Фото оборудования ${selectedEquipmentDisplayName}`"
-                  class="hw-lb-image"
-                  draggable="false"
-              />
-
-              <video
-                  v-else-if="isPreviewVideo"
-                  :key="`video-${currentPreviewFile.id}`"
-                  :src="getVideoStreamUrl(currentPreviewFile.id)"
-                  controls
-                  autoplay
-                  playsinline
-                  class="hw-lb-video"
-              ></video>
-            </Transition>
-
-            <span class="hw-lb-media-kind">
-              {{ isPreviewImage ? 'Фото' : 'Видео' }}
-            </span>
-          </div>
-        </main>
-
-        <button
-            v-if="selectedCell.data.files.length > 1"
-            type="button"
-            class="hw-lb-nav hw-lb-next"
-            aria-label="Следующее вложение"
-            title="Следующее вложение (→)"
-            @click.stop="nextPreview"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m9.5 5 7 7-7 7"></path>
-          </svg>
-        </button>
-
-        <footer class="hw-lb-footer">
-          <div class="hw-lb-filmstrip" aria-label="Список вложений">
-            <button
-                v-for="(file, index) in selectedCell.data.files"
-                :key="`preview-thumb-${file.id}`"
-                type="button"
-                class="hw-lb-thumb"
-                :class="{ 'is-active': index === previewIndex }"
-                :aria-label="`Открыть вложение ${index + 1}`"
-                :aria-current="index === previewIndex ? 'true' : undefined"
-                @click="openPreview(index)"
-            >
-              <img
-                  v-if="file.file_type.startsWith('image/')"
-                  :src="resolveFileUrl(file.url)"
-                  alt=""
-                  loading="lazy"
-                  draggable="false"
-              />
-              <span v-else class="hw-lb-video-thumb" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8.2 6.8a1 1 0 0 1 1.53-.85l7.2 4.7a1 1 0 0 1 0 1.7l-7.2 4.7a1 1 0 0 1-1.53-.84z"></path>
+          <main class="hw-lb-content" @click.stop>
+            <div class="hw-lb-stage">
+              <button
+                  v-if="selectedCell.data.files.length > 1"
+                  type="button"
+                  class="hw-lb-nav hw-lb-prev"
+                  aria-label="Предыдущее вложение"
+                  title="Предыдущее вложение (←)"
+                  @click.stop="prevPreview"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m14.5 5-7 7 7 7"></path>
                 </svg>
-              </span>
-              <span class="hw-lb-thumb-index">{{ index + 1 }}</span>
-            </button>
-          </div>
+              </button>
 
-          <span v-if="selectedCell.data.files.length > 1" class="hw-lb-shortcut">
-            <kbd>←</kbd><kbd>→</kbd>
-            для навигации
-          </span>
-        </footer>
-      </div>
+              <Transition name="hw-media-swap" mode="out-in">
+                <img
+                    v-if="isPreviewImage"
+                    :key="`image-${currentPreviewFile.id}`"
+                    :src="resolveFileUrl(currentPreviewFile.url)"
+                    :alt="`Фото оборудования ${selectedEquipmentDisplayName}`"
+                    class="hw-lb-image"
+                    draggable="false"
+                />
+
+                <video
+                    v-else-if="isPreviewVideo"
+                    :key="`video-${currentPreviewFile.id}`"
+                    :src="getVideoStreamUrl(currentPreviewFile.id)"
+                    controls
+                    autoplay
+                    playsinline
+                    preload="metadata"
+                    class="hw-lb-video"
+                ></video>
+              </Transition>
+
+              <button
+                  v-if="selectedCell.data.files.length > 1"
+                  type="button"
+                  class="hw-lb-nav hw-lb-next"
+                  aria-label="Следующее вложение"
+                  title="Следующее вложение (→)"
+                  @click.stop="nextPreview"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9.5 5 7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+          </main>
+
+          <footer v-if="selectedCell.data.files.length > 1" class="hw-lb-footer">
+            <div class="hw-lb-filmstrip" aria-label="Список вложений">
+              <button
+                  v-for="(file, index) in selectedCell.data.files"
+                  :key="`preview-thumb-${file.id}`"
+                  type="button"
+                  class="hw-lb-thumb"
+                  :class="{ 'is-active': index === previewIndex }"
+                  :aria-label="`Открыть вложение ${index + 1}`"
+                  :aria-current="index === previewIndex ? 'true' : undefined"
+                  @click="openPreview(index)"
+              >
+                <img
+                    v-if="file.file_type.startsWith('image/')"
+                    :src="resolveFileUrl(file.url)"
+                    alt=""
+                    loading="lazy"
+                    draggable="false"
+                />
+                <span v-else class="hw-lb-video-thumb" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8.2 6.8a1 1 0 0 1 1.53-.85l7.2 4.7a1 1 0 0 1 0 1.7l-7.2 4.7a1 1 0 0 1-1.53-.84z"></path>
+                  </svg>
+                </span>
+                <span class="hw-lb-thumb-index">{{ index + 1 }}</span>
+              </button>
+            </div>
+          </footer>
+          </div>
+        </div>
+      </Transition>
     </Teleport>
 
   </div>
@@ -4091,48 +4141,6 @@ export default {
   padding-right: 52px;
 }
 
-:global(html[data-theme='dark']) .audience-equipment-modal {
-  background: rgba(2, 6, 23, 0.72);
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .equipment-modal-content {
-  background:
-      radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 34%),
-      linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(51, 65, 85, 0.95);
-  color: #e2e8f0;
-  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.56);
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-title {
-  color: #e2e8f0;
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-subtitle,
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-details p {
-  color: #94a3b8;
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-info {
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid rgba(51, 65, 85, 0.95);
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-details h3,
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-equipment-details > div > h3,
-:global(html[data-theme='dark']) .audience-equipment-modal .hw-section-title {
-  color: #f8fafc;
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-close-upper button {
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid #334155;
-}
-
-:global(html[data-theme='dark']) .audience-equipment-modal .modal-close-upper button:hover {
-  background: rgba(30, 41, 59, 0.96);
-}
-
 .modal-title {
   font-size: 24px;
   color: #1e293b;
@@ -4237,28 +4245,6 @@ export default {
   cursor: pointer;
   transform: scale(1.02);
   opacity: 0.9;
-}
-
-:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-info) {
-  background:
-      linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.88)) !important;
-  border: 1px solid rgba(71, 85, 105, 0.9) !important;
-  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08) !important;
-}
-
-:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details h3),
-:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details > div > h3) {
-  color: #f8fafc !important;
-}
-
-:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details p) {
-  color: #cbd5e1 !important;
-}
-
-:global(html[data-theme='dark'] .audience-equipment-modal .modal-equipment-details div input) {
-  background: rgba(15, 23, 42, 0.94) !important;
-  border-color: #475569 !important;
-  color: #e2e8f0 !important;
 }
 
 .specs-entry-btn {
@@ -5734,25 +5720,6 @@ export default {
       0 10px 22px rgba(2, 6, 23, 0.24);
 }
 
-:global(html[data-theme='dark'] .audience-equipment-modal .problem-add) {
-  background:
-      linear-gradient(135deg, rgba(37, 99, 235, 0.26), rgba(14, 165, 233, 0.12)),
-      rgba(15, 23, 42, 0.72) !important;
-  border-color: rgba(96, 165, 250, 0.54) !important;
-  color: #bfdbfe !important;
-  box-shadow:
-      inset 0 1px 0 rgba(191, 219, 254, 0.08),
-      0 8px 20px rgba(2, 6, 23, 0.18) !important;
-}
-
-:global(html[data-theme='dark'] .audience-equipment-modal .problem-add:hover:not(:disabled)) {
-  background:
-      linear-gradient(135deg, rgba(37, 99, 235, 0.36), rgba(14, 165, 233, 0.18)),
-      rgba(15, 23, 42, 0.86) !important;
-  border-color: rgba(147, 197, 253, 0.68) !important;
-  color: #dbeafe !important;
-}
-
 :global(html[data-theme='dark']) .problem-remove {
   background: rgba(127, 29, 29, 0.35);
   color: #fca5a5;
@@ -6386,7 +6353,7 @@ export default {
 }
 
 /* Тёмная тема */
-:global(html[data-theme='dark']) .status-inline-confirm {
+:global(html[data-theme='dark'] .status-inline-confirm) {
   --sc-bg: #111921;
   --sc-border: #2b3945;
   --sc-text: #dde6eb;
@@ -6404,7 +6371,7 @@ export default {
       0 10px 24px rgba(2, 6, 23, 0.3);
 }
 
-:global(html[data-theme='dark']) .status-inline-confirm.is-working {
+:global(html[data-theme='dark'] .status-inline-confirm.is-working) {
   --status-accent: #4fd5a5;
   --status-action: #147e5d;
   --status-action-hover: #106a4f;
@@ -6416,7 +6383,7 @@ export default {
   --sc-track: #213a31;
 }
 
-:global(html[data-theme='dark']) .status-inline-confirm.is-broken {
+:global(html[data-theme='dark'] .status-inline-confirm.is-broken) {
   --status-accent: #ff858b;
   --status-action: #b83d47;
   --status-action-hover: #9d333c;
@@ -6651,11 +6618,6 @@ export default {
   font-weight: 600;
   font-size: 14px;
   color: #333;
-}
-
-:global(html[data-theme='dark'] .audience-equipment-modal .hw-section-title) {
-  color: #e2e8f0 !important;
-  text-shadow: 0 1px 0 rgba(2, 6, 23, 0.24);
 }
 
 .hw-add-btn-small {
@@ -6979,16 +6941,799 @@ export default {
 
 /* Конец стилей модалки подтверждения удаления файла */
 
+/* Equipment modal: calm material, grouped hierarchy and direct feedback. */
+.audience-equipment-modal {
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.equipment-modal-content {
+  --eq-bg: rgba(250, 250, 252, 0.9);
+  --eq-surface: #f2f2f7;
+  --eq-surface-raised: #ffffff;
+  --eq-input: #ffffff;
+  --eq-border: rgba(60, 60, 67, 0.14);
+  --eq-border-strong: rgba(60, 60, 67, 0.22);
+  --eq-separator: rgba(60, 60, 67, 0.13);
+  --eq-text: #1d1d1f;
+  --eq-secondary: #6e6e73;
+  --eq-tertiary: #8e8e93;
+  --eq-blue: #007aff;
+  --eq-blue-soft: rgba(0, 122, 255, 0.1);
+  --eq-green: #248a3d;
+  --eq-green-soft: rgba(36, 138, 61, 0.11);
+  --eq-red: #d70015;
+  --eq-red-soft: rgba(215, 0, 21, 0.1);
+
+  width: min(100%, 600px);
+  max-width: 600px;
+  padding: 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--eq-border-strong) transparent;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 28px;
+  color: var(--eq-text);
+  background: var(--eq-bg);
+  box-shadow:
+      0 32px 90px rgba(15, 23, 42, 0.3),
+      0 8px 28px rgba(15, 23, 42, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(32px) saturate(1.35);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+  animation: none;
+  transform-origin: center 42%;
+}
+
+.equipment-modal-content::-webkit-scrollbar {
+  width: 7px;
+}
+
+.equipment-modal-content::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--eq-border-strong);
+  background-clip: padding-box;
+}
+
+:global(html[data-theme='dark'] .audience-equipment-modal) {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+:global(html[data-theme='dark'] .equipment-modal-content) {
+  --eq-bg: rgba(17, 24, 39, 0.94);
+  --eq-surface: #1e293b;
+  --eq-surface-raised: #243247;
+  --eq-input: #0f172a;
+  --eq-border: rgba(148, 163, 184, 0.2);
+  --eq-border-strong: rgba(148, 163, 184, 0.34);
+  --eq-separator: rgba(148, 163, 184, 0.16);
+  --eq-text: #e2e8f0;
+  --eq-secondary: #a8b5c7;
+  --eq-tertiary: #7f8da3;
+  --eq-blue: #0a84ff;
+  --eq-blue-soft: rgba(10, 132, 255, 0.16);
+  --eq-green: #30d158;
+  --eq-green-soft: rgba(48, 209, 88, 0.14);
+  --eq-red: #ff453a;
+  --eq-red-soft: rgba(255, 69, 58, 0.14);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+      0 36px 100px rgba(0, 0, 0, 0.62),
+      0 10px 34px rgba(0, 0, 0, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.equipment-modal-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-right: 48px;
+}
+
+.equipment-modal-heading-copy {
+  min-width: 0;
+}
+
+.equipment-modal-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--eq-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.045em;
+}
+
+.equipment-modal-content .modal-title {
+  margin: 0;
+  padding-right: 0;
+  gap: 3px;
+  color: var(--eq-text);
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+}
+
+.equipment-modal-content .modal-subtitle {
+  color: var(--eq-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.equipment-modal-heading .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: auto;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.equipment-modal-heading .status-badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor, transparent 84%);
+}
+
+.equipment-modal-heading .status-badge.working {
+  color: var(--eq-green);
+  border-color: color-mix(in srgb, var(--eq-green), transparent 72%);
+  background: var(--eq-green-soft);
+}
+
+.equipment-modal-heading .status-badge.broken {
+  color: var(--eq-red);
+  border-color: color-mix(in srgb, var(--eq-red), transparent 72%);
+  background: var(--eq-red-soft);
+}
+
+.equipment-modal .modal-close-upper {
+  top: 18px;
+  right: 18px;
+}
+
+.equipment-modal-content .modal-close-upper button {
+  width: 38px;
+  height: 38px;
+  margin: 0;
+  color: var(--eq-secondary);
+  border: 1px solid var(--eq-border);
+  border-radius: 50%;
+  background: var(--eq-surface);
+  box-shadow: none;
+  transition: color 160ms ease, background 160ms ease, transform 100ms ease;
+}
+
+.equipment-modal-content .modal-close-upper button svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+}
+
+.equipment-modal-content .modal-close-upper button:hover {
+  color: var(--eq-text);
+  background: var(--eq-surface-raised);
+  transform: none;
+}
+
+.equipment-modal-content .modal-close-upper button:active {
+  transform: scale(0.92);
+}
+
+.equipment-modal-content .modal-close-upper button:focus-visible,
+.equipment-modal-content button:focus-visible,
+.equipment-modal-content [role='button']:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--eq-blue), transparent 64%);
+  outline-offset: 2px;
+}
+
+.equipment-modal-content .modal-equipment-info {
+  gap: 15px;
+  margin-bottom: 0;
+  padding: 16px;
+  border: 1px solid var(--eq-border);
+  border-radius: 20px;
+  background: var(--eq-surface);
+  box-shadow: none;
+}
+
+.equipment-modal-content .modal-equipment-icon {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border-radius: 17px;
+  box-shadow:
+      0 8px 18px color-mix(in srgb, var(--eq-blue), transparent 82%),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.equipment-modal-content .modal-equipment-icon :deep(svg) {
+  width: 29px;
+  height: 29px;
+}
+
+.equipment-modal-content .modal-equipment-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.equipment-modal-content .modal-equipment-details > div {
+  min-height: 28px;
+}
+
+.equipment-modal-content .modal-equipment-details h3 {
+  margin: 0;
+  color: var(--eq-text);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+}
+
+.equipment-modal-content .modal-equipment-details p {
+  margin: 0;
+  color: var(--eq-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.modal-inline-icon-button {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-grid;
+  place-items: center;
+  margin-left: 4px;
+  padding: 0;
+  color: var(--eq-tertiary);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, transform 100ms ease;
+}
+
+.equipment-modal-content .modal-inline-icon-button svg {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  opacity: 1;
+}
+
+.modal-inline-icon-button:hover {
+  color: var(--eq-blue);
+  background: var(--eq-blue-soft);
+}
+
+.modal-inline-icon-button:active {
+  transform: scale(0.9);
+}
+
+.modal-inline-icon-button.is-save {
+  color: var(--eq-green);
+  background: var(--eq-green-soft);
+}
+
+.equipment-modal-content .modal-equipment-inline-edit {
+  gap: 5px;
+}
+
+.equipment-modal-content .modal-equipment-inline-input,
+.equipment-modal-content .modal-equipment-details div input {
+  min-height: 32px;
+  padding: 5px 9px;
+  color: var(--eq-text);
+  border: 1px solid var(--eq-border-strong);
+  border-radius: 10px;
+  background: var(--eq-input);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.equipment-modal-content .modal-equipment-inline-input:focus {
+  outline: none;
+  border-color: var(--eq-blue);
+  box-shadow: 0 0 0 3px var(--eq-blue-soft);
+}
+
+.equipment-modal-content .specs-entry-group {
+  width: 170px;
+  gap: 7px;
+}
+
+.equipment-modal-content .specs-entry-chip {
+  padding: 5px 9px;
+  border-color: var(--eq-border);
+  background: var(--eq-surface-raised);
+  box-shadow: none;
+}
+
+.equipment-modal-content .specs-entry-chip-text {
+  color: var(--eq-secondary);
+  font-size: 11px;
+}
+
+.equipment-modal-content .specs-entry-chip.is-partial {
+  border-color: color-mix(in srgb, var(--eq-blue), transparent 72%);
+  background: var(--eq-blue-soft);
+}
+
+.equipment-modal-content .specs-entry-chip.is-complete {
+  border-color: color-mix(in srgb, var(--eq-green), transparent 70%);
+  background: var(--eq-green-soft);
+}
+
+.equipment-modal-content .specs-entry-chip.is-empty {
+  border-color: var(--eq-border);
+  background: var(--eq-surface-raised);
+}
+
+.equipment-modal-content .specs-entry-btn {
+  min-height: 38px;
+  padding: 7px 11px;
+  color: var(--eq-blue);
+  border: 1px solid var(--eq-border);
+  border-radius: 11px;
+  background: var(--eq-surface-raised);
+  box-shadow: none;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 100ms ease;
+}
+
+.equipment-modal-content .specs-entry-btn:hover {
+  color: var(--eq-blue);
+  border-color: color-mix(in srgb, var(--eq-blue), transparent 68%);
+  background: color-mix(in srgb, var(--eq-blue-soft), var(--eq-surface-raised) 54%);
+  box-shadow: none;
+  transform: none;
+}
+
+.equipment-modal-content .specs-entry-btn:active {
+  transform: scale(0.97);
+}
+
+.equipment-modal-content .equipment-modal-section {
+  margin: 0;
+  padding: 16px 0;
+}
+
+.equipment-modal-content .form-label,
+.equipment-modal-content .hw-section-title {
+  margin: 0;
+  color: var(--eq-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none;
+  text-shadow: none;
+}
+
+.equipment-modal-content .problem-header {
+  margin-bottom: 9px;
+}
+
+.equipment-modal-content .problem-list {
+  --problem-row-height: 40px;
+}
+
+.equipment-modal-content .problem-list-scroll {
+  gap: 7px;
+  scrollbar-color: var(--eq-border-strong) transparent;
+}
+
+.equipment-modal-content .problem-row {
+  gap: 7px;
+}
+
+.equipment-modal-content .problem-index {
+  width: 24px;
+  height: 24px;
+  color: var(--eq-red);
+  border-radius: 8px;
+  background: var(--eq-red-soft);
+}
+
+.equipment-modal-content .problem-input {
+  min-height: 40px;
+  padding: 8px 11px;
+  color: var(--eq-text);
+  border: 1px solid var(--eq-border-strong);
+  border-radius: 11px;
+  background: var(--eq-input);
+  box-shadow: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.equipment-modal-content .problem-input::placeholder {
+  color: var(--eq-tertiary);
+}
+
+.equipment-modal-content .problem-input:focus {
+  outline: none;
+  border-color: var(--eq-blue);
+  box-shadow: 0 0 0 3px var(--eq-blue-soft);
+}
+
+.equipment-modal-content .problem-input:disabled {
+  color: var(--eq-secondary);
+  background: var(--eq-surface);
+}
+
+.equipment-modal-content .problem-add,
+.equipment-modal-content .problem-remove {
+  border: 0;
+  box-shadow: none;
+  transition: color 160ms ease, background 160ms ease, transform 100ms ease;
+}
+
+.equipment-modal-content .problem-add {
+  color: var(--eq-blue);
+  background: var(--eq-blue-soft);
+}
+
+.equipment-modal-content .problem-add:hover:not(:disabled) {
+  color: var(--eq-blue);
+  border: 0;
+  background: color-mix(in srgb, var(--eq-blue), transparent 82%);
+  box-shadow: none;
+}
+
+.equipment-modal-content .problem-remove {
+  color: var(--eq-tertiary);
+  background: transparent;
+}
+
+.equipment-modal-content .problem-remove:hover {
+  color: var(--eq-red);
+  background: var(--eq-red-soft);
+}
+
+.equipment-modal-content .problem-add:active,
+.equipment-modal-content .problem-remove:active {
+  transform: scale(0.9);
+}
+
+.equipment-modal-content .problem-empty {
+  padding: 11px 12px;
+  color: var(--eq-tertiary);
+  border: 0;
+  border-radius: 11px;
+  background: var(--eq-surface);
+}
+
+.equipment-modal-content .action-btns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: end;
+  gap: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.equipment-modal-content .action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: min(100%, 250px);
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--eq-border);
+  border-radius: 13px;
+  color: var(--eq-secondary);
+  background: var(--eq-surface);
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: none;
+  transition:
+      color 160ms ease,
+      background-color 160ms ease,
+      border-color 160ms ease,
+      opacity 160ms ease,
+      transform 100ms ease;
+}
+
+.equipment-modal-content .action-btn-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
+.equipment-modal-content .fix-btn:not(:disabled) {
+  color: var(--eq-green);
+  border-color: color-mix(in srgb, var(--eq-green), transparent 58%);
+  background: color-mix(in srgb, var(--eq-green-soft), var(--eq-surface) 68%);
+}
+
+.equipment-modal-content .break-btn:not(:disabled) {
+  color: var(--eq-red);
+  border-color: color-mix(in srgb, var(--eq-red), transparent 58%);
+  background: color-mix(in srgb, var(--eq-red-soft), var(--eq-surface) 68%);
+}
+
+.equipment-modal-content .action-btn:disabled {
+  color: var(--eq-tertiary);
+  background: var(--eq-surface);
+  box-shadow: none;
+  opacity: 0.52;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .equipment-modal-content .fix-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--eq-green), transparent 46%);
+    background-color: color-mix(in srgb, var(--eq-green-soft), var(--eq-surface) 56%);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .equipment-modal-content .break-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--eq-red), transparent 46%);
+    background-color: color-mix(in srgb, var(--eq-red-soft), var(--eq-surface) 56%);
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+.equipment-modal-content .action-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.equipment-modal-content .action-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--eq-blue), transparent 68%);
+  outline-offset: 1px;
+}
+
+.equipment-modal-content .status-action-zone:has(.status-inline-confirm) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.equipment-modal-content .hw-files-section {
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.equipment-modal-content .hw-section-header {
+  margin-bottom: 10px;
+}
+
+.equipment-modal-content .hw-add-btn-small {
+  min-height: 32px;
+  padding: 5px 9px;
+  gap: 5px;
+  color: var(--eq-blue);
+  border: 1px solid var(--eq-border);
+  border-radius: 10px;
+  background: var(--eq-surface);
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 100ms ease;
+}
+
+.equipment-modal-content .hw-add-btn-small:hover {
+  color: var(--eq-blue);
+  border-color: color-mix(in srgb, var(--eq-blue), transparent 70%);
+  background: var(--eq-blue-soft);
+}
+
+.equipment-modal-content .hw-add-btn-small:active {
+  transform: scale(0.96);
+}
+
+.equipment-modal-content .hw-files-grid {
+  gap: 10px;
+  max-height: none;
+  padding: 2px 2px 8px;
+  overflow-y: hidden;
+  scrollbar-color: var(--eq-border-strong) transparent;
+}
+
+.equipment-modal-content .hw-file-card {
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--eq-border);
+  border-radius: 14px;
+  background: var(--eq-surface);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.equipment-modal-content .hw-file-card:hover {
+  border-color: var(--eq-border-strong);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.11);
+  transform: scale(1.015);
+}
+
+.equipment-modal-content .hw-file-card:active {
+  transform: scale(0.985);
+}
+
+.equipment-modal-content .hw-file-preview {
+  pointer-events: none;
+}
+
+.equipment-modal-content .hw-delete-btn {
+  top: 5px;
+  right: 5px;
+  width: 26px;
+  height: 26px;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(28, 28, 30, 0.66);
+  backdrop-filter: blur(10px);
+  transition: background 160ms ease, transform 100ms ease;
+}
+
+.equipment-modal-content .hw-delete-btn:hover {
+  background: rgba(215, 0, 21, 0.88);
+}
+
+.equipment-modal-content .hw-delete-btn:active {
+  transform: scale(0.9);
+}
+
+.equipment-modal-content .hw-no-files {
+  padding: 16px;
+  color: var(--eq-tertiary);
+  border: 0;
+  border-radius: 13px;
+  background: var(--eq-surface);
+}
+
+.equipment-modal-content .hw-drop-overlay {
+  color: var(--eq-blue);
+  border: 1px solid color-mix(in srgb, var(--eq-blue), transparent 48%);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--eq-blue-soft), var(--eq-bg) 28%);
+  backdrop-filter: blur(18px);
+}
+
+.equipment-modal-content .hw-drop-content {
+  color: var(--eq-blue);
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 220ms ease;
+}
+
+.modal-fade-enter-active .equipment-modal-content,
+.modal-fade-leave-active .equipment-modal-content {
+  animation: none;
+  will-change: transform, opacity;
+}
+
+.modal-fade-enter-active .equipment-modal-content {
+  transition:
+      transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 220ms ease-out;
+}
+
+.modal-fade-leave-active .equipment-modal-content {
+  transition:
+      transform 210ms cubic-bezier(0.7, 0, 0.84, 0),
+      opacity 170ms ease-in;
+}
+
+.modal-fade-enter-from .equipment-modal-content,
+.modal-fade-leave-to .equipment-modal-content {
+  opacity: 0;
+  transform: translateY(10px) scale(0.975);
+}
+
+@media (max-width: 520px) {
+  .equipment-modal-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    padding-right: 44px;
+  }
+
+  .equipment-modal-heading .status-badge {
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-fade-enter-active .equipment-modal-content,
+  .modal-fade-leave-active .equipment-modal-content {
+    transform: none;
+    transition: opacity 160ms ease;
+  }
+
+  .modal-fade-enter-from .equipment-modal-content,
+  .modal-fade-leave-to .equipment-modal-content {
+    transform: none;
+  }
+
+  .equipment-modal-content button,
+  .equipment-modal-content [role='button'] {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .audience-equipment-modal,
+  .equipment-modal-content,
+  .equipment-modal-content .hw-delete-btn,
+  .equipment-modal-content .hw-drop-overlay {
+    backdrop-filter: none;
+  }
+
+  .equipment-modal-content {
+    --eq-bg: #fafafc;
+  }
+
+  :global(html[data-theme='dark'] .equipment-modal-content) {
+    --eq-bg: #1c1c1e;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .equipment-modal-content {
+    --eq-border: rgba(60, 60, 67, 0.34);
+    --eq-border-strong: rgba(60, 60, 67, 0.5);
+  }
+
+  :global(html[data-theme='dark'] .equipment-modal-content) {
+    --eq-border: rgba(255, 255, 255, 0.32);
+    --eq-border-strong: rgba(255, 255, 255, 0.52);
+  }
+}
+
 /* Просмотр фото и видео */
+:global(body > .audience-lightbox-overlay) {
+  width: auto !important;
+  max-width: 100%;
+}
+
+:global(html:has(body > .audience-lightbox-overlay)),
+:global(body:has(> .audience-lightbox-overlay)) {
+  color-scheme: dark;
+  scrollbar-width: none;
+}
+
+:global(html:has(body > .audience-lightbox-overlay)::-webkit-scrollbar),
+:global(body:has(> .audience-lightbox-overlay)::-webkit-scrollbar) {
+  width: 0;
+  height: 0;
+}
+
 .hw-lightbox {
-  --lb-surface: rgba(17, 25, 38, 0.76);
-  --lb-surface-strong: rgba(10, 16, 26, 0.92);
-  --lb-stage: #080c13;
-  --lb-border: rgba(226, 232, 240, 0.16);
-  --lb-border-strong: rgba(226, 232, 240, 0.28);
-  --lb-text: #f5f7fa;
-  --lb-muted: #a9b5c4;
-  --lb-accent: #73a7ff;
+  --lb-backdrop: rgba(4, 8, 15, 0.92);
+  --lb-surface: rgba(20, 28, 41, 0.82);
+  --lb-surface-hover: rgba(34, 45, 62, 0.92);
+  --lb-stage: #070a10;
+  --lb-border: rgba(203, 213, 225, 0.16);
+  --lb-border-strong: rgba(203, 213, 225, 0.3);
+  --lb-text: #f4f7fb;
+  --lb-muted: #9aa8ba;
+  --lb-accent: #78a9ff;
+  --lb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
   position: fixed;
   inset: 0;
@@ -6996,84 +7741,74 @@ export default {
   height: 100vh;
   height: 100dvh;
   height: var(--audience-modal-vh, 100dvh);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 14px;
-  padding:
-      max(18px, env(safe-area-inset-top))
-      clamp(18px, 3vw, 44px)
-      max(16px, env(safe-area-inset-bottom));
   color: var(--lb-text);
-  background:
-      radial-gradient(circle at 13% 8%, rgba(62, 113, 196, 0.24), transparent 31%),
-      radial-gradient(circle at 88% 92%, rgba(20, 145, 132, 0.13), transparent 27%),
-      linear-gradient(145deg, rgba(10, 17, 29, 0.96), rgba(3, 7, 13, 0.98));
-  backdrop-filter: blur(16px) saturate(1.08);
-  overflow: hidden;
+  color-scheme: dark;
+  background: transparent;
+  overflow: visible;
   overscroll-behavior: contain;
-  animation: hwLightboxEnter 0.22s ease-out both;
+  isolation: isolate;
+  animation: none;
 }
 
 .hw-lightbox::before {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
-  opacity: 0.18;
-  background-image:
-      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(circle at center, black, transparent 82%);
+  background: var(--lb-backdrop);
+  backdrop-filter: blur(20px) saturate(0.92);
 }
 
-:global(html[data-theme='dark']) .hw-lightbox {
-  --lb-surface: rgba(12, 18, 28, 0.82);
-  --lb-surface-strong: rgba(5, 9, 16, 0.95);
-  --lb-stage: #05080d;
+.hw-lb-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--audience-modal-vh, 100dvh);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding:
+      max(14px, env(safe-area-inset-top))
+      clamp(12px, 2vw, 28px)
+      max(12px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+:global(html[data-theme='dark'] .hw-lightbox) {
+  --lb-backdrop: rgba(1, 4, 9, 0.96);
+  --lb-surface: rgba(15, 23, 35, 0.86);
+  --lb-surface-hover: rgba(30, 41, 57, 0.96);
+  --lb-stage: #030509;
   --lb-border: rgba(148, 163, 184, 0.16);
-  --lb-border-strong: rgba(148, 163, 184, 0.28);
-  --lb-text: #e7edf4;
-  --lb-muted: #8e9bab;
+  --lb-border-strong: rgba(148, 163, 184, 0.3);
+  --lb-text: #e9eef5;
+  --lb-muted: #8f9caf;
   --lb-accent: #82adf7;
-  background:
-      radial-gradient(circle at 14% 7%, rgba(36, 76, 137, 0.2), transparent 32%),
-      radial-gradient(circle at 88% 92%, rgba(17, 94, 89, 0.12), transparent 28%),
-      linear-gradient(145deg, rgba(5, 9, 16, 0.98), rgba(1, 3, 7, 0.99));
 }
 
 .hw-lb-header,
 .hw-lb-content,
-.hw-lb-footer,
-.hw-lb-nav {
+.hw-lb-footer {
   position: relative;
   z-index: 1;
 }
 
-.hw-lb-header,
-.hw-lb-footer {
-  width: min(100%, 1440px);
-  margin-inline: auto;
-  border: 1px solid var(--lb-border);
-  background: var(--lb-surface);
-  box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 16px 38px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(18px);
-}
-
 .hw-lb-header {
-  min-height: 56px;
+  width: min(100%, 1280px);
+  min-height: 44px;
+  margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 8px 9px 8px 14px;
-  border-radius: 18px;
+  gap: 12px;
 }
 
 .hw-lb-context,
-.hw-lb-header-actions,
 .hw-lb-context-copy {
   min-width: 0;
   display: flex;
@@ -7081,74 +7816,59 @@ export default {
 }
 
 .hw-lb-context {
-  gap: 11px;
+  max-width: calc(100% - 56px);
+  min-height: 44px;
+  gap: 9px;
+  padding: 4px 12px 4px 5px;
+  border: 1px solid var(--lb-border);
+  border-radius: 15px;
+  background: var(--lb-surface);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
 }
 
 .hw-lb-kind-icon {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   display: grid;
   place-items: center;
   color: var(--lb-accent);
-  border: 1px solid rgba(115, 167, 255, 0.25);
-  border-radius: 13px;
-  background: rgba(115, 167, 255, 0.1);
+  border-radius: 11px;
+  background: rgba(120, 169, 255, 0.12);
 }
 
 .hw-lb-kind-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .hw-lb-context-copy {
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 1px;
 }
 
-.hw-lb-eyebrow {
+.hw-lb-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--lb-muted);
-  font-size: 10px;
+  font-size: 10.5px;
   line-height: 1.2;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
 }
 
 .hw-lb-context-copy strong {
-  max-width: min(48vw, 620px);
+  max-width: min(52vw, 620px);
   color: var(--lb-text);
   font-size: 14px;
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.hw-lb-header-actions {
-  flex: 0 0 auto;
-  gap: 8px;
-}
-
-.hw-lb-counter {
-  min-width: 62px;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 11px;
-  color: var(--lb-muted);
-  border: 1px solid var(--lb-border);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.hw-lb-counter strong {
-  color: var(--lb-text);
-  font-size: 14px;
 }
 
 .hw-lb-close,
@@ -7160,16 +7880,24 @@ export default {
 }
 
 .hw-lb-close {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   display: grid;
   place-items: center;
   color: #dbe4ed;
   border: 1px solid var(--lb-border);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.055);
-  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  border-radius: 14px;
+  background: var(--lb-surface);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(18px);
+  transition:
+      color 140ms var(--lb-ease-out),
+      background-color 140ms var(--lb-ease-out),
+      border-color 140ms var(--lb-ease-out),
+      transform 100ms var(--lb-ease-out);
 }
 
 .hw-lb-close svg {
@@ -7178,10 +7906,9 @@ export default {
 }
 
 .hw-lb-content {
-  width: min(100%, 1440px);
+  width: min(100%, 1480px);
   min-height: 0;
   margin-inline: auto;
-  padding-inline: clamp(58px, 6vw, 88px);
   display: grid;
   place-items: stretch;
 }
@@ -7194,26 +7921,17 @@ export default {
   place-items: center;
   overflow: hidden;
   isolation: isolate;
+  padding: clamp(8px, 1.5vw, 18px);
   border: 1px solid var(--lb-border);
-  border-radius: 24px;
-  background:
-      radial-gradient(circle at center, rgba(51, 65, 85, 0.2), transparent 58%),
-      var(--lb-stage);
+  border-radius: 22px;
+  background: var(--lb-stage);
   box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      0 26px 60px rgba(0, 0, 0, 0.34);
-  animation: hwLightboxStageEnter 0.28s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+      0 24px 80px rgba(0, 0, 0, 0.42);
 }
 
 .hw-lb-stage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-      linear-gradient(115deg, rgba(255, 255, 255, 0.035), transparent 28%),
-      radial-gradient(circle at 50% 110%, rgba(115, 167, 255, 0.09), transparent 42%);
+  display: none;
 }
 
 .hw-lb-image,
@@ -7225,79 +7943,73 @@ export default {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 16px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   user-select: none;
 }
 
 .hw-lb-video {
-  width: min(100%, 1200px);
+  width: min(100%, 1280px);
   background: #000;
-}
-
-.hw-lb-media-kind {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 2;
-  padding: 6px 9px;
-  color: #dce6f0;
-  border: 1px solid rgba(226, 232, 240, 0.14);
-  border-radius: 9px;
-  background: rgba(7, 12, 20, 0.68);
-  backdrop-filter: blur(12px);
-  font-size: 10px;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .hw-lb-nav {
   position: absolute;
   top: 50%;
   z-index: 3;
-  width: 48px;
-  height: 64px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #e7edf4;
   border: 1px solid var(--lb-border);
-  border-radius: 17px;
-  background: var(--lb-surface-strong);
+  border-radius: 14px;
+  background: rgba(9, 15, 24, 0.78);
   box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.07),
-      0 12px 28px rgba(0, 0, 0, 0.28);
+      0 8px 24px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(14px);
   transform: translateY(-50%);
-  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  transition:
+      color 140ms var(--lb-ease-out),
+      background-color 140ms var(--lb-ease-out),
+      border-color 140ms var(--lb-ease-out),
+      transform 100ms var(--lb-ease-out);
 }
 
 .hw-lb-nav svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .hw-lb-prev {
-  left: clamp(18px, 3vw, 44px);
+  left: clamp(8px, 1.5vw, 18px);
 }
 
 .hw-lb-next {
-  right: clamp(18px, 3vw, 44px);
+  right: clamp(8px, 1.5vw, 18px);
 }
 
 .hw-lb-footer {
-  min-height: 58px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 9px;
-  border-radius: 18px;
+  width: fit-content;
+  max-width: min(100%, 900px);
+  margin-inline: auto;
+  padding: 6px;
+  border: 1px solid var(--lb-border);
+  border-radius: 16px;
+  background: var(--lb-surface);
+  box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
 }
 
 .hw-lb-filmstrip {
   min-width: 0;
+  max-width: min(calc(100vw - 32px), 888px);
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
@@ -7309,17 +8021,21 @@ export default {
 
 .hw-lb-thumb {
   position: relative;
-  width: 54px;
-  height: 42px;
-  flex: 0 0 54px;
+  width: 52px;
+  height: 40px;
+  flex: 0 0 52px;
   padding: 2px;
   overflow: hidden;
   color: var(--lb-muted);
   border: 1px solid var(--lb-border);
-  border-radius: 11px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.045);
-  opacity: 0.62;
-  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  opacity: 0.56;
+  transition:
+      opacity 140ms var(--lb-ease-out),
+      border-color 140ms var(--lb-ease-out),
+      background-color 140ms var(--lb-ease-out),
+      transform 100ms var(--lb-ease-out);
 }
 
 .hw-lb-thumb img,
@@ -7362,39 +8078,79 @@ export default {
 .hw-lb-thumb.is-active {
   opacity: 1;
   border-color: rgba(115, 167, 255, 0.82);
-  background: rgba(115, 167, 255, 0.14);
-  box-shadow: 0 0 0 2px rgba(115, 167, 255, 0.15);
+  background: rgba(115, 167, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(115, 167, 255, 0.24);
 }
 
-.hw-lb-shortcut {
-  margin-left: auto;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding-right: 6px;
-  color: var(--lb-muted);
-  font-size: 11px;
-  white-space: nowrap;
+.hw-lightbox-fade-enter-active {
+  transition: opacity 220ms var(--lb-ease-out);
 }
 
-.hw-lb-shortcut kbd {
-  min-width: 25px;
-  height: 25px;
-  display: inline-grid;
-  place-items: center;
-  color: #dbe5ef;
-  border: 1px solid var(--lb-border-strong);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2);
-  font-family: inherit;
-  font-size: 12px;
+.hw-lightbox-fade-leave-active {
+  transition: opacity 160ms var(--lb-ease-out);
 }
 
-.hw-media-swap-enter-active,
+.hw-lightbox-fade-enter-active .hw-lb-header,
+.hw-lightbox-fade-enter-active .hw-lb-content,
+.hw-lightbox-fade-enter-active .hw-lb-footer {
+  transition:
+      opacity 220ms var(--lb-ease-out),
+      transform 220ms var(--lb-ease-out);
+}
+
+.hw-lightbox-fade-leave-active .hw-lb-header,
+.hw-lightbox-fade-leave-active .hw-lb-content,
+.hw-lightbox-fade-leave-active .hw-lb-footer {
+  transition:
+      opacity 140ms var(--lb-ease-out),
+      transform 140ms var(--lb-ease-out);
+}
+
+.hw-lightbox-fade-enter-from,
+.hw-lightbox-fade-leave-to,
+.hw-lightbox-fade-enter-from .hw-lb-header,
+.hw-lightbox-fade-enter-from .hw-lb-content,
+.hw-lightbox-fade-enter-from .hw-lb-footer,
+.hw-lightbox-fade-leave-to .hw-lb-header,
+.hw-lightbox-fade-leave-to .hw-lb-content,
+.hw-lightbox-fade-leave-to .hw-lb-footer {
+  opacity: 0;
+}
+
+.hw-lightbox-fade-enter-from .hw-lb-header {
+  transform: translateY(-6px);
+}
+
+.hw-lightbox-fade-enter-from .hw-lb-content {
+  transform: scale(0.985);
+}
+
+.hw-lightbox-fade-enter-from .hw-lb-footer {
+  transform: translateY(6px);
+}
+
+.hw-lightbox-fade-leave-to .hw-lb-header {
+  transform: translateY(-3px);
+}
+
+.hw-lightbox-fade-leave-to .hw-lb-content {
+  transform: scale(0.99);
+}
+
+.hw-lightbox-fade-leave-to .hw-lb-footer {
+  transform: translateY(3px);
+}
+
+.hw-media-swap-enter-active {
+  transition:
+      opacity 180ms var(--lb-ease-out),
+      transform 180ms var(--lb-ease-out);
+}
+
 .hw-media-swap-leave-active {
-  transition: opacity 0.16s ease, transform 0.2s ease;
+  transition:
+      opacity 120ms var(--lb-ease-out),
+      transform 120ms var(--lb-ease-out);
 }
 
 .hw-media-swap-enter-from {
@@ -7404,34 +8160,33 @@ export default {
 
 .hw-media-swap-leave-to {
   opacity: 0;
-  transform: scale(0.995);
+  transform: scale(0.99);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .hw-lb-close:hover,
   .hw-lb-nav:hover {
     color: #ffffff;
     border-color: var(--lb-border-strong);
-    background: rgba(45, 58, 76, 0.92);
-  }
-
-  .hw-lb-close:hover {
-    transform: rotate(4deg);
-  }
-
-  .hw-lb-prev:hover {
-    transform: translateY(-50%) translateX(-2px);
-  }
-
-  .hw-lb-next:hover {
-    transform: translateY(-50%) translateX(2px);
+    background: var(--lb-surface-hover);
   }
 
   .hw-lb-thumb:hover {
-    opacity: 0.9;
+    opacity: 0.86;
     border-color: var(--lb-border-strong);
-    transform: translateY(-1px);
   }
+}
+
+.hw-lb-close:active {
+  transform: scale(0.94);
+}
+
+.hw-lb-nav:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.hw-lb-thumb:active {
+  transform: scale(0.95);
 }
 
 .hw-lb-close:focus-visible,
@@ -7441,25 +8196,9 @@ export default {
   outline-offset: 2px;
 }
 
-@keyframes hwLightboxEnter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes hwLightboxStageEnter {
-  from {
-    opacity: 0;
-    transform: scale(0.985) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
 @media (max-width: 800px) {
-  .hw-lightbox {
-    gap: 9px;
+  .hw-lb-shell {
+    gap: 8px;
     padding:
         max(10px, env(safe-area-inset-top))
         10px
@@ -7467,46 +8206,41 @@ export default {
   }
 
   .hw-lb-header {
-    min-height: 50px;
-    padding: 6px 7px 6px 10px;
-    border-radius: 16px;
+    min-height: 42px;
+  }
+
+  .hw-lb-context {
+    min-height: 42px;
+    padding-right: 10px;
   }
 
   .hw-lb-kind-icon {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+    border-radius: 10px;
   }
 
   .hw-lb-context-copy strong {
-    max-width: 42vw;
+    max-width: 48vw;
     font-size: 13px;
-  }
-
-  .hw-lb-content {
-    padding-inline: 0;
   }
 
   .hw-lb-stage {
     min-height: 180px;
-    border-radius: 18px;
+    padding: 6px;
+    border-radius: 17px;
   }
 
   .hw-lb-image,
   .hw-lb-video {
-    border-radius: 11px;
-  }
-
-  .hw-lb-media-kind {
-    top: 10px;
-    left: 10px;
+    border-radius: 10px;
   }
 
   .hw-lb-nav {
-    width: 40px;
-    height: 48px;
-    border-radius: 14px;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
   }
 
   .hw-lb-nav svg {
@@ -7515,73 +8249,49 @@ export default {
   }
 
   .hw-lb-prev {
-    left: 16px;
+    left: 8px;
   }
 
   .hw-lb-next {
-    right: 16px;
+    right: 8px;
   }
 
   .hw-lb-footer {
-    min-height: 52px;
-    padding: 6px 7px;
-    border-radius: 16px;
-  }
-
-  .hw-lb-shortcut {
-    display: none;
+    padding: 5px;
+    border-radius: 14px;
   }
 }
 
 @media (max-width: 520px) {
-  .hw-lb-eyebrow {
-    display: none;
-  }
-
   .hw-lb-context-copy strong {
-    max-width: 38vw;
+    max-width: 46vw;
   }
 
-  .hw-lb-counter {
-    min-width: 52px;
-    padding-inline: 8px;
+  .hw-lb-meta {
+    font-size: 10px;
   }
 
   .hw-lb-thumb {
     width: 46px;
-    height: 36px;
+    height: 34px;
     flex-basis: 46px;
-    border-radius: 10px;
+    border-radius: 9px;
   }
 
   .hw-lb-filmstrip {
-    gap: 6px;
+    gap: 5px;
   }
 }
 
 @media (max-height: 620px) {
-  .hw-lightbox {
+  .hw-lb-shell {
     gap: 7px;
     padding-top: max(7px, env(safe-area-inset-top));
     padding-bottom: max(7px, env(safe-area-inset-bottom));
   }
 
-  .hw-lb-header,
-  .hw-lb-footer {
-    min-height: 46px;
-  }
-
-  .hw-lb-header {
-    padding-block: 4px;
-  }
-
-  .hw-lb-eyebrow {
-    display: none;
-  }
-
   .hw-lb-kind-icon,
-  .hw-lb-close,
-  .hw-lb-counter {
+  .hw-lb-close {
     height: 34px;
   }
 
@@ -7592,7 +8302,7 @@ export default {
   }
 
   .hw-lb-footer {
-    padding-block: 4px;
+    padding: 4px;
   }
 
   .hw-lb-thumb {
@@ -7603,17 +8313,46 @@ export default {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hw-lightbox,
-  .hw-lb-stage {
-    animation: none;
+  .hw-lightbox-fade-enter-active,
+  .hw-lightbox-fade-leave-active {
+    transition: opacity 140ms ease-out;
   }
 
+  .hw-lightbox-fade-enter-active .hw-lb-header,
+  .hw-lightbox-fade-enter-active .hw-lb-content,
+  .hw-lightbox-fade-enter-active .hw-lb-footer,
+  .hw-lightbox-fade-leave-active .hw-lb-header,
+  .hw-lightbox-fade-leave-active .hw-lb-content,
+  .hw-lightbox-fade-leave-active .hw-lb-footer,
   .hw-media-swap-enter-active,
-  .hw-media-swap-leave-active,
+  .hw-media-swap-leave-active {
+    transition: opacity 120ms ease-out;
+  }
+
+  .hw-lightbox-fade-enter-from .hw-lb-header,
+  .hw-lightbox-fade-enter-from .hw-lb-content,
+  .hw-lightbox-fade-enter-from .hw-lb-footer,
+  .hw-lightbox-fade-leave-to .hw-lb-header,
+  .hw-lightbox-fade-leave-to .hw-lb-content,
+  .hw-lightbox-fade-leave-to .hw-lb-footer,
+  .hw-media-swap-enter-from,
+  .hw-media-swap-leave-to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .hw-lightbox::before {
+    background: #080c13;
+    backdrop-filter: none;
+  }
+
+  .hw-lb-context,
   .hw-lb-close,
   .hw-lb-nav,
-  .hw-lb-thumb {
-    transition: none;
+  .hw-lb-footer {
+    background: #111827;
+    backdrop-filter: none;
   }
 }
 
@@ -7794,7 +8533,7 @@ export default {
     font-size: 20px;
     line-height: 1.08;
     margin-bottom: 12px;
-    padding-right: 48px;
+    padding-right: 0;
   }
 
   .equipment-modal .modal-subtitle {
@@ -7911,19 +8650,19 @@ export default {
   }
 
   .equipment-modal .status-badge {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 8px 12px;
-    margin-bottom: 14px;
-    border-radius: 14px;
+    justify-content: flex-start;
+    width: auto;
+    padding: 7px 10px;
+    margin: 0;
+    border-radius: 999px;
     font-size: 12px;
-    text-align: center;
+    text-align: left;
   }
 
   .equipment-modal .form-group {
-    margin-bottom: 14px;
+    margin: 0;
   }
 
   .equipment-modal .form-label {
@@ -7954,9 +8693,9 @@ export default {
 
   .equipment-modal .action-btns {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin: 0;
   }
 
   .equipment-modal .status-action-zone:has(.status-inline-confirm) {
@@ -7972,6 +8711,7 @@ export default {
   }
 
   .equipment-modal .action-btn {
+    width: 100%;
     min-height: 36px;
     padding: 8px 10px;
     border-radius: 10px;
@@ -8021,8 +8761,8 @@ export default {
   }
 
   .equipment-modal .hw-files-section {
-    margin-top: 5px;
-    padding-top: 7px;
+    margin: 0;
+    padding-top: 16px;
     min-height: 0;
   }
 
