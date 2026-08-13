@@ -1,5 +1,5 @@
 from models.hardware import HardwareType
-from schemas.specifications import ComputerSpecs, SwitchSpecs, EmptySpecs
+from schemas.specifications import ComputerSpecs, EmptySpecs, SwitchSpecs
 
 SPEC_MODEL_BY_TYPE = {
     HardwareType.computer: ComputerSpecs,

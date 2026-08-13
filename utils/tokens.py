@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse, Response
 from core.config import settings
 from core.security import generate_access_token
 
-
 REFRESH_COOKIE_PATH = f"{settings.api.prefix}{settings.api.v1.prefix}"
 
 

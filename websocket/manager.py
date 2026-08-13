@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol
 
 
@@ -65,7 +65,7 @@ class LocalConnectionManager:
     ) -> tuple[LocalConnectionState, LocalConnectionState | None]:
         await connection.accept()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         state = LocalConnectionState(
             connection_id=connection_id,
             connection=connection,
@@ -101,7 +101,7 @@ class LocalConnectionManager:
             if state is None:
                 return None
 
-            state.last_seen = datetime.now(timezone.utc)
+            state.last_seen = datetime.now(UTC)
             return state
 
     async def snapshot(self) -> list[LocalConnectionState]:

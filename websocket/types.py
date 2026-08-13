@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -75,7 +75,7 @@ class AudienceUpdatedEvent:
             event_id=str(uuid4()),
             type="audience_updated",
             audience_id=audience_id,
-            sent_at=datetime.now(timezone.utc),
+            sent_at=datetime.now(UTC),
         )
 
     def to_payload(self) -> dict[str, Any]:
@@ -111,7 +111,7 @@ class RealtimeNotificationEvent:
             type="notification",
             user_id=user_id,
             payload=payload,
-            sent_at=datetime.now(timezone.utc),
+            sent_at=datetime.now(UTC),
         )
 
     def to_payload(self) -> dict[str, Any]:

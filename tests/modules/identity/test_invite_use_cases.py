@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -12,8 +12,7 @@ from schemas.invite import (
     InviteListItem,
 )
 
-
-EXPIRES_AT = datetime(2026, 4, 28, tzinfo=timezone.utc)
+EXPIRES_AT = datetime(2026, 4, 28, tzinfo=UTC)
 
 
 class FakeInviteService:
@@ -74,7 +73,7 @@ class FakeInviteService:
             target_role=UserRole.teacher,
             note="note",
             created_by_user_id=1,
-            created_at=datetime(2026, 4, 21, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 21, tzinfo=UTC),
             expires_at=EXPIRES_AT,
             used_at=None,
             revoked_at=None,

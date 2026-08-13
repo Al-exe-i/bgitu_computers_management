@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from core.config import settings
 from loguru import logger
+
+from core.config import settings
 from models.user_session import UserSession
 from repositories.user_session_repo import UserSessionRepository
 from utils.tokens import hash_refresh_token
@@ -18,7 +19,7 @@ class UserSessionService:
 
     @staticmethod
     def refresh_expires_at() -> datetime:
-        return datetime.now(timezone.utc) + timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
+        return datetime.now(UTC) + timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
 
     async def create_session(
         self,

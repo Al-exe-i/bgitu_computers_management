@@ -1,6 +1,7 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Iterator, Protocol
+from typing import Protocol
 
 from loguru import logger
 
@@ -11,7 +12,6 @@ from services.media_types import (
     safe_image_media_type_for_filename,
 )
 from services.object_storage import ObjectStorage, object_filename
-
 
 MAX_AVATAR_FILE_SIZE_BYTES = 5 * 1024 * 1024
 

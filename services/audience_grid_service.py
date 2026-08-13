@@ -37,6 +37,6 @@ class AudienceGridService:
             GridHelper.apply_grid_item(db_item, item)
             incoming_existing_ids.add(item.id)
 
-        for hw_id in existing_map.keys():
+        for hw_id in existing_map:
             if hw_id not in incoming_existing_ids:
                 await self.hardware.delete(hw_id)

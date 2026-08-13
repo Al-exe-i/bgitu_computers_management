@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -24,7 +24,7 @@ def make_user(
         surname="Ivanov",
         photo=None,
         role=role,
-        reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        reg_date=datetime(2026, 4, 21, tzinfo=UTC),
         is_superuser=is_superuser,
     )
 
@@ -97,8 +97,8 @@ def test_admin_invites_allows_admin_role() -> None:
             target_role=UserRole.teacher,
             note="test",
             created_by_user_id=1,
-            created_at=datetime(2026, 4, 21, tzinfo=timezone.utc),
-            expires_at=datetime(2026, 4, 28, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 21, tzinfo=UTC),
+            expires_at=datetime(2026, 4, 28, tzinfo=UTC),
             used_at=None,
             revoked_at=None,
             used_by_user_id=None,

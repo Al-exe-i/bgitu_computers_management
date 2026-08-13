@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from websocket.types import (
     ALL_AUDIENCES,
@@ -19,8 +19,8 @@ def test_encode_and_decode_audience_keys_handle_global_scope() -> None:
 
 
 def test_redis_connection_meta_roundtrip_preserves_fields() -> None:
-    connected_at = datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc)
-    last_seen = datetime(2026, 4, 21, 12, 5, tzinfo=timezone.utc)
+    connected_at = datetime(2026, 4, 21, 12, 0, tzinfo=UTC)
+    last_seen = datetime(2026, 4, 21, 12, 5, tzinfo=UTC)
     meta = RedisConnectionMeta(
         connection_id="conn-1",
         instance_id="instance-1",
@@ -42,7 +42,7 @@ def test_audience_updated_event_payload_roundtrip() -> None:
         event_id="event-1",
         type="audience_updated",
         audience_id=8,
-        sent_at=datetime(2026, 4, 21, 12, 10, tzinfo=timezone.utc),
+        sent_at=datetime(2026, 4, 21, 12, 10, tzinfo=UTC),
     )
 
     restored = AudienceUpdatedEvent.from_payload(event.to_payload())

@@ -1,6 +1,10 @@
 import asyncio
 
-from db.post_commit import add_post_commit_hook, clear_post_commit_hooks, run_post_commit_hooks
+from db.post_commit import (
+    add_post_commit_hook,
+    clear_post_commit_hooks,
+    run_post_commit_hooks,
+)
 
 
 class FakeSession:

@@ -7,8 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from core.exceptions import OfficeAlreadyExistsError
 from db.post_commit import run_post_commit_hooks
 from schemas.office import OfficeCreate, OfficeShort
-from services.response_cache import RedisTypedCache
 from services.office_service import OfficeService
+from services.response_cache import RedisTypedCache
 
 
 class FakeRedis:

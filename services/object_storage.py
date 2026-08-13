@@ -2,16 +2,16 @@ import asyncio
 import re
 import tempfile
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Iterator, Protocol
+from typing import Protocol
 
 from loguru import logger
 from minio import Minio
 from minio.error import S3Error
 
 from core.exceptions import UploadTooLargeError
-
 
 READ_CHUNK_SIZE_BYTES = 64 * 1024
 WRITE_CHUNK_SIZE_BYTES = 1024 * 1024

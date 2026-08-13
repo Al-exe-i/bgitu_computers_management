@@ -123,7 +123,7 @@ async def sse_endpoint(request: Request):
                         connection.receive_json(),
                         timeout=realtime.config.heartbeat_interval_seconds,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await realtime.heartbeat(connection_id)
                     yield ": ping\n\n"
                     continue
@@ -171,7 +171,7 @@ async def notifications_sse_endpoint(request: Request, user: user_dep):
                         connection.receive_json(),
                         timeout=realtime.config.heartbeat_interval_seconds,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await realtime.heartbeat(connection_id)
                     yield ": ping\n\n"
                     continue

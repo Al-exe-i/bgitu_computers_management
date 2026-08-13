@@ -1,12 +1,12 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import OfficeAlreadyExistsError
 from models import Office
 from repositories.office_repo import OfficeRepository
-from schemas.office import OfficeResponse, OfficeUpdate, OfficeShort, OfficeCreate
 from schemas.analytics import HardwareAnalyticsFilterOptions
+from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
 from services.cache_invalidation import invalidate_after_commit
 from services.response_cache import RedisTypedCache
 

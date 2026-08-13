@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -39,7 +39,7 @@ class FakeNotificationSubscriptionRepo:
     async def create(self, subscription):
         subscription.id = self.next_id
         self.next_id += 1
-        subscription.created_at = datetime.now(timezone.utc)
+        subscription.created_at = datetime.now(UTC)
         self.rows[subscription.id] = subscription
         return subscription
 

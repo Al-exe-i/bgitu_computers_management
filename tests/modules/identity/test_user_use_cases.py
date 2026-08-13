@@ -1,13 +1,16 @@
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from core.exceptions import InvalidUserPhotoError, UserPermissionDeniedError
 from core.security import get_password_hash
 from models.user import UserRole
-from modules.identity.application.users import IdentityUserUseCases, PASSWORD_CHANGED_EVENT_NAME
+from modules.identity.application.users import (
+    PASSWORD_CHANGED_EVENT_NAME,
+    IdentityUserUseCases,
+)
 from modules.identity.events import AuthSecurityNotificationEvent
 from schemas.user import ChangePasswordSchema, UserOut, UserUpdate
 from services.user_service import UserPhotoUpdateResult
@@ -27,7 +30,7 @@ def make_user(
         surname="Ivanov",
         photo=photo,
         role=role,
-        reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        reg_date=datetime(2026, 4, 21, tzinfo=UTC),
         is_superuser=is_superuser,
     )
 

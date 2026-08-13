@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 from sqlalchemy import delete
@@ -43,7 +43,7 @@ async def open_task_session() -> AsyncIterator[AsyncSession]:
 
 
 async def _cleanup_user_sessions_async(retention_days: int) -> dict:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - timedelta(days=retention_days)
 
     async with open_task_session() as session:

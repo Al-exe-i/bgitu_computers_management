@@ -9,7 +9,9 @@ from core.exceptions import (
 )
 from models.notification_subscription import NotificationSubscription
 from repositories.audience_repo import AudienceRepository
-from repositories.notification_subscription_repo import NotificationSubscriptionRepository
+from repositories.notification_subscription_repo import (
+    NotificationSubscriptionRepository,
+)
 from repositories.office_repo import OfficeRepository
 from repositories.user_repo import UserRepository
 from schemas.notification import (

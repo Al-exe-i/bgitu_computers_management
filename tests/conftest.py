@@ -1,6 +1,5 @@
 import os
 
-
 ENV_DEFAULTS = {
     "BGITU__DB__USERNAME": "test_user",
     "BGITU__DB__PASSWORD": "test_password",

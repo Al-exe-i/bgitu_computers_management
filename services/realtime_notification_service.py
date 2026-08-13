@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol
 from uuid import uuid4
 
@@ -7,7 +7,9 @@ from loguru import logger
 
 from core.exceptions import NotificationAudienceNotFoundError
 from repositories.audience_repo import AudienceRepository
-from repositories.notification_subscription_repo import NotificationSubscriptionRepository
+from repositories.notification_subscription_repo import (
+    NotificationSubscriptionRepository,
+)
 from schemas.notification import (
     NotificationEventType,
     NotificationScopeType,
@@ -184,7 +186,7 @@ class RealtimeNotificationRenderer:
                 "y": notification.y,
                 "actor_user_id": notification.actor_user_id,
             },
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         return payload.model_dump(mode="json")
 
@@ -203,7 +205,7 @@ class RealtimeNotificationRenderer:
                 "ip": notification.ip,
                 "user_agent": notification.user_agent,
             },
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         return payload.model_dump(mode="json")
 
@@ -231,7 +233,7 @@ class RealtimeNotificationRenderer:
                 "audience_public_id": str(audience_public_id) if audience_public_id else None,
                 "audience_number": audience_number,
             },
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         return payload.model_dump(mode="json")
 

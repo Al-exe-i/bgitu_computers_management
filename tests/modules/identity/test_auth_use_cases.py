@@ -13,8 +13,8 @@ from modules.identity.application import IdentityAuthUseCases
 from modules.identity.application.auth import LOGIN_EVENT_NAME, LOGOUT_ALL_EVENT_NAME
 from modules.identity.events import AuthSecurityNotificationEvent
 from schemas.invite import RegisterByInviteRequest
-from services.invite_service import InviteRegistrationData
 from services.auth_service import TokenIssueResult
+from services.invite_service import InviteRegistrationData
 
 
 class FakeAuthService:

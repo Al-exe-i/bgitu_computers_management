@@ -1,6 +1,5 @@
 from pathlib import PurePosixPath
 
-
 IMAGE_EXTENSIONS_BY_MEDIA_TYPE = {
     "image/avif": ".avif",
     "image/bmp": ".bmp",

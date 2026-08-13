@@ -1,9 +1,11 @@
 import os
 from contextlib import asynccontextmanager
-from redis.exceptions import ConnectionError
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
+from redis.exceptions import ConnectionError
+
 from api import api_router
 from core.config import settings
 from core.exception_handlers import register_exception_handlers

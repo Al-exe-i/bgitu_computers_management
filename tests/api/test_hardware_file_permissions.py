@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -22,7 +22,7 @@ def make_user(*, user_id: int, role: UserRole) -> UserOut:
         surname="Ivanov",
         photo=None,
         role=role,
-        reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        reg_date=datetime(2026, 4, 21, tzinfo=UTC),
         is_superuser=False,
     )
 

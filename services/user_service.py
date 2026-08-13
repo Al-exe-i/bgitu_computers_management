@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy.exc import IntegrityError
@@ -7,7 +7,7 @@ from core.exceptions import UserAlreadyExistsError
 from core.security import get_password_hash, verify_password
 from models import User
 from repositories.user_repo import UserRepository
-from schemas.user import UserUpdate, UserOut, UserCreate
+from schemas.user import UserCreate, UserOut, UserUpdate
 from services.avatar_storage import AvatarStorage, StoredAvatarFile, UploadedAvatarFile
 from services.user_cache import CachedUser, UserCache
 

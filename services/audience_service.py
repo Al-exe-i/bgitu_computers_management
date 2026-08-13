@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -6,8 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from core.exceptions import AudienceAlreadyExistsError, AudienceNotFoundError
 from models import Audience
 from repositories.audience_repo import AudienceRepository
-from schemas.audience import AudienceCreate, AudienceUpdate, AudienceResponse
 from schemas.analytics import HardwareAnalyticsFilterOptions
+from schemas.audience import AudienceCreate, AudienceResponse, AudienceUpdate
 from schemas.office import OfficeShort
 from services.audience_grid_service import AudienceGridService
 from services.cache_invalidation import invalidate_after_commit

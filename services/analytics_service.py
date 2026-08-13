@@ -1,10 +1,10 @@
 from repositories.analytics_repo import HardwareAnalyticsRepository
 from schemas.analytics import (
+    HardwareAnalyticsFilterOptions,
     HardwareAnalyticsFilters,
     HardwareAnalyticsItem,
     HardwareAnalyticsResponse,
     HardwareAnalyticsSummary,
-    HardwareAnalyticsFilterOptions,
 )
 from services.response_cache import RedisTypedCache
 

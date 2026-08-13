@@ -20,7 +20,6 @@ from services.media_types import (
 )
 from services.object_storage import ObjectStorage, object_filename
 
-
 DEFAULT_RANGE_CHUNK_SIZE = 1024 * 1024
 
 

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -33,7 +33,7 @@ def make_user(*, user_id: int, role: UserRole = UserRole.admin, is_superuser: bo
         surname="Ivanov",
         photo=None,
         role=role,
-        reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        reg_date=datetime(2026, 4, 21, tzinfo=UTC),
         is_superuser=is_superuser,
     )
 

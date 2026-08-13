@@ -2,7 +2,6 @@ from typing import Annotated
 
 from pydantic import AfterValidator, EmailStr
 
-
 RU_EMAIL_ERROR = "Email must use a .ru domain"
 
 

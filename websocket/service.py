@@ -1,7 +1,7 @@
 import asyncio
 import os
 import socket
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from loguru import logger
@@ -11,14 +11,19 @@ from core.config import WebSocketConfig
 from websocket.manager import LocalConnectionManager, LocalConnectionState
 from websocket.pubsub import RedisEventBus
 from websocket.registry import RedisConnectionRegistry
-from websocket.types import AudienceUpdatedEvent, RealtimeEvent, RealtimeNotificationEvent, RedisConnectionMeta
+from websocket.types import (
+    AudienceUpdatedEvent,
+    RealtimeEvent,
+    RealtimeNotificationEvent,
+    RedisConnectionMeta,
+)
 
 
 class RealtimeService:
     def __init__(self, config: WebSocketConfig) -> None:
         self.config = config
         self.manager = LocalConnectionManager()
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = datetime.now(UTC)
         self.instance_id = config.instance_id or self._make_instance_id()
 
         self.registry: RedisConnectionRegistry | None = None

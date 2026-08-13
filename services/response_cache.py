@@ -7,7 +7,6 @@ from pydantic import TypeAdapter, ValidationError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-
 CachedT = TypeVar("CachedT")
 
 

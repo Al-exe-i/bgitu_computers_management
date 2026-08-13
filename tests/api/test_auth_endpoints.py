@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from dependencies.audit_actor import get_audit_ctx
-from dependencies.audit_actor import get_user_audit_actor
+from dependencies.audit_actor import get_audit_ctx, get_user_audit_actor
 from dependencies.events import get_identity_event_dispatcher
 from dependencies.user import get_user_service
 from dependencies.user_session_service import get_user_session_service
@@ -310,7 +309,7 @@ def test_logout_all_endpoint_revokes_all_user_sessions() -> None:
 
 
 def test_sessions_endpoint_marks_current_and_active_flags() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     repo_rows = [
         SimpleNamespace(
             sid="sid-1",

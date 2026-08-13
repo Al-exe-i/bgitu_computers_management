@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from redis.exceptions import RedisError
@@ -74,7 +74,7 @@ def make_user(user_id: int = 7):
         surname="Ivanov",
         email=f"user{user_id}@example.com",
         password="hashed-password",
-        reg_date=datetime(2026, 5, 28, tzinfo=timezone.utc),
+        reg_date=datetime(2026, 5, 28, tzinfo=UTC),
         is_superuser=False,
         photo=None,
         access_token_version=2,

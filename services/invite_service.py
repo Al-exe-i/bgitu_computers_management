@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from loguru import logger
 
 from core.exceptions import (
     InviteAlreadyUsedError,
@@ -7,7 +9,6 @@ from core.exceptions import (
     InviteInvalidError,
     InviteNotFoundError,
 )
-from loguru import logger
 from models.invite_link import InviteLink
 from models.user import UserRole
 from repositories.invite_repo import InviteRepository
@@ -120,7 +121,7 @@ class InviteService:
             logger.warning("Invite preview failed: invite not found")
             return InvitePreviewResponse(valid=False, reason="Invite not found")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if invite.revoked_at is not None:
             logger.warning("Invite preview failed: invite_id={} revoked", invite.id)
@@ -162,7 +163,7 @@ class InviteService:
         if invite.used_at is not None:
             raise InviteAlreadyUsedError()
 
-        if invite.revoked_at is not None or invite.expires_at <= datetime.now(timezone.utc):
+        if invite.revoked_at is not None or invite.expires_at <= datetime.now(UTC):
             raise InviteInvalidError()
 
         await self.repo.mark_used(invite, used_by_user_id=used_by_user_id)

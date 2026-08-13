@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -158,7 +158,7 @@ def test_logout_revokes_session_and_bumps_access_token_version() -> None:
 
 def test_list_user_sessions_marks_current_and_active_sessions() -> None:
     async def scenario() -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sessions = FakeSessionService(
             rows=[
                 SimpleNamespace(

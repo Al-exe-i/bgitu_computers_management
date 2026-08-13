@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from loguru import logger
 
@@ -20,7 +20,6 @@ from utils.tokens import (
     issue_access_token,
     new_refresh_token,
 )
-
 
 _DUMMY_PASSWORD_HASH = get_password_hash("timing-normalization-password")
 MAX_LOGIN_EMAIL_LENGTH = 254
@@ -212,7 +211,7 @@ class AuthService:
         refresh_token: str | None,
     ) -> list[UserSessionOut]:
         current_sid = await self.session_service.get_current_sid(refresh_token)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rows = await self.session_service.list_by_user(
             user_id,
             include_inactive=include_inactive,

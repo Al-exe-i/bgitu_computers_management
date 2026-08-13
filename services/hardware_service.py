@@ -1,4 +1,5 @@
-from typing import Protocol, Sequence
+from collections.abc import Sequence
+from typing import Protocol
 
 from core.exceptions import HardwareNotFoundError
 from models import Hardware

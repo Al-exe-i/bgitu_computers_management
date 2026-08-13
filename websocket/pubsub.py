@@ -5,7 +5,12 @@ from collections.abc import Awaitable, Callable
 from loguru import logger
 from redis.asyncio import Redis
 
-from websocket.types import AudienceUpdatedEvent, RealtimeEvent, RealtimeNotificationEvent, realtime_event_from_payload
+from websocket.types import (
+    AudienceUpdatedEvent,
+    RealtimeEvent,
+    RealtimeNotificationEvent,
+    realtime_event_from_payload,
+)
 
 
 class RedisEventBus:

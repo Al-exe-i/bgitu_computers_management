@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -45,7 +45,7 @@ class FakeUserRepo:
         if self.create_error is not None:
             raise self.create_error
         user.id = 7
-        user.reg_date = datetime(2026, 4, 21, tzinfo=timezone.utc)
+        user.reg_date = datetime(2026, 4, 21, tzinfo=UTC)
         user.is_superuser = False
         self.created_user = user
         return user
@@ -76,7 +76,7 @@ def make_user(*, photo: str | None = None) -> SimpleNamespace:
         surname="Ivanov",
         photo=photo,
         role=UserRole.teacher,
-        reg_date=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        reg_date=datetime(2026, 4, 21, tzinfo=UTC),
         is_superuser=False,
         password="hashed-password",
     )
