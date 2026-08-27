@@ -1,9 +1,9 @@
 from models.hardware import HardwareType
-from schemas.specifications import ComputerSpecs, EmptySpecs, SwitchSpecs
+from schemas.specifications import ComputerSpecs, EmptySpecs, ServerSpecs, SwitchSpecs
 
 SPEC_MODEL_BY_TYPE = {
     HardwareType.computer: ComputerSpecs,
-    HardwareType.server: ComputerSpecs,
+    HardwareType.server: ServerSpecs,
     HardwareType.switch: SwitchSpecs,
     HardwareType.tv: EmptySpecs,
     HardwareType.projector: EmptySpecs,

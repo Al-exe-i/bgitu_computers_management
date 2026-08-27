@@ -6,11 +6,19 @@ import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 import {useAuthStore} from "@/stores/auth.js";
 import {getApiUrl, getRealtimeClientId, getSseUrl, withSseParams} from "@/config/api.js";
+import {
+  OPERATING_SYSTEM_OPTIONS,
+  OS_EDITION_OPTIONS,
+  SOFTWARE_OPTIONS,
+  SOFTWARE_PRESETS,
+} from "@/config/hardwareSpecifications.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {markRaw} from "vue";
 
 const MAX_HW_FILE_SIZE = 100 * 1024 * 1024;
 const ALLOWED_HW_FILE_TYPES = ['image/', 'video/'];
+const MAX_INSTALLED_SOFTWARE_ITEMS = 100;
+const MAX_SOFTWARE_NAME_LENGTH = 128;
 
 export default {
   name: 'AudienceView',
@@ -78,6 +86,11 @@ export default {
         }
       }),
 
+      operatingSystemOptions: markRaw(OPERATING_SYSTEM_OPTIONS),
+      osEditionOptions: markRaw(OS_EDITION_OPTIONS),
+      softwareOptions: markRaw(SOFTWARE_OPTIONS),
+      softwarePresets: markRaw(SOFTWARE_PRESETS),
+
       specFieldMap: markRaw({
         computer: [
           { key: 'cpu_model', label: 'Процессор', type: 'text', placeholder: 'Например, Intel Core i5-10400' },
@@ -91,6 +104,26 @@ export default {
           { key: 'storage_unit', label: 'Ед. ПЗУ', type: 'select', options: ['mb', 'gb', 'tb'] },
 
           { key: 'purchase_year', label: 'Год закупки', type: 'int', min: 2000, max: 2100, step: 1 },
+          {
+            key: 'operating_system',
+            label: 'Операционная система',
+            type: 'os-choice',
+            options: OPERATING_SYSTEM_OPTIONS
+          },
+          {
+            key: 'os_edition',
+            label: 'Редакция / дистрибутив',
+            type: 'dependent-select',
+            emptyLabel: 'Сначала выберите ОС'
+          },
+          {
+            key: 'installed_software',
+            label: 'Установленные программы',
+            type: 'software-checklist',
+            maxItems: MAX_INSTALLED_SOFTWARE_ITEMS,
+            itemMaxLength: MAX_SOFTWARE_NAME_LENGTH,
+            placeholder: 'Другая программа'
+          },
         ],
 
         server: [
@@ -121,16 +154,20 @@ export default {
       /* Состояние редактирования спецификаций */
       specsEdit: false,
       specsDraft: {},
+      specListInputs: {},
+      collapsedSpecSections: {},
       specsSaving: false,
       showSpecsModal: false,
 
       /* Шаблоны характеристик */
       specTemplates: [],
       templatesLoading: false,
+      specTemplatesExpanded: false,
       selectedTemplateId: '',
       newTemplateName: '',
       templateSaving: false,
       templateApplyingAll: false,
+      customSoftwareExpanded: false,
       pendingWorkingStatus: null,
       statusConfirmLoading: false,
       statusConfirmDurationMs: 5000,
@@ -338,26 +375,76 @@ export default {
       return this.currentSpecFields.length > 0;
     },
 
-    currentSpecGroups() {
+    currentSpecSections() {
       const type = this.selectedCell?.data?.type;
+      const computeGroups = [
+        { key: 'processor', fields: ['cpu_model'], full: true },
+        { key: 'processor-details', fields: ['cpu_frequency_ghz', 'cpu_cores'] },
+        { key: 'memory', fields: ['ram_amount', 'ram_unit'] },
+        { key: 'storage', fields: ['storage_amount', 'storage_unit'] },
+        { key: 'purchase', fields: ['purchase_year'] },
+      ];
 
-      if (type === 'computer' || type === 'server') {
+      if (type === 'computer') {
         return [
-          ['cpu_model'],
-          ['cpu_frequency_ghz', 'cpu_cores'],
-          ['ram_amount', 'ram_unit'],
-          ['storage_amount', 'storage_unit'],
-          ['purchase_year'],
+          {
+            key: 'hardware',
+            title: 'Аппаратная часть',
+            description: 'Процессор, память и накопитель',
+            groups: computeGroups,
+          },
+          {
+            key: 'system',
+            title: 'Система и ПО',
+            description: 'Операционная система и установленные программы',
+            groups: [
+              {
+                key: 'operating-system',
+                fields: ['operating_system', 'os_edition'],
+                full: true,
+                variant: 'os',
+              },
+              {
+                key: 'software',
+                fields: ['installed_software'],
+                full: true,
+                variant: 'software',
+              },
+            ],
+          },
         ];
+      }
+
+      if (type === 'server') {
+        return [{
+          key: 'hardware',
+          title: 'Аппаратная часть',
+          description: 'Процессор, память и накопитель',
+          groups: computeGroups,
+        }];
       }
 
       if (type === 'switch') {
-        return [
-          ['ports_count', 'managed'],
-        ];
+        return [{
+          key: 'network',
+          title: 'Сетевые параметры',
+          description: 'Порты и режим управления',
+          groups: [{
+            key: 'switch-parameters',
+            fields: ['ports_count', 'managed'],
+            full: true,
+            variant: 'switch',
+          }],
+        }];
       }
 
       return [];
+    },
+
+    currentSpecGroups() {
+      return this.currentSpecSections.flatMap(section =>
+          section.groups.map(group => group.fields)
+      );
     },
 
     currentSpecFieldMap() {
@@ -417,6 +504,20 @@ export default {
 
           const field = this.currentSpecFieldMap[fieldKey];
           if (!field) continue;
+
+          if (field.type === 'software-checklist') {
+            const values = this.normalizeSpecList(specs[fieldKey]);
+            if (!values.length) continue;
+
+            items.push({
+              key: fieldKey,
+              type: 'list',
+              iconKey: fieldKey,
+              label: field.label,
+              values
+            });
+            continue;
+          }
 
           const value = this.formatSpecFieldValue(field, specs[fieldKey]);
           if (value === null) continue;
@@ -483,7 +584,11 @@ export default {
     specsTypeDescription() {
       const type = this.selectedCell?.data?.type;
 
-      if (type === 'computer' || type === 'server') {
+      if (type === 'computer') {
+        return 'Процессор, память, накопитель, операционная система и установленное ПО';
+      }
+
+      if (type === 'server') {
         return 'Процессор, оперативная память, накопитель и год закупки';
       }
 
@@ -1062,7 +1167,7 @@ export default {
 
           if (showSpecsModal && this.hasSpecsEditor) {
             this.showSpecsModal = true;
-            this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
+            this.specsDraft = this.createSpecsDraft(this.selectedCell?.data?.specs);
           }
         }
       } catch (e) {
@@ -1202,6 +1307,202 @@ export default {
       this.gridLabelMaxLength = 15;
     },
 
+    normalizeSpecList(rawValue) {
+      if (!Array.isArray(rawValue)) return [];
+
+      const result = [];
+      const seen = new Set();
+
+      for (const item of rawValue) {
+        if (typeof item !== 'string') continue;
+
+        const normalized = item.trim();
+        if (!normalized) continue;
+
+        const deduplicationKey = normalized.toLocaleLowerCase('ru-RU');
+        if (seen.has(deduplicationKey)) continue;
+
+        seen.add(deduplicationKey);
+        result.push(normalized);
+      }
+
+      return result;
+    },
+
+    parseSpecListInput(rawValue) {
+      return String(rawValue || '')
+          .split(/[;\r\n]+/)
+          .map(item => item.trim())
+          .filter(Boolean);
+    },
+
+    getSpecListValues(fieldKey) {
+      return this.normalizeSpecList(this.specsDraft[fieldKey]);
+    },
+
+    createSpecsDraft(rawSpecs, hardwareType = this.selectedCell?.data?.type) {
+      const source = rawSpecs && typeof rawSpecs === 'object' ? rawSpecs : {};
+      const draft = JSON.parse(JSON.stringify(source));
+
+      if (hardwareType !== 'computer' || typeof draft.operating_system !== 'string') {
+        return draft;
+      }
+
+      const rawOperatingSystem = draft.operating_system.trim();
+      const normalizedOperatingSystem = rawOperatingSystem.toLocaleLowerCase('ru-RU');
+      const family = this.operatingSystemOptions.find(
+          option => option.value === normalizedOperatingSystem
+      );
+
+      if (family) {
+        draft.operating_system = family.value;
+        return draft;
+      }
+
+      for (const option of this.operatingSystemOptions) {
+        const edition = (this.osEditionOptions[option.value] ?? []).find(
+            item => item.toLocaleLowerCase('ru-RU') === normalizedOperatingSystem
+        );
+
+        if (!edition) continue;
+
+        draft.operating_system = option.value;
+        if (!draft.os_edition) draft.os_edition = edition;
+        break;
+      }
+
+      return draft;
+    },
+
+    getOsEditionOptions(operatingSystem = this.specsDraft.operating_system) {
+      return this.osEditionOptions[operatingSystem] ?? [];
+    },
+
+    selectOperatingSystem(operatingSystem) {
+      if (this.specsDraft.operating_system === operatingSystem) {
+        delete this.specsDraft.operating_system;
+        delete this.specsDraft.os_edition;
+        return;
+      }
+
+      this.specsDraft.operating_system = operatingSystem;
+
+      if (!this.getOsEditionOptions(operatingSystem).includes(this.specsDraft.os_edition)) {
+        delete this.specsDraft.os_edition;
+      }
+    },
+
+    isSpecSectionCollapsed(sectionKey) {
+      return this.collapsedSpecSections[sectionKey] === true;
+    },
+
+    toggleSpecSection(sectionKey) {
+      this.collapsedSpecSections[sectionKey] = !this.isSpecSectionCollapsed(sectionKey);
+    },
+
+    isSoftwareSelected(fieldKey, software) {
+      return this.getSpecListValues(fieldKey).includes(software);
+    },
+
+    toggleSoftwareItem(fieldKey, software) {
+      const current = this.getSpecListValues(fieldKey);
+
+      if (current.includes(software)) {
+        this.specsDraft[fieldKey] = current.filter(item => item !== software);
+        if (!this.specsDraft[fieldKey].length) delete this.specsDraft[fieldKey];
+        return;
+      }
+
+      const field = this.currentSpecFieldMap[fieldKey];
+      const maxItems = field?.maxItems ?? MAX_INSTALLED_SOFTWARE_ITEMS;
+      if (current.length >= maxItems) {
+        this.notify.warning(`Можно указать не более ${maxItems} программ`);
+        return;
+      }
+
+      this.specsDraft[fieldKey] = [...current, software];
+    },
+
+    getCustomSoftwareValues(fieldKey) {
+      const catalog = new Set(this.softwareOptions.map(option => option.value));
+      return this.getSpecListValues(fieldKey).filter(item => !catalog.has(item));
+    },
+
+    removeSpecListValue(fieldKey, value) {
+      const nextItems = this.getSpecListValues(fieldKey).filter(item => item !== value);
+
+      if (nextItems.length) {
+        this.specsDraft[fieldKey] = nextItems;
+      } else {
+        delete this.specsDraft[fieldKey];
+      }
+    },
+
+    applySoftwarePreset(fieldKey, preset) {
+      const catalog = new Set(this.softwareOptions.map(option => option.value));
+      const customItems = this.getSpecListValues(fieldKey).filter(item => !catalog.has(item));
+      this.specsDraft[fieldKey] = this.normalizeSpecList([...preset.items, ...customItems]);
+    },
+
+    isSoftwarePresetActive(fieldKey, preset) {
+      const catalog = new Set(this.softwareOptions.map(option => option.value));
+      const selectedCatalogItems = this.getSpecListValues(fieldKey)
+          .filter(item => catalog.has(item));
+
+      if (selectedCatalogItems.length !== preset.items.length) return false;
+      return preset.items.every(item => selectedCatalogItems.includes(item));
+    },
+
+    clearSoftware(fieldKey) {
+      delete this.specsDraft[fieldKey];
+      this.specListInputs[fieldKey] = '';
+      this.customSoftwareExpanded = false;
+    },
+
+    openCustomSoftwareInput() {
+      this.customSoftwareExpanded = true;
+      this.$nextTick(() => this.$refs.customSoftwareInput?.focus());
+    },
+
+    addSpecListItem(fieldKey) {
+      const field = this.currentSpecFieldMap[fieldKey];
+      if (!field) return;
+
+      const candidates = this.parseSpecListInput(this.specListInputs[fieldKey]);
+      if (!candidates.length) return;
+
+      const maxLength = field.itemMaxLength ?? MAX_SOFTWARE_NAME_LENGTH;
+      if (candidates.some(item => Array.from(item).length > maxLength)) {
+        this.notify.warning(`Название программы должно быть не длиннее ${maxLength} символов`);
+        return;
+      }
+
+      const current = this.getSpecListValues(fieldKey);
+      const merged = this.normalizeSpecList([...current, ...candidates]);
+      const maxItems = field.maxItems ?? MAX_INSTALLED_SOFTWARE_ITEMS;
+
+      if (merged.length > maxItems) {
+        this.notify.warning(`Можно указать не более ${maxItems} программ`);
+        return;
+      }
+
+      this.specsDraft[fieldKey] = merged;
+      this.specListInputs[fieldKey] = '';
+      this.customSoftwareExpanded = false;
+    },
+
+    removeSpecListItem(fieldKey, index) {
+      const nextItems = this.getSpecListValues(fieldKey)
+          .filter((_, itemIndex) => itemIndex !== index);
+
+      if (nextItems.length) {
+        this.specsDraft[fieldKey] = nextItems;
+        return;
+      }
+
+      delete this.specsDraft[fieldKey];
+    },
+
     getCellClasses(row, col) {
       const eq = this.getEquipment(row, col);
       if (!eq) return ['empty'];
@@ -1215,7 +1516,17 @@ export default {
     formatSpecFieldValue(field, rawValue) {
       if (rawValue === null || rawValue === undefined || rawValue === '') return null;
 
+      if (field.type === 'software-checklist') {
+        const values = this.normalizeSpecList(rawValue);
+        return values.length ? values.join(', ') : null;
+      }
+
       let value = rawValue;
+
+      if (field.type === 'os-choice') {
+        const option = this.operatingSystemOptions.find(item => item.value === rawValue);
+        value = option?.label ?? rawValue;
+      }
 
       if (field.type === 'boolean-labels') {
         value = value ? field.trueLabel : field.falseLabel;
@@ -1242,6 +1553,9 @@ export default {
         storage_amount: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"></ellipse><path d="M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6"></path><path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3"></path></svg>',
         storage_unit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 12h9M5 17h14"></path></svg>',
         purchase_year: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg>',
+        operating_system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"></rect><path d="M8 21h8M12 18v3M7 9h3M7 13h6"></path></svg>',
+        os_edition: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l4 4v10l-4 4H7l-4-4V7z"></path><path d="M8 12h8M12 8v8"></path></svg>',
+        installed_software: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="M17.5 14v7M14 17.5h7"></path></svg>',
         ports_count: '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path fill="currentColor" d="M496 192h-48v-48c0-8.8-7.2-16-16-16h-48V80c0-8.8-7.2-16-16-16H144c-8.8 0-16 7.2-16 16v48H80c-8.8 0-16 7.2-16 16v48H16c-8.8 0-16 7.2-16 16v224c0 8.8 7.2 16 16 16h80V320h32v128h64V320h32v128h64V320h32v128h64V320h32v128h80c8.8 0 16-7.2 16-16V208c0-8.8-7.2-16-16-16"/></svg>',
         managed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9c-4-1.5-7-4.5-7-9V7z"></path><path d="M9.5 12l1.7 1.7L14.8 10"></path></svg>'
       };
@@ -1275,6 +1589,17 @@ export default {
       for (const field of fields) {
         let value = this.specsDraft[field.key];
 
+        if (field.type === 'software-checklist') {
+          const pendingItems = this.parseSpecListInput(this.specListInputs[field.key]);
+          const normalizedItems = this.normalizeSpecList([
+            ...(Array.isArray(value) ? value : []),
+            ...pendingItems,
+          ]);
+
+          if (normalizedItems.length) normalized[field.key] = normalizedItems;
+          continue;
+        }
+
         if (value === '' || value === null || value === undefined) {
           continue;
         }
@@ -1296,8 +1621,19 @@ export default {
           continue;
         }
 
+        if (field.type === 'os-choice' || field.type === 'dependent-select') {
+          normalized[field.key] = String(value);
+          continue;
+        }
+
         if (field.type === 'boolean-labels') {
           if (typeof value === 'boolean') normalized[field.key] = value;
+          continue;
+        }
+
+        if (field.type === 'text') {
+          const textValue = String(value).trim();
+          if (textValue) normalized[field.key] = textValue;
           continue;
         }
 
@@ -1320,7 +1656,9 @@ export default {
         });
 
         this.selectedCell.data.specs = payload;
-        this.specsDraft = JSON.parse(JSON.stringify(payload));
+        this.specsDraft = this.createSpecsDraft(payload);
+        this.specListInputs = {};
+        this.customSoftwareExpanded = false;
         this.specsEdit = false;
 
         this.notify.success('Характеристики сохранены');
@@ -1332,7 +1670,9 @@ export default {
     },
 
     cancelSpecsEdit() {
-      this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
+      this.specsDraft = this.createSpecsDraft(this.selectedCell?.data?.specs);
+      this.specListInputs = {};
+      this.customSoftwareExpanded = false;
       this.specsEdit = false;
     },
 
@@ -1340,10 +1680,14 @@ export default {
       if (!this.hasSpecsEditor) return;
 
       this.prepareEventsOnlyModalLock();
-      this.specsDraft = JSON.parse(JSON.stringify(this.selectedCell?.data?.specs ?? {}));
+      this.specsDraft = this.createSpecsDraft(this.selectedCell?.data?.specs);
+      this.specListInputs = {};
+      this.collapsedSpecSections = {};
       this.specsEdit = false;
       this.showSpecsModal = true;
 
+      this.specTemplatesExpanded = false;
+      this.customSoftwareExpanded = false;
       this.selectedTemplateId = '';
       this.newTemplateName = '';
       this.fetchSpecTemplates();
@@ -1351,6 +1695,7 @@ export default {
 
     closeSpecsModal() {
       this.showSpecsModal = false;
+      this.specTemplatesExpanded = false;
       this.cancelSpecsEdit();
     },
 
@@ -1382,7 +1727,9 @@ export default {
       const tpl = this.findSelectedTemplate();
       if (!tpl) return;
 
-      this.specsDraft = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+      this.specsDraft = this.createSpecsDraft(tpl.specs);
+      this.specListInputs = {};
+      this.customSoftwareExpanded = false;
       this.specsEdit = true;
       this.notify.success(`Шаблон «${tpl.name}» подставлен — проверьте и сохраните`);
     },
@@ -1410,6 +1757,8 @@ export default {
         this.specTemplates.push(res.data);
         this.selectedTemplateId = res.data.id;
         this.newTemplateName = '';
+        this.specsDraft = this.createSpecsDraft(payload, type);
+        this.specListInputs = {};
         this.notify.success('Шаблон сохранён');
       } catch (err) {
         this.notify.error('Не удалось сохранить шаблон');
@@ -1449,22 +1798,24 @@ export default {
 
       this.templateApplyingAll = true;
       this.wsSuspendedUntil = Date.now() + 1500 + targets.length * 60;
+      const templateSpecs = this.createSpecsDraft(tpl.specs, type);
 
       let applied = 0;
       try {
         for (const eq of targets) {
           try {
-            await api.patch(`/hardware/${eq.dbId}`, { specs: tpl.specs });
-            eq.specs = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+            await api.patch(`/hardware/${eq.dbId}`, { specs: templateSpecs });
+            eq.specs = JSON.parse(JSON.stringify(templateSpecs));
             applied += 1;
           } catch (err) {
             // пропускаем сбойную единицу, продолжаем с остальными
           }
         }
 
-        this.specsDraft = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+        this.specsDraft = this.createSpecsDraft(templateSpecs, type);
+        this.specListInputs = {};
         if (this.selectedCell?.data) {
-          this.selectedCell.data.specs = JSON.parse(JSON.stringify(tpl.specs ?? {}));
+          this.selectedCell.data.specs = JSON.parse(JSON.stringify(templateSpecs));
         }
 
         if (applied === targets.length) {
@@ -1500,7 +1851,10 @@ export default {
       this.problemDraft = this.parseProblems(eq.comment);
 
       this.specsEdit = false;
-      this.specsDraft = JSON.parse(JSON.stringify(eq.specs ?? {}));
+      this.specsDraft = this.createSpecsDraft(eq.specs, eq.type);
+      this.specListInputs = {};
+      this.specTemplatesExpanded = false;
+      this.customSoftwareExpanded = false;
       this.showSpecsModal = false;
       this.pendingWorkingStatus = null;
       this.statusConfirmLoading = false;
@@ -3081,7 +3435,10 @@ export default {
                     v-for="item in currentSpecsDisplayItems"
                     :key="item.key"
                     class="spec-card"
-                    :class="{ 'spec-card-pair': item.type === 'pair' }"
+                    :class="{
+                      'spec-card-pair': item.type === 'pair',
+                      'spec-card-list': item.type === 'list'
+                    }"
                 >
                   <div class="spec-card-icon">
                     <TrustedSvgIcon :svg="getSpecIcon(item.iconKey)" />
@@ -3098,6 +3455,24 @@ export default {
                     <div class="spec-card-pair-col">
                       <span class="spec-card-label">{{ item.rightLabel }}</span>
                       <span class="spec-card-value">{{ item.rightValue }}</span>
+                    </div>
+                  </div>
+
+                  <div v-else-if="item.type === 'list'" class="spec-card-copy spec-card-copy-list">
+                    <div class="spec-card-list-heading">
+                      <span class="spec-card-label">{{ item.label }}</span>
+                      <span class="spec-card-list-count">{{ item.values.length }}</span>
+                    </div>
+
+                    <div class="spec-card-tags">
+                      <span
+                          v-for="value in item.values"
+                          :key="value"
+                          class="spec-card-tag"
+                          :title="value"
+                      >
+                        {{ value }}
+                      </span>
                     </div>
                   </div>
 
@@ -3124,100 +3499,154 @@ export default {
             </div>
 
             <div v-else class="specs-form">
-              <div class="specs-form-banner">
-                <div class="specs-form-banner-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1l1-4z"></path>
-                  </svg>
-                </div>
-
-                <div class="specs-form-banner-copy">
-                  <div class="specs-form-banner-title">Редактирование характеристик</div>
-                  <div class="specs-form-banner-text">
-                    Заполняйте только подтверждённые данные. Пустые поля можно оставить без значения.
-                  </div>
-                </div>
-              </div>
-
               <!-- Шаблоны характеристик: применить готовый набор к одному
                    устройству или сразу ко всем такого же типа в аудитории -->
-              <div class="specs-template-panel">
-                <div class="specs-template-head">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
-                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
-                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
-                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
-                  </svg>
-                  <span>Шаблоны характеристик</span>
-                </div>
-
-                <div class="specs-template-row">
-                  <select v-model="selectedTemplateId" class="spec-input spec-select specs-template-select">
-                    <option value="">{{ specTemplates.length ? '— выберите шаблон —' : 'Шаблоны ещё не созданы' }}</option>
-                    <option v-for="tpl in specTemplates" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
-                  </select>
-                  <button
-                      type="button"
-                      class="specs-btn specs-btn-secondary"
-                      :disabled="!selectedTemplateId"
-                      @click="applySpecTemplate"
-                  >
-                    Применить
-                  </button>
-                  <button
-                      type="button"
-                      class="specs-btn specs-btn-ghost-danger"
-                      :disabled="!selectedTemplateId"
-                      @click="deleteSpecTemplate"
-                      title="Удалить шаблон"
-                  >
-                    Удалить
-                  </button>
-                </div>
-
+              <div
+                  class="specs-template-panel"
+                  :class="{ 'is-expanded': specTemplatesExpanded }"
+              >
                 <button
                     type="button"
-                    class="specs-template-apply-all"
-                    :disabled="!selectedTemplateId || templateApplyingAll"
-                    @click="applyTemplateToAll"
+                    class="specs-template-toggle"
+                    :aria-expanded="specTemplatesExpanded"
+                    @click="specTemplatesExpanded = !specTemplatesExpanded"
                 >
-                  {{ templateApplyingAll
-                    ? 'Применение…'
-                    : `Применить ко всем «${getEquipmentType(selectedCell.data.type).name}» в этой аудитории` }}
+                  <span class="specs-template-toggle-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                      <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                      <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                      <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                    </svg>
+                  </span>
+
+                  <span class="specs-template-toggle-copy">
+                    <strong>Шаблоны конфигурации</strong>
+                    <small>{{ specTemplates.length ? `${specTemplates.length} сохранено` : 'Применить или сохранить набор полей' }}</small>
+                  </span>
+
+                  <svg class="specs-template-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m6 8l4 4l4-4"></path>
+                  </svg>
                 </button>
 
-                <div class="specs-template-save">
-                  <input
-                      v-model="newTemplateName"
-                      class="spec-input"
-                      type="text"
-                      maxlength="64"
-                      placeholder="Название нового шаблона"
-                  />
-                  <button
-                      type="button"
-                      class="specs-btn specs-btn-primary"
-                      :disabled="templateSaving || !newTemplateName.trim()"
-                      @click="saveSpecsAsTemplate"
-                  >
-                    {{ templateSaving ? 'Сохранение…' : 'Сохранить как шаблон' }}
-                  </button>
-                </div>
+                <Transition name="specs-template-reveal">
+                  <div v-if="specTemplatesExpanded" class="specs-template-body">
+                    <div class="specs-template-row">
+                      <select v-model="selectedTemplateId" class="spec-input spec-select specs-template-select">
+                        <option value="">{{ specTemplates.length ? '— выберите шаблон —' : 'Шаблоны ещё не созданы' }}</option>
+                        <option v-for="tpl in specTemplates" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
+                      </select>
+                      <button
+                          type="button"
+                          class="specs-btn specs-btn-secondary"
+                          :disabled="!selectedTemplateId"
+                          @click="applySpecTemplate"
+                      >
+                        Применить
+                      </button>
+                      <button
+                          type="button"
+                          class="specs-btn specs-btn-ghost-danger"
+                          :disabled="!selectedTemplateId"
+                          title="Удалить шаблон"
+                          @click="deleteSpecTemplate"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="specs-template-apply-all"
+                        :disabled="!selectedTemplateId || templateApplyingAll"
+                        @click="applyTemplateToAll"
+                    >
+                      {{ templateApplyingAll
+                        ? 'Применение…'
+                        : `Применить ко всем «${getEquipmentType(selectedCell.data.type).name}» в этой аудитории` }}
+                    </button>
+
+                    <div class="specs-template-save">
+                      <input
+                          v-model="newTemplateName"
+                          class="spec-input"
+                          type="text"
+                          maxlength="64"
+                          placeholder="Название нового шаблона"
+                      />
+                      <button
+                          type="button"
+                          class="specs-btn specs-btn-primary"
+                          :disabled="templateSaving || !newTemplateName.trim()"
+                          @click="saveSpecsAsTemplate"
+                      >
+                        {{ templateSaving ? 'Сохранение…' : 'Сохранить как шаблон' }}
+                      </button>
+                    </div>
+                  </div>
+                </Transition>
               </div>
 
-              <div
-                  v-for="group in currentSpecGroups"
-                  :key="group.join('-')"
-                  class="spec-form-group"
-                  :class="{
-                    'spec-form-group-double': group.length === 2,
-                    'spec-form-group-switch': group.includes('ports_count') && group.includes('managed')
-                  }"
+              <section
+                  v-for="section in currentSpecSections"
+                  :key="section.key"
+                  class="spec-form-section"
+                  :class="{ 'is-collapsed': isSpecSectionCollapsed(section.key) }"
               >
+                <button
+                    type="button"
+                    class="spec-form-section-toggle"
+                    :aria-expanded="!isSpecSectionCollapsed(section.key)"
+                    :aria-controls="`spec-section-${section.key}`"
+                    @click="toggleSpecSection(section.key)"
+                >
+                  <span class="spec-form-section-icon" aria-hidden="true">
+                    <svg v-if="section.key === 'hardware'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+                      <path d="M9 9h6v6H9zM9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m12 0h4M2 15h4m12 0h4"></path>
+                    </svg>
+                    <svg v-else-if="section.key === 'system'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                      <path d="M3 8h18M7 6h.01M10 6h.01m-3 7l2 2l-2 2m5 0h5"></path>
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="6" width="18" height="12" rx="3"></rect>
+                      <path d="M7 10h2m2 0h2m2 0h2M7 14h10"></path>
+                    </svg>
+                  </span>
+                  <span class="spec-form-section-copy">
+                    <strong>{{ section.title }}</strong>
+                    <small>{{ section.description }}</small>
+                  </span>
+                  <svg class="spec-form-section-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m6 8l4 4l4-4"></path>
+                  </svg>
+                </button>
+
                 <div
-                    v-for="fieldKey in group"
+                    :id="`spec-section-${section.key}`"
+                    class="spec-form-section-body"
+                    :class="{ 'is-collapsed': isSpecSectionCollapsed(section.key) }"
+                    :aria-hidden="isSpecSectionCollapsed(section.key)"
+                    :inert="isSpecSectionCollapsed(section.key)"
+                >
+                  <div class="spec-form-section-body-inner">
+                    <div class="spec-form-section-grid">
+                  <div
+                      v-for="group in section.groups"
+                      :key="group.key"
+                      class="spec-form-group"
+                      :class="{
+                        'spec-form-group-double': group.fields.length === 2,
+                        'spec-form-group-full': group.full,
+                        'spec-form-group-os': group.variant === 'os',
+                        'spec-form-group-software': group.variant === 'software',
+                        'spec-form-group-switch': group.variant === 'switch'
+                      }"
+                  >
+                <div
+                    v-for="fieldKey in group.fields"
                     :key="fieldKey"
                     class="spec-form-row"
                     :class="{
@@ -3234,8 +3663,175 @@ export default {
                       v-model="specsDraft[fieldKey]"
                       class="spec-input"
                       type="text"
+                      :maxlength="currentSpecFieldMap[fieldKey].maxLength || null"
                       :placeholder="currentSpecFieldMap[fieldKey].placeholder || ''"
                   />
+
+                  <div
+                      v-else-if="currentSpecFieldMap[fieldKey].type === 'os-choice'"
+                      class="spec-os-choice"
+                      role="radiogroup"
+                      :aria-label="currentSpecFieldMap[fieldKey].label"
+                  >
+                    <button
+                        v-for="option in currentSpecFieldMap[fieldKey].options"
+                        :key="option.value"
+                        type="button"
+                        role="radio"
+                        class="spec-os-option"
+                        :class="{ 'is-active': specsDraft[fieldKey] === option.value }"
+                        :aria-label="option.label"
+                        :aria-checked="specsDraft[fieldKey] === option.value"
+                        :title="specsDraft[fieldKey] === option.value ? 'Снять выбор' : option.label"
+                        @click="selectOperatingSystem(option.value)"
+                    >
+                      <span class="spec-os-option-icon" :class="`is-${option.value}`">
+                        <TrustedSvgIcon :svg="option.icon" />
+                      </span>
+                      <span v-if="!option.iconOnly">{{ option.label }}</span>
+                    </button>
+                  </div>
+
+                  <select
+                      v-else-if="currentSpecFieldMap[fieldKey].type === 'dependent-select'"
+                      v-model="specsDraft[fieldKey]"
+                      class="spec-input spec-select"
+                      :disabled="!specsDraft.operating_system"
+                  >
+                    <option value="">
+                      {{ specsDraft.operating_system ? 'Не выбрано' : currentSpecFieldMap[fieldKey].emptyLabel }}
+                    </option>
+                    <option
+                        v-for="option in getOsEditionOptions()"
+                        :key="option"
+                        :value="option"
+                    >
+                      {{ option }}
+                    </option>
+                  </select>
+
+                  <div
+                      v-else-if="currentSpecFieldMap[fieldKey].type === 'software-checklist'"
+                      class="software-editor"
+                  >
+                    <div class="software-presets">
+                      <div class="software-presets-head">
+                        <span>Наборы ПО</span>
+                        <small>Выберите готовый состав</small>
+                      </div>
+
+                      <div class="software-preset-list">
+                        <button
+                            v-for="preset in softwarePresets"
+                            :key="preset.id"
+                            type="button"
+                            class="software-preset-btn"
+                            :class="{ 'is-active': isSoftwarePresetActive(fieldKey, preset) }"
+                            :aria-pressed="isSoftwarePresetActive(fieldKey, preset)"
+                            @click="applySoftwarePreset(fieldKey, preset)"
+                        >
+                          {{ preset.label }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="software-selection-head">
+                      <span>{{ getSpecListValues(fieldKey).length }} выбрано</span>
+                      <button
+                          v-if="getSpecListValues(fieldKey).length"
+                          type="button"
+                          class="software-clear-btn"
+                          @click="clearSoftware(fieldKey)"
+                      >
+                        Очистить
+                      </button>
+                    </div>
+
+                    <div class="software-options" role="group" aria-label="Каталог программ">
+                      <label
+                          v-for="software in softwareOptions"
+                          :key="software.value"
+                          class="software-option"
+                          :class="{ 'is-selected': isSoftwareSelected(fieldKey, software.value) }"
+                          :title="software.value"
+                      >
+                        <input
+                            type="checkbox"
+                            :checked="isSoftwareSelected(fieldKey, software.value)"
+                            @change="toggleSoftwareItem(fieldKey, software.value)"
+                        />
+                        <span class="software-option-check" aria-hidden="true">
+                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m4 8l2.5 2.5L12 5"></path>
+                          </svg>
+                        </span>
+                        <span class="software-option-label">{{ software.label }}</span>
+                      </label>
+                    </div>
+
+                    <div v-if="getCustomSoftwareValues(fieldKey).length" class="software-custom-list">
+                      <span
+                          v-for="item in getCustomSoftwareValues(fieldKey)"
+                          :key="item"
+                          class="spec-list-chip"
+                      >
+                        <span class="spec-list-chip-text" :title="item">{{ item }}</span>
+                        <button
+                            type="button"
+                            class="spec-list-remove"
+                            :aria-label="`Удалить программу «${item}»`"
+                            @click="removeSpecListValue(fieldKey, item)"
+                        >
+                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                            <path d="M6 6l8 8M14 6l-8 8"></path>
+                          </svg>
+                        </button>
+                      </span>
+                    </div>
+
+                    <Transition name="software-custom">
+                      <div v-if="customSoftwareExpanded" class="spec-list-add-row software-custom-input">
+                        <input
+                            ref="customSoftwareInput"
+                            v-model="specListInputs[fieldKey]"
+                            class="spec-input spec-list-input"
+                            type="text"
+                            :maxlength="currentSpecFieldMap[fieldKey].itemMaxLength"
+                            :placeholder="currentSpecFieldMap[fieldKey].placeholder"
+                            @keydown.enter.prevent="addSpecListItem(fieldKey)"
+                            @keydown.esc.prevent="customSoftwareExpanded = false"
+                        />
+                        <button
+                            type="button"
+                            class="spec-list-add-btn"
+                            aria-label="Добавить программу"
+                            :disabled="!String(specListInputs[fieldKey] || '').trim()"
+                            @click="addSpecListItem(fieldKey)"
+                        >
+                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                            <path d="M10 4v12M4 10h12"></path>
+                          </svg>
+                          <span>Добавить</span>
+                        </button>
+                      </div>
+                    </Transition>
+
+                    <button
+                        v-if="!customSoftwareExpanded"
+                        type="button"
+                        class="software-custom-trigger"
+                        @click="openCustomSoftwareInput"
+                    >
+                      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                        <path d="M9 3v12M3 9h12"></path>
+                      </svg>
+                      Другая программа
+                    </button>
+
+                    <div class="spec-list-hint software-limit-hint">
+                      До {{ currentSpecFieldMap[fieldKey].maxItems }} программ, включая собственные
+                    </div>
+                  </div>
 
                   <div
                       v-else-if="currentSpecFieldMap[fieldKey].type === 'int' || currentSpecFieldMap[fieldKey].type === 'float'"
@@ -3356,8 +3952,12 @@ export default {
                       </button>
                     </template>
                   </div>
+                  </div>
                 </div>
               </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -4904,28 +5504,111 @@ export default {
 
 /* ── Панель шаблонов характеристик ── */
 .specs-template-panel {
-  margin-bottom: 16px;
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px dashed rgba(96, 165, 250, 0.6);
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.7), rgba(248, 250, 252, 0.6));
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  border: 1px solid #dbe4ee;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.82);
+  overflow: hidden;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
 }
 
-.specs-template-head {
+.specs-template-panel.is-expanded {
+  border-color: #bfdbfe;
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.specs-template-toggle {
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: #334155;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #1d4ed8;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
 }
 
-.specs-template-head svg {
+.specs-template-toggle:hover {
+  background: rgba(219, 234, 254, 0.48);
+}
+
+.specs-template-toggle:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.22);
+  outline-offset: -3px;
+}
+
+.specs-template-toggle-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eaf2ff;
+  color: #2563eb;
+}
+
+.specs-template-toggle-icon svg {
   width: 18px;
   height: 18px;
+}
+
+.specs-template-toggle-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.specs-template-toggle-copy strong {
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.specs-template-toggle-copy small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specs-template-chevron {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.specs-template-panel.is-expanded .specs-template-chevron {
+  transform: rotate(180deg);
+}
+
+.specs-template-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.specs-template-reveal-enter-active,
+.specs-template-reveal-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.specs-template-reveal-enter-from,
+.specs-template-reveal-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .specs-template-row {
@@ -4978,12 +5661,8 @@ export default {
 }
 
 :global(html[data-theme='dark']) .specs-template-panel {
-  border-color: rgba(96, 165, 250, 0.4);
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.5));
-}
-
-:global(html[data-theme='dark']) .specs-template-head {
-  color: #93c5fd;
+  border-color: rgba(51, 65, 85, 0.96);
+  background: rgba(15, 23, 42, 0.72);
 }
 
 :global(html[data-theme='dark']) .specs-template-apply-all {
@@ -5002,18 +5681,39 @@ export default {
 }
 
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel) {
-  background:
-      radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 42%),
-      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.7)),
-      #020617 !important;
-  border-color: rgba(96, 165, 250, 0.34) !important;
-  box-shadow:
-      inset 0 1px 0 rgba(191, 219, 254, 0.08),
-      0 14px 30px rgba(2, 6, 23, 0.24) !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: rgba(51, 65, 85, 0.96) !important;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.06) !important;
 }
 
-:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-head) {
-  color: #bfdbfe !important;
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-panel.is-expanded) {
+  border-color: rgba(59, 130, 246, 0.52) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-toggle) {
+  color: #cbd5e1;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-toggle:hover) {
+  background: rgba(30, 41, 59, 0.78);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-toggle-icon) {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-toggle-copy strong) {
+  color: #dbe4ef;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-toggle-copy small),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-chevron) {
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-body) {
+  border-top-color: rgba(51, 65, 85, 0.9);
 }
 
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .specs-template-save) {
@@ -5120,6 +5820,58 @@ export default {
   flex: 1;
 }
 
+.spec-card-list {
+  grid-column: 1 / -1;
+}
+
+.spec-card-copy-list {
+  gap: 10px;
+}
+
+.spec-card-list-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spec-card-list-count {
+  min-width: 24px;
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.spec-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: 112px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.spec-card-tag {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 9px;
+  border: 1px solid #d7e2f0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .spec-card-copy-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -5203,7 +5955,123 @@ export default {
 .specs-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+}
+
+.spec-form-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.spec-form-section-toggle {
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.spec-form-section-toggle:hover {
+  background: rgba(239, 246, 255, 0.72);
+}
+
+.spec-form-section-toggle:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.22);
+  outline-offset: -3px;
+}
+
+.spec-form-section-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eaf2ff;
+  color: #2563eb;
+}
+
+.spec-form-section-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.spec-form-section-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.spec-form-section-copy strong {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.spec-form-section-copy small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.spec-form-section-chevron {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-left: auto;
+  color: #64748b;
+  transition: transform 0.2s ease, color 0.16s ease;
+}
+
+.spec-form-section.is-collapsed .spec-form-section-chevron {
+  transform: rotate(-90deg);
+}
+
+.spec-form-section-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+      grid-template-rows 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.16s ease;
+}
+
+.spec-form-section-body.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.spec-form-section-body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spec-form-section-body,
+  .spec-form-section-chevron {
+    transition: none;
+  }
+}
+
+.spec-form-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+  padding: 0 14px 14px;
 }
 
 .specs-form-banner {
@@ -5254,7 +6122,7 @@ export default {
 }
 
 .spec-form-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #334155;
 }
@@ -5265,10 +6133,10 @@ export default {
 
 .spec-input {
   width: 100%;
-  min-height: 44px;
-  padding: 12px 14px;
+  min-height: 42px;
+  padding: 10px 12px;
   border: 1px solid #cbd5e1;
-  border-radius: 14px;
+  border-radius: 11px;
   background: rgba(255, 255, 255, 0.92);
   color: #0f172a;
   font-size: 14px;
@@ -5280,6 +6148,432 @@ export default {
   outline: none;
   border-color: #60a5fa;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.spec-os-choice {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.spec-os-option {
+  min-width: 0;
+  min-height: 42px;
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.spec-os-option:hover:not(.is-active) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.spec-os-option.is-active {
+  border-color: #60a5fa;
+  background: #eaf2ff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08);
+}
+
+.spec-os-option:focus-visible,
+.software-option:has(input:focus-visible),
+.software-preset-btn:focus-visible,
+.software-clear-btn:focus-visible,
+.software-custom-trigger:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.22);
+  outline-offset: 2px;
+}
+
+.spec-os-option-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spec-os-option-icon :deep(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.spec-os-option-icon.is-macos :deep(svg) {
+  width: 60px;
+  height: 40px;
+}
+
+.spec-os-option-icon.is-macos {
+  width: 36px;
+  flex-basis: 36px;
+}
+
+.spec-os-option-icon.is-linux :deep(svg) {
+  width: 17px;
+  height: 20px;
+}
+
+.software-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.software-presets {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.software-presets-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+.software-presets-head span {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.software-presets-head small {
+  color: #94a3b8;
+  font-size: 9px;
+}
+
+.software-preset-list {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.software-preset-btn {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid #d7e0ea;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #526176;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.software-preset-btn:hover:not(.is-active) {
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.software-preset-btn.is-active {
+  border-color: #60a5fa;
+  background: #eaf2ff;
+  color: #1d4ed8;
+}
+
+.software-selection-head {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.software-clear-btn {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+
+.software-clear-btn:hover {
+  color: #dc2626;
+}
+
+.software-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.software-option {
+  position: relative;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid #dbe3ec;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.software-option:hover:not(.is-selected) {
+  border-color: #a8b6c7;
+  background: #f8fafc;
+}
+
+.software-option.is-selected {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.software-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.software-option-check {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b8c5d4;
+  border-radius: 6px;
+  background: #ffffff;
+  color: transparent;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.software-option-check svg {
+  width: 12px;
+  height: 12px;
+}
+
+.software-option.is-selected .software-option-check {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.software-option-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.software-custom-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.software-custom-trigger {
+  width: fit-content;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px dashed #aebdce;
+  border-radius: 9px;
+  background: transparent;
+  color: #526176;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+}
+
+.software-custom-trigger:hover {
+  border-color: #60a5fa;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.software-custom-trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.software-custom-input {
+  max-width: 420px;
+}
+
+.software-limit-hint {
+  justify-content: flex-start;
+}
+
+.software-custom-enter-active,
+.software-custom-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.software-custom-enter-from,
+.software-custom-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+.spec-list-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spec-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: 126px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #dbe4ee;
+  border-radius: 13px;
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.spec-list-chip {
+  max-width: 100%;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 5px 4px 9px;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #1e3a5f;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.spec-list-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spec-list-remove {
+  width: 23px;
+  height: 23px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.spec-list-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.spec-list-remove:focus-visible,
+.spec-list-add-btn:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.24);
+  outline-offset: 2px;
+}
+
+.spec-list-remove svg,
+.spec-list-add-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.spec-list-empty {
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.spec-list-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.spec-list-input {
+  min-width: 0;
+}
+
+.spec-list-add-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 13px;
+  border: 1px solid #2563eb;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.spec-list-add-btn:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.spec-list-add-btn:disabled {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.spec-list-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .spec-select {
@@ -5420,16 +6714,27 @@ export default {
 .spec-form-group {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(226, 232, 240, 0.98);
+  gap: 10px;
+  min-width: 0;
 }
 
 .spec-form-group-double {
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.spec-form-group-full {
+  grid-column: 1 / -1;
+}
+
+.spec-form-group-os {
+  grid-template-columns: minmax(0, 1.35fr) minmax(190px, 1fr);
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.spec-form-group-software {
+  padding-top: 1px;
 }
 
 .spec-form-group-switch {
@@ -5510,7 +6815,7 @@ export default {
 :global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-meta-pill,
 :global(html[data-theme='dark']) .audience-specs-modal-overlay .specs-modal-progress,
 :global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-card,
-:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-form-group {
+:global(html[data-theme='dark']) .audience-specs-modal-overlay .spec-form-section {
   background:
       linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.56)),
       rgba(2, 6, 23, 0.32);
@@ -5636,14 +6941,132 @@ export default {
   color: #e2e8f0 !important;
 }
 
-:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group),
-:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group.spec-form-group-double),
-:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group.spec-form-group-switch) {
-  background:
-      linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.72)),
-      #020617 !important;
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section) {
+  background: rgba(15, 23, 42, 0.72) !important;
   border-color: rgba(51, 65, 85, 0.96) !important;
   box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.07) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section-toggle) {
+  color: #cbd5e1;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section-toggle:hover) {
+  background: rgba(30, 41, 59, 0.72);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section-icon) {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section-chevron) {
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section-copy strong) {
+  color: #dbe4ef;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-section-copy small) {
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-form-group-os),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-presets) {
+  border-color: rgba(51, 65, 85, 0.9);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-os-option) {
+  border-color: rgba(71, 85, 105, 0.96);
+  background: rgba(2, 6, 23, 0.42);
+  color: #aebacd;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-os-option:hover:not(.is-active)) {
+  border-color: #64748b;
+  background: rgba(30, 41, 59, 0.8);
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-os-option.is-active) {
+  border-color: rgba(96, 165, 250, 0.72);
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.06);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-presets-head span) {
+  color: #cbd5e1;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-presets-head small),
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-selection-head) {
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-preset-btn) {
+  border-color: rgba(71, 85, 105, 0.92);
+  background: rgba(2, 6, 23, 0.38);
+  color: #aebacd;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-preset-btn:hover:not(.is-active)) {
+  border-color: #64748b;
+  color: #e2e8f0;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-preset-btn.is-active) {
+  border-color: rgba(96, 165, 250, 0.7);
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-clear-btn) {
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-clear-btn:hover) {
+  color: #fca5a5;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-option) {
+  border-color: rgba(51, 65, 85, 0.96);
+  background: rgba(2, 6, 23, 0.34);
+  color: #aebacd;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-option:hover:not(.is-selected)) {
+  border-color: #64748b;
+  background: rgba(30, 41, 59, 0.7);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-option.is-selected) {
+  border-color: rgba(96, 165, 250, 0.62);
+  background: rgba(37, 99, 235, 0.18);
+  color: #dbeafe;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-option-check) {
+  border-color: #526176;
+  background: rgba(15, 23, 42, 0.96);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-option.is-selected .software-option-check) {
+  border-color: #3b82f6;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-custom-trigger) {
+  border-color: #526176;
+  color: #aebacd;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .software-custom-trigger:hover) {
+  border-color: #60a5fa;
+  background: rgba(37, 99, 235, 0.16);
+  color: #bfdbfe;
 }
 
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .bool-segment-btn),
@@ -5713,6 +7136,52 @@ export default {
 
 :global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-pair-divider) {
   background: linear-gradient(180deg, rgba(51, 65, 85, 0.12), rgba(148, 163, 184, 0.38), rgba(51, 65, 85, 0.12)) !important;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-list-count) {
+  background: rgba(37, 99, 235, 0.24);
+  color: #bfdbfe;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-card-tag) {
+  border-color: rgba(71, 85, 105, 0.92);
+  background: rgba(30, 41, 59, 0.78);
+  color: #dbe4ef;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-items) {
+  border-color: rgba(51, 65, 85, 0.96);
+  background: rgba(2, 6, 23, 0.42);
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-chip) {
+  border-color: rgba(59, 130, 246, 0.48);
+  background: rgba(30, 64, 175, 0.2);
+  color: #dbeafe;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-remove) {
+  color: #94a3b8;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-remove:hover) {
+  background: rgba(127, 29, 29, 0.5);
+  color: #fca5a5;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-empty) {
+  border-color: rgba(71, 85, 105, 0.9);
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-hint) {
+  color: #8291a7;
+}
+
+:global(html[data-theme='dark'] .audience-specs-modal-overlay .spec-list-add-btn:disabled) {
+  border-color: #334155;
+  background: #1e293b;
+  color: #64748b;
 }
 
 .status-badge {
@@ -9334,8 +10803,57 @@ export default {
 
   .specs-modal-meta,
   .specs-grid,
-  .spec-form-group-double {
+  .spec-form-section-grid {
     grid-template-columns: 1fr;
+  }
+
+  .spec-form-section {
+    padding: 0;
+    border-radius: 14px;
+  }
+
+  .spec-form-section-toggle {
+    min-height: 52px;
+    padding: 10px 12px;
+  }
+
+  .spec-form-section-grid {
+    padding: 0 12px 12px;
+  }
+
+  .spec-form-group-double {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .spec-form-group-os {
+    grid-template-columns: 1fr;
+  }
+
+  .software-presets {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .software-presets-head {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 7px;
+  }
+
+  .software-preset-list {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 1px 1px 3px;
+    scrollbar-width: none;
+  }
+
+  .software-preset-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .software-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .spec-form-group-switch {
@@ -9581,6 +11099,76 @@ export default {
     height: 14px;
   }
 
+  .specs-template-toggle {
+    min-height: 46px;
+    padding: 7px 10px;
+  }
+
+  .specs-template-toggle-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+    border-radius: 9px;
+  }
+
+  .specs-template-toggle-copy small {
+    display: none;
+  }
+
+  .spec-form-section-copy small {
+    font-size: 10px;
+  }
+
+  .spec-form-label {
+    font-size: 11px;
+  }
+
+  .spec-input,
+  .spec-os-option {
+    min-height: 40px;
+  }
+
+  .spec-os-option {
+    gap: 4px;
+    padding: 6px;
+    font-size: 10px;
+  }
+
+  .spec-os-option-icon {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
+  }
+
+  .spec-os-option-icon :deep(svg) {
+    width: 16px;
+    height: 16px;
+  }
+
+  .spec-os-option-icon.is-macos :deep(svg) {
+    width: 31px;
+    height: 19px;
+  }
+
+  .spec-os-option-icon.is-macos {
+    width: 31px;
+    flex-basis: 31px;
+  }
+
+  .spec-os-option-icon.is-linux :deep(svg) {
+    width: 14px;
+    height: 17px;
+  }
+
+  .software-option {
+    min-height: 34px;
+    padding: 5px 7px;
+  }
+
+  .software-option-label {
+    font-size: 10px;
+  }
+
   .spec-form-group-switch {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -9620,6 +11208,28 @@ export default {
   .spec-card-pair-divider {
     width: 1px;
     height: 100%;
+  }
+
+  .spec-card-list {
+    gap: 10px;
+  }
+
+  .spec-card-tags,
+  .spec-list-items {
+    max-height: 108px;
+  }
+
+  .spec-list-add-btn {
+    width: 44px;
+    padding: 0;
+  }
+
+  .spec-list-add-btn span {
+    display: none;
+  }
+
+  .spec-list-hint {
+    font-size: 10px;
   }
 }
 </style>

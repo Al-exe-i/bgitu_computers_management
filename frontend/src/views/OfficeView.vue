@@ -332,7 +332,14 @@ export default {
           </div>
         </div>
 
-        <div v-if="authStore.isAuthenticated" class="building-spotlight">
+        <div
+          v-if="authStore.isAuthenticated"
+          class="building-spotlight"
+          :class="{
+            'is-alert': brokenHardware > 0,
+            'is-idle': !hasHardwareStats,
+          }"
+        >
           <div class="building-spotlight-heading">
             <span
               class="building-spotlight-signal"
@@ -347,7 +354,14 @@ export default {
               <strong>{{ hardwareHealthPercent }}<small>%</small></strong>
               <span>{{ workingHardwareCount }} из {{ totalHardware }} единиц исправны</span>
             </div>
-            <div class="building-spotlight-track" aria-hidden="true">
+            <div
+              class="building-spotlight-track"
+              role="progressbar"
+              aria-label="Доля исправного оборудования"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-valuenow="hardwareHealthPercent"
+            >
               <span class="building-spotlight-fill" :style="{ width: `${hardwareHealthPercent}%` }"></span>
             </div>
             <span class="building-spotlight-footnote" :class="{ 'is-alert': brokenHardware > 0 }">
@@ -579,13 +593,19 @@ body {
 }
 
 .building-info {
+  --building-surface: #fbfcfe;
+  --building-panel: #f1f5f9;
+  --building-border: #d8e0ea;
+  --building-text: #0f172a;
+  --building-muted: #526176;
+  --building-subtle: #68778c;
   width: 100%;
   position: relative;
   overflow: hidden;
-  background: #f8fafc;
+  background: var(--building-surface);
   border-radius: 20px;
   padding: 0;
-  border: 1px solid #d8e0ea;
+  border: 1px solid var(--building-border);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 18px 45px -36px rgba(15, 23, 42, 0.45);
   margin-top: 1rem;
   transform-origin: top center;
@@ -593,8 +613,14 @@ body {
 }
 
 .building-info.is-dark {
-  background: #101722 !important;
-  border-color: #293548 !important;
+  --building-surface: #101722;
+  --building-panel: #0c1420;
+  --building-border: #293548;
+  --building-text: #f2f6fb;
+  --building-muted: #aebbd0;
+  --building-subtle: #8291a7;
+  background: var(--building-surface) !important;
+  border-color: var(--building-border) !important;
   box-shadow: 0 1px 2px rgba(2, 6, 23, 0.35), 0 18px 50px -36px rgba(0, 0, 0, 0.9) !important;
 }
 
@@ -602,7 +628,7 @@ body {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(270px, 0.65fr);
+  grid-template-columns: minmax(0, 1.75fr) minmax(292px, 0.62fr);
   gap: 0;
   align-items: stretch;
   margin: 0;
@@ -617,7 +643,8 @@ body {
   display: flex;
   align-items: center;
   gap: 26px;
-  padding: 36px 40px 34px;
+  min-height: 198px;
+  padding: 34px 38px 32px;
   animation: officeContentRise 0.64s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
@@ -674,17 +701,18 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .building-title {
   max-width: 720px;
   font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
-  font-size: clamp(30px, 3.3vw, 44px);
-  line-height: 1.02;
-  font-weight: 750;
-  color: #0f172a;
-  letter-spacing: -0.045em;
+  font-size: clamp(30px, 3.05vw, 42px);
+  line-height: 1.04;
+  font-weight: 730;
+  color: var(--building-text);
+  letter-spacing: -0.04em;
+  text-wrap: balance;
 }
 
 .building-description {
@@ -697,8 +725,8 @@ body {
   border-radius: 0;
   background: transparent;
   border: 0;
-  color: #526176;
-  font-size: 15px;
+  color: var(--building-muted);
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -719,8 +747,8 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  margin-top: 4px;
+  gap: 12px;
+  margin-top: 6px;
 }
 
 .building-floor-meta {
@@ -732,8 +760,8 @@ body {
   border-radius: 0;
   background: transparent;
   border: 0;
-  border-right: 1px solid #d6dde7;
-  color: #526176;
+  border-right: 1px solid var(--building-border);
+  color: var(--building-muted);
   font-size: 13px;
   font-weight: 650;
 }
@@ -746,23 +774,28 @@ body {
 }
 
 .building-info .add-classroom-btn-compact {
-  min-height: 40px;
-  padding: 9px 14px;
+  min-height: 38px;
+  padding: 8px 14px;
   border: 1px solid #1d4ed8;
-  border-radius: 9px;
+  border-radius: 10px;
   background: #2563eb;
   color: #ffffff;
   font-size: 13px;
   font-weight: 650;
   box-shadow: none;
-  transition: background-color 0.18s ease, border-color 0.18s ease;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .building-info .add-classroom-btn-compact:hover {
   transform: none;
   border-color: #1e40af;
   background: #1d4ed8;
-  box-shadow: none;
+  box-shadow: 0 7px 18px -12px rgba(29, 78, 216, 0.8);
+}
+
+.building-info .add-classroom-btn-compact:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 3px;
 }
 
 .building-spotlight {
@@ -771,13 +804,13 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 14px;
-  padding: 32px 30px;
+  gap: 13px;
+  padding: 30px 28px;
   border-radius: 0;
   border: 0;
-  border-left: 1px solid #d8e0ea;
-  background: #eef3f8;
-  color: #0f172a;
+  border-left: 1px solid var(--building-border);
+  background: var(--building-panel);
+  color: var(--building-text);
   box-shadow: none;
   animation: officeSpotlightReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
@@ -801,30 +834,35 @@ body {
   box-shadow: 0 0 0 4px rgba(22, 163, 106, 0.1);
 }
 
+.building-spotlight.is-idle .building-spotlight-signal {
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.1);
+}
+
 .building-spotlight-signal.is-alert {
   background: #e5484d;
   box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.1);
 }
 
 .building-spotlight-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #526176;
+  color: var(--building-muted);
 }
 
 .building-spotlight-main {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  gap: 6px 13px;
   line-height: 1;
 }
 
 .building-spotlight-main strong {
   font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
-  font-size: clamp(38px, 4vw, 50px);
+  font-size: clamp(38px, 3.7vw, 48px);
   font-weight: 720;
   letter-spacing: -0.055em;
 }
@@ -838,19 +876,32 @@ body {
 }
 
 .building-spotlight-main span {
+  max-width: 150px;
+  padding-bottom: 4px;
   font-size: 13px;
   line-height: 1.35;
   font-weight: 550;
-  color: #526176;
+  color: var(--building-muted);
 }
 
 .building-spotlight-main.is-empty {
-  gap: 8px;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 7px;
+}
+
+.building-spotlight-main.is-empty strong {
+  color: var(--building-subtle);
+}
+
+.building-spotlight-main.is-empty span {
+  max-width: 210px;
+  padding-bottom: 0;
 }
 
 .building-spotlight-track {
   position: relative;
-  height: 4px;
+  height: 5px;
   overflow: hidden;
   border-radius: 999px;
   background: #d4dde8;
@@ -989,11 +1040,11 @@ body {
 
 .building-info.is-dark .building-title,
 .building-info.is-dark .building-stat-value {
-  color: #f8fafc;
+  color: var(--building-text);
 }
 
 .building-info.is-dark .building-description {
-  color: #aebbd0 !important;
+  color: var(--building-muted) !important;
   background: transparent;
   border: 0;
 }
@@ -1001,7 +1052,7 @@ body {
 .building-info.is-dark .building-floor-meta {
   background: transparent;
   border-color: #334156;
-  color: #aebbd0;
+  color: var(--building-muted);
 }
 
 .building-info.is-dark .building-floor-meta svg,
@@ -1039,19 +1090,19 @@ body {
 }
 
 .building-info.is-dark .building-spotlight {
-  background: #0b111b;
-  border-color: #293548;
-  color: #f8fafc;
+  background: var(--building-panel);
+  border-color: var(--building-border);
+  color: var(--building-text);
   box-shadow: none;
 }
 
 .building-info.is-dark .building-spotlight-label {
-  color: #8291a7;
+  color: var(--building-subtle);
 }
 
 .building-info.is-dark .building-spotlight-main span,
 .building-info.is-dark .building-spotlight-main strong small {
-  color: #9eacc0;
+  color: #a7b4c7;
 }
 
 .building-info.is-dark .building-spotlight-footnote {
@@ -1558,19 +1609,6 @@ body {
 }
 
 @media (max-width: 1024px) {
-  .building-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .building-spotlight {
-    border-left: 0;
-    border-top: 1px solid #d8e0ea;
-  }
-
-  .building-info.is-dark .building-spotlight {
-    border-top-color: #293548;
-  }
-
   .building-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1585,6 +1623,21 @@ body {
 
   .building-info.is-dark .building-stat:nth-child(-n + 2) {
     border-bottom-color: #293548 !important;
+  }
+}
+
+@media (max-width: 880px) {
+  .building-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .building-identity {
+    min-height: 0;
+  }
+
+  .building-spotlight {
+    border-left: 0;
+    border-top: 1px solid var(--building-border);
   }
 }
 
@@ -1608,7 +1661,7 @@ body {
     flex-direction: row;
     align-items: center;
     gap: 20px;
-    padding: 28px 26px 26px;
+    padding: 27px 26px 25px;
   }
 
   .building-symbol {
@@ -1626,7 +1679,7 @@ body {
   }
 
   .building-spotlight {
-    padding: 24px 26px;
+    padding: 23px 26px;
     border-radius: 0;
   }
 
@@ -1725,6 +1778,31 @@ body {
     gap: 10px;
   }
 
+  .building-symbol {
+    width: 84px;
+    height: 84px;
+    border-radius: 22px;
+  }
+
+  .building-symbol-backdrop {
+    inset: 8px;
+    border-radius: 18px;
+  }
+
+  .building-symbol svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .building-symbol-number {
+    right: 7px;
+    bottom: 7px;
+    min-width: 27px;
+    height: 27px;
+    padding: 0 7px;
+    font-size: 12px;
+  }
+
   .building-floor-meta {
     width: auto;
     justify-content: flex-start;
@@ -1741,7 +1819,14 @@ body {
   }
 
   .building-spotlight-main {
+    grid-template-columns: 1fr;
+    align-items: start;
     gap: 6px;
+  }
+
+  .building-spotlight-main span {
+    max-width: none;
+    padding-bottom: 0;
   }
 
   .building-stat {
@@ -1826,6 +1911,23 @@ body {
     border-radius: 14px;
   }
 
+}
+
+@media (max-width: 360px) {
+  .building-identity {
+    gap: 12px;
+    padding-inline: 14px;
+  }
+
+  .building-symbol {
+    width: 74px;
+    height: 74px;
+    border-radius: 20px;
+  }
+
+  .building-title {
+    font-size: 22px;
+  }
 }
 
 @keyframes fadeInUp {
