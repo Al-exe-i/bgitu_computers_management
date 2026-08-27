@@ -23,8 +23,8 @@ from modules.identity.ports import (
     UserServicePort,
 )
 from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
-from services.media_types import IMAGE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 from utils.audit import changed_fields
+from utils.media_types import IMAGE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 
 PASSWORD_CHANGED_EVENT_NAME = "Изменён пароль аккаунта"
 

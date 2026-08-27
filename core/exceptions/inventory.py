@@ -40,6 +40,10 @@ class OfficeAlreadyExistsError(InventoryError):
     detail = "Office already exists"
 
 
+class SpecTemplateNotFoundError(InventoryError):
+    detail = "Spec template not found"
+
+
 class HardwareFileNotFoundError(InventoryError):
     detail = "File record not found"
 

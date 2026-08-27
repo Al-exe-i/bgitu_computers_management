@@ -1,7 +1,14 @@
 import pytest
 from pydantic import ValidationError
 
-from core.config import CeleryConfig, DatabaseConfig, JWTConfig, Settings, StorageConfig
+from core.config import (
+    BootstrapConfig,
+    CeleryConfig,
+    DatabaseConfig,
+    JWTConfig,
+    Settings,
+    StorageConfig,
+)
 
 
 def make_settings(**overrides) -> Settings:
@@ -50,3 +57,18 @@ def make_settings(**overrides) -> Settings:
 def test_production_settings_reject_documented_placeholders(field, value) -> None:
     with pytest.raises(ValidationError):
         make_settings(**{field: value})
+
+
+def test_bootstrap_credentials_must_be_configured_as_a_pair() -> None:
+    with pytest.raises(ValidationError):
+        BootstrapConfig(superuser_email="admin@example.ru")
+
+
+def test_production_settings_reject_bootstrap_password_placeholder() -> None:
+    with pytest.raises(ValidationError):
+        make_settings(
+            bootstrap=BootstrapConfig(
+                superuser_email="admin@example.ru",
+                superuser_password="replace-with-initial-superuser-password",
+            )
+        )

@@ -31,4 +31,4 @@ def changed_fields(obj, *, exclude: Iterable[str] | None = None) -> list[str]:
         return []
 
     excluded = set(exclude or ())
-    return sorted(key for key in obj.keys() if key not in excluded)
+    return sorted(key for key in obj if key not in excluded)

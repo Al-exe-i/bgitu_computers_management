@@ -12,13 +12,13 @@ from core.exceptions import (
 )
 from models.hardware_file import HardwareFile
 from repositories.hw_files_repo import HardwareFilesRepository
-from services.media_types import (
+from services.object_storage import ObjectStorage, object_filename
+from utils.media_types import (
     SAFE_DOWNLOAD_MEDIA_TYPES,
     VIDEO_EXTENSIONS_BY_MEDIA_TYPE,
     normalize_media_type,
     safe_video_media_type_for_filename,
 )
-from services.object_storage import ObjectStorage, object_filename
 
 DEFAULT_RANGE_CHUNK_SIZE = 1024 * 1024
 

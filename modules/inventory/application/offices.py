@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from core.exceptions import OfficeNotFoundError
-from models import Office
 from modules.inventory.ports import AuditLogger, OfficeServicePort
 from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
 from utils.audit import changed_fields
@@ -9,12 +8,12 @@ from utils.audit import changed_fields
 
 @dataclass(slots=True, frozen=True)
 class CreateOfficeResult:
-    office: Office
+    office: OfficeShort
 
 
 @dataclass(slots=True, frozen=True)
 class UpdateOfficeResult:
-    office: Office
+    office: OfficeShort
 
 
 @dataclass(slots=True, frozen=True)
@@ -28,7 +27,10 @@ class InventoryOfficeUseCases:
 
     async def list_offices(self) -> list[OfficeResponse | OfficeShort]:
         offices = await self.office_service.get_all()
-        return list(offices)
+        return [
+            OfficeResponse.model_validate(office, from_attributes=True)
+            for office in offices
+        ]
 
     async def list_offices_short(self) -> list[OfficeShort]:
         offices = await self.office_service.get_all_short()
@@ -38,7 +40,7 @@ class InventoryOfficeUseCases:
         office = await self.office_service.get(office_id)
         if not office:
             raise OfficeNotFoundError()
-        return office
+        return OfficeResponse.model_validate(office, from_attributes=True)
 
     async def create_office(
         self,
@@ -46,7 +48,8 @@ class InventoryOfficeUseCases:
         data: OfficeCreate,
         audit: AuditLogger,
     ) -> CreateOfficeResult:
-        office = await self.office_service.create(data)
+        created = await self.office_service.create(data)
+        office = OfficeShort.model_validate(created, from_attributes=True)
 
         await audit.log(
             action="office.create",
@@ -64,9 +67,10 @@ class InventoryOfficeUseCases:
         data: OfficeUpdate,
         audit: AuditLogger,
     ) -> UpdateOfficeResult:
-        updated_office = await self.office_service.update(office_id, data)
-        if not updated_office:
+        updated = await self.office_service.update(office_id, data)
+        if not updated:
             raise OfficeNotFoundError()
+        updated_office = OfficeShort.model_validate(updated, from_attributes=True)
 
         await audit.log(
             action="office.update",

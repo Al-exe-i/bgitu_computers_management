@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
-
 from loguru import logger
 from pydantic import TypeAdapter, ValidationError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-CachedT = TypeVar("CachedT")
 
-
-class RedisTypedCache(Generic[CachedT]):
+class RedisTypedCache[CachedT]:
     def __init__(
         self,
         redis: Redis,

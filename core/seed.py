@@ -1,31 +1,6 @@
-import asyncio
-import os
+"""Backward-compatible entry point for the database bootstrap command."""
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
-
-from core.config import settings
-
-OFFICES = [
-    {"id": 1, "address": os.getenv("SEED_OFFICE_1", "Корпус №1")},
-    {"id": 2, "address": os.getenv("SEED_OFFICE_2", "Корпус №2")},
-]
-
-async def main():
-    db_url = str(settings.db.url)
-    engine = create_async_engine(db_url)
-
-    async with engine.begin() as conn:
-        await conn.execute(
-            text("""
-                INSERT INTO offices (id, address)
-                VALUES (:id, :address)
-                ON CONFLICT (id) DO NOTHING
-            """),
-            OFFICES,
-        )
-
-    await engine.dispose()
+from management.bootstrap import main
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(main())

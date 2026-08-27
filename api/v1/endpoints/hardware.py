@@ -1,19 +1,18 @@
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from api.v1.application_events import dispatch_result_events
 from dependencies.audit_actor import admin_audit_actor_dep, user_audit_actor_dep
 from dependencies.auth import user_dep
 from dependencies.events import inventory_event_dispatcher_dep
-from dependencies.hardware import hardware_file_streaming_service_dep
-from dependencies.inventory import inventory_hardware_use_cases_dep
+from dependencies.inventory import (
+    inventory_hardware_file_queries_dep,
+    inventory_hardware_use_cases_dep,
+)
 from schemas.hardware import HardwareFullResponse, HardwareUpdate
-from services.hardware_file_service import MAX_HARDWARE_FILE_SIZE_BYTES
 from utils.file_responses import secure_file_headers
 
 router = APIRouter()
-
-_MAX_FILE_SIZE_MB = MAX_HARDWARE_FILE_SIZE_BYTES // (1024 * 1024)
 
 
 @router.post("/{hardware_id}/files")
@@ -24,13 +23,6 @@ async def add_hardware_file(
     audit: user_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
-    for file in files:
-        if file.size is not None and file.size > MAX_HARDWARE_FILE_SIZE_BYTES:
-            raise HTTPException(
-                status_code=413,
-                detail=f"Файл «{file.filename}» превышает максимально допустимый размер {_MAX_FILE_SIZE_MB} МБ",
-            )
-
     result = await dispatch_result_events(
         await use_cases.add_files(
             hardware_id=hardware_id,
@@ -67,10 +59,10 @@ async def update_hardware(
 @router.get("/files/{file_id}")
 async def get_file(
     file_id: int,
-    service: hardware_file_streaming_service_dep,
+    queries: inventory_hardware_file_queries_dep,
     user: user_dep,
 ):
-    file = await service.get_download(file_id)
+    file = await queries.get_download(file_id=file_id)
 
     return StreamingResponse(
         file.iter_file(),
@@ -86,10 +78,10 @@ async def get_file(
 async def stream_video(
     file_id: int,
     request: Request,
-    service: hardware_file_streaming_service_dep,
+    queries: inventory_hardware_file_queries_dep,
     user: user_dep,
 ):
-    stream = await service.prepare_video_stream(
+    stream = await queries.prepare_video_stream(
         file_id=file_id,
         range_header=request.headers.get("Range"),
     )
@@ -109,7 +101,7 @@ async def delete_hardware_file(
     audit: admin_audit_actor_dep,
     events: inventory_event_dispatcher_dep,
 ):
-    result = await dispatch_result_events(
+    await dispatch_result_events(
         await use_cases.delete_file(
             file_id=file_id,
             audit=audit,

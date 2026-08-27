@@ -51,3 +51,4 @@ def safe_image_media_type_for_filename(filename: str) -> str | None:
 def safe_video_media_type_for_filename(filename: str) -> str | None:
     extension = PurePosixPath(filename.replace("\\", "/")).suffix.lower()
     return _VIDEO_MEDIA_TYPE_BY_EXTENSION.get(extension)
+

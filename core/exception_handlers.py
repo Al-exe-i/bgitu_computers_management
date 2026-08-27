@@ -32,6 +32,8 @@ from core.exceptions import (
     NotificationUserNotFoundError,
     OfficeAlreadyExistsError,
     OfficeNotFoundError,
+    ProtectedFileAccessDeniedError,
+    ProtectedFileNotFoundError,
     RefreshSessionNotFoundError,
     RefreshTokenMissingError,
     RefreshTokenReuseDetectedError,
@@ -39,6 +41,7 @@ from core.exceptions import (
     SamePasswordError,
     SelfDeleteForbiddenError,
     SessionNotFoundError,
+    SpecTemplateNotFoundError,
     SuperuserDeleteForbiddenError,
     UploadTooLargeError,
     UserAlreadyExistsError,
@@ -88,6 +91,9 @@ DOMAIN_EXCEPTION_STATUS: dict[type[Exception], int] = {
     HardwareFileRangeNotSatisfiableError: HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
     OfficeAlreadyExistsError: HTTPStatus.CONFLICT,
     OfficeNotFoundError: HTTPStatus.NOT_FOUND,
+    SpecTemplateNotFoundError: HTTPStatus.NOT_FOUND,
+    ProtectedFileAccessDeniedError: HTTPStatus.FORBIDDEN,
+    ProtectedFileNotFoundError: HTTPStatus.NOT_FOUND,
     UploadTooLargeError: HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
 }
 

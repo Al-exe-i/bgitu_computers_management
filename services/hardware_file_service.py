@@ -7,12 +7,11 @@ from loguru import logger
 from core.exceptions import HardwareFileNotFoundError, HardwareNotFoundError
 from models import Hardware
 from models.hardware_file import HardwareFile
+from modules.inventory.constants import MAX_HARDWARE_FILE_SIZE_BYTES
 from repositories.hw_files_repo import HardwareFilesRepository
 from schemas.hardware_file import HardwareFileResponse
-from services.media_types import HARDWARE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 from services.object_storage import ObjectStorage
-
-MAX_HARDWARE_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 МБ — синхронно с фронтендом
+from utils.media_types import HARDWARE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 
 
 class UploadedHardwareFile(Protocol):

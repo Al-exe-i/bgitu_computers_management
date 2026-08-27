@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, File, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
@@ -159,7 +161,7 @@ async def upload_user_photo(
     user_id: int,
     use_cases: identity_user_use_cases_dep,
     audit: user_audit_actor_dep,
-    file: UploadFile = File(),
+    file: Annotated[UploadFile, File()],
 ):
     result = await use_cases.upload_user_photo(
         user_id=user_id,

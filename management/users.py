@@ -8,13 +8,18 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from getpass import getpass
 
-from sqlalchemy import select
+from pydantic import TypeAdapter, ValidationError
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import get_password_hash
 from db.session import engine, session_factory
 from models.user import User, UserRole
-from utils.email import RU_EMAIL_ERROR, validate_ru_email_domain
+from repositories.user_session_repo import UserSessionRepository
+from utils.email import RU_EMAIL_ERROR, RuEmailStr
+
+_EMAIL_ADAPTER = TypeAdapter(RuEmailStr)
 
 
 class ManagementUserError(Exception):
@@ -30,7 +35,7 @@ class ManagedUserResult:
 
 
 def normalize_email(email: str) -> str:
-    value = email.strip()
+    value = email.strip().lower()
     if not value:
         raise ManagementUserError("Email/login must not be empty")
     return value
@@ -39,9 +44,12 @@ def normalize_email(email: str) -> str:
 def validate_new_user_email(email: str) -> str:
     value = normalize_email(email)
     try:
-        return validate_ru_email_domain(value)
-    except ValueError as exc:
+        validated = str(_EMAIL_ADAPTER.validate_python(value))
+    except (ValidationError, ValueError) as exc:
         raise ManagementUserError(RU_EMAIL_ERROR) from exc
+    if len(validated) > 50:
+        raise ManagementUserError("Email must contain at most 50 characters")
+    return validated
 
 
 def validate_password(password: str) -> str:
@@ -81,7 +89,10 @@ def to_result(user: User) -> ManagedUserResult:
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
-    result = await session.execute(select(User).where(User.email == normalize_email(email)))
+    normalized_email = normalize_email(email)
+    result = await session.execute(
+        select(User).where(func.lower(User.email) == normalized_email)
+    )
     return result.scalar_one_or_none()
 
 
@@ -108,7 +119,10 @@ async def create_admin_user(
         surname=surname,
     )
     session.add(user)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        raise ManagementUserError(f"User already exists: {normalized_email}") from exc
     await session.refresh(user)
     return to_result(user)
 
@@ -124,6 +138,8 @@ async def reset_user_password(
         raise ManagementUserError(f"User not found: {normalize_email(email)}")
 
     user.password = get_password_hash(validate_password(password))
+    user.access_token_version += 1
+    await UserSessionRepository(session).revoke_all_for_user(user.id)
     await session.flush()
     await session.refresh(user)
     return to_result(user)

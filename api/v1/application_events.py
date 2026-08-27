@@ -1,4 +1,4 @@
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol
 
 
 class ApplicationResultWithEvents(Protocol):
@@ -9,10 +9,7 @@ class ApplicationEventDispatcher(Protocol):
     async def dispatch(self, events: list[Any]) -> None: ...
 
 
-ResultT = TypeVar("ResultT", bound=ApplicationResultWithEvents)
-
-
-async def dispatch_result_events(
+async def dispatch_result_events[ResultT: ApplicationResultWithEvents](
     result: ResultT,
     dispatcher: ApplicationEventDispatcher,
 ) -> ResultT:

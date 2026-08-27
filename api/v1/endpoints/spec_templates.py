@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query
+from typing import Annotated
 
+from fastapi import APIRouter, Query
+
+from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.auth import admin_dep
-from dependencies.spec_template import spec_template_service_dep
+from dependencies.inventory import inventory_spec_template_use_cases_dep
 from models.hardware import HardwareType
 from schemas.spec_template import (
     SpecTemplateCreate,
@@ -14,41 +17,40 @@ router = APIRouter()
 
 @router.get("", response_model=list[SpecTemplateResponse])
 async def list_spec_templates(
-    service: spec_template_service_dep,
-    user: admin_dep,
-    hardware_type: HardwareType | None = Query(None),
+    use_cases: inventory_spec_template_use_cases_dep,
+    _user: admin_dep,
+    hardware_type: Annotated[HardwareType | None, Query()] = None,
 ):
-    return await service.list(hardware_type)
+    return await use_cases.list_templates(hardware_type=hardware_type)
 
 
 @router.post("", response_model=SpecTemplateResponse, status_code=201)
 async def create_spec_template(
     data: SpecTemplateCreate,
-    service: spec_template_service_dep,
-    user: admin_dep,
+    use_cases: inventory_spec_template_use_cases_dep,
+    audit: admin_audit_actor_dep,
 ):
-    return await service.create(data)
+    return await use_cases.create_template(data=data, audit=audit)
 
 
 @router.patch("/{template_id}", response_model=SpecTemplateResponse)
 async def update_spec_template(
     template_id: int,
     data: SpecTemplateUpdate,
-    service: spec_template_service_dep,
-    user: admin_dep,
+    use_cases: inventory_spec_template_use_cases_dep,
+    audit: admin_audit_actor_dep,
 ):
-    template = await service.update(template_id, data)
-    if not template:
-        raise HTTPException(status_code=404, detail="Шаблон не найден")
-    return template
+    return await use_cases.update_template(
+        template_id=template_id,
+        data=data,
+        audit=audit,
+    )
 
 
 @router.delete("/{template_id}", status_code=204)
 async def delete_spec_template(
     template_id: int,
-    service: spec_template_service_dep,
-    _: admin_dep,
+    use_cases: inventory_spec_template_use_cases_dep,
+    audit: admin_audit_actor_dep,
 ):
-    deleted = await service.delete(template_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    await use_cases.delete_template(template_id=template_id, audit=audit)

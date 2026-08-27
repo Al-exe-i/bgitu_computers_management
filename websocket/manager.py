@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
 
+from loguru import logger
+
 
 class RealtimeConnection(Protocol):
     async def accept(self) -> None: ...
@@ -118,7 +120,12 @@ class LocalConnectionManager:
         try:
             await state.connection.send_json(payload)
             return None
-        except Exception:
+        except Exception as exc:  # noqa: BLE001 - transport implementations vary
+            logger.debug(
+                "Realtime send failed; dropping connection_id={}: {}",
+                connection_id,
+                exc,
+            )
             return await self.remove(connection_id)
 
     async def broadcast_audience(self, audience_id: int, payload: dict) -> list[LocalConnectionState]:
@@ -157,8 +164,12 @@ class LocalConnectionManager:
 
             try:
                 await popped.connection.close()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 - shutdown must continue
+                logger.debug(
+                    "Realtime connection close failed for connection_id={}: {}",
+                    state.connection_id,
+                    exc,
+                )
 
             removed.append(popped)
 

@@ -29,7 +29,7 @@ async def run_post_commit_hooks(session: AsyncSession) -> None:
             result = hook()
             if inspect.isawaitable(result):
                 await result
-        except Exception:
+        except Exception:  # noqa: BLE001 - committed data cannot be rolled back here
             logger.exception("Post-commit hook failed: {}", _hook_name(hook))
 
 

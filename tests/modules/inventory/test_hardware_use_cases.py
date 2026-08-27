@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.exceptions import HardwarePermissionDeniedError
+from core.exceptions import HardwarePermissionDeniedError, UploadTooLargeError
 from models.user import UserRole
 from modules.inventory.application import InventoryHardwareUseCases
 from modules.inventory.events import AudienceUpdatedEvent, HardwareStateChangedEvent
@@ -148,7 +148,7 @@ def test_add_hardware_files_uses_file_service_and_logs_audit() -> None:
             FakeHardwareService(make_hardware()),
             file_service,
         )
-        files = [SimpleNamespace(filename="photo.png")]
+        files = [SimpleNamespace(filename="photo.png", size=None)]
 
         result = await use_cases.add_files(
             hardware_id=9,
@@ -167,6 +167,32 @@ def test_add_hardware_files_uses_file_service_and_logs_audit() -> None:
             "filenames": ["photo.png"],
         }
         assert result.events == [AudienceUpdatedEvent(audience_id=12)]
+
+    asyncio.run(scenario())
+
+
+def test_add_hardware_files_rejects_oversized_upload_before_storage() -> None:
+    async def scenario() -> None:
+        file_service = FakeHardwareFileService()
+        use_cases = InventoryHardwareUseCases(
+            FakeHardwareService(make_hardware()),
+            file_service,
+        )
+        files = [
+            SimpleNamespace(
+                filename="large.mp4",
+                size=100 * 1024 * 1024 + 1,
+            )
+        ]
+
+        with pytest.raises(UploadTooLargeError):
+            await use_cases.add_files(
+                hardware_id=9,
+                files=files,
+                audit=FakeAudit(),
+            )
+
+        assert file_service.update_calls == []
 
     asyncio.run(scenario())
 

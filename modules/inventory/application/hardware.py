@@ -3,9 +3,13 @@ from dataclasses import dataclass
 
 from loguru import logger
 
-from core.exceptions import HardwareNotFoundError, HardwarePermissionDeniedError
-from models import Hardware
+from core.exceptions import (
+    HardwareNotFoundError,
+    HardwarePermissionDeniedError,
+    UploadTooLargeError,
+)
 from models.user import UserRole
+from modules.inventory.constants import MAX_HARDWARE_FILE_SIZE_BYTES
 from modules.inventory.events import (
     AudienceUpdatedEvent,
     HardwareStateChangedEvent,
@@ -18,7 +22,7 @@ from modules.inventory.ports import (
     InventoryActor,
     UploadedHardwareFile,
 )
-from schemas.hardware import HardwareUpdate
+from schemas.hardware import HardwareFullResponse, HardwareUpdate
 from schemas.hardware_file import HardwareFileResponse
 from utils.audit import clean_sensitive
 
@@ -31,7 +35,7 @@ class AddHardwareFilesResult:
 
 @dataclass(slots=True, frozen=True)
 class UpdateHardwareResult:
-    hardware: Hardware
+    hardware: HardwareFullResponse
     events: list[InventoryEvent]
 
 
@@ -57,6 +61,18 @@ class InventoryHardwareUseCases:
         files: Sequence[UploadedHardwareFile],
         audit: AuditLogger,
     ) -> AddHardwareFilesResult:
+        oversized_file = next(
+            (
+                file
+                for file in files
+                if file.size is not None
+                and file.size > MAX_HARDWARE_FILE_SIZE_BYTES
+            ),
+            None,
+        )
+        if oversized_file is not None:
+            raise UploadTooLargeError(MAX_HARDWARE_FILE_SIZE_BYTES)
+
         result = await self._hardware_file_service().update_files(hardware_id, files)
         logger.info(
             "Hardware files processed: hardware_id={} audience_id={} requested={} saved={}",
@@ -111,7 +127,11 @@ class InventoryHardwareUseCases:
         data = self._normalize_update(data)
 
         previous_state = current_hw.state
-        updated_hw = await self.hardware_service.update(hardware_id, data)
+        updated = await self.hardware_service.update(hardware_id, data)
+        updated_hw = HardwareFullResponse.model_validate(
+            updated,
+            from_attributes=True,
+        )
         state_changed = previous_state != updated_hw.state
 
         await audit.log(

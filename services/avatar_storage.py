@@ -6,12 +6,12 @@ from typing import Protocol
 from loguru import logger
 
 from core.exceptions import InvalidUserPhotoError
-from services.media_types import (
+from services.object_storage import ObjectStorage, object_filename
+from utils.media_types import (
     IMAGE_EXTENSIONS_BY_MEDIA_TYPE,
     normalize_media_type,
     safe_image_media_type_for_filename,
 )
-from services.object_storage import ObjectStorage, object_filename
 
 MAX_AVATAR_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
@@ -80,7 +80,7 @@ class AvatarStorage:
 
         try:
             return self.storage.delete(self._key_for_filename(filename))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - deleting an old avatar is best effort
             logger.error("Failed to remove avatar file filename={} error={}", filename, exc)
             return False
 

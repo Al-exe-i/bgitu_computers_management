@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, Query
 from fastapi.responses import Response
@@ -25,7 +26,7 @@ async def login_for_access_token(
     use_cases: identity_auth_use_cases_dep,
     events: identity_event_dispatcher_dep,
     audit: audit_ctx_dep,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ):
     result = await dispatch_result_events(
         await use_cases.login(
@@ -91,7 +92,7 @@ async def logout_all_user_sessions(
 ):
     user_id = audit.user.id
 
-    result = await dispatch_result_events(
+    await dispatch_result_events(
         await use_cases.logout_all(
             user_id=user_id,
             ip=audit.meta.get("ip"),

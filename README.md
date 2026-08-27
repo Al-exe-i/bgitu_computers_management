@@ -140,13 +140,15 @@ flowchart LR
 ```text
 .
 ├── api/              # HTTP endpoints
-├── core/             # конфиг, безопасность, логирование, seed
+├── core/             # конфигурация, безопасность, ошибки и логирование
 ├── db/               # engine, sessions, database setup
+├── modules/          # модули приложения: use cases, ports и события
 ├── models/           # SQLAlchemy ORM-модели
 ├── schemas/          # Pydantic-схемы
-├── repositories/     # слой доступа к данным
-├── services/         # бизнес-логика
-├── dependencies/     # FastAPI dependencies
+├── repositories/     # адаптеры доступа к данным
+├── services/         # инфраструктурные и доменные адаптеры
+├── dependencies/     # composition root для FastAPI
+├── management/       # bootstrap и CLI управления пользователями
 ├── tasks/            # Celery tasks
 ├── utils/            # вспомогательные функции
 ├── websocket/        # realtime-логика и Redis-backed SSE
@@ -188,6 +190,8 @@ BGITU__CELERY__BROKER_URL
 BGITU__CELERY__RESULT_BACKEND
 BGITU__STORAGE__*
 BGITU__WEBSOCKET__*
+BGITU__BOOTSTRAP__SUPERUSER_EMAIL
+BGITU__BOOTSTRAP__SUPERUSER_PASSWORD
 ```
 
 ### 2. Поднять инфраструктуру
@@ -219,11 +223,17 @@ uv sync
 uv run alembic upgrade head
 ```
 
-### 5. Заполнить базу начальными данными
+### 5. Инициализировать базу
 
 ```powershell
-uv run python -m core.seed
+uv run python -m management.bootstrap
 ```
+
+Для пустой базы перед первым запуском задайте
+`BGITU__BOOTSTRAP__SUPERUSER_EMAIL` и
+`BGITU__BOOTSTRAP__SUPERUSER_PASSWORD`. После успешного создания SU обе
+переменные можно удалить: повторный bootstrap не меняет существующего
+пользователя и его пароль.
 
 ### 6. Запустить backend
 
@@ -268,6 +278,9 @@ uv run celery -A celery_app:celery_app beat -l info
 docker compose up -d --build
 ```
 
+Одноразовый контейнер `app_init` применяет миграции и выполняет bootstrap.
+Backend и Celery запускаются только после его успешного завершения.
+
 Для Docker Compose используется обычный `.env`. В репозитории есть пример:
 
 ```text
@@ -296,6 +309,7 @@ Copy-Item .env.example .env
 | `BGITU__CELERY__*`    | Redis broker и result backend для Celery     |
 | `BGITU__STORAGE__*`   | backend хранения файлов: `local` или `minio` |
 | `BGITU__WEBSOCKET__*` | realtime и Redis для SSE                     |
+| `BGITU__BOOTSTRAP__*` | начальные корпуса и первый суперпользователь |
 | `BGITU__CORS_ORIGINS` | список разрешенных origin для frontend       |
 | `BGITU__FRONTEND_URL` | URL frontend, используется в приглашениях    |
 
@@ -438,18 +452,23 @@ http://127.0.0.1:8000/docs
 Команда:
 
 ```powershell
-uv run python -m core.seed
+uv run python -m management.bootstrap
 ```
 
-Добавляет:
+Идемпотентно добавляет:
 
 - корпус с `id=1`;
 - корпус с `id=2`;
+- первого суперпользователя, только если в базе ещё нет SU.
 
-Учётные записи seed-команда не создаёт. Суперпользователь создаётся отдельно, пароль вводится интерактивно:
+Bootstrap не перезаписывает пароль существующего пользователя и не повышает
+обычного пользователя до SU. Если SU уже существует, credentials из `.env`
+игнорируются. Для ручного создания дополнительного администратора или SU
+используйте CLI:
 
 ```powershell
 uv run python -m management.users create-su --email admin@example.ru
+uv run python -m management.users create-admin --email manager@example.ru
 ```
 
 ---

@@ -4,15 +4,20 @@ x-default-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
-x-app-db-pool: &app-db-pool
+x-app-environment: &app-environment
+  BGITU__DB__HOST: "db"
+  BGITU__DB__PORT: "5432"
   BGITU__DB__POOL_SIZE: "5"
   BGITU__DB__MAX_OVERFLOW: "5"
+  BGITU__CELERY__BROKER_URL: "redis://redis:6379/0"
+  BGITU__CELERY__RESULT_BACKEND: "redis://redis:6379/1"
   BGITU__CACHE__REDIS_URL: "redis://redis:6379/3"
   BGITU__CACHE__USER_TTL_SECONDS: "600"
   BGITU__CACHE__OFFICE_SHORT_TTL_SECONDS: "300"
   BGITU__CACHE__ANALYTICS_FILTER_OPTIONS_TTL_SECONDS: "300"
   BGITU__STORAGE__BACKEND: "minio"
   BGITU__STORAGE__ENDPOINT: "minio:9000"
+  BGITU__WEBSOCKET__REDIS_URL: "redis://redis:6379/2"
 
 services:
   db:
@@ -49,6 +54,27 @@ services:
       retries: 5
       start_period: 10s
 
+  app_init:
+    build: .
+    container_name: diplom_app_init
+    restart: "no"
+    cpus: "0.20"
+    mem_limit: 192m
+    memswap_limit: 192m
+    pids_limit: 128
+    logging: *default-logging
+    env_file:
+      - .env
+    environment:
+      <<: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && python -m management.bootstrap
+
   backend:
     build: .
     container_name: fastapi_backend
@@ -63,16 +89,14 @@ services:
     env_file:
       - .env
     environment:
-      <<: *app-db-pool
+      <<: *app-environment
     depends_on:
-      db:
-        condition: service_healthy
+      app_init:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       minio:
         condition: service_healthy
-    command: >
-      sh -c " echo 'Waiting for database...' && until pg_isready -h db -p 5432 -U ${BGITU__DB__USERNAME}; do sleep 2; done && echo 'Running migrations...' && alembic upgrade head && echo 'Seeding...' && cd /backend && python -m core.seed && echo 'Starting server...' && uvicorn main:app --host 0.0.0.0 --port 8000 "
 
   frontend:
     build: ./frontend
@@ -135,10 +159,10 @@ services:
     env_file:
       - .env
     environment:
-      <<: *app-db-pool
+      <<: *app-environment
     depends_on:
-      db:
-        condition: service_healthy
+      app_init:
+        condition: service_completed_successfully
       redis:
         condition: service_started
     restart: unless-stopped
@@ -155,9 +179,12 @@ services:
     env_file:
       - .env
     environment:
-      <<: *app-db-pool
+      <<: *app-environment
     depends_on:
-      - redis
+      app_init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

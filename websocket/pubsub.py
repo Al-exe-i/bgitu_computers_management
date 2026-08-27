@@ -60,14 +60,14 @@ class RedisEventBus:
                     await on_event(realtime_event_from_payload(payload))
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - subscriber must reconnect
                 logger.exception("Redis pubsub loop failed: {}", exc)
             finally:
                 if self._pubsub is not None:
                     try:
                         await self._pubsub.aclose()
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001 - cleanup must continue
+                        logger.debug("Redis pubsub cleanup failed: {}", exc)
                     self._pubsub = None
 
             if self._closed:
@@ -81,8 +81,8 @@ class RedisEventBus:
         if self._pubsub is not None:
             try:
                 await self._pubsub.aclose()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 - cleanup must continue
+                logger.debug("Redis pubsub close failed: {}", exc)
             self._pubsub = None
 
         await self.publisher.aclose()

@@ -1,19 +1,13 @@
-import mimetypes
-from pathlib import PurePosixPath
-
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
-from loguru import logger
 
-from core.exceptions import (
-    HTTP403,
-    HTTP404,
+from dependencies.administration import (
+    administration_audit_log_queries_dep,
+    administration_protected_file_queries_dep,
 )
 from dependencies.audit_actor import admin_audit_actor_dep
-from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep
 from dependencies.identity import identity_invite_use_cases_dep
-from dependencies.storage import object_storage_dep
 from schemas.audit_log import AuditLogListResponse
 from schemas.invite import (
     InviteCreateBatch,
@@ -29,25 +23,16 @@ router = APIRouter(prefix="")
 @router.get("/files/{file_path:path}")
 async def get_protected_file(
     file_path: str,
-    user: admin_dep,
-    storage: object_storage_dep,
+    _user: admin_dep,
+    queries: administration_protected_file_queries_dep,
 ):
-    object_key = str(PurePosixPath(file_path.replace("\\", "/").lstrip("/")))
-    if object_key.startswith("../") or "/../" in object_key:
-        logger.warning("Protected file access denied: object_key={}", object_key)
-        raise HTTP403("Access Denied")
-
-    if not storage.exists(object_key):
-        logger.warning("Protected file not found: {}", object_key)
-        raise HTTP404("File Not Found")
-
-    media_type, _ = mimetypes.guess_type(PurePosixPath(object_key).name)
+    file = await queries.get_file(file_path=file_path)
 
     return StreamingResponse(
-        storage.iter_range(object_key),
-        media_type=media_type or "application/octet-stream",
+        file.content,
+        media_type=file.media_type,
         headers=secure_file_headers(
-            PurePosixPath(object_key).name,
+            file.filename,
             as_attachment=True,
         ),
     )
@@ -55,8 +40,8 @@ async def get_protected_file(
 
 @router.get("/audit-log", response_model=AuditLogListResponse)
 async def get_audit_log(
-    service: audit_log_service_dep,
-    user: admin_dep,
+    queries: administration_audit_log_queries_dep,
+    _user: admin_dep,
     q: str | None = None,
     user_id: int | None = None,
     action: str | None = None,
@@ -65,7 +50,7 @@ async def get_audit_log(
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    items, total = await service.list(
+    return await queries.list_entries(
         q=q,
         user_id=user_id,
         action=action,
@@ -74,7 +59,6 @@ async def get_audit_log(
         limit=limit,
         offset=offset,
     )
-    return {"items": items, "total": total}
 
 
 @router.post("/invites/one", response_model=InviteCreateResult)

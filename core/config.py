@@ -1,7 +1,14 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, PostgresDsn, computed_field, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    PostgresDsn,
+    SecretStr,
+    computed_field,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +38,7 @@ class StaticFiles(BaseModel):
     @property
     def avatars_dir(self) -> Path:
         return self.root / "avatars"
+
 
 class DatabaseConfig(BaseModel):
     host: str = "localhost"
@@ -104,6 +112,43 @@ class WebSocketConfig(BaseModel):
     instance_id: str | None = None
 
 
+class BootstrapOfficeConfig(BaseModel):
+    id: int = Field(gt=0)
+    address: str = Field(min_length=1, max_length=100)
+
+
+class BootstrapConfig(BaseModel):
+    offices: list[BootstrapOfficeConfig] = Field(
+        default_factory=lambda: [
+            BootstrapOfficeConfig(id=1, address="Корпус №1"),
+            BootstrapOfficeConfig(id=2, address="Корпус №2"),
+        ]
+    )
+    require_superuser: bool = True
+    superuser_email: str | None = Field(default=None, max_length=50)
+    superuser_password: SecretStr | None = None
+    superuser_name: str | None = Field(default=None, max_length=64)
+    superuser_surname: str | None = Field(default=None, max_length=64)
+
+    @model_validator(mode="after")
+    def validate_initial_superuser_credentials(self) -> "BootstrapConfig":
+        has_email = bool(self.superuser_email and self.superuser_email.strip())
+        has_password = bool(
+            self.superuser_password
+            and self.superuser_password.get_secret_value()
+        )
+        if has_email != has_password:
+            raise ValueError(
+                "Bootstrap superuser email and password must be configured together"
+            )
+
+        office_ids = [office.id for office in self.offices]
+        if len(office_ids) != len(set(office_ids)):
+            raise ValueError("Bootstrap office IDs must be unique")
+
+        return self
+
+
 class Settings(BaseSettings):
     db: DatabaseConfig
     jwt: JWTConfig
@@ -115,6 +160,7 @@ class Settings(BaseSettings):
     cache: CacheConfig = CacheConfig()
     storage: StorageConfig = StorageConfig()
     websocket: WebSocketConfig = WebSocketConfig()
+    bootstrap: BootstrapConfig = BootstrapConfig()
     frontend_url: str = "http://localhost:5173"
     cors_origins: list[str] = Field(
         default_factory=lambda: [
@@ -151,6 +197,16 @@ class Settings(BaseSettings):
             for value in (self.storage.access_key, self.storage.secret_key)
         ):
             raise ValueError("Default MinIO credentials are forbidden when DEBUG is disabled")
+
+        if (
+            self.bootstrap.superuser_password is not None
+            and self.bootstrap.superuser_password.get_secret_value().startswith(
+                "replace-with-"
+            )
+        ):
+            raise ValueError(
+                "Placeholder bootstrap superuser password is forbidden when DEBUG is disabled"
+            )
 
         return self
 

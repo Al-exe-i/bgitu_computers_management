@@ -1,4 +1,3 @@
-from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -85,11 +84,7 @@ class OfficeRepository:
         if office is None:
             return False
 
-        try:
-            await self.db.delete(office)
-            await self.db.flush()
-            return True
-        except Exception as e:
-            logger.warning("An error occurred while deleting office %s", e)
-            return False
+        await self.db.delete(office)
+        await self.db.flush()
+        return True
 

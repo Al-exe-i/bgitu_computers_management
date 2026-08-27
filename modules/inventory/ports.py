@@ -1,7 +1,12 @@
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any, Protocol
 from uuid import UUID
 
+from schemas.analytics import (
+    HardwareAnalyticsFilterOptions,
+    HardwareAnalyticsFilters,
+    HardwareAnalyticsResponse,
+)
 from schemas.audience import (
     AudienceCreate,
     AudienceResponse,
@@ -11,6 +16,7 @@ from schemas.audience import (
 from schemas.hardware import HardwareUpdate
 from schemas.hardware_file import HardwareFileResponse
 from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
+from schemas.spec_template import SpecTemplateCreate, SpecTemplateUpdate
 
 
 class AuditLogger(Protocol):
@@ -81,3 +87,46 @@ class HardwareFileServicePort(Protocol):
     ) -> HardwareFilesUpdateResult: ...
 
     async def delete_file(self, file_id: int) -> HardwareFileDeleteResult: ...
+
+
+class DownloadableHardwareFile(Protocol):
+    media_type: str
+    filename: str
+
+    def iter_file(self) -> Iterator[bytes]: ...
+
+
+class StreamableHardwareVideo(Protocol):
+    media_type: str
+    status_code: int
+    headers: dict[str, str]
+
+    def iter_file(self) -> Iterator[bytes]: ...
+
+
+class HardwareFileStreamingServicePort(Protocol):
+    async def get_download(self, file_id: int) -> DownloadableHardwareFile: ...
+
+    async def prepare_video_stream(
+        self,
+        *,
+        file_id: int,
+        range_header: str | None,
+    ) -> StreamableHardwareVideo: ...
+
+
+class SpecTemplateServicePort(Protocol):
+    async def list(self, hardware_type: Any | None = None) -> Sequence[Any]: ...
+    async def get(self, template_id: int) -> Any | None: ...
+    async def create(self, data: SpecTemplateCreate) -> Any: ...
+    async def update(self, template_id: int, data: SpecTemplateUpdate) -> Any | None: ...
+    async def delete(self, template_id: int) -> bool: ...
+
+
+class HardwareAnalyticsServicePort(Protocol):
+    async def get_hardware(
+        self,
+        filters: HardwareAnalyticsFilters,
+    ) -> HardwareAnalyticsResponse: ...
+
+    async def get_filter_options(self) -> HardwareAnalyticsFilterOptions: ...

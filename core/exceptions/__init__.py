@@ -1,3 +1,8 @@
+from core.exceptions.administration import (
+    AdministrationError,
+    ProtectedFileAccessDeniedError,
+    ProtectedFileNotFoundError,
+)
 from core.exceptions.auth import (
     AuthServiceError,
     InvalidCredentialsError,
@@ -42,6 +47,7 @@ from core.exceptions.inventory import (
     InventoryError,
     OfficeAlreadyExistsError,
     OfficeNotFoundError,
+    SpecTemplateNotFoundError,
 )
 from core.exceptions.notifications import (
     NotificationAudienceNotFoundError,
@@ -59,6 +65,7 @@ __all__ = [
     "HTTP403",
     "HTTP404",
     "HTTP409",
+    "AdministrationError",
     "AudienceAlreadyExistsError",
     "AudienceGridValidationError",
     "AudienceHardwareNotFoundError",
@@ -92,6 +99,8 @@ __all__ = [
     "NotificationUserNotFoundError",
     "OfficeAlreadyExistsError",
     "OfficeNotFoundError",
+    "ProtectedFileAccessDeniedError",
+    "ProtectedFileNotFoundError",
     "RefreshSessionNotFoundError",
     "RefreshTokenMissingError",
     "RefreshTokenReuseDetectedError",
@@ -99,6 +108,7 @@ __all__ = [
     "SamePasswordError",
     "SelfDeleteForbiddenError",
     "SessionNotFoundError",
+    "SpecTemplateNotFoundError",
     "SuperuserDeleteForbiddenError",
     "UploadTooLargeError",
     "UserAlreadyExistsError",

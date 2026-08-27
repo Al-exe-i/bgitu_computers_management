@@ -2,4 +2,4 @@
 from models.base import Base
 
 # Эта строка нужна, чтобы не удалили импорт при форматировании
-__all__ = [Base]
+__all__ = ["Base"]

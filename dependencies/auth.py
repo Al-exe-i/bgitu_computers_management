@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from core.exceptions import HTTP401, HTTP403
 from core.security import verify_access_token
 from dependencies.user import user_service_dep
-from models.user import User, UserRole
+from models.user import UserRole
 from schemas.user import UserOut
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token", auto_error=False)
@@ -69,18 +69,22 @@ async def get_current_user(
     return user
 
 
-async def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_superuser(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+) -> UserOut:
     if not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
     return current_user
 
 
-async def get_admin(current_user: User = Depends(get_current_user)) -> User:
+async def get_admin(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+) -> UserOut:
     if current_user.role.value > UserRole.admin.value:
         raise HTTP403("Not enough permissions")
     return current_user
 
 
-user_dep = Annotated[User, Depends(get_current_user)]
-superuser_dep = Annotated[User, Depends(get_current_superuser)]
-admin_dep = Annotated[User, Depends(get_admin)]
+user_dep = Annotated[UserOut, Depends(get_current_user)]
+superuser_dep = Annotated[UserOut, Depends(get_current_superuser)]
+admin_dep = Annotated[UserOut, Depends(get_admin)]

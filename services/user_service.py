@@ -69,8 +69,8 @@ class UserService:
         return UserOut.model_validate(user, from_attributes=True)
 
     async def create(self, data: UserCreate) -> UserOut | None:
-        data.password = get_password_hash(data.password)
         user_data = data.model_dump(exclude_unset=True)
+        user_data["password"] = get_password_hash(data.password)
         user = User(**user_data)
         try:
             user = await self.repo.create(user)

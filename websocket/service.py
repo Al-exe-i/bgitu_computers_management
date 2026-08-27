@@ -143,8 +143,12 @@ class RealtimeService:
             await self._unregister_state(replaced)
             try:
                 await replaced.connection.close()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 - replacement must still complete
+                logger.debug(
+                    "Realtime replaced connection close failed for connection_id={}: {}",
+                    replaced.connection_id,
+                    exc,
+                )
             logger.debug(
                 "Realtime client replaced: old_connection_id={} new_connection_id={} client_id={}",
                 replaced.connection_id,
