@@ -169,6 +169,19 @@ export default {
 
       /* Preview */
       previewIndex: null,
+      previewTriggerElement: null,
+      previewZoom: 1,
+      previewZoomMin: 0.5,
+      previewZoomMax: 4,
+      previewZoomStep: 0.25,
+      previewPanX: 0,
+      previewPanY: 0,
+      previewIsPanning: false,
+      previewPointerId: null,
+      previewPointerStartX: 0,
+      previewPointerStartY: 0,
+      previewPanStartX: 0,
+      previewPanStartY: 0,
       equipmentModalLeaving: false,
       viewportScrollLocked: false,
       viewportScrollLockMode: null,
@@ -234,6 +247,16 @@ export default {
 
     isPreviewVideo() {
       return this.currentPreviewFile?.file_type?.startsWith('video/');
+    },
+
+    previewZoomLabel() {
+      return `${Math.round(this.previewZoom * 100)}%`;
+    },
+
+    previewImageStyle() {
+      return {
+        transform: `translate3d(${this.previewPanX}px, ${this.previewPanY}px, 0) scale(${this.previewZoom})`,
+      };
     },
 
     // Админ или специалист ОИ + авторизован
@@ -542,8 +565,9 @@ export default {
       this.scheduleViewportScrollLock();
     },
 
-    previewIndex() {
+    previewIndex(nextIndex, previousIndex) {
       this.scheduleViewportScrollLock();
+      if (nextIndex !== previousIndex) this.resetPreviewTransform();
     },
 
     showConfirmModal() {
@@ -662,6 +686,7 @@ export default {
       this.viewportResizeHandler = () => {
         if (this.viewportScrollLocked) {
           this.updateModalViewportMetrics();
+          this.$nextTick(() => this.clampPreviewPan());
         }
       };
 
@@ -935,7 +960,9 @@ export default {
       if (event.defaultPrevented || event.isComposing) return;
 
       if (this.previewIndex !== null) {
-        if (event.key === 'Escape') {
+        if (event.key === 'Tab') {
+          this.trapPreviewFocus(event);
+        } else if (event.key === 'Escape') {
           event.preventDefault();
           this.closePreview();
         } else if (event.key === 'ArrowRight') {
@@ -944,6 +971,15 @@ export default {
         } else if (event.key === 'ArrowLeft') {
           event.preventDefault();
           this.prevPreview();
+        } else if (this.isPreviewImage && ['Equal', 'NumpadAdd'].includes(event.code)) {
+          event.preventDefault();
+          this.zoomPreviewIn();
+        } else if (this.isPreviewImage && ['Minus', 'NumpadSubtract'].includes(event.code)) {
+          event.preventDefault();
+          this.zoomPreviewOut();
+        } else if (this.isPreviewImage && ['Digit0', 'Numpad0'].includes(event.code)) {
+          event.preventDefault();
+          this.resetPreviewTransform();
         }
         return;
       }
@@ -1489,6 +1525,7 @@ export default {
     forceCloseEquipmentModal() {
       this.closeStatusConfirmModal();
       this.previewIndex = null;
+      this.previewTriggerElement = null;
       this.selectedCell = null;
       this.showUnsavedProblemsConfirm = false;
       this.unsavedProblemsSaving = false;
@@ -2089,21 +2126,187 @@ export default {
     },
 
     /* Просмотр файлов */
-    openPreview(index) {
+    openPreview(index, event = null) {
+      const files = this.selectedCell?.data?.files;
+      if (!files?.[index]) return;
+
       if (this.previewIndex !== null) {
         this.previewIndex = index;
         return;
       }
 
+      this.previewTriggerElement = event?.currentTarget ?? document.activeElement;
       this.prepareEventsOnlyModalLock();
       this.previewIndex = index;
       this.scheduleViewportScrollLock();
+      this.$nextTick(() => this.$refs.lightboxDialog?.focus({ preventScroll: true }));
     },
 
     // Закрыть
     closePreview() {
+      const trigger = this.previewTriggerElement;
       this.previewIndex = null;
+      this.previewTriggerElement = null;
       this.scheduleViewportScrollLock();
+      this.$nextTick(() => {
+        if (trigger?.isConnected && typeof trigger.focus === 'function') {
+          trigger.focus({ preventScroll: true });
+        }
+      });
+    },
+
+    trapPreviewFocus(event) {
+      const dialog = this.$refs.lightboxDialog;
+      if (!dialog) return;
+
+      const focusable = Array.from(dialog.querySelectorAll(
+          'button:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])'
+      )).filter((element) => element.getClientRects().length > 0);
+
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus({ preventScroll: true });
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && (active === first || active === dialog || !dialog.contains(active))) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (active === last || active === dialog || !dialog.contains(active))) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    },
+
+    resetPreviewTransform() {
+      this.previewZoom = 1;
+      this.previewPanX = 0;
+      this.previewPanY = 0;
+      this.previewIsPanning = false;
+      this.previewPointerId = null;
+    },
+
+    setPreviewZoom(value) {
+      const nextZoom = Math.min(
+          this.previewZoomMax,
+          Math.max(this.previewZoomMin, Math.round(value * 100) / 100),
+      );
+
+      this.previewZoom = nextZoom;
+      if (nextZoom <= 1) {
+        this.previewPanX = 0;
+        this.previewPanY = 0;
+      }
+
+      this.$nextTick(() => this.clampPreviewPan());
+    },
+
+    zoomPreviewIn() {
+      this.setPreviewZoom(this.previewZoom + this.previewZoomStep);
+    },
+
+    zoomPreviewOut() {
+      this.setPreviewZoom(this.previewZoom - this.previewZoomStep);
+    },
+
+    togglePreviewZoom() {
+      if (this.previewZoom > 1) {
+        this.resetPreviewTransform();
+        return;
+      }
+
+      this.setPreviewZoom(2);
+    },
+
+    handlePreviewWheel(event) {
+      if (!this.isPreviewImage || !event.deltaY) return;
+
+      event.preventDefault();
+      this.setPreviewZoom(this.previewZoom - event.deltaY * 0.002);
+    },
+
+    getPreviewPanLimits() {
+      const image = this.$refs.previewImage;
+      const frame = this.$refs.previewMediaFrame;
+
+      if (!image || !frame || this.previewZoom <= 1) {
+        return { x: 0, y: 0 };
+      }
+
+      return {
+        x: Math.max(0, (image.offsetWidth * this.previewZoom - frame.clientWidth) / 2),
+        y: Math.max(0, (image.offsetHeight * this.previewZoom - frame.clientHeight) / 2),
+      };
+    },
+
+    setPreviewPan(x, y) {
+      const limits = this.getPreviewPanLimits();
+      this.previewPanX = Math.min(limits.x, Math.max(-limits.x, x));
+      this.previewPanY = Math.min(limits.y, Math.max(-limits.y, y));
+    },
+
+    clampPreviewPan() {
+      if (!this.isPreviewImage) return;
+      this.setPreviewPan(this.previewPanX, this.previewPanY);
+    },
+
+    startPreviewPan(event) {
+      if (this.previewZoom <= 1 || (event.pointerType === 'mouse' && event.button !== 0)) return;
+
+      event.preventDefault();
+      this.previewIsPanning = true;
+      this.previewPointerId = event.pointerId;
+      this.previewPointerStartX = event.clientX;
+      this.previewPointerStartY = event.clientY;
+      this.previewPanStartX = this.previewPanX;
+      this.previewPanStartY = this.previewPanY;
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+
+    movePreviewPan(event) {
+      if (!this.previewIsPanning || event.pointerId !== this.previewPointerId) return;
+
+      event.preventDefault();
+      this.setPreviewPan(
+          this.previewPanStartX + event.clientX - this.previewPointerStartX,
+          this.previewPanStartY + event.clientY - this.previewPointerStartY,
+      );
+    },
+
+    finishPreviewPan(event) {
+      if (event.pointerId !== this.previewPointerId) return;
+
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      this.previewIsPanning = false;
+      this.previewPointerId = null;
+      this.clampPreviewPan();
+    },
+
+    prepareVideoThumbnail(event) {
+      const video = event.currentTarget;
+      if (!video || video.dataset.thumbnailPrepared === 'true') return;
+
+      video.dataset.thumbnailPrepared = 'true';
+      const duration = Number(video.duration);
+      const firstFrameTime = Number.isFinite(duration) && duration > 0
+          ? Math.min(0.05, duration / 2)
+          : 0.05;
+
+      try {
+        video.currentTime = firstFrameTime;
+      } catch {
+        this.markVideoThumbnailReady(event);
+      }
+    },
+
+    markVideoThumbnailReady(event) {
+      event.currentTarget?.classList.add('is-ready');
     },
 
     nextPreview() {
@@ -2649,9 +2852,9 @@ export default {
                   role="button"
                   tabindex="0"
                   :aria-label="`Открыть вложение ${index + 1}`"
-                  @click="openPreview(index)"
-                  @keydown.enter.prevent="openPreview(index)"
-                  @keydown.space.prevent="openPreview(index)"
+                  @click="openPreview(index, $event)"
+                  @keydown.enter.prevent="openPreview(index, $event)"
+                  @keydown.space.prevent="openPreview(index, $event)"
               >
 
                 <img v-if="file.file_type.startsWith('image/')" :src="resolveFileUrl(file.url)" class="hw-file-preview" alt="" />
@@ -3208,14 +3411,16 @@ export default {
       <Transition name="hw-lightbox-fade">
         <div
             v-if="previewIndex !== null && selectedCell"
+            ref="lightboxDialog"
             class="hw-lightbox audience-lightbox-overlay"
             role="dialog"
             aria-modal="true"
+            tabindex="-1"
             :aria-label="`Предпросмотр вложений: ${selectedEquipmentDisplayName}`"
             @click.self="closePreview"
         >
           <div class="hw-lb-shell" @click.self="closePreview">
-          <div class="hw-lb-header">
+          <header class="hw-lb-header">
             <div class="hw-lb-context">
               <span class="hw-lb-kind-icon" aria-hidden="true">
                 <svg v-if="isPreviewImage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -3232,7 +3437,7 @@ export default {
                 <strong>{{ selectedEquipmentDisplayName }}</strong>
                 <span class="hw-lb-meta" aria-live="polite">
                   <span>{{ isPreviewImage ? 'Фото' : 'Видео' }}</span>
-                  <span aria-hidden="true">·</span>
+                  <span class="hw-lb-meta-separator" aria-hidden="true"></span>
                   <span>{{ previewIndex + 1 }} из {{ selectedCell.data.files.length }}</span>
                 </span>
               </span>
@@ -3249,10 +3454,26 @@ export default {
                 <path d="M6 6l12 12M18 6 6 18"></path>
               </svg>
             </button>
-          </div>
+          </header>
 
           <main class="hw-lb-content" @click.stop>
-            <div class="hw-lb-stage">
+            <div
+                class="hw-lb-stage"
+                :class="{ 'is-video': isPreviewVideo, 'is-image-zoomed': isPreviewImage && previewZoom !== 1 }"
+                @wheel="handlePreviewWheel"
+            >
+              <Transition name="hw-ambient-swap">
+                <div
+                    v-if="isPreviewImage"
+                    :key="`ambient-${currentPreviewFile.id}`"
+                    class="hw-lb-ambient"
+                    aria-hidden="true"
+                >
+                  <img :src="resolveFileUrl(currentPreviewFile.url)" alt="" draggable="false" />
+                </div>
+              </Transition>
+              <div class="hw-lb-stage-shade" aria-hidden="true"></div>
+
               <button
                   v-if="selectedCell.data.files.length > 1"
                   type="button"
@@ -3266,27 +3487,85 @@ export default {
                 </svg>
               </button>
 
-              <Transition name="hw-media-swap" mode="out-in">
-                <img
-                    v-if="isPreviewImage"
-                    :key="`image-${currentPreviewFile.id}`"
-                    :src="resolveFileUrl(currentPreviewFile.url)"
-                    :alt="`Фото оборудования ${selectedEquipmentDisplayName}`"
-                    class="hw-lb-image"
-                    draggable="false"
-                />
+              <div ref="previewMediaFrame" class="hw-lb-media-frame">
+                <Transition name="hw-media-swap" mode="out-in">
+                  <img
+                      v-if="isPreviewImage"
+                      ref="previewImage"
+                      :key="`image-${currentPreviewFile.id}`"
+                      :src="resolveFileUrl(currentPreviewFile.url)"
+                      :alt="`Фото оборудования ${selectedEquipmentDisplayName}`"
+                      class="hw-lb-image"
+                      :class="{
+                        'is-pannable': previewZoom > 1,
+                        'is-panning': previewIsPanning
+                      }"
+                      :style="previewImageStyle"
+                      title="Двойной клик — увеличить или вписать"
+                      draggable="false"
+                      @load="clampPreviewPan"
+                      @dblclick.stop="togglePreviewZoom"
+                      @pointerdown="startPreviewPan"
+                      @pointermove="movePreviewPan"
+                      @pointerup="finishPreviewPan"
+                      @pointercancel="finishPreviewPan"
+                  />
 
-                <video
-                    v-else-if="isPreviewVideo"
-                    :key="`video-${currentPreviewFile.id}`"
-                    :src="getVideoStreamUrl(currentPreviewFile.id)"
-                    controls
-                    autoplay
-                    playsinline
-                    preload="metadata"
-                    class="hw-lb-video"
-                ></video>
-              </Transition>
+                  <video
+                      v-else-if="isPreviewVideo"
+                      :key="`video-${currentPreviewFile.id}`"
+                      :src="getVideoStreamUrl(currentPreviewFile.id)"
+                      controls
+                      autoplay
+                      playsinline
+                      preload="metadata"
+                      class="hw-lb-video"
+                  ></video>
+                </Transition>
+              </div>
+
+              <div
+                  v-if="isPreviewImage"
+                  class="hw-lb-zoom"
+                  role="group"
+                  aria-label="Масштаб изображения"
+                  @dblclick.stop
+              >
+                <button
+                    type="button"
+                    class="hw-lb-zoom-btn"
+                    :disabled="previewZoom <= previewZoomMin"
+                    aria-label="Уменьшить изображение"
+                    title="Уменьшить (−)"
+                    @click.stop="zoomPreviewOut"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <path d="M5 10h10"></path>
+                  </svg>
+                </button>
+                <button
+                    type="button"
+                    class="hw-lb-zoom-value"
+                    :class="{ 'is-fit': previewZoom === 1 }"
+                    aria-label="Вписать изображение в экран"
+                    title="Вписать в экран (0)"
+                    @click.stop="resetPreviewTransform"
+                >
+                  {{ previewZoomLabel }}
+                </button>
+                <button
+                    type="button"
+                    class="hw-lb-zoom-btn"
+                    :disabled="previewZoom >= previewZoomMax"
+                    aria-label="Увеличить изображение"
+                    title="Увеличить (+)"
+                    @click.stop="zoomPreviewIn"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <path d="M5 10h10M10 5v10"></path>
+                  </svg>
+                </button>
+              </div>
 
               <button
                   v-if="selectedCell.data.files.length > 1"
@@ -3322,12 +3601,25 @@ export default {
                     loading="lazy"
                     draggable="false"
                 />
-                <span v-else class="hw-lb-video-thumb" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8.2 6.8a1 1 0 0 1 1.53-.85l7.2 4.7a1 1 0 0 1 0 1.7l-7.2 4.7a1 1 0 0 1-1.53-.84z"></path>
-                  </svg>
-                </span>
-                <span class="hw-lb-thumb-index">{{ index + 1 }}</span>
+                <template v-else>
+                  <video
+                      :src="getVideoStreamUrl(file.id)"
+                      class="hw-lb-thumb-video"
+                      muted
+                      playsinline
+                      preload="metadata"
+                      tabindex="-1"
+                      aria-hidden="true"
+                      @loadedmetadata="prepareVideoThumbnail"
+                      @loadeddata="markVideoThumbnailReady"
+                      @seeked="markVideoThumbnailReady"
+                  ></video>
+                  <span class="hw-lb-video-thumb" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8.2 6.8a1 1 0 0 1 1.53-.85l7.2 4.7a1 1 0 0 1 0 1.7l-7.2 4.7a1 1 0 0 1-1.53-.84z"></path>
+                    </svg>
+                  </span>
+                </template>
               </button>
             </div>
           </footer>
@@ -7713,7 +8005,6 @@ export default {
 
 :global(html:has(body > .audience-lightbox-overlay)),
 :global(body:has(> .audience-lightbox-overlay)) {
-  color-scheme: dark;
   scrollbar-width: none;
 }
 
@@ -7724,15 +8015,23 @@ export default {
 }
 
 .hw-lightbox {
-  --lb-backdrop: rgba(4, 8, 15, 0.92);
-  --lb-surface: rgba(20, 28, 41, 0.82);
-  --lb-surface-hover: rgba(34, 45, 62, 0.92);
-  --lb-stage: #070a10;
-  --lb-border: rgba(203, 213, 225, 0.16);
-  --lb-border-strong: rgba(203, 213, 225, 0.3);
-  --lb-text: #f4f7fb;
-  --lb-muted: #9aa8ba;
-  --lb-accent: #78a9ff;
+  --lb-backdrop: rgba(226, 235, 246, 0.9);
+  --lb-backdrop-solid: #e6edf6;
+  --lb-surface: rgba(255, 255, 255, 0.92);
+  --lb-surface-solid: #f8fafc;
+  --lb-stage: #dfe7f1;
+  --lb-video-stage: #d6e0eb;
+  --lb-stage-shade:
+      linear-gradient(180deg, rgba(248, 250, 252, 0.06), rgba(51, 65, 85, 0.12)),
+      radial-gradient(circle at 50% 48%, transparent 38%, rgba(51, 65, 85, 0.12) 100%);
+  --lb-border: rgba(71, 85, 105, 0.2);
+  --lb-border-strong: rgba(51, 65, 85, 0.4);
+  --lb-text: #152033;
+  --lb-muted: #5f6f84;
+  --lb-accent: #2563eb;
+  --lb-control: rgba(255, 255, 255, 0.9);
+  --lb-control-hover: #ffffff;
+  --lb-ambient-opacity: 0.19;
   --lb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
   position: fixed;
@@ -7742,12 +8041,13 @@ export default {
   height: 100dvh;
   height: var(--audience-modal-vh, 100dvh);
   color: var(--lb-text);
-  color-scheme: dark;
+  color-scheme: light;
   background: transparent;
   overflow: visible;
   overscroll-behavior: contain;
   isolation: isolate;
   animation: none;
+  outline: none;
 }
 
 .hw-lightbox::before {
@@ -7756,8 +8056,11 @@ export default {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: var(--lb-backdrop);
-  backdrop-filter: blur(20px) saturate(0.92);
+  background:
+      radial-gradient(circle at 18% 12%, rgba(96, 165, 250, 0.2), transparent 36%),
+      radial-gradient(circle at 84% 86%, rgba(59, 130, 246, 0.1), transparent 32%),
+      var(--lb-backdrop);
+  backdrop-filter: blur(14px) saturate(0.9);
 }
 
 .hw-lb-shell {
@@ -7770,25 +8073,34 @@ export default {
   height: var(--audience-modal-vh, 100dvh);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: clamp(10px, 1.4vh, 16px);
   padding:
-      max(14px, env(safe-area-inset-top))
-      clamp(12px, 2vw, 28px)
-      max(12px, env(safe-area-inset-bottom));
+      max(16px, env(safe-area-inset-top))
+      clamp(14px, 2.2vw, 32px)
+      max(14px, env(safe-area-inset-bottom));
   overflow: hidden;
   overscroll-behavior: contain;
 }
 
 :global(html[data-theme='dark'] .hw-lightbox) {
-  --lb-backdrop: rgba(1, 4, 9, 0.96);
-  --lb-surface: rgba(15, 23, 35, 0.86);
-  --lb-surface-hover: rgba(30, 41, 57, 0.96);
-  --lb-stage: #030509;
-  --lb-border: rgba(148, 163, 184, 0.16);
-  --lb-border-strong: rgba(148, 163, 184, 0.3);
-  --lb-text: #e9eef5;
-  --lb-muted: #8f9caf;
-  --lb-accent: #82adf7;
+  --lb-backdrop: rgba(1, 4, 9, 0.97);
+  --lb-backdrop-solid: #05080d;
+  --lb-surface: rgba(12, 18, 28, 0.96);
+  --lb-surface-solid: #111827;
+  --lb-stage: #03060a;
+  --lb-video-stage: #020407;
+  --lb-stage-shade:
+      linear-gradient(180deg, rgba(3, 6, 10, 0.18), rgba(3, 6, 10, 0.48)),
+      radial-gradient(circle at 50% 48%, transparent 32%, rgba(2, 5, 9, 0.34) 100%);
+  --lb-border: rgba(148, 163, 184, 0.18);
+  --lb-border-strong: rgba(148, 163, 184, 0.38);
+  --lb-text: #edf2f8;
+  --lb-muted: #9aa8ba;
+  --lb-accent: #8ab4ff;
+  --lb-control: rgba(9, 15, 24, 0.92);
+  --lb-control-hover: rgba(24, 34, 48, 0.99);
+  --lb-ambient-opacity: 0.26;
+  color-scheme: dark;
 }
 
 .hw-lb-header,
@@ -7799,13 +8111,25 @@ export default {
 }
 
 .hw-lb-header {
-  width: min(100%, 1280px);
-  min-height: 44px;
+  width: min(100%, 1480px);
+  min-height: 56px;
   margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 6px 7px 6px 9px;
+  border: 1px solid var(--lb-border);
+  border-radius: 17px;
+  background: var(--lb-surface);
+  box-shadow: 0 10px 30px rgba(51, 65, 85, 0.1);
+}
+
+:global(html[data-theme='dark'] .hw-lb-header) {
+  color: var(--lb-text) !important;
+  border-color: var(--lb-border) !important;
+  background: var(--lb-surface) !important;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24) !important;
 }
 
 .hw-lb-context,
@@ -7817,27 +8141,21 @@ export default {
 
 .hw-lb-context {
   max-width: calc(100% - 56px);
-  min-height: 44px;
-  gap: 9px;
-  padding: 4px 12px 4px 5px;
-  border: 1px solid var(--lb-border);
-  border-radius: 15px;
-  background: var(--lb-surface);
-  box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 8px 24px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(18px);
+  min-height: 46px;
+  gap: 11px;
+  padding: 2px 0;
 }
 
 .hw-lb-kind-icon {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
   display: grid;
   place-items: center;
   color: var(--lb-accent);
-  border-radius: 11px;
-  background: rgba(120, 169, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--lb-accent) 24%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--lb-accent) 10%, transparent);
 }
 
 .hw-lb-kind-icon svg {
@@ -7854,18 +8172,28 @@ export default {
 .hw-lb-meta {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   color: var(--lb-muted);
-  font-size: 10.5px;
-  line-height: 1.2;
+  font-size: 11px;
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
+}
+
+.hw-lb-meta-separator {
+  width: 3px;
+  height: 3px;
+  flex: 0 0 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.62;
 }
 
 .hw-lb-context-copy strong {
   max-width: min(52vw, 620px);
   color: var(--lb-text);
-  font-size: 14px;
-  line-height: 1.25;
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7880,19 +8208,15 @@ export default {
 }
 
 .hw-lb-close {
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   display: grid;
   place-items: center;
-  color: #dbe4ed;
+  color: var(--lb-text);
   border: 1px solid var(--lb-border);
-  border-radius: 14px;
-  background: var(--lb-surface);
-  box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 8px 24px rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(18px);
+  border-radius: 50%;
+  background: var(--lb-control);
   transition:
       color 140ms var(--lb-ease-out),
       background-color 140ms var(--lb-ease-out),
@@ -7901,8 +8225,8 @@ export default {
 }
 
 .hw-lb-close svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 }
 
 .hw-lb-content {
@@ -7921,17 +8245,57 @@ export default {
   place-items: center;
   overflow: hidden;
   isolation: isolate;
-  padding: clamp(8px, 1.5vw, 18px);
-  border: 1px solid var(--lb-border);
-  border-radius: 22px;
+  padding: clamp(10px, 1.8vw, 24px);
+  border-radius: 18px;
   background: var(--lb-stage);
-  box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      0 24px 80px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.46);
 }
 
 .hw-lb-stage::before {
   display: none;
+}
+
+.hw-lb-stage.is-video {
+  background: var(--lb-video-stage);
+}
+
+.hw-lb-ambient,
+.hw-lb-stage-shade {
+  position: absolute;
+  pointer-events: none;
+}
+
+.hw-lb-ambient {
+  inset: -12%;
+  z-index: 0;
+  opacity: var(--lb-ambient-opacity);
+  filter: blur(58px) saturate(0.9);
+  transform: scale(1.08);
+}
+
+.hw-lb-ambient img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.hw-lb-stage-shade {
+  inset: 0;
+  z-index: 1;
+  background: var(--lb-stage-shade);
+}
+
+.hw-lb-media-frame {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
 .hw-lb-image,
@@ -7943,14 +8307,100 @@ export default {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.38);
   user-select: none;
+}
+
+.hw-lb-image {
+  display: block;
+  cursor: zoom-in;
+  touch-action: none;
+  transform-origin: center;
+  transition: transform 180ms var(--lb-ease-out);
+}
+
+.hw-lb-image.is-pannable {
+  cursor: grab;
+  will-change: transform;
+}
+
+.hw-lb-image.is-panning {
+  cursor: grabbing;
+  transition: none;
 }
 
 .hw-lb-video {
   width: min(100%, 1280px);
   background: #000;
+}
+
+.hw-lb-zoom {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(10px, 1.5vw, 18px);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--lb-border);
+  border-radius: 14px;
+  background: var(--lb-surface);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+  transform: translateX(-50%);
+}
+
+:global(html[data-theme='dark'] .hw-lb-zoom) {
+  border-color: var(--lb-border) !important;
+  background: var(--lb-surface) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28) !important;
+}
+
+.hw-lb-zoom-btn,
+.hw-lb-zoom-value {
+  appearance: none;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--lb-text);
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+      color 140ms var(--lb-ease-out),
+      background-color 140ms var(--lb-ease-out),
+      transform 100ms var(--lb-ease-out),
+      opacity 140ms var(--lb-ease-out);
+}
+
+.hw-lb-zoom-btn {
+  width: 36px;
+}
+
+.hw-lb-zoom-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hw-lb-zoom-value {
+  min-width: 58px;
+  padding-inline: 8px;
+  color: var(--lb-muted);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.hw-lb-zoom-value.is-fit {
+  color: var(--lb-accent);
+  background: color-mix(in srgb, var(--lb-accent) 10%, transparent);
+}
+
+.hw-lb-zoom-btn:disabled {
+  opacity: 0.32;
+  cursor: default;
 }
 
 .hw-lb-nav {
@@ -7961,14 +8411,11 @@ export default {
   height: 44px;
   display: grid;
   place-items: center;
-  color: #e7edf4;
+  color: var(--lb-text);
   border: 1px solid var(--lb-border);
-  border-radius: 14px;
-  background: rgba(9, 15, 24, 0.78);
-  box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.07),
-      0 8px 24px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(14px);
+  border-radius: 50%;
+  background: var(--lb-control);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
   transform: translateY(-50%);
   transition:
       color 140ms var(--lb-ease-out),
@@ -7983,25 +8430,17 @@ export default {
 }
 
 .hw-lb-prev {
-  left: clamp(8px, 1.5vw, 18px);
+  left: clamp(10px, 1.5vw, 20px);
 }
 
 .hw-lb-next {
-  right: clamp(8px, 1.5vw, 18px);
+  right: clamp(10px, 1.5vw, 20px);
 }
 
 .hw-lb-footer {
   width: fit-content;
   max-width: min(100%, 900px);
   margin-inline: auto;
-  padding: 6px;
-  border: 1px solid var(--lb-border);
-  border-radius: 16px;
-  background: var(--lb-surface);
-  box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 8px 24px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(18px);
 }
 
 .hw-lb-filmstrip {
@@ -8009,8 +8448,12 @@ export default {
   max-width: min(calc(100vw - 32px), 888px);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  padding: 6px;
   overflow-x: auto;
+  border: 1px solid var(--lb-border);
+  border-radius: 14px;
+  background: var(--lb-surface);
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
 }
@@ -8021,16 +8464,16 @@ export default {
 
 .hw-lb-thumb {
   position: relative;
-  width: 52px;
-  height: 40px;
-  flex: 0 0 52px;
+  width: 58px;
+  height: 44px;
+  flex: 0 0 58px;
   padding: 2px;
   overflow: hidden;
   color: var(--lb-muted);
-  border: 1px solid var(--lb-border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.045);
-  opacity: 0.56;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.52;
   transition:
       opacity 140ms var(--lb-ease-out),
       border-color 140ms var(--lb-ease-out),
@@ -8039,71 +8482,78 @@ export default {
 }
 
 .hw-lb-thumb img,
-.hw-lb-video-thumb {
+.hw-lb-thumb-video {
   width: 100%;
   height: 100%;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
+  display: block;
+  border-radius: 7px;
   object-fit: cover;
 }
 
+.hw-lb-thumb-video {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms var(--lb-ease-out);
+}
+
+.hw-lb-thumb-video.is-ready {
+  opacity: 1;
+}
+
 .hw-lb-video-thumb {
-  color: #c7d8f5;
-  background: linear-gradient(145deg, #25344b, #121b29);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+  background: rgba(7, 12, 20, 0.68);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .hw-lb-video-thumb svg {
-  width: 18px;
-  height: 18px;
-}
-
-.hw-lb-thumb-index {
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  min-width: 15px;
-  height: 15px;
-  display: grid;
-  place-items: center;
-  padding-inline: 3px;
-  color: #f8fafc;
-  border-radius: 5px;
-  background: rgba(2, 6, 13, 0.74);
-  font-size: 8px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
+  width: 12px;
+  height: 12px;
+  margin-left: 1px;
 }
 
 .hw-lb-thumb.is-active {
   opacity: 1;
-  border-color: rgba(115, 167, 255, 0.82);
-  background: rgba(115, 167, 255, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(115, 167, 255, 0.24);
+  border-color: var(--lb-accent);
+  background: color-mix(in srgb, var(--lb-accent) 10%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lb-accent) 18%, transparent);
 }
 
 .hw-lightbox-fade-enter-active {
-  transition: opacity 220ms var(--lb-ease-out);
+  transition: opacity 260ms var(--lb-ease-out);
 }
 
 .hw-lightbox-fade-leave-active {
-  transition: opacity 160ms var(--lb-ease-out);
+  transition: opacity 180ms var(--lb-ease-out);
 }
 
 .hw-lightbox-fade-enter-active .hw-lb-header,
 .hw-lightbox-fade-enter-active .hw-lb-content,
 .hw-lightbox-fade-enter-active .hw-lb-footer {
   transition:
-      opacity 220ms var(--lb-ease-out),
-      transform 220ms var(--lb-ease-out);
+      opacity 280ms var(--lb-ease-out),
+      transform 320ms var(--lb-ease-out),
+      filter 260ms var(--lb-ease-out);
 }
 
 .hw-lightbox-fade-leave-active .hw-lb-header,
 .hw-lightbox-fade-leave-active .hw-lb-content,
 .hw-lightbox-fade-leave-active .hw-lb-footer {
   transition:
-      opacity 140ms var(--lb-ease-out),
-      transform 140ms var(--lb-ease-out);
+      opacity 160ms var(--lb-ease-out),
+      transform 180ms var(--lb-ease-out),
+      filter 160ms var(--lb-ease-out);
 }
 
 .hw-lightbox-fade-enter-from,
@@ -8118,15 +8568,16 @@ export default {
 }
 
 .hw-lightbox-fade-enter-from .hw-lb-header {
-  transform: translateY(-6px);
+  transform: translateY(-8px);
 }
 
 .hw-lightbox-fade-enter-from .hw-lb-content {
-  transform: scale(0.985);
+  filter: blur(8px);
+  transform: scale(0.975);
 }
 
 .hw-lightbox-fade-enter-from .hw-lb-footer {
-  transform: translateY(6px);
+  transform: translateY(8px);
 }
 
 .hw-lightbox-fade-leave-to .hw-lb-header {
@@ -8134,7 +8585,8 @@ export default {
 }
 
 .hw-lightbox-fade-leave-to .hw-lb-content {
-  transform: scale(0.99);
+  filter: blur(4px);
+  transform: scale(0.988);
 }
 
 .hw-lightbox-fade-leave-to .hw-lb-footer {
@@ -8143,37 +8595,63 @@ export default {
 
 .hw-media-swap-enter-active {
   transition:
-      opacity 180ms var(--lb-ease-out),
-      transform 180ms var(--lb-ease-out);
+      opacity 220ms var(--lb-ease-out),
+      transform 240ms var(--lb-ease-out),
+      filter 200ms var(--lb-ease-out);
 }
 
 .hw-media-swap-leave-active {
   transition:
       opacity 120ms var(--lb-ease-out),
-      transform 120ms var(--lb-ease-out);
+      transform 140ms var(--lb-ease-out),
+      filter 120ms var(--lb-ease-out);
 }
 
 .hw-media-swap-enter-from {
   opacity: 0;
-  transform: scale(0.985);
+  filter: blur(5px);
+  transform: scale(0.988);
 }
 
 .hw-media-swap-leave-to {
   opacity: 0;
-  transform: scale(0.99);
+  filter: blur(3px);
+  transform: scale(0.994);
+}
+
+.hw-ambient-swap-enter-active,
+.hw-ambient-swap-leave-active {
+  transition: opacity 260ms var(--lb-ease-out);
+}
+
+.hw-ambient-swap-enter-from,
+.hw-ambient-swap-leave-to {
+  opacity: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .hw-lb-close:hover,
   .hw-lb-nav:hover {
-    color: #ffffff;
+    color: var(--lb-text);
     border-color: var(--lb-border-strong);
-    background: var(--lb-surface-hover);
+    background: var(--lb-control-hover);
   }
 
   .hw-lb-thumb:hover {
-    opacity: 0.86;
+    opacity: 0.9;
     border-color: var(--lb-border-strong);
+    transform: translateY(-2px);
+  }
+
+  .hw-lb-thumb.is-active:hover {
+    opacity: 1;
+    border-color: var(--lb-accent);
+  }
+
+  .hw-lb-zoom-btn:hover:not(:disabled),
+  .hw-lb-zoom-value:hover {
+    color: var(--lb-text);
+    background: var(--lb-control-hover);
   }
 }
 
@@ -8189,19 +8667,26 @@ export default {
   transform: scale(0.95);
 }
 
+.hw-lb-zoom-btn:active:not(:disabled),
+.hw-lb-zoom-value:active {
+  transform: scale(0.94);
+}
+
 .hw-lb-close:focus-visible,
 .hw-lb-nav:focus-visible,
-.hw-lb-thumb:focus-visible {
+.hw-lb-thumb:focus-visible,
+.hw-lb-zoom-btn:focus-visible,
+.hw-lb-zoom-value:focus-visible {
   outline: 2px solid var(--lb-accent);
   outline-offset: 2px;
 }
 
 @media (max-width: 800px) {
   .hw-lb-shell {
-    gap: 8px;
+    gap: 9px;
     padding:
         max(10px, env(safe-area-inset-top))
-        10px
+        8px
         max(10px, env(safe-area-inset-bottom));
   }
 
@@ -8211,14 +8696,13 @@ export default {
 
   .hw-lb-context {
     min-height: 42px;
-    padding-right: 10px;
   }
 
   .hw-lb-kind-icon {
-    width: 32px;
-    height: 32px;
-    flex-basis: 32px;
-    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 12px;
   }
 
   .hw-lb-context-copy strong {
@@ -8228,19 +8712,18 @@ export default {
 
   .hw-lb-stage {
     min-height: 180px;
-    padding: 6px;
-    border-radius: 17px;
+    padding: 5px;
+    border-radius: 14px;
   }
 
   .hw-lb-image,
   .hw-lb-video {
-    border-radius: 10px;
+    border-radius: 8px;
   }
 
   .hw-lb-nav {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
   }
 
   .hw-lb-nav svg {
@@ -8257,8 +8740,34 @@ export default {
   }
 
   .hw-lb-footer {
+    max-width: 100%;
+  }
+
+  .hw-lb-filmstrip {
+    max-width: calc(100vw - 16px);
     padding: 5px;
-    border-radius: 14px;
+    border-radius: 12px;
+  }
+
+  .hw-lb-zoom {
+    bottom: 8px;
+    padding: 3px;
+    border-radius: 12px;
+  }
+
+  .hw-lb-zoom-btn,
+  .hw-lb-zoom-value {
+    min-height: 34px;
+    border-radius: 9px;
+  }
+
+  .hw-lb-zoom-btn {
+    width: 34px;
+  }
+
+  .hw-lb-zoom-value {
+    min-width: 54px;
+    font-size: 11px;
   }
 }
 
@@ -8272,14 +8781,24 @@ export default {
   }
 
   .hw-lb-thumb {
-    width: 46px;
-    height: 34px;
-    flex-basis: 46px;
-    border-radius: 9px;
+    width: 52px;
+    height: 40px;
+    flex-basis: 52px;
+    border-radius: 8px;
   }
 
   .hw-lb-filmstrip {
-    gap: 5px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 400px) {
+  .hw-lb-kind-icon {
+    display: none;
+  }
+
+  .hw-lb-context-copy strong {
+    max-width: 60vw;
   }
 }
 
@@ -8302,13 +8821,13 @@ export default {
   }
 
   .hw-lb-footer {
-    padding: 4px;
+    max-height: 44px;
   }
 
   .hw-lb-thumb {
-    width: 44px;
-    height: 34px;
-    flex-basis: 44px;
+    width: 48px;
+    height: 32px;
+    flex-basis: 48px;
   }
 }
 
@@ -8325,7 +8844,11 @@ export default {
   .hw-lightbox-fade-leave-active .hw-lb-content,
   .hw-lightbox-fade-leave-active .hw-lb-footer,
   .hw-media-swap-enter-active,
-  .hw-media-swap-leave-active {
+  .hw-media-swap-leave-active,
+  .hw-ambient-swap-enter-active,
+  .hw-ambient-swap-leave-active,
+  .hw-lb-image,
+  .hw-lb-thumb-video {
     transition: opacity 120ms ease-out;
   }
 
@@ -8336,22 +8859,26 @@ export default {
   .hw-lightbox-fade-leave-to .hw-lb-content,
   .hw-lightbox-fade-leave-to .hw-lb-footer,
   .hw-media-swap-enter-from,
-  .hw-media-swap-leave-to {
+  .hw-media-swap-leave-to,
+  .hw-ambient-swap-enter-from,
+  .hw-ambient-swap-leave-to {
+    filter: none;
     transform: none;
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .hw-lightbox::before {
-    background: #080c13;
+    background: var(--lb-backdrop-solid);
     backdrop-filter: none;
   }
 
-  .hw-lb-context,
+  .hw-lb-header,
   .hw-lb-close,
   .hw-lb-nav,
-  .hw-lb-footer {
-    background: #111827;
+  .hw-lb-filmstrip,
+  .hw-lb-zoom {
+    background: var(--lb-surface-solid);
     backdrop-filter: none;
   }
 }
