@@ -5,12 +5,12 @@ from fastapi import APIRouter, Query
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.auth import admin_dep
 from dependencies.inventory import inventory_spec_template_use_cases_dep
-from models.hardware import HardwareType
-from schemas.spec_template import (
+from modules.inventory.schemas.spec_template import (
     SpecTemplateCreate,
     SpecTemplateResponse,
     SpecTemplateUpdate,
 )
+from modules.inventory.types import HardwareType
 
 router = APIRouter()
 

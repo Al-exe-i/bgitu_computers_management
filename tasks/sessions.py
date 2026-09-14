@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from celery_app import celery_app
 from core.config import settings
-from models.user_session import UserSession
+from modules.identity.models.user_session import UserSession
 
 # Singleton engine — создаётся один раз на весь процесс Celery worker'а.
 # pool_pre_ping=True обеспечивает переподключение при разрыве с БД.

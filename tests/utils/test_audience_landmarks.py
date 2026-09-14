@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from utils.audience_landmarks import normalize_landmarks
+from modules.inventory.services.audience_landmarks import normalize_landmarks
 
 
 def test_normalize_landmarks_strips_values_and_drops_empty_strings() -> None:

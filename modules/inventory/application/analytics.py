@@ -1,5 +1,5 @@
 from modules.inventory.ports import HardwareAnalyticsServicePort
-from schemas.analytics import (
+from modules.inventory.schemas.analytics import (
     HardwareAnalyticsFilterOptions,
     HardwareAnalyticsFilters,
     HardwareAnalyticsResponse,

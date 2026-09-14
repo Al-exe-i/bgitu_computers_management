@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from core.exceptions import HTTP403
-from models.user import UserRole
-from schemas.user import UserOut
+from modules.identity.public import UserRole
+from modules.identity.schemas.user import UserOut
 from utils.permissions import can_change_other_su
 
 

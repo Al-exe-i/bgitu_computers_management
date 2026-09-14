@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import AudienceAlreadyExistsError, AudienceNotFoundError
-from schemas.audience import AudienceCreate, AudienceUpdate
-from services.audience_service import AudienceService
+from modules.inventory.schemas.audience import AudienceCreate, AudienceUpdate
+from modules.inventory.services.audiences import AudienceService
 
 
 class FakeAudienceRepo:

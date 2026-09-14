@@ -5,8 +5,10 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+import db.base  # noqa: F401 -- register models before any session is used
 from core.config import settings
-from db.post_commit import clear_post_commit_hooks, run_post_commit_hooks
+from db.post_commit import clear_post_commit_hooks
+from db.transaction import SessionTransaction
 
 engine = create_async_engine(
     str(settings.db.url),
@@ -29,13 +31,13 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
     async with session_factory() as session:
         try:
             yield session
-            await session.commit()
-        except Exception:
+        except BaseException:
             clear_post_commit_hooks(session)
             await session.rollback()
             raise
         else:
-            await run_post_commit_hooks(session)
+            await SessionTransaction(session).commit()
 
 
-session_dep = Annotated[AsyncSession, Depends(get_db)]
+# Finish writes and release connections before sending responses, including SSE.
+session_dep = Annotated[AsyncSession, Depends(get_db, scope="function")]

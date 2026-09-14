@@ -7,8 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from core.exceptions import HTTP401, HTTP403
 from core.security import verify_access_token
 from dependencies.user import user_service_dep
-from models.user import UserRole
-from schemas.user import UserOut
+from modules.identity.public import AuthenticatedUser, UserOut, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token", auto_error=False)
 
@@ -32,27 +31,14 @@ async def _validate_token_and_get_user(
     if payload.get("token_type") != "access":
         raise credentials_exception
 
-    user = await service.get(sub)
+    user = await service.get_for_authentication(sub)
     if user is None:
         raise credentials_exception
 
-    user_token_version = await _get_current_access_token_version(service, user)
-    if user_token_version is None or token_version != user_token_version:
+    if token_version != user.access_token_version:
         raise credentials_exception
 
     return user
-
-
-async def _get_current_access_token_version(
-    service: user_service_dep,
-    user: UserOut,
-) -> int | None:
-    get_version = getattr(service, "get_access_token_version", None)
-    if get_version is not None:
-        version = await get_version(user.id)
-        return int(version) if version is not None else None
-
-    return int(getattr(user, "access_token_version", 0) or 0)
 
 
 async def get_current_user(
@@ -60,18 +46,24 @@ async def get_current_user(
     access_token_cookie: str | None = Cookie(None, alias="access_token"),
     access_token_header: str | None = Depends(oauth2_scheme),
 ) -> UserOut:
-    token = access_token_cookie if access_token_cookie else access_token_header
-
-    if token is None:
-        raise HTTP401("Not authenticated")
-
+    token = get_access_token(access_token_cookie, access_token_header)
     user = await _validate_token_and_get_user(token, service)
     return user
 
 
+def get_access_token(
+    access_token_cookie: str | None = Cookie(None, alias="access_token"),
+    access_token_header: str | None = Depends(oauth2_scheme),
+) -> str:
+    token = access_token_cookie or access_token_header
+    if token is None:
+        raise HTTP401("Not authenticated")
+    return token
+
+
 async def get_current_superuser(
     current_user: Annotated[UserOut, Depends(get_current_user)],
-) -> UserOut:
+) -> AuthenticatedUser:
     if not current_user.is_superuser:
         raise HTTP403("Not enough permissions")
     return current_user

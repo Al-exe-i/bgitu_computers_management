@@ -11,7 +11,8 @@ from management.bootstrap import (
     ensure_offices,
 )
 from management.users import ManagedUserResult
-from models.user import User, UserRole
+from modules.identity.models.user import User
+from modules.identity.public import UserRole
 
 
 def test_existing_superuser_is_never_modified() -> None:

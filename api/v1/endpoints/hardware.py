@@ -9,7 +9,7 @@ from dependencies.inventory import (
     inventory_hardware_file_queries_dep,
     inventory_hardware_use_cases_dep,
 )
-from schemas.hardware import HardwareFullResponse, HardwareUpdate
+from modules.inventory.schemas.hardware import HardwareFullResponse, HardwareUpdate
 from utils.file_responses import secure_file_headers
 
 router = APIRouter()

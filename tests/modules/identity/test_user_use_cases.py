@@ -6,14 +6,14 @@ import pytest
 
 from core.exceptions import InvalidUserPhotoError, UserPermissionDeniedError
 from core.security import get_password_hash
-from models.user import UserRole
 from modules.identity.application.users import (
     PASSWORD_CHANGED_EVENT_NAME,
     IdentityUserUseCases,
 )
+from modules.identity.contracts import UserPhotoUpdateResult
 from modules.identity.events import AuthSecurityNotificationEvent
-from schemas.user import ChangePasswordSchema, UserOut, UserUpdate
-from services.user_service import UserPhotoUpdateResult
+from modules.identity.roles import UserRole
+from modules.identity.schemas.user import ChangePasswordSchema, UserOut, UserUpdate
 
 
 def make_user(

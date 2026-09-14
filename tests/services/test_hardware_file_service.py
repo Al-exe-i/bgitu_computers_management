@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.exceptions import HardwareFileNotFoundError, HardwareNotFoundError
-from services.hardware_file_service import HardwareFileService
+from modules.inventory.services.hardware_files import HardwareFileService
 
 
 class FakeFilesRepo:

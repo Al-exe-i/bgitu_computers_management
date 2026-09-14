@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends
@@ -6,35 +5,7 @@ from fastapi import Depends
 from dependencies.audit_log import audit_log_service_dep
 from dependencies.auth import admin_dep, superuser_dep, user_dep
 from dependencies.request_meta import request_meta_dep
-from models.user import User
-from services.audit_log_service import AuditLogService
-from utils.request_meta import RequestMeta
-
-
-@dataclass(slots=True)
-class AuditActor:
-    service: AuditLogService
-    meta: RequestMeta
-    user: User | None = None
-
-    async def log(
-        self,
-        *,
-        action: str,
-        entity_type: str,
-        entity_id: int | None = None,
-        payload: dict | None = None,
-        user_id: int | None = None,
-    ):
-        actor_id = self.user.id if user_id is None and self.user is not None else user_id
-        return await self.service.log(
-            user_id=actor_id,
-            action=action,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            payload=payload,
-            **self.meta,
-        )
+from modules.administration.adapters.audit_actor import AuditActor
 
 
 def get_audit_ctx(

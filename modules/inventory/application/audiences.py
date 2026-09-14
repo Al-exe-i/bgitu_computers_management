@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from modules.administration.public import AuditLogger
 from modules.inventory.events import AudienceUpdatedEvent, InventoryEvent
-from modules.inventory.ports import AudienceServicePort, AuditLogger
-from schemas.audience import (
+from modules.inventory.ports import AudienceServicePort
+from modules.inventory.schemas.audience import (
     AudienceCreate,
     AudienceResponse,
     AudienceShortResponse,

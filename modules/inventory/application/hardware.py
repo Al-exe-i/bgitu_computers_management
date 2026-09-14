@@ -8,7 +8,8 @@ from core.exceptions import (
     HardwarePermissionDeniedError,
     UploadTooLargeError,
 )
-from models.user import UserRole
+from modules.administration.public import AuditLogger
+from modules.identity.public import UserRole
 from modules.inventory.constants import MAX_HARDWARE_FILE_SIZE_BYTES
 from modules.inventory.events import (
     AudienceUpdatedEvent,
@@ -16,14 +17,13 @@ from modules.inventory.events import (
     InventoryEvent,
 )
 from modules.inventory.ports import (
-    AuditLogger,
     HardwareFileServicePort,
     HardwareServicePort,
     InventoryActor,
     UploadedHardwareFile,
 )
-from schemas.hardware import HardwareFullResponse, HardwareUpdate
-from schemas.hardware_file import HardwareFileResponse
+from modules.inventory.schemas.hardware import HardwareFullResponse, HardwareUpdate
+from modules.inventory.schemas.hardware_file import HardwareFileResponse
 from utils.audit import clean_sensitive
 
 

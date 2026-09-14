@@ -4,7 +4,7 @@ from fastapi import Depends
 
 from dependencies.user import user_service_dep
 from dependencies.user_session_service import user_session_service_dep
-from services.auth_service import AuthService
+from modules.identity.services.auth import AuthService
 
 
 def get_auth_service(

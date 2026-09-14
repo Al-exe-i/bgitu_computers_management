@@ -5,7 +5,7 @@ import re
 from fastapi import APIRouter, HTTPException, Request, status
 from starlette.responses import StreamingResponse
 
-from dependencies.auth import user_dep
+from dependencies.stream_auth import stream_authorization_dep
 
 router = APIRouter()
 CLIENT_ID_RE = re.compile(r"^[a-zA-Z0-9:_-]{1,160}$")
@@ -140,7 +140,7 @@ async def sse_endpoint(request: Request):
 
 
 @router.get("/events/notifications", include_in_schema=False)
-async def notifications_sse_endpoint(request: Request, user: user_dep):
+async def notifications_sse_endpoint(request: Request, authorization: stream_authorization_dep):
     realtime = request.app.state.realtime
     if not realtime.config.enabled:
         raise HTTPException(
@@ -148,17 +148,20 @@ async def notifications_sse_endpoint(request: Request, user: user_dep):
             detail="Realtime events are disabled",
         )
 
-    connection = SSEConnection()
-    connection_id = await realtime.connect(
-        connection,
-        audience_id=None,
-        user_id=user.id,
-        client_id=_client_id_from_request(request),
-        ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
-    )
+    user_id = authorization.user_id
+    client_id = _client_id_from_request(request)
 
     async def event_stream():
+        # Register only after the request's DB transaction has finished.
+        connection = SSEConnection()
+        connection_id = await realtime.connect(
+            connection,
+            audience_id=None,
+            user_id=user_id,
+            client_id=client_id,
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+        )
         try:
             yield "retry: 3000\n\n"
 
@@ -169,18 +172,24 @@ async def notifications_sse_endpoint(request: Request, user: user_dep):
                 try:
                     payload = await asyncio.wait_for(
                         connection.receive_json(),
-                        timeout=realtime.config.heartbeat_interval_seconds,
+                        timeout=min(realtime.config.heartbeat_interval_seconds, authorization.check_interval),
                     )
                 except TimeoutError:
-                    await realtime.heartbeat(connection_id)
-                    yield ": ping\n\n"
-                    continue
+                    payload = {}
 
                 if payload is None:
                     break
 
+                # Recheck after waiting: queued notifications must not outlive authorization.
+                reason = await authorization.rejection_reason()
+                if reason:
+                    yield _format_sse({
+                        "type": "stream_unavailable" if reason == "unavailable" else "auth_required",
+                        "reason": reason,
+                    })
+                    break
                 await realtime.heartbeat(connection_id)
-                yield _format_sse(payload)
+                yield _format_sse(payload) if payload else ": ping\n\n"
         finally:
             await realtime.disconnect(connection_id)
 

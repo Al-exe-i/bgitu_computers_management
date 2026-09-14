@@ -8,10 +8,10 @@ from modules.inventory.events import (
     HardwareStateChangedEvent,
     InventoryEvent,
 )
-from services.realtime_notification_service import (
+from modules.notifications.public import (
     AudienceChangedNotification,
     HardwareStateNotification,
-    RealtimeNotificationDispatcher,
+    NotificationDelivery,
 )
 from websocket.service import RealtimeService
 
@@ -21,7 +21,7 @@ class InventoryEventDispatcher:
         self,
         session: AsyncSession,
         realtime: RealtimeService,
-        notifications: RealtimeNotificationDispatcher,
+        notifications: NotificationDelivery,
     ) -> None:
         self.session = session
         self.realtime = realtime

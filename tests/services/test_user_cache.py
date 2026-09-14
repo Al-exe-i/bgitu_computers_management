@@ -1,14 +1,29 @@
 import asyncio
 from datetime import UTC, datetime
+from functools import partial
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
+import pytest
 from redis.exceptions import RedisError
 
-from db.post_commit import run_post_commit_hooks
-from models.user import UserRole
-from repositories.user_repo import UserRepository
-from services.user_cache import UserCache
-from services.user_service import UserService
+from core.exceptions import HTTP401, HTTP403
+from db.post_commit import (
+    add_post_commit_hook,
+    clear_post_commit_hooks,
+    run_post_commit_hooks,
+)
+from dependencies.auth import (
+    _validate_token_and_get_user,
+    get_admin,
+    get_current_superuser,
+)
+from modules.identity.adapters.user_cache import UserCache
+from modules.identity.public import UserRole
+from modules.identity.repositories.users import UserRepository
+from modules.identity.schemas.user import UserUpdate
+from modules.identity.services.users import UserService
+from utils.tokens import issue_access_token
 
 
 class FakeRedis:
@@ -105,9 +120,12 @@ def test_user_service_uses_redis_cache_after_first_db_read() -> None:
     async def scenario() -> None:
         cache = UserCache(FakeRedis(), ttl_seconds=600)
         repo = FakeRepo(make_user())
-        service = UserService(repo, user_cache=cache)
+        session = FakeSession()
+        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session))
 
         first = await service.get(7)
+        assert await cache.get(7) is None
+        await run_post_commit_hooks(session)
         second = await service.get(7)
 
         assert first.id == 7
@@ -144,23 +162,92 @@ def test_user_cache_handles_miss_invalid_payload_and_redis_errors() -> None:
     asyncio.run(scenario())
 
 
-def test_user_repository_updates_cache_only_after_commit_hook() -> None:
+@pytest.mark.parametrize("commit", [True, False])
+def test_user_service_invalidates_cache_only_after_commit(commit) -> None:
     async def scenario() -> None:
         redis = FakeRedis()
         cache = UserCache(redis, ttl_seconds=600)
         session = FakeSession()
-        repo = UserRepository(session, cache)
+        repo = UserRepository(session)
         user = make_user()
-
-        await repo.create(user)
-
-        assert redis.store == {}
-        await run_post_commit_hooks(session)
-        assert "identity:user:7:v2" in redis.store
-
-        await repo.delete(user)
+        repo.get = AsyncMock(return_value=user)
+        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session))
+        await cache.set(user)
+        await service.update(user.id, UserUpdate(name="Changed"))
+        assert (await cache.get(user.id)).name == "Alex"
         assert redis.deleted == []
+        if not commit:
+            clear_post_commit_hooks(session)
         await run_post_commit_hooks(session)
-        assert redis.deleted == ["identity:user:7:v2"]
+        assert redis.deleted == (["identity:user:7:v2"] if commit else [])
+        assert (await cache.get(user.id) is None) == commit
+
+    asyncio.run(scenario())
+
+
+def test_authentication_ignores_stale_cached_privileges_even_when_redis_writes_fail():
+    async def scenario():
+        redis = FakeRedis()
+        cache = UserCache(redis, ttl_seconds=600)
+        user = make_user()
+        user.role = UserRole.admin
+        user.is_superuser = True
+        await cache.set(user)
+
+        user.role = UserRole.teacher
+        user.is_superuser = False
+        redis.fail_set = redis.fail_delete = True
+        await cache.set(user)
+        await cache.invalidate(user.id)
+        assert (await cache.get(user.id)).role == UserRole.admin
+
+        repo = SimpleNamespace(get=AsyncMock(return_value=user))
+        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, FakeSession()))
+        token = issue_access_token(user.id, token_version=2)
+        authenticated = await _validate_token_and_get_user(token, service)
+        with pytest.raises(HTTP403):
+            await get_admin(authenticated)
+        with pytest.raises(HTTP403):
+            await get_current_superuser(authenticated)
+
+        user.access_token_version = 3
+        with pytest.raises(HTTP401):
+            await _validate_token_and_get_user(token, service)
+
+        repo.get.return_value = None
+        with pytest.raises(HTTP401):
+            await _validate_token_and_get_user(issue_access_token(user.id, 3), service)
+
+    asyncio.run(scenario())
+
+
+def test_cache_miss_does_not_publish_rolled_back_data():
+    async def scenario():
+        cache = UserCache(FakeRedis(), ttl_seconds=600)
+        session = FakeSession()
+        repo = UserRepository(session)
+        repo.get = AsyncMock(return_value=make_user())
+        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session))
+        await service.update(7, UserUpdate(name="Not committed"))
+        await service.get(7)
+        clear_post_commit_hooks(session)
+        await run_post_commit_hooks(session)
+        assert await cache.get(7) is None
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("new_role, expected_calls", [(UserRole.admin, 1), (UserRole.teacher, 0)])
+def test_role_change_revokes_access_tokens_but_unchanged_role_does_not(new_role, expected_calls):
+    async def scenario():
+        repo = UserRepository(FakeSession())
+        repo.bump_access_token_version = AsyncMock(return_value=3)
+        user = make_user()
+        repo.get = AsyncMock(return_value=user)
+        await UserService(repo).update(user.id, UserUpdate(role=new_role))
+        assert user.role == new_role
+        assert repo.bump_access_token_version.await_count == expected_calls
+        if expected_calls:
+            repo.bump_access_token_version.assert_awaited_once_with(user.id)
 
     asyncio.run(scenario())

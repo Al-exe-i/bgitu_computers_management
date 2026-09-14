@@ -1,39 +1,41 @@
 from collections.abc import Iterator, Sequence
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID
 
-from schemas.analytics import (
+from modules.identity.public import UserRole
+from modules.inventory.contracts import (
+    HardwareFileDeleteResult,
+    HardwareFilesUpdateResult,
+)
+from modules.inventory.schemas.analytics import (
     HardwareAnalyticsFilterOptions,
     HardwareAnalyticsFilters,
     HardwareAnalyticsResponse,
 )
-from schemas.audience import (
+from modules.inventory.schemas.audience import (
     AudienceCreate,
     AudienceResponse,
     AudienceShortResponse,
     AudienceUpdate,
 )
-from schemas.hardware import HardwareUpdate
-from schemas.hardware_file import HardwareFileResponse
-from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
-from schemas.spec_template import SpecTemplateCreate, SpecTemplateUpdate
-
-
-class AuditLogger(Protocol):
-    async def log(
-        self,
-        *,
-        action: str,
-        entity_type: str,
-        entity_id: int | None = None,
-        payload: dict | None = None,
-        user_id: int | None = None,
-    ) -> Any: ...
+from modules.inventory.schemas.hardware import HardwareFullResponse, HardwareUpdate
+from modules.inventory.schemas.office import (
+    OfficeCreate,
+    OfficeResponse,
+    OfficeShort,
+    OfficeUpdate,
+)
+from modules.inventory.schemas.spec_template import (
+    SpecTemplateCreate,
+    SpecTemplateResponse,
+    SpecTemplateUpdate,
+)
+from modules.inventory.types import HardwareType
 
 
 class InventoryActor(Protocol):
     id: int
-    role: object
+    role: UserRole
     is_superuser: bool
 
 
@@ -43,15 +45,6 @@ class UploadedHardwareFile(Protocol):
     size: int | None
 
     async def read(self, size: int = -1) -> bytes: ...
-
-
-class HardwareFilesUpdateResult(Protocol):
-    files: list[HardwareFileResponse]
-    audience_id: int
-
-
-class HardwareFileDeleteResult(Protocol):
-    audience_id: int
 
 
 class AudienceServicePort(Protocol):
@@ -69,14 +62,14 @@ class OfficeServicePort(Protocol):
     async def get_all(self) -> Sequence[OfficeResponse | OfficeShort]: ...
     async def get_all_short(self) -> Sequence[OfficeShort]: ...
     async def get(self, office_id: int) -> OfficeResponse | None: ...
-    async def create(self, office: OfficeCreate) -> Any: ...
-    async def update(self, office_id: int, schema: OfficeUpdate) -> Any | None: ...
+    async def create(self, office: OfficeCreate) -> OfficeShort: ...
+    async def update(self, office_id: int, schema: OfficeUpdate) -> OfficeShort | None: ...
     async def delete(self, office_id: int) -> bool: ...
 
 
 class HardwareServicePort(Protocol):
-    async def get(self, hardware_id: int) -> Any | None: ...
-    async def update(self, hardware_id: int, data: HardwareUpdate) -> Any: ...
+    async def get(self, hardware_id: int) -> HardwareFullResponse | None: ...
+    async def update(self, hardware_id: int, data: HardwareUpdate) -> HardwareFullResponse: ...
 
 
 class HardwareFileServicePort(Protocol):
@@ -116,10 +109,10 @@ class HardwareFileStreamingServicePort(Protocol):
 
 
 class SpecTemplateServicePort(Protocol):
-    async def list(self, hardware_type: Any | None = None) -> Sequence[Any]: ...
-    async def get(self, template_id: int) -> Any | None: ...
-    async def create(self, data: SpecTemplateCreate) -> Any: ...
-    async def update(self, template_id: int, data: SpecTemplateUpdate) -> Any | None: ...
+    async def list(self, hardware_type: HardwareType | None = None) -> Sequence[SpecTemplateResponse]: ...
+    async def get(self, template_id: int) -> SpecTemplateResponse | None: ...
+    async def create(self, data: SpecTemplateCreate) -> SpecTemplateResponse: ...
+    async def update(self, template_id: int, data: SpecTemplateUpdate) -> SpecTemplateResponse | None: ...
     async def delete(self, template_id: int) -> bool: ...
 
 

@@ -5,9 +5,12 @@ from types import SimpleNamespace
 import pytest
 
 from core.exceptions import SpecTemplateNotFoundError
-from models.hardware import HardwareType
 from modules.inventory.application import InventorySpecTemplateUseCases
-from schemas.spec_template import SpecTemplateCreate, SpecTemplateUpdate
+from modules.inventory.schemas.spec_template import (
+    SpecTemplateCreate,
+    SpecTemplateUpdate,
+)
+from modules.inventory.types import HardwareType
 
 
 class FakeSpecTemplateService:

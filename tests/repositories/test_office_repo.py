@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from sqlalchemy.dialects import postgresql
 
-from repositories.office_repo import OfficeRepository
+from modules.inventory.repositories.offices import OfficeRepository
 
 
 class FakeResult:

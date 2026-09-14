@@ -1,9 +1,8 @@
 from core.exceptions import HTTP403
-from models import User
-from schemas.user import UserOut
+from modules.identity.public import UserOut
 
 
-def can_change_other_su(current_user: User, target_user: UserOut) -> None:
+def can_change_other_su(current_user: UserOut, target_user: UserOut) -> None:
     """
     :param current_user: текущий пользователь
     :param target_user: пользователь, которого хотим изменить

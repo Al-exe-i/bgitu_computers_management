@@ -12,17 +12,22 @@ from core.exceptions import (
     UserNotFoundError,
     UserPermissionDeniedError,
 )
-from models.user import UserRole
+from modules.administration.public import AuditLogger
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
 from modules.identity.ports import (
-    AuditLogger,
     AuthServicePort,
     IdentityActor,
     StoredAvatarFile,
     UploadedAvatarFile,
     UserServicePort,
 )
-from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
+from modules.identity.roles import UserRole
+from modules.identity.schemas.user import (
+    ChangePasswordSchema,
+    UserCreate,
+    UserOut,
+    UserUpdate,
+)
 from utils.audit import changed_fields
 from utils.media_types import IMAGE_EXTENSIONS_BY_MEDIA_TYPE, normalize_media_type
 
@@ -50,8 +55,7 @@ class IdentityUserUseCases:
         self.auth_service = auth_service
 
     async def list_users(self) -> list[UserOut]:
-        users = await self.user_service.get_all()
-        return [UserOut.model_validate(user, from_attributes=True) for user in users]
+        return list(await self.user_service.get_all())
 
     async def create_user(
         self,

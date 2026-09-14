@@ -4,10 +4,10 @@ from fastapi import Depends
 
 from core.config import settings
 from core.redis_client import get_cache_redis
-from schemas.analytics import HardwareAnalyticsFilterOptions
-from schemas.office import OfficeShort
+from modules.identity.adapters.user_cache import UserCache
+from modules.inventory.schemas.analytics import HardwareAnalyticsFilterOptions
+from modules.inventory.schemas.office import OfficeShort
 from services.response_cache import RedisTypedCache
-from services.user_cache import UserCache
 
 
 def get_user_cache() -> UserCache:

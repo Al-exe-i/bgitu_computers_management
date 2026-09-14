@@ -1,13 +1,14 @@
 import asyncio
+from functools import partial
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import OfficeAlreadyExistsError
-from db.post_commit import run_post_commit_hooks
-from schemas.office import OfficeCreate, OfficeShort
-from services.office_service import OfficeService
+from db.post_commit import add_post_commit_hook, run_post_commit_hooks
+from modules.inventory.schemas.office import OfficeCreate, OfficeShort
+from modules.inventory.services.offices import OfficeService
 from services.response_cache import RedisTypedCache
 
 
@@ -81,9 +82,11 @@ def test_get_all_short_uses_cache_after_first_repo_read() -> None:
             ttl_seconds=300,
         )
         repo = FakeOfficeRepo()
-        service = OfficeService(repo, office_short_cache=cache)
+        service = OfficeService(repo, office_short_cache=cache, on_commit=partial(add_post_commit_hook, repo.db))
 
         first = await service.get_all_short()
+        assert await cache.get() is None
+        await run_post_commit_hooks(repo.db)
         second = await service.get_all_short()
 
         assert first == second
@@ -109,7 +112,7 @@ def test_create_office_invalidates_related_caches_after_commit() -> None:
             ttl_seconds=300,
         )
         repo = FakeOfficeRepo()
-        service = OfficeService(repo, office_cache, analytics_cache)
+        service = OfficeService(repo, office_cache, analytics_cache, on_commit=partial(add_post_commit_hook, repo.db))
 
         await service.create(OfficeCreate(id=1, address="Main building"))
 

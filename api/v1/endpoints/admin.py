@@ -8,8 +8,8 @@ from dependencies.administration import (
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.auth import admin_dep
 from dependencies.identity import identity_invite_use_cases_dep
-from schemas.audit_log import AuditLogListResponse
-from schemas.invite import (
+from modules.administration.schemas import AuditLogListResponse
+from modules.identity.schemas.invite import (
     InviteCreateBatch,
     InviteCreateOne,
     InviteCreateResult,

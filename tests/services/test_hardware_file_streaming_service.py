@@ -7,7 +7,7 @@ from core.exceptions import (
     HardwareFileBadRangeError,
     HardwareFileUnsupportedMediaError,
 )
-from services.hardware_file_streaming_service import HardwareFileStreamingService
+from modules.inventory.services.file_streaming import HardwareFileStreamingService
 from services.object_storage import ObjectStat
 
 

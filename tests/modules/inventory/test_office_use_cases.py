@@ -5,7 +5,7 @@ import pytest
 
 from core.exceptions import OfficeNotFoundError
 from modules.inventory.application import InventoryOfficeUseCases
-from schemas.office import OfficeCreate, OfficeUpdate
+from modules.inventory.schemas.office import OfficeCreate, OfficeUpdate
 
 
 class FakeOfficeService:

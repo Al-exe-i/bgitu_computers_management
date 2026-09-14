@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from models.user import UserRole
 from modules.identity.application import IdentityInviteUseCases
-from schemas.invite import (
+from modules.identity.roles import UserRole
+from modules.identity.schemas.invite import (
     InviteCreateBatch,
     InviteCreateOne,
     InviteCreateResult,

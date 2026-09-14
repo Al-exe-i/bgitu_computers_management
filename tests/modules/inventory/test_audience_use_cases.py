@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from modules.inventory.application import InventoryAudienceUseCases
 from modules.inventory.events import AudienceUpdatedEvent
-from schemas.audience import AudienceCreate, AudienceUpdate
+from modules.inventory.schemas.audience import AudienceCreate, AudienceUpdate
 
 
 class FakeAudienceService:

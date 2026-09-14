@@ -15,7 +15,8 @@ from management.users import (
     resolve_password,
     validate_password,
 )
-from models.user import User, UserRole
+from modules.identity.models.user import User
+from modules.identity.public import UserRole
 
 
 def test_build_parser_parses_create_superuser_command():

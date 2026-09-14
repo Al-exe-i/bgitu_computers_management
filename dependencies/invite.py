@@ -4,8 +4,8 @@ from fastapi import Depends
 
 from core.config import settings
 from db.session import session_dep
-from repositories.invite_repo import InviteRepository
-from services.invite_service import InviteService
+from modules.identity.repositories.invites import InviteRepository
+from modules.identity.services.invites import InviteService
 
 
 async def get_invite_service(db: session_dep) -> InviteService:

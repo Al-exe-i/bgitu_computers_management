@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from schemas.user import UserUpdate
+from modules.identity.schemas.user import UserUpdate
 
 
 @pytest.mark.parametrize(

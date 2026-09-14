@@ -3,26 +3,29 @@ from typing import Annotated
 from fastapi import Depends
 
 from db.session import session_dep
-from dependencies.cache import user_cache_dep
+from dependencies.user import user_service_dep
+from modules.inventory.adapters.directories import (
+    AudienceDirectoryReader,
+    OfficeDirectoryReader,
+)
+from modules.inventory.repositories.audiences import AudienceRepository
+from modules.inventory.repositories.offices import OfficeRepository
 from modules.notifications.application import RealtimeNotificationSubscriptionUseCases
-from repositories.audience_repo import AudienceRepository
-from repositories.notification_subscription_repo import (
+from modules.notifications.repositories.subscriptions import (
     NotificationSubscriptionRepository,
 )
-from repositories.office_repo import OfficeRepository
-from repositories.user_repo import UserRepository
-from services.notification_subscription_service import NotificationSubscriptionService
+from modules.notifications.services.subscriptions import NotificationSubscriptionService
 
 
 def get_notification_subscription_service(
     db: session_dep,
-    user_cache: user_cache_dep,
+    users: user_service_dep,
 ) -> NotificationSubscriptionService:
     return NotificationSubscriptionService(
         NotificationSubscriptionRepository(db),
-        UserRepository(db, user_cache),
-        AudienceRepository(db),
-        OfficeRepository(db),
+        users,
+        AudienceDirectoryReader(AudienceRepository(db)),
+        OfficeDirectoryReader(OfficeRepository(db)),
     )
 
 

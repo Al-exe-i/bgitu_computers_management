@@ -2,7 +2,12 @@ from fastapi import APIRouter
 
 from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.inventory import inventory_office_use_cases_dep
-from schemas.office import OfficeCreate, OfficeResponse, OfficeShort, OfficeUpdate
+from modules.inventory.schemas.office import (
+    OfficeCreate,
+    OfficeResponse,
+    OfficeShort,
+    OfficeUpdate,
+)
 
 router = APIRouter()
 

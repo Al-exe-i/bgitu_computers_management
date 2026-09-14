@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
-from modules.identity.ports import AuditLogger, InviteServicePort
-from schemas.invite import (
+from modules.administration.public import AuditLogger
+from modules.identity.ports import InviteServicePort
+from modules.identity.schemas.invite import (
     InviteCreateBatch,
     InviteCreateOne,
     InviteCreateResult,

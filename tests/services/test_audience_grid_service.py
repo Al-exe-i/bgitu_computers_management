@@ -4,9 +4,9 @@ from types import SimpleNamespace
 import pytest
 
 from core.exceptions import AudienceHardwareNotFoundError
-from models.hardware import HardwareType
-from schemas.hardware import HardwareGridItem
-from services.audience_grid_service import AudienceGridService
+from modules.inventory.schemas.hardware import HardwareGridItem
+from modules.inventory.services.grid import AudienceGridService
+from modules.inventory.types import HardwareType
 
 
 class FakeHardwareGrid:

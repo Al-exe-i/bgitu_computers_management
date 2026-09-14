@@ -2,14 +2,16 @@ import asyncio
 from types import SimpleNamespace
 from uuid import uuid4
 
-from schemas.notification import NotificationEventType, NotificationScopeType
-from services.realtime_notification_service import (
+from modules.notifications.public import (
     AuthSecurityNotification,
     HardwareStateNotification,
-    RealtimeNotificationDispatcher,
-    RealtimeNotificationRecipientService,
-    RealtimeNotificationRenderer,
 )
+from modules.notifications.schemas import NotificationEventType, NotificationScopeType
+from modules.notifications.services.delivery import RealtimeNotificationDispatcher
+from modules.notifications.services.recipients import (
+    RealtimeNotificationRecipientService,
+)
+from modules.notifications.services.renderer import RealtimeNotificationRenderer
 
 
 class FakeSubscriptionRepo:

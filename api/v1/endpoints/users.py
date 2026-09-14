@@ -16,7 +16,12 @@ from dependencies.audit_actor import (
 from dependencies.auth import admin_dep, user_dep
 from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_user_use_cases_dep
-from schemas.user import ChangePasswordSchema, UserCreate, UserOut, UserUpdate
+from modules.identity.schemas.user import (
+    ChangePasswordSchema,
+    UserCreate,
+    UserOut,
+    UserUpdate,
+)
 from utils.file_responses import secure_file_headers
 from utils.tokens import clear_auth_cookies
 

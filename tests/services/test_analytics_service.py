@@ -1,7 +1,10 @@
 import asyncio
+from functools import partial
+from types import SimpleNamespace
 
-from schemas.analytics import HardwareAnalyticsFilterOptions
-from services.analytics_service import HardwareAnalyticsService
+from db.post_commit import add_post_commit_hook, run_post_commit_hooks
+from modules.inventory.schemas.analytics import HardwareAnalyticsFilterOptions
+from modules.inventory.services.analytics import HardwareAnalyticsService
 from services.response_cache import RedisTypedCache
 
 
@@ -43,9 +46,12 @@ def test_filter_options_uses_cache_after_first_repo_read() -> None:
             ttl_seconds=300,
         )
         repo = FakeAnalyticsRepo()
-        service = HardwareAnalyticsService(repo, cache)
+        session = SimpleNamespace(info={})
+        service = HardwareAnalyticsService(repo, cache, on_commit=partial(add_post_commit_hook, session))
 
         first = await service.get_filter_options()
+        assert await cache.get() is None
+        await run_post_commit_hooks(session)
         second = await service.get_filter_options()
 
         assert first == second

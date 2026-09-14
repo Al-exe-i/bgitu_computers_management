@@ -15,8 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import get_password_hash
 from db.session import engine, session_factory
-from models.user import User, UserRole
-from repositories.user_session_repo import UserSessionRepository
+from modules.identity.models.user import User
+from modules.identity.public import UserRole
+from modules.identity.repositories.sessions import UserSessionRepository
 from utils.email import RU_EMAIL_ERROR, RuEmailStr
 
 _EMAIL_ADAPTER = TypeAdapter(RuEmailStr)

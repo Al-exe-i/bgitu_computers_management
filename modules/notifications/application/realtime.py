@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
-from modules.notifications.ports import AuditLogger, NotificationSubscriptionServicePort
-from schemas.notification import (
+from modules.administration.public import AuditLogger
+from modules.notifications.ports import NotificationSubscriptionServicePort
+from modules.notifications.schemas import (
     NotificationSubscriptionCreate,
     NotificationSubscriptionResponse,
 )

@@ -1,14 +1,16 @@
+from functools import partial
 from typing import Annotated
 
 from fastapi import Depends
 
+from db.post_commit import add_post_commit_hook
 from db.session import session_dep
 from dependencies.cache import (
     analytics_filter_options_cache_dep,
     office_short_list_cache_dep,
 )
-from repositories.office_repo import OfficeRepository
-from services.office_service import OfficeService
+from modules.inventory.repositories.offices import OfficeRepository
+from modules.inventory.services.offices import OfficeService
 
 
 def get_office_service(
@@ -21,6 +23,7 @@ def get_office_service(
         repo,
         office_short_cache,
         analytics_filter_options_cache,
+        on_commit=partial(add_post_commit_hook, db),
     )
     return service
 

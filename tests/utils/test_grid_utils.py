@@ -1,9 +1,9 @@
 import pytest
 
 from core.exceptions import AudienceGridValidationError
-from models.hardware import HardwareType
-from schemas.hardware import HardwareGridItem
-from utils.grid_utils import GridHelper
+from modules.inventory.schemas.hardware import HardwareGridItem
+from modules.inventory.services.grid_utils import GridHelper
+from modules.inventory.types import HardwareType
 
 
 def make_item(

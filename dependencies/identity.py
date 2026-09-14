@@ -2,6 +2,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from db.session import session_dep
+from db.transaction import SessionTransaction
 from dependencies.auth_service import auth_service_dep
 from dependencies.invite import invite_service_dep
 from dependencies.user import user_service_dep
@@ -13,6 +15,7 @@ from modules.identity.application import (
 
 
 def get_identity_auth_use_cases(
+    db: session_dep,
     auth_service: auth_service_dep,
     invite_service: invite_service_dep,
     user_service: user_service_dep,
@@ -21,6 +24,7 @@ def get_identity_auth_use_cases(
         auth_service=auth_service,
         invite_service=invite_service,
         user_service=user_service,
+        transaction=SessionTransaction(db),
     )
 
 

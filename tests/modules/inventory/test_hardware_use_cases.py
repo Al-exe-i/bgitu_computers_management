@@ -4,10 +4,10 @@ from types import SimpleNamespace
 import pytest
 
 from core.exceptions import HardwarePermissionDeniedError, UploadTooLargeError
-from models.user import UserRole
+from modules.identity.public import UserRole
 from modules.inventory.application import InventoryHardwareUseCases
 from modules.inventory.events import AudienceUpdatedEvent, HardwareStateChangedEvent
-from schemas.hardware import HardwareUpdate
+from modules.inventory.schemas.hardware import HardwareUpdate
 
 
 class FakeHardwareService:

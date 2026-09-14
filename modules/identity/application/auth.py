@@ -7,25 +7,29 @@ from core.exceptions import (
     InviteAssignedToAnotherEmailError,
     InviteUserAlreadyExistsError,
     RefreshTokenReuseDetectedError,
+    RefreshUserNotFoundError,
     UserAlreadyExistsError,
 )
-from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
-from modules.identity.ports import (
-    AuditLogger,
-    AuthServicePort,
-    InviteServicePort,
+from modules.administration.public import AuditLogger
+from modules.identity.contracts import (
     LogoutResult,
     RevokeSessionResult,
     TokenIssueResult,
+)
+from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
+from modules.identity.ports import (
+    AuthServicePort,
+    InviteServicePort,
+    Transaction,
     UserServicePort,
 )
-from schemas.invite import (
+from modules.identity.schemas.invite import (
     InvitePreviewResponse,
     RegisterByInviteRequest,
     RegisterByInviteResponse,
 )
-from schemas.user import UserCreate
-from schemas.user_session import UserSessionOut
+from modules.identity.schemas.user import UserCreate
+from modules.identity.schemas.user_session import UserSessionOut
 
 LOGIN_EVENT_NAME = "Выполнен вход в аккаунт"
 LOGOUT_ALL_EVENT_NAME = "Выполнен выход на всех устройствах"
@@ -35,12 +39,6 @@ LOGOUT_ALL_EVENT_NAME = "Выполнен выход на всех устрой�
 class IdentityTokenResult:
     tokens: TokenIssueResult
     events: list[IdentityEvent]
-
-
-@dataclass(slots=True, frozen=True)
-class IdentityLogoutState:
-    user_id: int | None
-    sid: str | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -68,10 +66,12 @@ class IdentityAuthUseCases:
         auth_service: AuthServicePort,
         invite_service: InviteServicePort,
         user_service: UserServicePort,
+        transaction: Transaction,
     ) -> None:
         self.auth_service = auth_service
         self.invite_service = invite_service
         self.user_service = user_service
+        self.transaction = transaction
 
     async def login(
         self,
@@ -131,6 +131,11 @@ class IdentityAuthUseCases:
                 payload={"sid": exc.sid},
                 user_id=exc.user_id,
             )
+            # The denial must not roll back the security response and its audit.
+            await self.transaction.commit()
+            raise
+        except RefreshUserNotFoundError:
+            await self.transaction.commit()
             raise
 
         await audit.log(
@@ -186,7 +191,7 @@ class IdentityAuthUseCases:
         )
 
         return IdentityLogoutResult(
-            logout=IdentityLogoutState(user_id=user_id, sid=None),
+            logout=LogoutResult(user_id=user_id, sid=None),
             events=[
                 AuthSecurityNotificationEvent(
                     user_id=user_id,

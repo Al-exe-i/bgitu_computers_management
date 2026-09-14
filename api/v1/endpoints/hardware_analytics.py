@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from dependencies.auth import admin_dep
 from dependencies.inventory import inventory_analytics_queries_dep
-from schemas.analytics import (
+from modules.inventory.schemas.analytics import (
     HardwareAnalyticsFilterOptions,
     HardwareAnalyticsFilters,
     HardwareAnalyticsResponse,

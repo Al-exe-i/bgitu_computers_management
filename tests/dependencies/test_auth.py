@@ -12,8 +12,7 @@ from dependencies.auth import (
     get_current_superuser,
     get_current_user,
 )
-from models.user import UserRole
-from schemas.user import UserOut
+from modules.identity.public import UserRole
 from utils.tokens import issue_access_token
 
 
@@ -21,12 +20,12 @@ class DummyUserService:
     def __init__(self, users: dict[int, object]) -> None:
         self.users = users
 
-    async def get(self, user_id: int):
+    async def get_for_authentication(self, user_id: int):
         return self.users.get(user_id)
 
 
-def make_user(*, user_id: int, role: UserRole = UserRole.admin, is_superuser: bool = False) -> UserOut:
-    return UserOut(
+def make_user(*, user_id: int, role: UserRole = UserRole.admin, is_superuser: bool = False):
+    return SimpleNamespace(
         id=user_id,
         email=f"user{user_id}@example.com",
         name="Alex",
@@ -35,6 +34,7 @@ def make_user(*, user_id: int, role: UserRole = UserRole.admin, is_superuser: bo
         role=role,
         reg_date=datetime(2026, 4, 21, tzinfo=UTC),
         is_superuser=is_superuser,
+        access_token_version=0,
     )
 
 

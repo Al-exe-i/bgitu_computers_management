@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import Depends
 
 from db.session import session_dep
-from repositories.user_session_repo import UserSessionRepository
-from services.user_session_service import UserSessionService
+from modules.identity.repositories.sessions import UserSessionRepository
+from modules.identity.services.sessions import UserSessionService
 
 
 def get_user_session_service(db: session_dep):

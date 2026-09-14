@@ -5,16 +5,17 @@ from fastapi import Depends
 from db.session import session_dep
 from dependencies.realtime import realtime_dep
 from modules.identity.adapters.fastapi_events import IdentityEventDispatcher
+from modules.inventory.adapters.directories import AudienceDirectoryReader
 from modules.inventory.adapters.fastapi_events import InventoryEventDispatcher
-from repositories.audience_repo import AudienceRepository
-from repositories.notification_subscription_repo import (
+from modules.inventory.repositories.audiences import AudienceRepository
+from modules.notifications.repositories.subscriptions import (
     NotificationSubscriptionRepository,
 )
-from services.realtime_notification_service import (
-    RealtimeNotificationDispatcher,
+from modules.notifications.services.delivery import RealtimeNotificationDispatcher
+from modules.notifications.services.recipients import (
     RealtimeNotificationRecipientService,
-    RealtimeNotificationRenderer,
 )
+from modules.notifications.services.renderer import RealtimeNotificationRenderer
 
 
 def get_realtime_notification_dispatcher(
@@ -24,7 +25,7 @@ def get_realtime_notification_dispatcher(
     return RealtimeNotificationDispatcher(
         recipients=RealtimeNotificationRecipientService(
             NotificationSubscriptionRepository(session),
-            AudienceRepository(session),
+            AudienceDirectoryReader(AudienceRepository(session)),
         ),
         renderer=RealtimeNotificationRenderer(),
         publisher=realtime,

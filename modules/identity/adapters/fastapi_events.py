@@ -4,17 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.post_commit import add_post_commit_hook
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
-from services.realtime_notification_service import (
-    AuthSecurityNotification,
-    RealtimeNotificationDispatcher,
-)
+from modules.notifications.public import AuthSecurityNotification, NotificationDelivery
 
 
 class IdentityEventDispatcher:
     def __init__(
         self,
         session: AsyncSession,
-        notifications: RealtimeNotificationDispatcher,
+        notifications: NotificationDelivery,
     ) -> None:
         self.session = session
         self.notifications = notifications

@@ -1,17 +1,19 @@
+from functools import partial
 from typing import Annotated
 
 from fastapi import Depends
 
+from db.post_commit import add_post_commit_hook
 from db.session import session_dep
 from dependencies.cache import (
     analytics_filter_options_cache_dep,
     office_short_list_cache_dep,
 )
-from repositories.audience_repo import AudienceRepository
-from repositories.hardware_repo import HardwareRepository
-from services.audience_grid_service import AudienceGridService
-from services.audience_service import AudienceService
-from services.hardware_service import HardwareService
+from modules.inventory.repositories.audiences import AudienceRepository
+from modules.inventory.repositories.hardware import HardwareRepository
+from modules.inventory.services.audiences import AudienceService
+from modules.inventory.services.grid import AudienceGridService
+from modules.inventory.services.hardware import HardwareService
 
 
 async def get_audiences_service(
@@ -28,6 +30,7 @@ async def get_audiences_service(
         grid_service,
         office_short_cache,
         analytics_filter_options_cache,
+        on_commit=partial(add_post_commit_hook, db),
     )
     return service
 

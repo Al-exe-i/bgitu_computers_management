@@ -4,9 +4,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.exceptions import InvalidCredentialsError
+from core.exceptions import (
+    InvalidCredentialsError,
+    RefreshSessionNotFoundError,
+    RefreshTokenMissingError,
+)
 from core.security import get_password_hash, verify_access_token
-from services.auth_service import AuthService
+from modules.identity.services.auth import AuthService
 from utils.tokens import hash_refresh_token
 
 
@@ -52,6 +56,9 @@ class FakeSessionService:
     async def get_active_by_refresh_token(self, refresh_token: str):
         if refresh_token == "refresh-token":
             return self.active_session
+        return None
+
+    async def get_active_by_used_refresh_token(self, refresh_token: str):
         return None
 
     async def get_current_sid(self, refresh_token: str | None):
@@ -119,6 +126,19 @@ def test_login_rejects_invalid_password() -> None:
                 email="user@example.com",
                 password="wrong-password",
             )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("token, error", [(None, RefreshTokenMissingError), ("unknown", RefreshSessionNotFoundError)])
+def test_unknown_refresh_does_not_revoke_any_session(token, error):
+    async def scenario():
+        users = FakeUserService([])
+        sessions = FakeSessionService()
+        with pytest.raises(error):
+            await AuthService(users, sessions).refresh(refresh_token=token)
+        assert sessions.revoked_sids == []
+        assert users.bumped_user_ids == []
 
     asyncio.run(scenario())
 

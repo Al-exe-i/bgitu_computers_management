@@ -4,10 +4,8 @@ from types import SimpleNamespace
 from db.post_commit import run_post_commit_hooks
 from modules.inventory.adapters.fastapi_events import InventoryEventDispatcher
 from modules.inventory.events import AudienceUpdatedEvent, HardwareStateChangedEvent
-from services.realtime_notification_service import (
-    AudienceChangedNotification,
-    HardwareStateNotification,
-)
+from modules.notifications.public import AudienceChangedNotification
+from modules.notifications.public import HardwareStateNotification
 
 
 class FakeSession:

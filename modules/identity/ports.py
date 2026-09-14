@@ -1,32 +1,33 @@
 from collections.abc import Iterator, Sequence
-from typing import Any, Protocol
+from typing import Protocol
 
-from schemas.invite import (
+from modules.identity.contracts import (
+    InviteRegistrationData,
+    LogoutResult,
+    RevokeSessionResult,
+    TokenIssueResult,
+    UserCredentials,
+    UserPhotoUpdateResult,
+)
+from modules.identity.roles import UserRole
+from modules.identity.schemas.invite import (
     InviteCreateBatch,
     InviteCreateOne,
     InviteCreateResult,
     InviteListItem,
     InvitePreviewResponse,
 )
-from schemas.user import UserCreate, UserOut, UserUpdate
-from schemas.user_session import UserSessionOut
+from modules.identity.schemas.user import UserCreate, UserOut, UserUpdate
+from modules.identity.schemas.user_session import UserSessionOut
 
 
-class AuditLogger(Protocol):
-    async def log(
-        self,
-        *,
-        action: str,
-        entity_type: str,
-        entity_id: int | None = None,
-        payload: dict | None = None,
-        user_id: int | None = None,
-    ) -> Any: ...
+class Transaction(Protocol):
+    async def commit(self) -> None: ...
 
 
 class IdentityActor(Protocol):
     id: int
-    role: Any
+    role: UserRole
     is_superuser: bool
     photo: str | None
 
@@ -44,34 +45,6 @@ class StoredAvatarFile(Protocol):
     filename: str
 
     def iter_file(self) -> Iterator[bytes]: ...
-
-
-class UserPhotoUpdateResult(Protocol):
-    user: UserOut
-    had_photo: bool
-
-
-class TokenIssueResult(Protocol):
-    user_id: int
-    user_email: str | None
-    sid: str
-    access_token: str
-    refresh_token: str
-
-
-class LogoutResult(Protocol):
-    user_id: int | None
-    sid: str | None
-
-
-class RevokeSessionResult(Protocol):
-    revoked_current_session: bool
-
-
-class InviteRegistrationData(Protocol):
-    id: int
-    target_email: str | None
-    target_role: Any
 
 
 class AuthServicePort(Protocol):
@@ -120,9 +93,9 @@ class AuthServicePort(Protocol):
 
 
 class UserServicePort(Protocol):
-    async def get_all(self) -> Sequence[Any]: ...
-    async def get(self, user_id: int) -> Any | None: ...
-    async def get_by_email(self, email: str) -> Any | None: ...
+    async def get_all(self) -> Sequence[UserOut]: ...
+    async def get(self, user_id: int) -> UserOut | None: ...
+    async def get_by_email(self, email: str) -> UserCredentials | None: ...
     async def get_access_token_version(self, user_id: int) -> int | None: ...
     async def update(self, user_id: int, data: UserUpdate) -> UserOut | None: ...
     async def verify_password(self, user_id: int, password: str) -> bool: ...

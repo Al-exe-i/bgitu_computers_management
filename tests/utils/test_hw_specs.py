@@ -1,9 +1,9 @@
 import pytest
 from pydantic import ValidationError
 
-from models.hardware import HardwareType
-from schemas.specifications import MAX_INSTALLED_SOFTWARE_ITEMS
-from utils.hw_specs import validate_specs
+from modules.inventory.schemas.specifications import MAX_INSTALLED_SOFTWARE_ITEMS
+from modules.inventory.services.hw_specs import validate_specs
+from modules.inventory.types import HardwareType
 
 
 def test_computer_software_inventory_is_normalized() -> None:

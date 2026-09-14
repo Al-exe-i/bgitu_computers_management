@@ -1,21 +1,13 @@
-from typing import Any, Protocol
+from typing import Protocol
 
-from schemas.notification import (
+from modules.notifications.schemas import (
     NotificationSubscriptionCreate,
     NotificationSubscriptionResponse,
 )
 
 
-class AuditLogger(Protocol):
-    async def log(
-        self,
-        *,
-        action: str,
-        entity_type: str,
-        entity_id: int | None = None,
-        payload: dict | None = None,
-        user_id: int | None = None,
-    ) -> Any: ...
+class RealtimeNotificationPublisher(Protocol):
+    async def publish_notification(self, *, user_id: int, payload: dict) -> None: ...
 
 
 class NotificationSubscriptionServicePort(Protocol):

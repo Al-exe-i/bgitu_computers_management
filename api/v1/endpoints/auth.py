@@ -9,13 +9,13 @@ from api.v1.application_events import dispatch_result_events
 from dependencies.audit_actor import audit_ctx_dep, user_audit_actor_dep
 from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_auth_use_cases_dep
-from schemas.invite import (
+from modules.identity.schemas.invite import (
     InvitePreviewRequest,
     InvitePreviewResponse,
     RegisterByInviteRequest,
     RegisterByInviteResponse,
 )
-from schemas.user_session import UserSessionOut
+from modules.identity.schemas.user_session import UserSessionOut
 from utils.tokens import build_token_response, clear_auth_cookies
 
 router = APIRouter()

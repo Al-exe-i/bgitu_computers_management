@@ -1,11 +1,12 @@
 from core.exceptions import SpecTemplateNotFoundError
-from models.hardware import HardwareType
-from modules.inventory.ports import AuditLogger, SpecTemplateServicePort
-from schemas.spec_template import (
+from modules.administration.public import AuditLogger
+from modules.inventory.ports import SpecTemplateServicePort
+from modules.inventory.schemas.spec_template import (
     SpecTemplateCreate,
     SpecTemplateResponse,
     SpecTemplateUpdate,
 )
+from modules.inventory.types import HardwareType
 from utils.audit import changed_fields
 
 
@@ -80,6 +81,6 @@ class InventorySpecTemplateUseCases:
             entity_id=template_id,
             payload={
                 "name": template.name,
-                "hardware_type": str(template.hardware_type),
+                "hardware_type": HardwareType(template.hardware_type).value,
             },
         )

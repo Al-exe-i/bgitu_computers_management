@@ -1,5 +1,5 @@
-# Импортируем все модели, чтобы Alembic их видел
-from models.base import Base
+"""Complete ORM registry for application startup and Alembic."""
+import models  # noqa: F401 -- register every mapped table on the shared metadata
+from db.orm import Base
 
-# Эта строка нужна, чтобы не удалили импорт при форматировании
 __all__ = ["Base"]

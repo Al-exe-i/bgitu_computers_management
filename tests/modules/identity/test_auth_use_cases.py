@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -8,13 +9,12 @@ from core.exceptions import (
     InviteUserAlreadyExistsError,
     RefreshTokenReuseDetectedError,
 )
-from models.user import UserRole
 from modules.identity.application import IdentityAuthUseCases
 from modules.identity.application.auth import LOGIN_EVENT_NAME, LOGOUT_ALL_EVENT_NAME
+from modules.identity.contracts import InviteRegistrationData, TokenIssueResult
 from modules.identity.events import AuthSecurityNotificationEvent
-from schemas.invite import RegisterByInviteRequest
-from services.auth_service import TokenIssueResult
-from services.invite_service import InviteRegistrationData
+from modules.identity.roles import UserRole
+from modules.identity.schemas.invite import RegisterByInviteRequest
 
 
 class FakeAuthService:
@@ -100,6 +100,7 @@ def make_use_cases(auth_service=None, invite_service=None, user_service=None) ->
         auth_service=auth_service or FakeAuthService(),
         invite_service=invite_service,
         user_service=user_service,
+        transaction=AsyncMock(),
     )
 
 
@@ -150,6 +151,8 @@ def test_refresh_reuse_writes_audit_before_reraising() -> None:
                 user_agent="pytest",
                 audit=audit,
             )
+
+        use_cases.transaction.commit.assert_awaited_once()
 
         assert audit.logs == [
             {

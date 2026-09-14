@@ -1,13 +1,14 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from dependencies.invite import get_invite_service
 from dependencies.user import get_user_service
 from main import app
-from models.user import UserRole
-from schemas.invite import InviteListItem
-from schemas.user import UserOut
+from modules.identity.public import UserRole
+from modules.identity.schemas.invite import InviteListItem
+from modules.identity.schemas.user import UserOut
 from utils.tokens import issue_access_token
 
 
@@ -35,6 +36,10 @@ class DummyUserService:
 
     async def get(self, user_id: int) -> UserOut | None:
         return self.users.get(user_id)
+
+    async def get_for_authentication(self, user_id: int):
+        user = self.users.get(user_id)
+        return SimpleNamespace(**user.model_dump(), access_token_version=0) if user else None
 
 
 class DummyInviteService:

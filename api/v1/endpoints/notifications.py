@@ -2,7 +2,7 @@ from fastapi import APIRouter, status
 
 from dependencies.audit_actor import user_audit_actor_dep
 from dependencies.notifications import realtime_notification_subscription_use_cases_dep
-from schemas.notification import (
+from modules.notifications.schemas import (
     NotificationSubscriptionCreate,
     NotificationSubscriptionResponse,
 )

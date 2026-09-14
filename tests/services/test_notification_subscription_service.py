@@ -9,12 +9,12 @@ from core.exceptions import (
     NotificationScopeNotFoundError,
     NotificationSubscriptionAlreadyExistsError,
 )
-from schemas.notification import (
+from modules.notifications.schemas import (
     NotificationEventType,
     NotificationScopeType,
     NotificationSubscriptionCreate,
 )
-from services.notification_subscription_service import NotificationSubscriptionService
+from modules.notifications.services.subscriptions import NotificationSubscriptionService
 
 
 class FakeNotificationSubscriptionRepo:
@@ -53,12 +53,12 @@ class FakeNotificationSubscriptionRepo:
         self.rows.pop(subscription.id, None)
 
 
-class FakeUserRepo:
+class FakeUserDirectory:
     def __init__(self, users: dict[int, SimpleNamespace]) -> None:
         self.users = users
 
-    async def get(self, user_id: int):
-        return self.users.get(user_id)
+    async def exists(self, user_id: int) -> bool:
+        return user_id in self.users
 
 
 class FakeAudienceRepo:
@@ -84,7 +84,7 @@ class FakeOfficeRepo:
 def make_service(*, users: dict[int, SimpleNamespace], audience_ids: set[int], office_ids: set[int]):
     return NotificationSubscriptionService(
         FakeNotificationSubscriptionRepo(),
-        FakeUserRepo(users),
+        FakeUserDirectory(users),
         FakeAudienceRepo(audience_ids),
         FakeOfficeRepo(office_ids),
     )

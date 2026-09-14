@@ -7,9 +7,9 @@ from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import UserAlreadyExistsError
 from core.security import verify_password
-from models.user import UserRole
-from schemas.user import UserCreate, UserOut
-from services.user_service import UserService
+from modules.identity.public import UserRole
+from modules.identity.schemas.user import UserCreate, UserOut
+from modules.identity.services.users import UserService
 
 
 class FakeUserRepo:

@@ -1,9 +1,11 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 from typing import Any, Protocol
+
+from modules.administration.schemas import AuditLogItem
 
 
 class AuditLogReaderPort(Protocol):
-    async def list(self, **kwargs: Any) -> tuple[Sequence[Any], int]: ...
+    async def list(self, **kwargs: Any) -> tuple[list[AuditLogItem], int]: ...
 
 
 class ProtectedObjectStoragePort(Protocol):

@@ -3,7 +3,7 @@ import asyncio
 from db.post_commit import run_post_commit_hooks
 from modules.identity.adapters.fastapi_events import IdentityEventDispatcher
 from modules.identity.events import AuthSecurityNotificationEvent
-from services.realtime_notification_service import AuthSecurityNotification
+from modules.notifications.public import AuthSecurityNotification
 
 
 class FakeSession:

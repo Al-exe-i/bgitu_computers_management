@@ -1,6 +1,4 @@
 import mimetypes
-from collections.abc import Iterator
-from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from loguru import logger
@@ -9,15 +7,9 @@ from core.exceptions import (
     ProtectedFileAccessDeniedError,
     ProtectedFileNotFoundError,
 )
+from modules.administration.contracts import ProtectedFile
 from modules.administration.ports import AuditLogReaderPort, ProtectedObjectStoragePort
-from schemas.audit_log import AuditLogItem, AuditLogListResponse
-
-
-@dataclass(slots=True, frozen=True)
-class ProtectedFile:
-    content: Iterator[bytes]
-    filename: str
-    media_type: str
+from modules.administration.schemas import AuditLogItem, AuditLogListResponse
 
 
 class AdministrationProtectedFileQueries:

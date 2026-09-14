@@ -17,8 +17,8 @@ from management.users import (
     create_admin_user,
     get_user_by_email,
 )
-from models.office import Office
-from models.user import User
+from modules.inventory.models.office import Office
+from modules.identity.models.user import User
 
 _BOOTSTRAP_ADVISORY_LOCK_ID = 4_244_748_214_403_238_731
 
