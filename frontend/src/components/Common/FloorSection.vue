@@ -1,7 +1,6 @@
 <script>
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
-import {useAuthStore} from "@/stores/auth.js";
 
 export default {
   name: "floorSection",
@@ -77,11 +76,6 @@ export default {
       return useAudienceContext()
     },
 
-    isAuthenticated()
-    {
-      return useAuthStore().isAuthenticated
-    },
-
     isCompactMode() {
       return this.displayMode === "compact";
     }
@@ -118,7 +112,7 @@ export default {
 
             <div class="classroom-row-copy">
               <div class="classroom-row-title">Аудитория {{ getAudienceNumber(audience) }}</div>
-              <div class="classroom-row-meta" v-if="isAuthenticated">
+              <div class="classroom-row-meta">
                 <span class="classroom-quick-stat">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="4" width="18" height="5" rx="1.5"></rect>
@@ -144,7 +138,7 @@ export default {
 
           <template v-else>
             <div class="classroom-number">{{ getAudienceNumber(audience) }}</div>
-            <div class="classroom-info" v-if="isAuthenticated">
+            <div class="classroom-info">
               <div class="info-item">
                 <div class="info-label">Оборудование</div>
                 <div class="info-value computers-count">{{ audience.totalHardware }}</div>

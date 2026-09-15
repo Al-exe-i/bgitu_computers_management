@@ -294,7 +294,7 @@ export default {
 
   <div class="building-container">
     <div v-if="!loading" class="building-info" :class="{ 'is-dark': themeStore.isDark }">
-      <div class="building-hero" :class="{ 'is-public': !authStore.isAuthenticated }">
+      <div class="building-hero">
         <div class="building-identity">
           <div class="building-symbol" aria-hidden="true">
             <div class="building-symbol-backdrop"></div>
@@ -333,7 +333,6 @@ export default {
         </div>
 
         <div
-          v-if="authStore.isAuthenticated"
           class="building-spotlight"
           :class="{
             'is-alert': brokenHardware > 0,
@@ -376,7 +375,7 @@ export default {
         </div>
       </div>
 
-      <div v-if="this.authStore.isAuthenticated" class="building-stats">
+      <div class="building-stats">
         <div class="building-stat">
           <span class="building-stat-icon" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><path fill="currentColor" d="M1664 0v2048H384V0zm-128 128H512v1792h1024zm-192 1024q-26 0-45-19t-19-45t19-45t45-19t45 19t19 45t-19 45t-45 19"/></svg>
@@ -518,11 +517,11 @@ export default {
       </div>
 
       <div class="view-mode-switch" :class="{ 'is-dark': themeStore.isDark }">
-        <button class="mode-btn" :class="{ active: audienceViewMode === 'cards' }" @click="setAudienceViewMode('cards')">
+        <button class="mode-btn" aria-label="Карточки" title="Карточки" :aria-pressed="audienceViewMode === 'cards'" :class="{ active: audienceViewMode === 'cards' }" @click="setAudienceViewMode('cards')">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><title>Card SVG Icon</title><path fill="currentColor" d="M17.999 17c1.103 0 2-.897 2-2V5c0-1.103-.897-2-2-2h-12c-1.103 0-2 .897-2 2v10c0 1.103.897 2 2 2zm-12-12h12l.002 10H5.999zm-2 14h16v2h-16z"/></svg>
-          Карточки
+          <span class="mode-label">Карточки</span>
         </button>
-        <button class="mode-btn" :class="{ active: audienceViewMode === 'compact' }" @click="setAudienceViewMode('compact')">
+        <button class="mode-btn" aria-label="Список" title="Список" :aria-pressed="audienceViewMode === 'compact'" :class="{ active: audienceViewMode === 'compact' }" @click="setAudienceViewMode('compact')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 7h12"></path>
             <path d="M8 12h12"></path>
@@ -531,7 +530,7 @@ export default {
             <circle cx="4" cy="12" r="1"></circle>
             <circle cx="4" cy="17" r="1"></circle>
           </svg>
-          Список
+          <span class="mode-label">Список</span>
         </button>
       </div>
     </div>
@@ -632,10 +631,6 @@ body {
   gap: 0;
   align-items: stretch;
   margin: 0;
-}
-
-.building-hero.is-public {
-  grid-template-columns: 1fr;
 }
 
 .building-identity {
@@ -808,8 +803,7 @@ body {
   padding: 30px 28px;
   border-radius: 0;
   border: 0;
-  border-left: 1px solid var(--building-border);
-  background: var(--building-panel);
+  background: transparent;
   color: var(--building-text);
   box-shadow: none;
   animation: officeSpotlightReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
@@ -1090,7 +1084,7 @@ body {
 }
 
 .building-info.is-dark .building-spotlight {
-  background: var(--building-panel);
+  background: transparent;
   border-color: var(--building-border);
   color: var(--building-text);
   box-shadow: none;
@@ -1133,9 +1127,9 @@ body {
   padding: 25px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   border: 2px solid #dbeafe;
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 12px;
   align-items: center;
   animation: officePanelReveal 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
   position: relative;
@@ -1144,7 +1138,7 @@ body {
 
 .search-box {
   flex: 1;
-  min-width: 250px;
+  min-width: 0;
   position: relative;
 }
 
@@ -1182,7 +1176,7 @@ body {
 .filter-buttons {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .status-filter-mobile {
@@ -1626,6 +1620,45 @@ body {
   }
 }
 
+@media (max-width: 1100px) {
+  .controls-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 0.8fr) auto;
+  }
+
+  .filter-buttons {
+    display: none;
+  }
+
+  .status-filter-mobile {
+    display: block;
+    min-width: 0;
+  }
+
+  .status-filter-trigger-kicker,
+  .mode-label {
+    display: none;
+  }
+
+  .mode-btn {
+    justify-content: center;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .controls-panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .controls-panel .search-box {
+    grid-column: 1 / -1;
+  }
+
+  .controls-panel .status-filter-trigger-mark {
+    display: none;
+  }
+}
+
 @media (max-width: 880px) {
   .building-hero {
     grid-template-columns: 1fr;
@@ -1637,7 +1670,7 @@ body {
 
   .building-spotlight {
     border-left: 0;
-    border-top: 1px solid var(--building-border);
+    border-top: 0;
   }
 }
 
@@ -1687,11 +1720,6 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .controls-panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .search-box {
     width: 100%;
   }
@@ -1706,7 +1734,7 @@ body {
   }
 
   .view-mode-switch {
-    width: 100%;
+    width: auto;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
@@ -1891,7 +1919,8 @@ body {
   }
 
   .mode-btn {
-    min-height: 34px;
+    min-height: 40px;
+    min-width: 36px;
     padding: 6px 8px;
     justify-content: center;
     font-size: 12px;
@@ -1899,7 +1928,7 @@ body {
   }
 
   .mode-btn svg {
-    display: none;
+    display: block;
   }
 
   .add-classroom-btn-compact {
