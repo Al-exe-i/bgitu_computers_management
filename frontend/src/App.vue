@@ -18,6 +18,9 @@ export default {
       notificationEventSource: null,
       notificationReconnectTimer: null,
       notificationReconnectAttempts: 0,
+      notificationRecovering: false,
+      notificationGeneration: 0,
+      notificationLifecycleActive: true,
     }
   },
   computed: {
@@ -56,7 +59,9 @@ export default {
     },
 
     openNotificationStream() {
-      if (this.notificationEventSource || !this.authStore.isAuthenticated) {
+      if (this.notificationEventSource || !this.authStore.isAuthenticated
+          || this.notificationRecovering || !this.notificationLifecycleActive
+          || this.authStore.isLoggingOut) {
         return;
       }
 
@@ -69,10 +74,12 @@ export default {
       this.notificationEventSource = source;
 
       source.addEventListener('open', () => {
+        if (source !== this.notificationEventSource) return;
         this.notificationReconnectAttempts = 0;
       });
 
       source.addEventListener('notification', (event) => {
+        if (source !== this.notificationEventSource) return;
         try {
           const data = JSON.parse(event.data);
           const notification = data.notification || data;
@@ -83,13 +90,49 @@ export default {
       });
 
       source.addEventListener('error', () => {
+        if (source !== this.notificationEventSource) return;
         this.closeNotificationStream({ keepReconnectTimer: true });
+        this.scheduleNotificationReconnect();
+      });
+
+      source.addEventListener('auth_required', () => {
+        if (source === this.notificationEventSource) this.recoverNotificationStream();
+      });
+
+      source.addEventListener('stream_unavailable', () => {
+        if (source !== this.notificationEventSource) return;
+        this.closeNotificationStream();
         this.scheduleNotificationReconnect();
       });
     },
 
+    async recoverNotificationStream() {
+      if (this.notificationRecovering || !this.notificationLifecycleActive
+          || !this.authStore.isAuthenticated || this.authStore.isLoggingOut) return;
+      this.closeNotificationStream();
+      const generation = this.notificationGeneration;
+      this.notificationRecovering = true;
+      let recovered = false;
+      try {
+        await this.authStore.refreshToken();
+        recovered = true;
+      } catch (error) {
+        // The auth store handles confirmed denial; transport failures are retried.
+      } finally {
+        this.notificationRecovering = false;
+      }
+      if (!this.notificationLifecycleActive || !this.authStore.isAuthenticated) return;
+      if (generation !== this.notificationGeneration) {
+        this.syncNotificationStream();
+        return;
+      }
+      if (recovered) this.openNotificationStream();
+      else this.scheduleNotificationReconnect();
+    },
+
     scheduleNotificationReconnect() {
-      if (!this.authStore.isAuthenticated || this.notificationReconnectTimer) {
+      if (!this.authStore.isAuthenticated || !this.notificationLifecycleActive
+          || this.notificationReconnectTimer) {
         return;
       }
 
@@ -97,11 +140,12 @@ export default {
       this.notificationReconnectAttempts += 1;
       this.notificationReconnectTimer = window.setTimeout(() => {
         this.notificationReconnectTimer = null;
-        this.openNotificationStream();
+        this.recoverNotificationStream();
       }, delay);
     },
 
     closeNotificationStream({ keepReconnectTimer = false } = {}) {
+      this.notificationGeneration += 1;
       if (this.notificationEventSource) {
         this.notificationEventSource.close();
         this.notificationEventSource = null;
@@ -114,10 +158,28 @@ export default {
     },
 
     handlePageLifecycleEnd() {
+      this.notificationLifecycleActive = false;
       this.closeNotificationStream();
+    },
+
+    handlePageLifecycleStart() {
+      this.notificationLifecycleActive = true;
+      this.syncNotificationStream();
     }
   },
   watch: {
+    'authStore.isLoggingOut'(loggingOut) {
+      if (loggingOut) this.closeNotificationStream();
+    },
+    'authStore.user': {
+      handler(user, previous) {
+        if (user?.id === previous?.id) return;
+        this.notificationsStore.clearRealtimeHistory();
+        this.notificationsStore.clearAll();
+        this.closeNotificationStream();
+        this.syncNotificationStream();
+      }
+    },
     '$route.query.login': {
       immediate: true,
       handler() {
@@ -134,10 +196,12 @@ export default {
   },
   mounted() {
     window.addEventListener('pagehide', this.handlePageLifecycleEnd);
+    window.addEventListener('pageshow', this.handlePageLifecycleStart);
   },
   beforeUnmount() {
     window.removeEventListener('pagehide', this.handlePageLifecycleEnd);
-    this.closeNotificationStream();
+    window.removeEventListener('pageshow', this.handlePageLifecycleStart);
+    this.handlePageLifecycleEnd();
   }
 }
 </script>

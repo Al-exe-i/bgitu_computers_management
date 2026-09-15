@@ -27,7 +27,7 @@ api.interceptors.response.use(
         }
 
         // защита от бесконечного retry одного и того же запроса
-        if (originalRequest._retry) {
+        if (!originalRequest || originalRequest._retry) {
             return Promise.reject(error);
         }
         originalRequest._retry = true;
@@ -46,7 +46,7 @@ api.interceptors.response.use(
             // повторяем исходный запрос
             return api(originalRequest);
         } catch (refreshError) {
-            await authStore.logout();
+            // A timeout/5xx must not revoke a healthy session shared with other tabs.
             return Promise.reject(refreshError);
         }
     }
