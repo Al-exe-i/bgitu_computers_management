@@ -142,6 +142,15 @@ def test_old_inventory_implementations_are_removed():
     assert not [path for path in obsolete if (PROJECT_ROOT / path).exists()]
 
 
+def test_cli_entry_points_do_not_access_models_or_services_directly():
+    assert_no_imports(
+        [PROJECT_ROOT / "management/users.py", PROJECT_ROOT / "management/bootstrap.py"],
+        ("sqlalchemy", "models", "repositories", "services",
+         "modules.identity.models", "modules.identity.repositories", "modules.identity.services",
+         "modules.inventory.models", "modules.inventory.repositories", "modules.inventory.services"),
+    )
+
+
 def test_old_identity_implementations_are_removed() -> None:
     obsolete = (
         "services/auth_service.py", "services/user_service.py", "services/user_cache.py",

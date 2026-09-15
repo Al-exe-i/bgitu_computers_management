@@ -1,11 +1,13 @@
-"""Read-only contracts exposed to other business modules."""
+"""Directory and initial-data contracts exposed to other business modules."""
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
+from modules.inventory.bootstrap_contracts import InitialOffice, OfficeProvisioner
 from modules.inventory.types import HardwareType
 
 __all__ = ["AudienceContext", "AudienceDirectory", "HardwareType", "OfficeContext", "OfficeDirectory"]
+__all__ += ["InitialOffice", "OfficeProvisioner"]
 
 
 @dataclass(frozen=True, slots=True)

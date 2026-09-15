@@ -1,9 +1,11 @@
 from collections.abc import Sequence
 
 from sqlalchemy import func, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from core.exceptions.management import ManagementUserError
 from modules.identity.contracts import UserSummary
 from modules.identity.models.user import User
 from modules.identity.schemas.user import UserUpdate
@@ -53,6 +55,35 @@ class UserRepository:
     async def get_all(self) -> Sequence[User]:
         result = await self.db.execute(select(User).order_by(User.id))
         return result.scalars().all()
+
+    async def get_first_superuser(self) -> User | None:
+        return await self.db.scalar(
+            select(User).where(User.is_superuser.is_(True)).order_by(User.id).limit(1)
+        )
+
+    async def create_managed(self, user: User) -> User:
+        try:
+            return await self.create(user)
+        except IntegrityError as exc:
+            cause = exc.orig
+            while cause is not None:
+                constraint = getattr(cause, "constraint_name", None)
+                if constraint is None:
+                    constraint = getattr(getattr(cause, "diag", None), "constraint_name", None)
+                if constraint == "uq_users_email_ci":
+                    raise ManagementUserError(f"User already exists: {user.email}") from exc
+                cause = cause.__cause__
+            raise
+
+    async def reset_managed_password(self, email: str, password_hash: str) -> User | None:
+        result = await self.db.execute(
+            update(User)
+            .where(func.lower(User.email) == email)
+            .values(password=password_hash, access_token_version=User.access_token_version + 1)
+            .returning(User)
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:
         # Сравнение без учёта регистра: логины нормализуются в нижний регистр,

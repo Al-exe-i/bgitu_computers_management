@@ -5,145 +5,11 @@ import asyncio
 import os
 import sys
 from collections.abc import Sequence
-from dataclasses import dataclass
 from getpass import getpass
 
-from pydantic import TypeAdapter, ValidationError
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from core.security import get_password_hash
-from db.session import engine, session_factory
-from modules.identity.models.user import User
-from modules.identity.public import UserRole
-from modules.identity.repositories.sessions import UserSessionRepository
-from utils.email import RU_EMAIL_ERROR, RuEmailStr
-
-_EMAIL_ADAPTER = TypeAdapter(RuEmailStr)
-
-
-class ManagementUserError(Exception):
-    """Raised for expected management command errors."""
-
-
-@dataclass(slots=True, frozen=True)
-class ManagedUserResult:
-    id: int
-    email: str
-    role: UserRole
-    is_superuser: bool
-
-
-def normalize_email(email: str) -> str:
-    value = email.strip().lower()
-    if not value:
-        raise ManagementUserError("Email/login must not be empty")
-    return value
-
-
-def validate_new_user_email(email: str) -> str:
-    value = normalize_email(email)
-    try:
-        validated = str(_EMAIL_ADAPTER.validate_python(value))
-    except (ValidationError, ValueError) as exc:
-        raise ManagementUserError(RU_EMAIL_ERROR) from exc
-    if len(validated) > 50:
-        raise ManagementUserError("Email must contain at most 50 characters")
-    return validated
-
-
-def validate_password(password: str) -> str:
-    if len(password) < 6:
-        raise ManagementUserError("Password must contain at least 6 characters")
-    if len(password) > 128:
-        raise ManagementUserError("Password must contain at most 128 characters")
-    return password
-
-
-def build_managed_user(
-    *,
-    email: str,
-    password: str,
-    role: UserRole,
-    is_superuser: bool,
-    name: str | None = None,
-    surname: str | None = None,
-) -> User:
-    return User(
-        email=validate_new_user_email(email),
-        password=get_password_hash(validate_password(password)),
-        role=role,
-        is_superuser=is_superuser,
-        name=name,
-        surname=surname,
-    )
-
-
-def to_result(user: User) -> ManagedUserResult:
-    return ManagedUserResult(
-        id=user.id,
-        email=user.email,
-        role=user.role,
-        is_superuser=user.is_superuser,
-    )
-
-
-async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
-    normalized_email = normalize_email(email)
-    result = await session.execute(
-        select(User).where(func.lower(User.email) == normalized_email)
-    )
-    return result.scalar_one_or_none()
-
-
-async def create_admin_user(
-    session: AsyncSession,
-    *,
-    email: str,
-    password: str,
-    is_superuser: bool,
-    name: str | None = None,
-    surname: str | None = None,
-) -> ManagedUserResult:
-    normalized_email = normalize_email(email)
-    existing = await get_user_by_email(session, normalized_email)
-    if existing is not None:
-        raise ManagementUserError(f"User already exists: {normalized_email}")
-
-    user = build_managed_user(
-        email=normalized_email,
-        password=password,
-        role=UserRole.admin,
-        is_superuser=is_superuser,
-        name=name,
-        surname=surname,
-    )
-    session.add(user)
-    try:
-        await session.flush()
-    except IntegrityError as exc:
-        raise ManagementUserError(f"User already exists: {normalized_email}") from exc
-    await session.refresh(user)
-    return to_result(user)
-
-
-async def reset_user_password(
-    session: AsyncSession,
-    *,
-    email: str,
-    password: str,
-) -> ManagedUserResult:
-    user = await get_user_by_email(session, email)
-    if user is None:
-        raise ManagementUserError(f"User not found: {normalize_email(email)}")
-
-    user.password = get_password_hash(validate_password(password))
-    user.access_token_version += 1
-    await UserSessionRepository(session).revoke_all_for_user(user.id)
-    await session.flush()
-    await session.refresh(user)
-    return to_result(user)
+from core.exceptions.management import ManagementUserError
+from management.runtime import build_managed_users, close_runtime, managed_session
+from modules.identity.public import ManagedUserResult, validate_password
 
 
 def add_password_args(parser: argparse.ArgumentParser) -> None:
@@ -162,7 +28,9 @@ def resolve_password(args: argparse.Namespace) -> str:
     if args.password_env:
         password = os.getenv(args.password_env)
         if password is None:
-            raise ManagementUserError(f"Environment variable is not set: {args.password_env}")
+            raise ManagementUserError(
+                f"Environment variable is not set: {args.password_env}"
+            )
         return validate_password(password)
 
     if args.password is not None:
@@ -194,7 +62,9 @@ def build_parser() -> argparse.ArgumentParser:
     create_su.add_argument("--surname", help="Optional surname")
     add_password_args(create_su)
 
-    reset_password = subparsers.add_parser("reset-password", help="Reset user password by email/login")
+    reset_password = subparsers.add_parser(
+        "reset-password", help="Reset user password by email/login"
+    )
     reset_password.add_argument("--email", required=True, help="User email/login")
     add_password_args(reset_password)
 
@@ -204,40 +74,19 @@ def build_parser() -> argparse.ArgumentParser:
 async def run_command(args: argparse.Namespace) -> ManagedUserResult:
     password = resolve_password(args)
 
-    async with session_factory() as session:
-        try:
-            if args.command == "create-admin":
-                result = await create_admin_user(
-                    session,
-                    email=args.email,
-                    password=password,
-                    is_superuser=False,
-                    name=args.name,
-                    surname=args.surname,
-                )
-            elif args.command == "create-su":
-                result = await create_admin_user(
-                    session,
-                    email=args.email,
-                    password=password,
-                    is_superuser=True,
-                    name=args.name,
-                    surname=args.surname,
-                )
-            elif args.command == "reset-password":
-                result = await reset_user_password(
-                    session,
-                    email=args.email,
-                    password=password,
-                )
-            else:
-                raise ManagementUserError(f"Unsupported command: {args.command}")
-
-            await session.commit()
-            return result
-        except Exception:
-            await session.rollback()
-            raise
+    async with managed_session() as session:
+        users = build_managed_users(session)
+        if args.command in {"create-admin", "create-su"}:
+            return await users.create_admin_user(
+                email=args.email,
+                password=password,
+                is_superuser=args.command == "create-su",
+                name=args.name,
+                surname=args.surname,
+            )
+        if args.command == "reset-password":
+            return await users.reset_user_password(email=args.email, password=password)
+        raise ManagementUserError(f"Unsupported command: {args.command}")
 
 
 def print_result(command: str, result: ManagedUserResult) -> None:
@@ -263,7 +112,7 @@ async def async_main(argv: Sequence[str] | None = None) -> int:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
     finally:
-        await engine.dispose()
+        await close_runtime()
 
     print_result(args.command, result)
     return 0
