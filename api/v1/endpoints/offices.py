@@ -1,7 +1,13 @@
 from fastapi import APIRouter
 
 from dependencies.audit_actor import admin_audit_actor_dep
+from dependencies.floor_plans import floor_plan_use_cases_dep
 from dependencies.inventory import inventory_office_use_cases_dep
+from modules.inventory.schemas.floor_plan import (
+    FloorInfo,
+    FloorPlanResponse,
+    FloorPlanUpdate,
+)
 from modules.inventory.schemas.office import (
     OfficeCreate,
     OfficeResponse,
@@ -10,6 +16,42 @@ from modules.inventory.schemas.office import (
 )
 
 router = APIRouter()
+
+
+@router.get("/{office_id}/floors/{floor}/info", response_model=FloorInfo)
+async def get_floor_info(
+    office_id: int, floor: int, use_cases: floor_plan_use_cases_dep
+):
+    return await use_cases.get_info(office_id, floor)
+
+
+@router.patch("/{office_id}/floors/{floor}/info", response_model=FloorInfo)
+async def update_floor_info(
+    office_id: int,
+    floor: int,
+    data: FloorInfo,
+    use_cases: floor_plan_use_cases_dep,
+    audit: admin_audit_actor_dep,
+):
+    return await use_cases.update_info(office_id, floor, data, audit)
+
+
+@router.get("/{office_id}/floors/{floor}/plan", response_model=FloorPlanResponse)
+async def get_floor_plan(
+    office_id: int, floor: int, use_cases: floor_plan_use_cases_dep
+):
+    return await use_cases.get(office_id, floor)
+
+
+@router.put("/{office_id}/floors/{floor}/plan", response_model=FloorPlanResponse)
+async def update_floor_plan(
+    office_id: int,
+    floor: int,
+    data: FloorPlanUpdate,
+    use_cases: floor_plan_use_cases_dep,
+    audit: admin_audit_actor_dep,
+):
+    return await use_cases.update(office_id, floor, data, audit)
 
 
 @router.get("", response_model=list[OfficeResponse])

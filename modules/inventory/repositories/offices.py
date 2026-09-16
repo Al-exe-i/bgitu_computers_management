@@ -14,11 +14,8 @@ class OfficeRepository:
         self.db = db
 
     async def get_list(self):
-        stmt = (
-            select(Office)
-            .options(
-                selectinload(Office.audiences).selectinload(Audience.hardware)
-            )
+        stmt = select(Office).options(
+            selectinload(Office.audiences).selectinload(Audience.hardware)
         )
         result = await self.db.execute(stmt)
         return result.scalars().all()
@@ -28,12 +25,23 @@ class OfficeRepository:
             select(
                 Office.id,
                 Office.address,
+                Office.name,
+                Office.description,
+                Office.internet_provider,
                 func.count(func.distinct(Audience.id)).label("audiences_count"),
-                func.count(Hardware.id).filter(Hardware.state.is_(False)).label("faulty_hw_count"),
+                func.count(Hardware.id)
+                .filter(Hardware.state.is_(False))
+                .label("faulty_hw_count"),
             )
             .outerjoin(Audience, Audience.office_id == Office.id)
             .outerjoin(Hardware, Hardware.audience_id == Audience.id)
-            .group_by(Office.id, Office.address)
+            .group_by(
+                Office.id,
+                Office.address,
+                Office.name,
+                Office.description,
+                Office.internet_provider,
+            )
             .order_by(Office.id)
         )
 
@@ -41,8 +49,16 @@ class OfficeRepository:
         rows = result.all()
 
         return [
-            {"id": office_id, "address": address, "audiences_count": audiences_count, "faulty_hw_count": faulty_hw_count}
-            for office_id, address, audiences_count, faulty_hw_count in rows
+            {
+                "id": office_id,
+                "address": address,
+                "name": name,
+                "description": description,
+                "internet_provider": provider,
+                "audiences_count": audiences_count,
+                "faulty_hw_count": faulty_hw_count,
+            }
+            for office_id, address, name, description, provider, audiences_count, faulty_hw_count in rows
         ]
 
     async def get_one(self, office_id: int) -> Office | None:
@@ -59,10 +75,7 @@ class OfficeRepository:
         return result.scalar_one_or_none()
 
     async def get_one_short(self, office_id: int) -> Office | None:
-        stmt = (
-            select(Office)
-            .where(Office.id == office_id)
-        )
+        stmt = select(Office).where(Office.id == office_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -88,4 +101,3 @@ class OfficeRepository:
         await self.db.delete(office)
         await self.db.flush()
         return True
-

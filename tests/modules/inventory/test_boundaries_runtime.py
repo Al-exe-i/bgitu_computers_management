@@ -47,7 +47,7 @@ def graph():
     )
     audience = Audience(
         id=1, public_id=uuid4(), number=101, floor=1, office_id=4, width=5, height=5,
-        landmarks={}, hardware=[hardware],
+        landmarks={}, hardware=[hardware], room_type="educational",
     )
     office = Office(id=4, address="Main", audiences=[audience])
     return SimpleNamespace(file=file, hardware=hardware, audience=audience, office=office)

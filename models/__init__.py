@@ -4,6 +4,7 @@ from modules.identity.models.used_refresh_token import UsedRefreshToken
 from modules.identity.models.user import User
 from modules.identity.models.user_session import UserSession
 from modules.inventory.models.audience import Audience
+from modules.inventory.models.floor_plan import FloorPlan
 from modules.inventory.models.hardware import Hardware
 from modules.inventory.models.hardware_file import HardwareFile
 from modules.inventory.models.office import Office
@@ -12,6 +13,7 @@ from modules.notifications.models.subscription import NotificationSubscription
 
 __all__ = [
     "Audience",
+    "FloorPlan",
     "AuditLog",
     "Hardware",
     "HardwareFile",

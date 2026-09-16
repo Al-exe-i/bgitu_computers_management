@@ -1,5 +1,4 @@
-
-from sqlalchemy import String
+from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.mixins.int_id_pk_mixin import IntIdPkMixin
@@ -9,6 +8,9 @@ from modules.inventory.models.audience import Audience
 
 class Office(IntIdPkMixin, Base):
     address: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text)
+    internet_provider: Mapped[str | None] = mapped_column(String(120))
 
     audiences: Mapped[list["Audience"]] = relationship(
         back_populates="office",

@@ -25,7 +25,7 @@ assert not AuditLog.__mapper__.relationships
 assert set(Base.metadata.tables) == {{
     'audiences', 'audit_logs', 'hardware_files', 'hardwares', 'invite_links',
     'notification_subscriptions', 'offices', 'spec_templates', 'used_refresh_tokens',
-    'user_sessions', 'users',
+    'user_sessions', 'users', 'floor_plans',
 }}
 for table in Base.metadata.tables.values():
     for foreign_key in table.foreign_keys:

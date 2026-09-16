@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from modules.inventory.models.audience import Audience
+from modules.inventory.models.floor_plan import FloorPlan
 from modules.inventory.models.hardware import Hardware
 
 
@@ -67,6 +68,14 @@ class AudienceRepository:
     async def flush(self) -> None:
         await self.session.flush()
 
+    async def remove_floor_placement(self, public_id: UUID) -> None:
+        key = str(public_id)
+        await self.session.execute(
+            update(FloorPlan)
+            .where(FloorPlan.positions.op("?")(key))
+            .values(positions=FloorPlan.positions.op("-")(key), revision=FloorPlan.revision + 1)
+        )
+
     async def update(self, audience_id: int, data: dict) -> Audience | None:
         stmt = (
             update(Audience)
@@ -101,6 +110,8 @@ class AudienceRepository:
         return result.scalars().all()
 
     async def delete(self, audience_id: int) -> None:
-        stmt = delete(Audience).where(Audience.id == audience_id)
-        await self.session.execute(stmt)
+        stmt = delete(Audience).where(Audience.id == audience_id).returning(Audience.public_id)
+        public_id = (await self.session.execute(stmt)).scalar_one_or_none()
+        if public_id is not None:
+            await self.remove_floor_placement(public_id)
         await self.session.flush()

@@ -1,4 +1,9 @@
-from enum import Enum
+from enum import Enum, StrEnum
+
+
+class RoomType(StrEnum):
+    educational = "educational"
+    administrative = "administrative"
 
 
 class HardwareType(Enum):

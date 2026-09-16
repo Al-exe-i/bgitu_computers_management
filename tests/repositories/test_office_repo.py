@@ -28,8 +28,8 @@ class FakeSession:
 def fake_session() -> FakeSession:
     return FakeSession(
         rows=[
-            (1, "Корпус 1", 2, 1),
-            (2, "Корпус 2", 0, 0),
+            (1, "Корпус 1", "Главный", "Описание", "Провайдер", 2, 1),
+            (2, "Корпус 2", None, None, None, 0, 0),
         ]
     )
 
@@ -41,12 +41,18 @@ def test_get_list_short_maps_audience_and_faulty_counts(fake_session: FakeSessio
         {
             "id": 1,
             "address": "Корпус 1",
+            "name": "Главный",
+            "description": "Описание",
+            "internet_provider": "Провайдер",
             "audiences_count": 2,
             "faulty_hw_count": 1,
         },
         {
             "id": 2,
             "address": "Корпус 2",
+            "name": None,
+            "description": None,
+            "internet_provider": None,
             "audiences_count": 0,
             "faulty_hw_count": 0,
         },

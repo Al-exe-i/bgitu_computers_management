@@ -49,10 +49,14 @@ from core.exceptions import (
     UserPermissionDeniedError,
 )
 
+from core.exceptions.floor_plan import FloorPlanConflictError, FloorPlanRoomError
+
 ExceptionHandler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
 
 DOMAIN_EXCEPTION_STATUS: dict[type[Exception], int] = {
+    FloorPlanConflictError: HTTPStatus.CONFLICT,
+    FloorPlanRoomError: HTTPStatus.BAD_REQUEST,
     InvalidCredentialsError: HTTPStatus.UNAUTHORIZED,
     RefreshTokenMissingError: HTTPStatus.UNAUTHORIZED,
     RefreshSessionNotFoundError: HTTPStatus.UNAUTHORIZED,

@@ -102,6 +102,10 @@ class AudienceService:
     async def _update_existing_audience(self, current_audience: Audience, schema: AudienceUpdate) -> AudienceShortResponse:
         audience_id = current_audience.id
         update_data = schema.model_dump(exclude_unset=True, exclude={'hardware'})
+        moved = any(
+            key in update_data and update_data[key] != getattr(current_audience, key)
+            for key in ("office_id", "floor")
+        )
 
         if "landmarks" in update_data:
             update_data["landmarks"] = normalize_landmarks(update_data["landmarks"])
@@ -123,6 +127,8 @@ class AudienceService:
         if schema.hardware is not None:
             await self.grid.sync(audience_id, schema.hardware)
 
+        if moved:
+            await self.repo.remove_floor_placement(current_audience.public_id)
         await self.repo.flush()
         updated = await self.repo.get_by_id(audience_id)
         self._invalidate_related_caches_after_commit()
