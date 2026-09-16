@@ -194,11 +194,12 @@ export default {
     },
     startDrag(event, room) {
       if (!this.editable || this.drag || !event.isPrimary || event.button !== 0) return;
+      const hadSelection = Boolean(this.selected);
       this.selectedId = room.audience_public_id;
       const rect = this.$refs.grid.getBoundingClientRect();
       this.drag = { room: { ...this.placements.get(this.selectedId) }, pointerId: event.pointerId,
         localX: event.clientX - rect.left, localY: event.clientY - rect.top,
-        clientX: event.clientX, clientY: event.clientY, moved: false };
+        clientX: event.clientX, clientY: event.clientY, moved: false, hadSelection };
       event.currentTarget.setPointerCapture(event.pointerId);
     },
     moveDrag(event) {
@@ -269,8 +270,9 @@ export default {
       <div v-else class="fp-legend"><span>Учебный</span><span class="administrative">Административный</span><span class="fp-help">Нажмите кабинет, чтобы открыть оборудование</span></div>
       <p v-if="matches" class="fp-search-result" role="status">{{ matchingCount ? `Найдено кабинетов: ${matchingCount}. Совпадения выделены на плане и в списке вне плана.` : 'На этом этаже нет подходящих кабинетов.' }}</p>
       <div class="fp-workspace">
-      <div v-if="editing" class="fp-inspector">
-        <template v-if="selected">
+      <div v-if="editing" class="fp-inspector" :class="{ 'is-empty': !selected || (drag && !drag.hadSelection) }">
+        <!-- Не расширяем панель под указателем до завершения первого перетаскивания. -->
+        <template v-if="selected && (!drag || drag.hadSelection)">
         <div class="fp-inspector-heading"><strong>Кабинет {{ selected.number }}</strong>
           <button v-if="selectedPlacement" class="fp-unplace" type="button" :disabled="!editable || !!drag" @click="unplace">Снять с плана</button>
         </div>
@@ -284,7 +286,7 @@ export default {
         </template>
         <template v-else><span class="fp-help">Нажмите свободное место на сетке или</span><button type="button" :disabled="!editable" @click="placeFirstFree">Разместить автоматически</button></template>
         </template>
-        <p v-else class="fp-selection-hint">Выберите кабинет на плане, чтобы изменить положение и размер.</p>
+        <p v-else class="fp-selection-hint">Выберите кабинет для настройки положения и размера.</p>
       </div>
       <div class="fp-compass">
         <div v-for="(label, direction) in directions" :key="direction" class="fp-bearing" :class="`fp-${direction}`">
@@ -390,6 +392,7 @@ export default {
 .fp-inspector { position: sticky; top: calc(var(--fp-header-offset, 0px) + 8px); z-index: 8; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr); align-items: center; gap: 12px 20px; height: 120px; overflow: auto; box-sizing: border-box; padding: 14px 16px; margin-bottom: 16px; border: 1px solid var(--fp-border); border-radius: 12px; background: var(--fp-surface); }
 .fp-inspector-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .fp-selection-hint { grid-column: 1 / -1; margin: 0; color: var(--fp-muted); font-size: 13px; }
+.fp-inspector.is-empty { position: static; display: block; height: auto; padding: 0; border: 0; border-radius: 0; background: transparent; margin-bottom: 12px; overflow: visible; }
 .fp-inspector-heading strong { font-size: 16px; font-weight: 600; }
 .fp-inspector .fp-size { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .fp-inspector .fp-size legend { font-size: 12px; font-weight: 600; color: var(--fp-text); margin-bottom: 6px; }

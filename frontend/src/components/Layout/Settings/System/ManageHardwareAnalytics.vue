@@ -898,7 +898,7 @@ export default {
 
             <div class="filters-topline-meta">
               <span class="filters-counter">{{ activeFiltersCount }} активных</span>
-              <span class="filters-apply-note">Новые условия попадут в выдачу после кнопки «Применить»</span>
+                <span class="filters-apply-note">Изменения вступят в силу после нажатия «Применить»</span>
             </div>
           </div>
 
@@ -3259,7 +3259,6 @@ html[data-theme='dark'] .analytics-card .error-state svg {
 }
 
 @media (max-width: 900px) {
-  .filters-topline,
   .quick-filter-row {
     flex-direction: column;
     align-items: stretch;
@@ -3267,7 +3266,14 @@ html[data-theme='dark'] .analytics-card .error-state svg {
 
   .filters-topline-meta {
     align-items: flex-start;
+    margin-left: 0;
+    max-width: none;
+    display: contents;
   }
+
+  .filters-topline { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
+  .filters-counter { justify-self: end; }
+  .filters-apply-note { grid-column: 1 / -1; text-align: left; max-width: none; text-wrap: pretty; }
 
   .quick-filter-label {
     min-width: 0;

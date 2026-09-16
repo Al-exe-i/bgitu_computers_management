@@ -11,7 +11,7 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
   <img alt="Redis" src="https://img.shields.io/badge/Redis-Cache%20%2F%20Broker-DC382D?style=for-the-badge&logo=redis&logoColor=white">
   <img alt="MinIO" src="https://img.shields.io/badge/MinIO-Object%20Storage-C72E49?style=for-the-badge&logo=minio&logoColor=white">
-  <img alt="Celery" src="https://img.shields.io/badge/Celery-Tasks-37814A?style=for-the-badge">
+  <img alt="TaskIQ" src="https://img.shields.io/badge/TaskIQ-Tasks-37814A?style=for-the-badge">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white">
 </p>
 
@@ -83,7 +83,7 @@ Backend предоставляет REST API для frontend-приложения
 ### Интеграции и инфраструктура
 
 - MinIO для объектного хранения файлов;
-- Celery для фоновых задач.
+- TaskIQ для асинхронных фоновых задач.
 
 ---
 
@@ -95,7 +95,7 @@ Backend предоставляет REST API для frontend-приложения
 | Backend         | Python 3.13, FastAPI, Pydantic               |
 | Database        | PostgreSQL, SQLAlchemy 2.x, asyncpg, Alembic |
 | Cache / Broker  | Redis                                        |
-| Background jobs | Celery, Celery Beat                          |
+| Background jobs | TaskIQ, Redis Streams, TaskIQ Scheduler      |
 | File storage    | Local storage, MinIO                         |
 | Realtime        | SSE, Redis Pub/Sub                           |
 | Logging         | Loguru                                       |
@@ -116,9 +116,9 @@ flowchart LR
     API --> Storage[(MinIO / Local storage)]
     API --> Logs[Loguru logs]
 
-    Redis --> Celery[Celery worker]
-    Celery --> DB
-    Celery --> Redis
+    Redis --> TaskIQ[TaskIQ worker]
+    TaskIQ --> DB
+    TaskIQ --> Redis
 ```
 
 
@@ -149,7 +149,7 @@ flowchart LR
 ├── services/         # инфраструктурные и доменные адаптеры
 ├── dependencies/     # composition root для FastAPI
 ├── management/       # bootstrap и CLI управления пользователями
-├── tasks/            # Celery tasks
+├── tasks/            # Асинхронные задачи TaskIQ
 ├── utils/            # вспомогательные функции
 ├── websocket/        # realtime-логика и Redis-backed SSE
 ├── alembic/          # миграции базы данных
@@ -186,8 +186,8 @@ Copy-Item .env.example .env
 ```text
 BGITU__DB__*
 BGITU__JWT__ACCESS_SECRET_KEY
-BGITU__CELERY__BROKER_URL
-BGITU__CELERY__RESULT_BACKEND
+BGITU__TASKIQ__BROKER_URL
+BGITU__TASKIQ__RESULT_BACKEND
 BGITU__STORAGE__*
 BGITU__WEBSOCKET__*
 BGITU__BOOTSTRAP__SUPERUSER_EMAIL
@@ -254,18 +254,18 @@ http://127.0.0.1:8000/docs
 http://127.0.0.1:8000/redoc
 ```
 
-### 7. Запустить Celery
+### 7. Запустить TaskIQ
 
 Worker:
 
 ```powershell
-uv run celery -A celery_app:celery_app worker -l info
+uv run taskiq worker taskiq_app:broker tasks.sessions --workers 1 --max-async-tasks 1 --ack-type when_saved
 ```
 
-Beat:
+Планировщик (один экземпляр):
 
 ```powershell
-uv run celery -A celery_app:celery_app beat -l info
+uv run taskiq scheduler taskiq_app:scheduler tasks.sessions --skip-first-run
 ```
 
 ---
@@ -279,7 +279,7 @@ docker compose up -d --build
 ```
 
 Одноразовый контейнер `app_init` применяет миграции и выполняет bootstrap.
-Backend и Celery запускаются только после его успешного завершения.
+Backend и TaskIQ запускаются только после его успешного завершения.
 
 Для Docker Compose используется обычный `.env`. В репозитории есть пример:
 
@@ -306,7 +306,7 @@ Copy-Item .env.example .env
 | --------------------- | -------------------------------------------- |
 | `BGITU__DB__*`        | подключение к PostgreSQL                     |
 | `BGITU__JWT__*`       | access token и время жизни токенов           |
-| `BGITU__CELERY__*`    | Redis broker и result backend для Celery     |
+| `BGITU__TASKIQ__*`    | Redis Streams, хранилище результатов и их TTL |
 | `BGITU__STORAGE__*`   | backend хранения файлов: `local` или `minio` |
 | `BGITU__WEBSOCKET__*` | realtime и Redis для SSE                     |
 | `BGITU__BOOTSTRAP__*` | начальные корпуса и первый суперпользователь |
@@ -497,7 +497,7 @@ uv run python -m management.users create-admin --email manager@example.ru
 - [x] Аудит действий
 - [x] Аналитика по оборудованию
 - [x] SSE realtime-обновления
-- [x] Celery-задачи
+- [x] Асинхронные задачи TaskIQ
 - [x] MinIO-хранилище
 - [x] Frontend realtime-уведомления
 - [ ] Расширенная аналитика неисправностей

@@ -78,10 +78,10 @@ class JWTConfig(BaseModel):
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0, le=30)
 
 
-class CeleryConfig(BaseModel):
-    broker_url: str
-    result_backend: str
-    timezone: str = "UTC"
+class TaskiqConfig(BaseModel):
+    broker_url: str = "redis://localhost:6379/0"
+    result_backend: str = "redis://localhost:6379/1"
+    result_ttl_seconds: int = Field(default=86400, gt=0)
 
 
 class CacheConfig(BaseModel):
@@ -156,7 +156,7 @@ class Settings(BaseSettings):
     static: StaticFiles = StaticFiles()
     DEBUG: bool = False
     logger: LoggingConfig = LoggingConfig()
-    celery: CeleryConfig
+    taskiq: TaskiqConfig = TaskiqConfig()
     cache: CacheConfig = CacheConfig()
     storage: StorageConfig = StorageConfig()
     websocket: WebSocketConfig = WebSocketConfig()

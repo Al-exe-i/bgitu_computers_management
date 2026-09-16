@@ -1,7 +1,7 @@
 ﻿<script>
 import api from "@/services/api.js";
 import router from "@/router/index.js";
-import { officeBackLocation, preserveAudienceOrigin, audienceBackLabel } from '@/utils/officeNavigation.js';
+import { officeBackLocation, preserveAudienceOrigin, audienceBackLabel, audienceBreadcrumbs } from '@/utils/officeNavigation.js';
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
@@ -2175,6 +2175,7 @@ export default {
       router.push(officeBackLocation(this.classroom, this.$route.query));
     },
     backLabel() { return audienceBackLabel(this.$route.query); },
+    breadcrumbs() { return audienceBreadcrumbs(this.classroom, this.$route.query); },
 
     editClassroom() {
       router.push({
@@ -2765,6 +2766,13 @@ export default {
   <LoaderContainer v-if="loading" />
 
   <div v-if="!loading" class="page-viewer" :class="{ workspace: isWorkspace }">
+    <nav v-if="classroom" class="audience-breadcrumbs" aria-label="Навигация по корпусу">
+      <template v-for="(item, index) in breadcrumbs()" :key="item.label">
+        <span v-if="index" aria-hidden="true" class="breadcrumb-separator">/</span>
+        <RouterLink v-if="item.to" :to="item.to">{{ item.label }}</RouterLink>
+        <span v-else aria-current="page">{{ item.label }}</span>
+      </template>
+    </nav>
     <header class="top-header">
       <div class="classroom-info">
         <h1 class="classroom-number">Аудитория {{ classroom.number }}</h1>
@@ -4236,6 +4244,15 @@ export default {
 </template>
 
 <style scoped>
+.audience-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; max-width: 1600px; box-sizing: border-box; margin: 0 auto; padding: 20px 32px 0; color: #596d87; font-size: 14px; line-height: 1.5; }
+.audience-breadcrumbs a { display: inline-flex; align-items: center; min-height: 36px; color: inherit; text-decoration: none; }
+.audience-breadcrumbs a:hover { color: #255bd8; }
+.audience-breadcrumbs a:focus-visible { outline: 2px solid #3b82f6; outline-offset: 3px; border-radius: 4px; }
+.breadcrumb-separator { opacity: .55; }
+html[data-theme='dark'] .audience-breadcrumbs { color: #a2b3cb; }
+html[data-theme='dark'] .audience-breadcrumbs a:hover { color: #8ab6ff; }
+.page-viewer.workspace .audience-breadcrumbs { display: none; }
+@media (max-width: 700px) { .audience-breadcrumbs { padding: 14px 16px 0; gap: 2px 8px; font-size: 13px; } }
 .page-viewer {
   background-size: 400% 400%;
   animation: gradientShift 20s ease infinite;

@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { audienceOriginQuery, preserveAudienceOrigin, officeBackLocation, officeView, audienceBackLabel } from '../src/utils/officeNavigation.js';
+import { audienceOriginQuery, preserveAudienceOrigin, officeBackLocation, officeView, audienceBackLabel, audienceBreadcrumbs } from '../src/utils/officeNavigation.js';
+
+test('breadcrumbs use the actual audience floor and preserve only floor search context', () => {
+  const crumbs = audienceBreadcrumbs({ office_id: 1, floor: 0, number: 101 }, {
+    officeView: 'plan', officeFloor: '9', officeSearch: '10', redirect: 'https://example.com',
+  });
+  assert.deepEqual(crumbs, [
+    { label: 'Корпус №1', to: { name: 'Office', params: { officeNumber: '1' }, query: { view: 'cards', floor: '0' } } },
+    { label: '0 этаж', to: { name: 'FloorPlan', params: { officeNumber: '1', floorNumber: '0' }, query: { q: '10' } } },
+    { label: 'Аудитория 101' },
+  ]);
+  assert.deepEqual(audienceBreadcrumbs(null), []);
+  assert.equal(audienceBreadcrumbs({ office_id: 1, number: 101 }).length, 2);
+  assert.equal(audienceBreadcrumbs({ office_id: 1, floor: -1, number: 101 }, { officeView: 'compact' })[0].to.query.view, 'compact');
+});
 
 test('audience returns to original floor and view even after a URL reload', () => {
   for (const view of ['plan', 'cards', 'compact']) {

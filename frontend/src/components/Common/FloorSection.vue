@@ -103,9 +103,9 @@ export default {
       <div class="floor-heading">
         <h2 class="floor-title">{{ this.numberToLiteral(this.number) }} этаж</h2>
       </div>
-      <RouterLink class="floor-plan-link" :to="{ name: 'FloorPlan', params: { officeNumber: officeId, floorNumber: number } }" @click.stop>
+      <RouterLink class="floor-plan-link" :to="{ name: 'FloorPlan', params: { officeNumber: officeId, floorNumber: number } }" :aria-label="`Схема ${number} этажа`" title="Схема этажа" @click.stop>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3h18v18H3zM3 10h7V3m4 18v-8h7M3 16h5"/></svg>
-        Схема этажа
+        <span>Схема этажа</span>
       </RouterLink>
       <button type="button" class="collapse-icon" :aria-expanded="!collapsed" :aria-label="`${collapsed ? 'Развернуть' : 'Свернуть'} ${number} этаж`" @click.stop="collapsed = !collapsed">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -203,11 +203,15 @@ html[data-theme='dark'] .floor-info-trigger span { background: #1e293b; color: #
 .floor-plan-link:focus-visible, .collapse-icon:focus-visible { outline: 2px solid #3b82f6; outline-offset: 3px; }
 html[data-theme='dark'] .floor-plan-link { color: #bfd7ff; border-color: #3b506e; background: #19293f; }
 @media (hover: hover) { .floor-plan-link:hover { border-color: #3b82f6; background: #e8f0ff; } html[data-theme='dark'] .floor-plan-link:hover { background: #203754; } }
-@media (max-width: 600px) { .floor-plan-link { order: 4; width: 100%; justify-content: center; min-height: 44px; } }
+@media (max-width: 768px) {
+  .floor-plan-link { width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 50%; }
+  .floor-plan-link span { display: none; }
+}
 
 .floor-header {
   display: flex;
   align-items: center;
+  gap: 12px;
   padding: 30px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -219,6 +223,7 @@ html[data-theme='dark'] .floor-plan-link { color: #bfd7ff; border-color: #3b506e
 }
 
 .floor-number {
+  flex-shrink: 0;
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
@@ -229,7 +234,7 @@ html[data-theme='dark'] .floor-plan-link { color: #bfd7ff; border-color: #3b506e
   justify-content: center;
   font-size: 28px;
   font-weight: 700;
-  margin-right: 20px;
+  margin-right: 8px;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
   position: relative;
 }
@@ -551,8 +556,13 @@ html[data-theme='dark'] .floor-plan-link { color: #bfd7ff; border-color: #3b506e
   }
 
   .floor-header {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 22px 18px;
   }
+
+  .floor-number { width: 44px; height: 44px; margin-right: 2px; font-size: 22px; }
+  .floor-title { font-size: clamp(18px, 3.5vw, 25px); line-height: 1.2; margin: 0; }
 
   .info-value {
     font-size: 15px;

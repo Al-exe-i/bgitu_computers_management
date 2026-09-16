@@ -803,6 +803,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
   padding: 16px 20px;
 }
 
@@ -843,6 +844,7 @@ header {
 
 .brand-text {
   display: flex;
+  white-space: nowrap;
   flex-direction: column;
   line-height: 1.1;
 }
@@ -1989,7 +1991,7 @@ header {
 }
 
 
-@media (max-width: 768px)
+@media (max-width: 1040px)
 {
   .brand-text
   {

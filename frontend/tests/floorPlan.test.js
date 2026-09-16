@@ -62,6 +62,21 @@ test('inspector is before the canvas, not after it', () => {
   assert.match(source, /\.fp-inspector \{ position: sticky;/);
 });
 
+test('first drag keeps inspector compact until release so the grid does not jump', () => {
+  const { instance } = component();
+  const pointer = { pointerId: 1, isPrimary: true, button: 0, clientX: 10, clientY: 10,
+    currentTarget: { setPointerCapture() {} } };
+  instance.startDrag(pointer, response().rooms[0]);
+  assert.equal(instance.drag.hadSelection, false);
+  instance.finishDrag({ ...pointer, clientX: 74 });
+  assert.equal(instance.drag, null);
+  assert.equal(instance.selectedId, 'a');
+  assert.equal(instance.placements.get('a').x, 2);
+  instance.startDrag(pointer, response().rooms[0]);
+  assert.equal(instance.drag.hadSelection, true);
+  instance.cancelDrag();
+});
+
 test('draft copies only placements; snapshot ignores order and revision', () => {
   const data = response();
   const draft = geometry.planDraft(data);

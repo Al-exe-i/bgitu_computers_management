@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -6,13 +5,13 @@ from datetime import UTC, datetime, timedelta
 from loguru import logger
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from taskiq import TaskiqEvents, TaskiqState
 
-from celery_app import celery_app
 from core.config import settings
 from modules.identity.models.user_session import UserSession
+from taskiq_app import broker
 
-# Singleton engine — создаётся один раз на весь процесс Celery worker'а.
-# pool_pre_ping=True обеспечивает переподключение при разрыве с БД.
+# Один пул на event loop воркера; закрывается при его остановке.
 _engine = None
 _session_factory = None
 
@@ -43,6 +42,8 @@ async def open_task_session() -> AsyncIterator[AsyncSession]:
 
 
 async def _cleanup_user_sessions_async(retention_days: int) -> dict:
+    if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days < 0:
+        raise ValueError("retention_days must be a non-negative integer")
     now = datetime.now(UTC)
     cutoff = now - timedelta(days=retention_days)
 
@@ -70,8 +71,20 @@ async def _cleanup_user_sessions_async(retention_days: int) -> dict:
         }
 
 
-@celery_app.task(name="tasks.sessions.cleanup_user_sessions")
-def cleanup_user_sessions(retention_days: int = 7) -> dict:
-    result = asyncio.run(_cleanup_user_sessions_async(retention_days))
-    logger.info("[cleanup_user_sessions] {}", result)
+@broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
+async def close_task_database(state: TaskiqState) -> None:
+    global _engine, _session_factory
+    if _engine is not None:
+        await _engine.dispose()
+    _engine = None
+    _session_factory = None
+
+
+@broker.task(
+    task_name="tasks.sessions.cleanup_user_sessions",
+    schedule=[{"cron": "10 3 * * *", "args": [7]}],
+)
+async def cleanup_user_sessions(retention_days: int = 7) -> dict:
+    result = await _cleanup_user_sessions_async(retention_days)
+    logger.info("Очистка пользовательских сессий завершена: {}", result)
     return result

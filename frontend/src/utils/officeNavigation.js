@@ -36,3 +36,17 @@ export function officeBackLocation(classroom, query = {}) {
 export function audienceBackLabel(query = {}) {
   return officeView(query.officeView) === 'plan' ? 'К схеме этажа' : 'К списку аудиторий';
 }
+
+export function audienceBreadcrumbs(classroom, query = {}) {
+  if (!classroom?.office_id) return [];
+  const officeNumber = String(classroom.office_id);
+  const floor = officeFloor(classroom.floor);
+  const view = officeView(query.officeView);
+  const items = [{ label: `Корпус №${officeNumber}`, to: { name: 'Office', params: { officeNumber },
+    query: { view: view === 'compact' ? 'compact' : 'cards', ...(floor === null ? {} : { floor: String(floor) }) } } }];
+  if (floor !== null) items.push({ label: `${floor} этаж`, to: { name: 'FloorPlan',
+    params: { officeNumber, floorNumber: String(floor) },
+    ...(view === 'plan' && typeof query.officeSearch === 'string' ? { query: { q: query.officeSearch.slice(0, 100) } } : {}) } });
+  items.push({ label: `Аудитория ${classroom.number ?? classroom.id}` });
+  return items;
+}

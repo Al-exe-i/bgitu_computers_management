@@ -3,11 +3,11 @@ from pydantic import ValidationError
 
 from core.config import (
     BootstrapConfig,
-    CeleryConfig,
     DatabaseConfig,
     JWTConfig,
     Settings,
     StorageConfig,
+    TaskiqConfig,
 )
 
 
@@ -21,7 +21,7 @@ def make_settings(**overrides) -> Settings:
             database="app",
         ),
         "jwt": JWTConfig(ACCESS_SECRET_KEY="a-secure-random-secret-with-32-chars"),
-        "celery": CeleryConfig(
+        "taskiq": TaskiqConfig(
             broker_url="redis://localhost:6379/0",
             result_backend="redis://localhost:6379/1",
         ),

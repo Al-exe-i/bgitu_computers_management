@@ -124,10 +124,10 @@ export default {
     <template v-else>
       <div class="floor-page-controls">
         <label class="floor-page-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input v-model="search" type="search" maxlength="100" aria-label="Поиск кабинета на этаже" placeholder="Найти кабинет…"></label>
-        <nav v-if="floors.length <= 6" class="floor-tabs" aria-label="Этажи корпуса">
+        <nav v-if="floors.length > 1 && floors.length <= 6" class="floor-tabs" aria-label="Этажи корпуса">
           <RouterLink v-for="number in floors" :key="number" :to="number === floor ? $route.fullPath : floorLocation(number)" :aria-label="`${number} этаж`" :aria-current="number === floor ? 'page' : undefined">{{ number }}<span> этаж</span></RouterLink>
         </nav>
-        <label class="floor-select" :class="{ 'always-visible': floors.length > 6 }"><span>Этаж</span><select aria-label="Этаж корпуса" :value="floorNumber" :disabled="editState.saving" @change="selectFloor"><option v-for="number in floors" :key="number" :value="number">{{ number }} этаж</option></select><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></label>
+        <label v-if="floors.length > 1" class="floor-select" :class="{ 'always-visible': floors.length > 6 }"><span>Этаж</span><select aria-label="Этаж корпуса" :value="floorNumber" :disabled="editState.saving" @change="selectFloor"><option v-for="number in floors" :key="number" :value="number">{{ number }} этаж</option></select><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></label>
       </div>
       <div class="floor-page-canvas">
         <FloorPlan :key="viewKey" ref="plan" :office-id="Number(officeNumber)" :floor="floor" :matching-ids="matchingIds" :search-text="search" @edit-state="editState = $event" @ready="restorePosition" />
@@ -150,12 +150,13 @@ html[data-theme='dark'] .floor-page { --page-surface: #111d30; --page-ink: #e1ea
 .floor-info-button svg { width: 22px; height: 22px; }
 .floor-page-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 24px; }
 .floor-page-search { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 420px; min-width: 180px; padding: 0 14px; background: var(--page-surface); border: 1px solid var(--page-line); border-radius: 12px; color: var(--page-muted); }
-.floor-page-search input { min-width: 0; width: 100%; min-height: 46px; border: 0; background: transparent; color: var(--page-ink); font: inherit; font-size: 15px; outline: none; box-shadow: none; }
+.floor-page-search input { min-width: 0; width: 100%; min-height: 46px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--page-ink); font: inherit; font-size: 15px; outline: none; box-shadow: none; }
+html[data-theme='dark'] .floor-page-search input { background-color: transparent !important; }
 .floor-page-search:focus-within { border-color: var(--page-accent); box-shadow: inset 0 0 0 1px var(--page-accent); }
 .floor-page-search input:focus-visible { outline: none; }
-.floor-tabs { display: flex; gap: 4px; padding: 4px; margin-left: auto; border-bottom: 1px solid var(--page-line); }
-.floor-tabs a { padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--page-muted); text-decoration: none; }
-.floor-tabs a[aria-current] { color: var(--page-accent); background: var(--page-active); box-shadow: inset 0 -2px var(--page-accent); }
+.floor-tabs { display: flex; gap: 4px; padding: 4px; margin-left: auto; max-width: 100%; overflow-x: auto; border: 1px solid var(--page-line); border-radius: 14px; background: var(--page-surface); }
+.floor-tabs a { display: inline-flex; align-items: center; gap: 4px; justify-content: center; min-height: 38px; padding: 0 14px; flex-shrink: 0; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--page-muted); text-decoration: none; transition: background-color 160ms ease, color 160ms ease; }
+.floor-tabs a[aria-current] { color: var(--page-accent); background: var(--page-active); }
 .floor-select { display: none; position: relative; align-items: center; gap: 10px; color: var(--page-muted); font-size: 14px; }
 .floor-select.always-visible { display: flex; margin-left: auto; }
 .floor-select select { appearance: none; padding: 10px 34px 10px 12px; min-height: 46px; border: 1px solid var(--page-line); border-radius: 10px; background: var(--page-surface); color: var(--page-ink); font: inherit; }
