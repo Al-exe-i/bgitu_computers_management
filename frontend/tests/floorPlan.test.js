@@ -256,56 +256,37 @@ function officeComponent(confirm = () => false) {
   return { instance, definition, scrolls };
 }
 
-test('return scroll waits for all floor plans and runs only once', async () => {
+test('building return restores its floor once without waiting for embedded plans', async () => {
   const { instance, definition, scrolls } = officeComponent();
   instance.$route = { query: { view: 'plan', floor: '3' } };
-  assert.equal(definition.data.call(instance).audienceViewMode, 'plan');
-  instance.audienceViewMode = 'plan';
+  assert.equal(definition.data.call(instance).audienceViewMode, 'cards');
   instance.returnPositionPending = true;
   instance.office = { id: 1 };
   instance.floors = { 2: {}, 3: {} };
-  instance.floorPlansReady = { 2: true };
-  await instance.restoreFloorPosition();
-  assert.equal(scrolls.length, 0);
-  instance.floorPlansReady[3] = true;
   await instance.restoreFloorPosition();
   await instance.restoreFloorPosition();
   assert.deepEqual(scrolls, ['office-1-floor-3']);
 });
 
-test('mode and route changes preserve drafts when leave confirmation is rejected', () => {
-  const { instance, definition } = officeComponent();
-  instance.audienceViewMode = 'plan';
-  instance.planStates = { 2: { dirty: true, saving: false } };
-  instance.setAudienceViewMode('cards');
-  assert.equal(instance.audienceViewMode, 'plan');
-  assert.equal(instance.planStates[2].dirty, true);
-  assert.equal(definition.beforeRouteLeave.call(instance), false);
-  assert.equal(definition.beforeRouteUpdate.call(instance,
-    { params: { officeNumber: '2' } }, { params: { officeNumber: '1' } }), false);
-  let prevented = false;
-  instance.handlePlanBeforeUnload({ preventDefault: () => { prevented = true; } });
-  assert.equal(prevented, true);
+test('building presentation supports cards and list, not an embedded plan', () => {
+  const { instance } = officeComponent();
+  instance.setAudienceViewMode('compact');
+  assert.equal(instance.audienceViewMode, 'compact');
+  instance.setAudienceViewMode('plan');
+  assert.equal(instance.audienceViewMode, 'cards');
 });
 
-test('filtering does not unmount floor editors or remove their rooms', () => {
+test('building filtering preserves source rooms', () => {
   const { instance } = officeComponent();
   const audiences = [{ public_id: 'a', number: 228, hardware: [{ state: false }] },
     { public_id: 'b', number: 229, hardware: [] }];
   instance.floors = { 2: { number: 2, audiences } };
-  instance.audienceViewMode = 'plan';
   instance.filterMode = 'broken';
   instance.applyFilters();
-  assert.equal(instance.visibleFloors[2].audiences.length, 2);
-  assert.deepEqual(Array.from(instance.floorMatchingIds('2')), ['a']);
+  assert.equal(instance.floors[2].audiences.length, 2);
+  assert.deepEqual(Array.from(instance.proxyFloors[2].audiences, room => room.public_id), ['a']);
   instance.searchField = '000';
   instance.applyFilters();
-  assert.equal(instance.visibleFloors[2].audiences.length, 2);
-  assert.equal(instance.floorMatchingIds('2').length, 0);
-});
-
-test('leaving while saving is blocked even when discard confirmation would be accepted', () => {
-  const { instance } = officeComponent(() => true);
-  instance.planStates = { 2: { dirty: false, saving: true } };
-  assert.equal(instance.confirmPlanLeave(), false);
+  assert.equal(instance.floors[2].audiences.length, 2);
+  assert.equal(Object.keys(instance.proxyFloors).length, 0);
 });

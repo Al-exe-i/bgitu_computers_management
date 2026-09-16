@@ -1,7 +1,7 @@
 ﻿<script>
 import api from "@/services/api.js";
 import router from "@/router/index.js";
-import { officeBackLocation, preserveAudienceOrigin } from '@/utils/officeNavigation.js';
+import { officeBackLocation, preserveAudienceOrigin, audienceBackLabel } from '@/utils/officeNavigation.js';
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
@@ -2174,6 +2174,7 @@ export default {
     goBack() {
       router.push(officeBackLocation(this.classroom, this.$route.query));
     },
+    backLabel() { return audienceBackLabel(this.$route.query); },
 
     editClassroom() {
       router.push({
@@ -2777,7 +2778,7 @@ export default {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
-            Назад
+            {{ backLabel() }}
           </button>
         </div>
 

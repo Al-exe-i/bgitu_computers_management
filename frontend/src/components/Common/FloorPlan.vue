@@ -14,6 +14,7 @@ export default {
     officeId: { type: Number, required: true },
     floor: { type: Number, required: true },
     matchingIds: { type: Array, default: null },
+    searchText: { type: String, default: '' },
   },
   emits: ['edit-state', 'ready'],
   data: () => ({
@@ -150,7 +151,7 @@ export default {
       if (this.editing) { if (this.editable) this.selectedId = room.audience_public_id; return; }
       useAudienceContext().setOffice(this.officeId);
       this.$router.push({ name: 'Audience', params: { audiencePublicId: room.audience_public_id },
-        query: audienceOriginQuery('plan', this.floor) });
+        query: audienceOriginQuery('plan', this.floor, this.searchText) });
     },
     placeAt(event) {
       if (!this.editable || !this.selected || this.selectedPlacement || event.target !== this.$refs.grid) return;

@@ -1,7 +1,6 @@
 <script>
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
-import FloorPlan from './FloorPlan.vue';
 import EntityInfoModal from './EntityInfoModal.vue';
 import { FLOOR_INFO_FIELDS } from '@/config/locationInfo.js';
 import { useAuthStore } from '@/stores/auth.js';
@@ -9,11 +8,9 @@ import { audienceOriginQuery } from '@/utils/officeNavigation.js';
 
 export default {
   name: "floorSection",
-  components: { FloorPlan, EntityInfoModal },
-  emits: ['edit-state', 'plan-ready'],
+  components: { EntityInfoModal },
   props: {
     officeId: { type: Number, default: null },
-    matchingIds: { type: Array, default: null },
     number: {
       type: Number,
       required: true
@@ -99,25 +96,26 @@ export default {
 </script>
 
 <template>
-  <div class="floor-section" :class="{ collapsed: this.collapsed, 'has-plan': displayMode === 'plan' }">
+  <div class="floor-section" :class="{ collapsed: this.collapsed }">
     <EntityInfoModal v-if="showFloorInfo" kind="floor" :marker="number" :title="`${number} этаж · корпус №${officeId}`" :endpoint="`/offices/${officeId}/floors/${number}/info`" :fields="floorInfoFields" :editable="canEditInfo" @close="showFloorInfo = false" />
     <div class="floor-header" @click="this.collapsed = !this.collapsed">
       <div class="floor-number"><button type="button" class="floor-info-trigger" :aria-label="`Информация о ${number} этаже`" title="Информация об этаже" @click.stop="showFloorInfo = true">{{ number }}<span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v8m0-12v1"/></svg></span></button></div>
       <div class="floor-heading">
         <h2 class="floor-title">{{ this.numberToLiteral(this.number) }} этаж</h2>
       </div>
-      <div class="collapse-icon">
+      <RouterLink class="floor-plan-link" :to="{ name: 'FloorPlan', params: { officeNumber: officeId, floorNumber: number } }" @click.stop>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3h18v18H3zM3 10h7V3m4 18v-8h7M3 16h5"/></svg>
+        Схема этажа
+      </RouterLink>
+      <button type="button" class="collapse-icon" :aria-expanded="!collapsed" :aria-label="`${collapsed ? 'Развернуть' : 'Свернуть'} ${number} этаж`" @click.stop="collapsed = !collapsed">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M6 9l6 6 6-6"/>
         </svg>
-      </div>
+      </button>
     </div>
 
     <div class="classrooms-content" :inert="collapsed">
-      <FloorPlan v-if="displayMode === 'plan'" :office-id="officeId" :floor="number"
-        :matching-ids="matchingIds" @edit-state="$emit('edit-state', $event)" @ready="$emit('plan-ready')" />
-
-      <div v-else class="classrooms-grid" :class="{ 'compact-mode': isCompactMode }">
+      <div class="classrooms-grid" :class="{ 'compact-mode': isCompactMode }">
 
         <div
           v-for="audience in audiences"
@@ -200,7 +198,12 @@ html[data-theme='dark'] .floor-info-trigger span { background: #1e293b; color: #
   animation: floorSectionReveal 0.66s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.floor-section.has-plan, .has-plan > .classrooms-content { overflow: clip; }
+.floor-plan-link { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 40px; padding: 8px 14px; box-sizing: border-box; border: 1px solid #c7d4e6; border-radius: 10px; color: #2456bd; background: #f8faff; font-size: 14px; font-weight: 600; text-decoration: none; }
+.floor-plan-link svg { width: 19px; height: 19px; }
+.floor-plan-link:focus-visible, .collapse-icon:focus-visible { outline: 2px solid #3b82f6; outline-offset: 3px; }
+html[data-theme='dark'] .floor-plan-link { color: #bfd7ff; border-color: #3b506e; background: #19293f; }
+@media (hover: hover) { .floor-plan-link:hover { border-color: #3b82f6; background: #e8f0ff; } html[data-theme='dark'] .floor-plan-link:hover { background: #203754; } }
+@media (max-width: 600px) { .floor-plan-link { order: 4; width: 100%; justify-content: center; min-height: 44px; } }
 
 .floor-header {
   display: flex;
@@ -267,6 +270,10 @@ html[data-theme='dark'] .floor-info-trigger span { background: #1e293b; color: #
 }
 
 .collapse-icon {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
   width: 40px;
   height: 40px;
   display: flex;

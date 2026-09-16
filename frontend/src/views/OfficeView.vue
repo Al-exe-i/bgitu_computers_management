@@ -12,7 +12,7 @@ import { officeView, officeFloor } from '@/utils/officeNavigation.js';
 
 const AUDIENCE_VIEW_MODE_STORAGE_KEY = 'bgitu-office-audience-view-mode';
 const DEFAULT_AUDIENCE_VIEW_MODE = 'cards';
-const AUDIENCE_VIEW_MODES = new Set(['cards', 'compact', 'plan']);
+const AUDIENCE_VIEW_MODES = new Set(['cards', 'compact']);
 
 function normalizeAudienceViewMode(mode) {
   return AUDIENCE_VIEW_MODES.has(mode) ? mode : DEFAULT_AUDIENCE_VIEW_MODE;
@@ -55,18 +55,13 @@ export default {
       isStatusDropdownOpen: false,
       proxyFloors: null,
       searchField: ``,
-      audienceViewMode: officeView(this.$route?.query?.view) ?? readStoredAudienceViewMode(),
-      planStates: {},
+      audienceViewMode: normalizeAudienceViewMode(officeView(this.$route?.query?.view) ?? readStoredAudienceViewMode()),
       officeRequestId: 0,
-      floorPlansReady: {},
       returnPositionPending: false,
     }
   },
 
   computed: {
-    visibleFloors() { return this.audienceViewMode === 'plan' ? this.floors : this.proxyFloors; },
-    hasPlanChanges() { return Object.values(this.planStates).some(state => state.dirty); },
-    isPlanSaving() { return Object.values(this.planStates).some(state => state.saving); },
     notify()
     {
       return useNotificationsStore()
@@ -139,8 +134,6 @@ export default {
       const requestId = ++this.officeRequestId;
       this.loading = true;
       this.floors = null;
-      this.planStates = {};
-      this.floorPlansReady = {};
       this.returnPositionPending = officeFloor(this.$route?.query?.floor) !== null;
       await api.get(`/offices/${officeNumber}`).then((response) => {
         if (requestId !== this.officeRequestId) return;
@@ -267,22 +260,13 @@ export default {
     setAudienceViewMode(mode)
     {
       const normalizedMode = normalizeAudienceViewMode(mode);
-      if (normalizedMode === this.audienceViewMode || !this.confirmPlanLeave()) return;
-      this.planStates = {};
+      if (normalizedMode === this.audienceViewMode) return;
       this.audienceViewMode = normalizedMode;
       storeAudienceViewMode(normalizedMode);
     },
 
-    confirmPlanLeave() {
-      if (this.isPlanSaving) {
-        this.notify.info('Дождитесь сохранения схемы этажа');
-        return false;
-      }
-      return !this.hasPlanChanges || window.confirm('На схеме этажа есть несохранённые изменения. Покинуть редактор?');
-    },
     async restoreFloorPosition() {
       if (!this.returnPositionPending) return;
-      if (this.audienceViewMode === 'plan' && Object.keys(this.floorPlansReady).length < Object.keys(this.floors ?? {}).length) return;
       const floor = officeFloor(this.$route?.query?.floor);
       if (floor === null) return;
       const requestId = this.officeRequestId;
@@ -290,19 +274,6 @@ export default {
       if (requestId !== this.officeRequestId || !this.returnPositionPending) return;
       this.returnPositionPending = false;
       document.getElementById(`office-${this.office?.id}-floor-${floor}`)?.scrollIntoView({ block: 'start', behavior: 'instant' });
-    },
-    onFloorPlanReady(floorKey) {
-      this.floorPlansReady[floorKey] = true;
-      this.restoreFloorPosition();
-    },
-    handlePlanBeforeUnload(event) {
-      if (!this.hasPlanChanges && !this.isPlanSaving) return;
-      event.preventDefault();
-      event.returnValue = '';
-    },
-    floorMatchingIds(floorKey) {
-      if (!this.searchField.trim() && this.filterMode === 'all') return null;
-      return (this.proxyFloors?.[floorKey]?.audiences ?? []).map(room => room.public_id);
     },
 
     addNewAudience()
@@ -317,26 +288,19 @@ export default {
   mounted()
   {
     document.addEventListener('click', this.handleStatusDropdownOutside)
-    window.addEventListener('beforeunload', this.handlePlanBeforeUnload);
     this.getOffice(this.officeNumber)
   },
 
   beforeUnmount() {
     this.officeRequestId++;
-    window.removeEventListener('beforeunload', this.handlePlanBeforeUnload);
     document.removeEventListener('click', this.handleStatusDropdownOutside)
   },
 
-  beforeRouteLeave() { return this.confirmPlanLeave(); },
-  beforeRouteUpdate(to, from) {
-    if (to.params.officeNumber !== from.params.officeNumber) return this.confirmPlanLeave();
-    return true;
-  },
 
   watch: {
     officeNumber(newOfficeNumber)
     {
-      this.audienceViewMode = officeView(this.$route?.query?.view) ?? readStoredAudienceViewMode();
+      this.audienceViewMode = normalizeAudienceViewMode(officeView(this.$route?.query?.view) ?? readStoredAudienceViewMode());
       this.getOffice(newOfficeNumber)
     },
 
@@ -601,22 +565,15 @@ export default {
           </svg>
           <span class="mode-label">Список</span>
         </button>
-        <button class="mode-btn" aria-label="Схема этажа" title="Схема этажа" :aria-pressed="audienceViewMode === 'plan'" :class="{ active: audienceViewMode === 'plan' }" @click="setAudienceViewMode('plan')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3h18v18H3zM3 10h7V3m4 18v-8h7M3 16h5" /></svg>
-          <span class="mode-label">Схема</span>
-        </button>
       </div>
     </div>
 
     <floor-section
       v-if="floors"
-      v-for="(floor, floorKey, floorIndex) in visibleFloors"
+      v-for="(floor, floorKey, floorIndex) in proxyFloors"
       :key="`floor-${office.id}-${floorKey}`"
       :id="`office-${office.id}-floor-${floorKey}`"
       :office-id="office.id"
-      :matching-ids="floorMatchingIds(floorKey)"
-      @edit-state="planStates[floorKey] = $event"
-      @plan-ready="onFloorPlanReady(floorKey)"
       :audiences="floor.audiences"
       :number="floor.number"
       :display-mode="audienceViewMode"

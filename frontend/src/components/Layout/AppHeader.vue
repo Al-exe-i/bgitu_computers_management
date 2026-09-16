@@ -214,7 +214,7 @@ export default {
 
     updateActiveOffice() {
       const routeOffice = Number(this.$route.params.officeNumber);
-      if (this.$route.name === 'Office' || this.$route.name === 'Audience') {
+      if (['Office', 'Audience', 'FloorPlan'].includes(this.$route.name)) {
         this.activeOfficeId = routeOffice || this.audienceContext.officeId || null;
       } else {
         this.activeOfficeId = null;

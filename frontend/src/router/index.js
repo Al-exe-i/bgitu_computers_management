@@ -6,6 +6,7 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 
 const HomeView = () => import("@/views/HomeView.vue");
 const OfficeView = () => import("@/views/OfficeView.vue");
+const FloorPlanView = () => import('@/views/FloorPlanView.vue');
 const AudienceView = () => import("@/views/AudienceView.vue");
 const NotFoundView = () => import("@/views/NotFoundView.vue");
 const CreateAudience = () => import("@/components/Layout/CreateAudience.vue");
@@ -43,6 +44,17 @@ const routes = [
         component: OfficeView,
         props: true,
         meta: {title: (route) => `${route.params.officeNumber} корпус`},
+        beforeEnter: to => to.query.view === 'plan' && /^-?\d+$/.test(String(to.query.floor ?? ''))
+            ? { name: 'FloorPlan', params: { officeNumber: to.params.officeNumber, floorNumber: to.query.floor }, replace: true }
+            : true,
+    },
+
+    {
+        path: '/Office/:officeNumber/floors/:floorNumber',
+        name: 'FloorPlan',
+        component: FloorPlanView,
+        props: true,
+        meta: { title: route => `${route.params.floorNumber} этаж · корпус №${route.params.officeNumber}` },
     },
 
     {
