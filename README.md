@@ -67,7 +67,7 @@ Backend предоставляет REST API для frontend-приложения
 ### Пользователи и доступ
 
 - аутентификация через access token и refresh token;
-- пользователи, роли и приглашения на регистрацию;
+- пользователи, роли и создание учётных записей администратором;
 - хранение refresh-сессий;
 - фоновая очистка устаревших сессий;
 - разграничение доступа к защищенным endpoint-ам.
@@ -311,7 +311,7 @@ Copy-Item .env.example .env
 | `BGITU__WEBSOCKET__*` | realtime и Redis для SSE                     |
 | `BGITU__BOOTSTRAP__*` | начальные корпуса и первый суперпользователь |
 | `BGITU__CORS_ORIGINS` | список разрешенных origin для frontend       |
-| `BGITU__FRONTEND_URL` | URL frontend, используется в приглашениях    |
+| `BGITU__FRONTEND_URL` | URL frontend для проверки Origin запросов    |
 
 
 Для PostgreSQL в Docker также нужны:
@@ -492,7 +492,7 @@ uv run python -m management.users create-admin --email manager@example.ru
 - [x] Координаты оборудования на сетке аудитории
 - [x] Access token и refresh token
 - [x] Роли пользователей
-- [x] Приглашения на регистрацию
+- [x] Создание пользователей администратором
 - [x] Загрузка файлов
 - [x] Аудит действий
 - [x] Аналитика по оборудованию

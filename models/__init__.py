@@ -1,5 +1,4 @@
 from modules.administration.models.audit_log import AuditLog
-from modules.identity.models.invite_link import InviteLink
 from modules.identity.models.used_refresh_token import UsedRefreshToken
 from modules.identity.models.user import User
 from modules.identity.models.user_session import UserSession
@@ -17,7 +16,6 @@ __all__ = [
     "AuditLog",
     "Hardware",
     "HardwareFile",
-    "InviteLink",
     "NotificationSubscription",
     "Office",
     "SpecTemplate",

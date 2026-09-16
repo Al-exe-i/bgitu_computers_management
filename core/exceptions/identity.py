@@ -36,31 +36,3 @@ class SuperuserDeleteForbiddenError(IdentityError):
 
 class InvalidUserPhotoError(IdentityError):
     detail = "File must be an image"
-
-
-class InviteError(IdentityError):
-    detail = "Invite operation failed"
-
-
-class InviteBatchInputError(InviteError):
-    detail = "Either count or emails must be provided"
-
-
-class InviteNotFoundError(InviteError):
-    detail = "Invite not found"
-
-
-class InviteAlreadyUsedError(InviteError):
-    detail = "Invite already used"
-
-
-class InviteInvalidError(InviteError):
-    detail = "Invite is invalid, expired, revoked or already used"
-
-
-class InviteAssignedToAnotherEmailError(InviteError):
-    detail = "This invite is assigned to another email"
-
-
-class InviteUserAlreadyExistsError(InviteError):
-    detail = "User with this email already exists"

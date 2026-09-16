@@ -156,8 +156,6 @@ def test_refresh_denial_commits_security_changes_but_not_partial_failures(sessio
     def use_cases(db: session_dep):
         return IdentityAuthUseCases(
             auth_service=AuthService(users, sessions),
-            invite_service=None,
-            user_service=users,
             transaction=SessionTransaction(db),
         )
 

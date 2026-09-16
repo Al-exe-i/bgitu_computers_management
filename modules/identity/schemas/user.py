@@ -44,3 +44,9 @@ class ChangePasswordSchema(BaseModel):
 
     current_password: str = Field(min_length=6, max_length=128)
     new_password: str = Field(min_length=6, max_length=128)
+
+
+class ResetUserPasswordSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    new_password: str = Field(min_length=6, max_length=128, repr=False)

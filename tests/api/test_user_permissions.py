@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from dependencies.audit_actor import get_user_audit_actor
@@ -192,6 +193,55 @@ def test_read_user_allows_admin_to_access_other_user() -> None:
 
         assert response.status_code == 200
         assert response.json()["id"] == 8
+    finally:
+        clear_dependency_overrides()
+
+
+@pytest.mark.parametrize("role,expected", [(None, 401), (UserRole.teacher, 403), (UserRole.admin, 403)])
+def test_reset_password_requires_superuser(role, expected):
+    from unittest.mock import AsyncMock
+
+    from dependencies.identity import get_identity_user_use_cases
+
+    actor = make_user(user_id=1, role=role or UserRole.teacher)
+    override_user_service(DummyUserService({1: actor}))
+    use_cases = SimpleNamespace(reset_user_password=AsyncMock())
+    app.dependency_overrides[get_identity_user_use_cases] = lambda: use_cases
+    try:
+        with TestClient(app) as client:
+            headers = {"Authorization": f"Bearer {issue_access_token(1)}"} if role else {}
+            response = client.post("/api/v1/users/7/password", json={"new_password": "newpass"}, headers=headers)
+        assert response.status_code == expected
+        use_cases.reset_user_password.assert_not_awaited()
+    finally:
+        clear_dependency_overrides()
+
+
+def test_reset_password_dispatches_events_without_clearing_actor_cookies():
+    from unittest.mock import AsyncMock
+
+    from dependencies.audit_actor import get_superuser_audit_actor
+    from dependencies.events import get_identity_event_dispatcher
+    from dependencies.identity import get_identity_user_use_cases
+
+    actor = make_user(user_id=1, role=UserRole.admin, is_superuser=True)
+    audit = DummyUserAudit(actor)
+    events = [object()]
+    use_cases = SimpleNamespace(reset_user_password=AsyncMock(return_value=SimpleNamespace(events=events)))
+    dispatcher = SimpleNamespace(dispatch=AsyncMock())
+    app.dependency_overrides[get_superuser_audit_actor] = lambda: audit
+    app.dependency_overrides[get_identity_user_use_cases] = lambda: use_cases
+    app.dependency_overrides[get_identity_event_dispatcher] = lambda: dispatcher
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/v1/users/7/password", json={"new_password": "newpass"})
+        assert response.status_code == 204
+        assert response.content == b""
+        assert "set-cookie" not in response.headers
+        kwargs = use_cases.reset_user_password.await_args.kwargs
+        assert kwargs["user_id"] == 7 and kwargs["actor"] is actor
+        assert kwargs["data"].new_password == "newpass"
+        dispatcher.dispatch.assert_awaited_once_with(events)
     finally:
         clear_dependency_overrides()
 

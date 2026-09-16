@@ -9,12 +9,6 @@ from api.v1.application_events import dispatch_result_events
 from dependencies.audit_actor import audit_ctx_dep, user_audit_actor_dep
 from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_auth_use_cases_dep
-from modules.identity.schemas.invite import (
-    InvitePreviewRequest,
-    InvitePreviewResponse,
-    RegisterByInviteRequest,
-    RegisterByInviteResponse,
-)
 from modules.identity.schemas.user_session import UserSessionOut
 from utils.tokens import build_token_response, clear_auth_cookies
 
@@ -138,25 +132,3 @@ async def revoke_session(
 
     if result.session.revoked_current_session:
         clear_auth_cookies(response)
-
-
-@router.post("/auth/invite/preview", response_model=InvitePreviewResponse)
-async def preview_invite(
-    data: InvitePreviewRequest,
-    use_cases: identity_auth_use_cases_dep,
-):
-    return await use_cases.preview_invite(token=data.token)
-
-
-@router.post("/auth/invite/register", response_model=RegisterByInviteResponse)
-async def register_by_invite(
-    data: RegisterByInviteRequest,
-    use_cases: identity_auth_use_cases_dep,
-    audit: audit_ctx_dep,
-):
-    result = await use_cases.register_by_invite(
-        data=data,
-        audit=audit,
-    )
-
-    return result.registration

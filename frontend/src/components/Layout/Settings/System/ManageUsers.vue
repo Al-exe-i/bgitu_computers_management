@@ -1,5 +1,10 @@
 <script>
 import api from "@/services/api";
+import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
+import EntityInfoModal from '@/components/Common/EntityInfoModal.vue';
+import PasswordEyeButton from '@/components/Common/PasswordEyeButton.vue';
+import PasswordStrength from '@/components/Common/PasswordStrength.vue';
+import RoleHelp from './RoleHelp.vue';
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import { getApiUrl } from "@/config/api.js";
@@ -7,16 +12,18 @@ import {
   RU_EMAIL_ERROR_MESSAGE,
   isRuEmail,
   isValidEmail,
-  mapInviteApiError,
-} from "@/utils/invites.js";
+  mapUserApiError,
+} from "@/utils/users.js";
 import noAvatar from '@/assets/user_no_icon.svg';
 
 export default {
   name: "ManageUsers",
+  components: { ModalCloseButton, EntityInfoModal, PasswordEyeButton, PasswordStrength, RoleHelp },
 
   data() {
     return {
       users: [],
+      detailsUser: null,
       // Общая загрузка страницы
       loading: true,
 
@@ -28,6 +35,13 @@ export default {
       showModal: false,
       createLoading: false,
       showPassword: false,
+      passwordTarget: null,
+      passwordLoading: false,
+      passwordVisible: false,
+      passwordError: '',
+      passwordForm: { password: '', repeat: '' },
+      passwordReturnFocus: null,
+      passwordPreviousOverflow: '',
 
       createForm: {
         email: '',
@@ -39,6 +53,13 @@ export default {
   },
 
   computed: {
+    userInfoFields() {
+      return [
+        { key: 'email', label: 'Email' }, { key: 'name', label: 'Имя' },
+        { key: 'surname', label: 'Фамилия' }, { key: 'role', label: 'Роль', format: user => this.getRoleName(user) },
+        { key: 'reg_date', label: 'Дата регистрации', format: user => user.reg_date ? new Date(user.reg_date).toLocaleString('ru-RU') : '' },
+      ];
+    },
     authStore() { return useAuthStore(); },
     notify() { return useNotificationsStore(); },
 
@@ -48,6 +69,68 @@ export default {
   },
 
   methods: {
+    openUserDetails(user) {
+      if (this.authStore.user?.role !== 1 && user.id !== this.authStore.user?.id) return;
+      this.detailsUser = user;
+    },
+    canResetPassword(user) {
+      return this.isSuperuser && !user.is_superuser && user.id !== this.authStore.user?.id;
+    },
+    openPasswordModal(user) {
+      if (!this.canResetPassword(user) || this.processingIds.includes(user.id)) return;
+      this.passwordForm = { password: '', repeat: '' };
+      this.passwordError = '';
+      this.passwordVisible = false;
+      this.passwordReturnFocus = document.activeElement;
+      this.passwordPreviousOverflow = document.body.style.overflow;
+      this.passwordTarget = user;
+      document.addEventListener('keydown', this.handleEscape);
+      document.body.style.overflow = 'hidden';
+      this.$nextTick(() => this.$refs.resetPasswordInput?.focus({ preventScroll: true }));
+    },
+    closePasswordModal() {
+      if (this.passwordLoading) return;
+      this.passwordTarget = null;
+      this.passwordForm = { password: '', repeat: '' };
+      this.passwordVisible = false;
+      this.passwordError = '';
+      document.removeEventListener('keydown', this.handleEscape);
+      document.body.style.overflow = this.passwordPreviousOverflow;
+      this.passwordReturnFocus?.focus({ preventScroll: true });
+      this.passwordReturnFocus = null;
+    },
+    async resetPassword() {
+      if (this.passwordLoading || !this.passwordTarget || !this.canResetPassword(this.passwordTarget)) return;
+      const { password, repeat } = this.passwordForm;
+      if (password.length < 6 || password.length > 128) {
+        this.passwordError = 'Пароль должен содержать от 6 до 128 символов';
+        return;
+      }
+      if (password !== repeat) {
+        this.passwordError = 'Пароли не совпадают';
+        return;
+      }
+      this.passwordLoading = true;
+      this.passwordError = '';
+      const target = this.passwordTarget;
+      let saved = false;
+      try {
+        await api.post(`/users/${target.id}/password`, { new_password: password });
+        if (this.passwordTarget !== target) return;
+        saved = true;
+        this.notify.success('Пароль изменён. Сессии пользователя завершены.');
+      } catch (error) {
+        if (this.passwordTarget !== target) return;
+        const status = error.response?.status;
+        this.passwordError = status === 403 ? 'Недостаточно прав для смены пароля'
+          : status === 404 ? 'Пользователь больше не существует'
+          : status === 422 ? 'Проверьте пароль: от 6 до 128 символов'
+          : 'Не удалось подтвердить смену пароля. Попробуйте ещё раз.';
+      } finally {
+        this.passwordLoading = false;
+      }
+      if (saved) this.closePasswordModal();
+    },
     async fetchUsers() {
       this.loading = true;
       try {
@@ -83,7 +166,17 @@ export default {
     },
 
     handleEscape(e) {
-      if (e.key === 'Escape') this.closeModal();
+      if (this.passwordTarget && e.key === 'Tab') {
+        const controls = [...this.$refs.passwordDialog.querySelectorAll('button:not(:disabled), input:not(:disabled)')];
+        const first = controls[0];
+        const last = controls.at(-1);
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+        return;
+      }
+      if (e.key !== 'Escape') return;
+      if (this.passwordTarget) this.closePasswordModal();
+      else this.closeModal();
     },
 
     togglePassword() {
@@ -118,7 +211,7 @@ export default {
         return 'Пользователь с таким Email уже существует';
       }
 
-      return mapInviteApiError(error, 'Не удалось создать пользователя');
+      return mapUserApiError(error, 'Не удалось создать пользователя');
     },
 
     async createUser() {
@@ -231,6 +324,9 @@ export default {
   },
 
   beforeUnmount() {
+    this.passwordTarget = null;
+    this.passwordReturnFocus = null;
+    this.passwordForm = { password: '', repeat: '' };
     // Чистим за собой слушатели, если юзер ушел со страницы при открытой модалке
     document.removeEventListener('keydown', this.handleEscape);
     document.body.style.overflow = '';
@@ -240,6 +336,7 @@ export default {
 
 <template>
   <div class="card">
+    <EntityInfoModal v-if="detailsUser" kind="user" :avatar-src="detailsUser.photo ? getUserAvatar(detailsUser) : ''" :title="'Пользователь'" :endpoint="`/users/${detailsUser.id}`" :fields="userInfoFields" @close="detailsUser = null" />
     <div class="card-header">
       <div>
         <h2 class="section-title">Пользователи системы</h2>
@@ -263,7 +360,7 @@ export default {
         <thead>
         <tr>
           <th>Пользователь</th>
-          <th>Роль</th>
+          <th>Роль<RoleHelp /></th>
           <th v-if="isSuperuser" class="text-right">Действия</th>
         </tr>
         </thead>
@@ -288,7 +385,7 @@ export default {
         <tr v-else v-for="user in users" :key="user.id" class="table-row">
 
           <td>
-            <div class="user-cell">
+            <button type="button" class="user-cell user-details-trigger" :aria-label="`О пользователе ${user.email}`" @click="openUserDetails(user)">
               <img
                   class="avatar-small"
                   :src="getUserAvatar(user)"
@@ -299,7 +396,7 @@ export default {
                 <span class="user-email">{{ user.email }}</span>
                 <span class="user-name text-muted" v-if="user.name">{{ user.name }}</span>
               </div>
-            </div>
+            </button>
           </td>
 
           <td>
@@ -327,6 +424,13 @@ export default {
           </td>
 
           <td v-if="isSuperuser" class="text-right">
+            <button v-if="canResetPassword(user)" class="action-btn password-reset-btn"
+                type="button" title="Изменить пароль" aria-label="Изменить пароль"
+                :disabled="processingIds.includes(user.id)" @click="openPasswordModal(user)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="8" cy="9" r="5"/><path d="m12 13 8 8m-3-3 3-3m-6 0 3-3"/>
+              </svg>
+            </button>
             <button
                 class="action-btn delete"
                 title="Удалить пользователя"
@@ -350,7 +454,7 @@ export default {
 
           <div class="modal-header">
             <h3>Создать пользователя</h3>
-            <button class="close-btn" @click="closeModal" title="Закрыть">✕</button>
+            <ModalCloseButton @click="closeModal" />
           </div>
 
           <form @submit.prevent="createUser" class="modal-body">
@@ -389,6 +493,7 @@ export default {
                   <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
                 </button>
               </div>
+              <PasswordStrength :value="createForm.password" />
             </div>
 
             <div class="modal-actions">
@@ -414,12 +519,59 @@ export default {
         </div>
       </div>
     </transition>
+    <transition name="modal">
+      <div v-if="passwordTarget" class="modal-overlay password-reset-overlay" @click.self="closePasswordModal">
+        <div ref="passwordDialog" class="modal-content password-reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-password-title" aria-describedby="reset-password-note" :aria-busy="passwordLoading">
+          <div class="modal-header password-reset-header">
+            <ModalCloseButton :disabled="passwordLoading" @click="closePasswordModal" />
+            <span class="password-reset-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></span>
+            <div class="password-reset-identity"><h3 id="reset-password-title">Изменить пароль</h3><p class="password-reset-target">{{ passwordTarget.email }}</p></div>
+          </div>
+          <form class="modal-body" @submit.prevent="resetPassword">
+            <p id="reset-password-note" class="password-reset-note">После сохранения все сеансы пользователя завершатся. Для входа потребуется новый пароль.</p>
+            <div class="form-group">
+              <label for="reset-password">Новый пароль</label>
+              <div class="input-wrapper password-input-wrapper"><input id="reset-password" ref="resetPasswordInput" v-model="passwordForm.password"
+                  :type="passwordVisible ? 'text' : 'password'" class="form-input" required minlength="6" maxlength="128"
+                  autocomplete="new-password" :disabled="passwordLoading" :aria-describedby="passwordError ? 'reset-password-error' : undefined" :aria-invalid="!!passwordError">
+                <PasswordEyeButton :visible="passwordVisible" @toggle="passwordVisible = !passwordVisible" />
+              </div>
+              <PasswordStrength :value="passwordForm.password" />
+            </div>
+            <div class="form-group">
+              <label for="reset-password-repeat">Повторите пароль</label>
+              <div class="input-wrapper password-input-wrapper"><input id="reset-password-repeat" v-model="passwordForm.repeat" :type="passwordVisible ? 'text' : 'password'"
+                  class="form-input" required minlength="6" maxlength="128" autocomplete="new-password" :disabled="passwordLoading">
+                <PasswordEyeButton :visible="passwordVisible" @toggle="passwordVisible = !passwordVisible" />
+              </div>
+            </div>
+            <p v-if="passwordError" id="reset-password-error" class="password-reset-error" role="alert">{{ passwordError }}</p>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary modal-action-btn modal-action-btn-cancel" :disabled="passwordLoading" @click="closePasswordModal">Отмена</button>
+              <button type="submit" class="btn btn-primary modal-action-btn modal-action-btn-submit" :disabled="passwordLoading">{{ passwordLoading ? 'Сохранение...' : 'Изменить пароль' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </transition>
     </Teleport>
 
   </div>
 </template>
 
 <style scoped>
+.user-details-trigger { width: 100%; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; padding: 4px 0; cursor: pointer; border-radius: 6px; }
+.user-details-trigger:focus-visible { outline: 2px solid #3b82f6; outline-offset: 4px; }
+.password-input-wrapper .form-input { padding-right: 46px; }
+@media (hover: hover) { .user-details-trigger:hover .user-email { text-decoration: underline; text-underline-offset: 3px; } }
+.password-reset-error { color: #b91c1c; font-size: 14px; line-height: 1.5; }
+.action-btn.password-reset-btn { margin-right: 8px; color: #475569; }
+html[data-theme='dark'] .password-reset-error { color: #fca5a5; }
+html[data-theme='dark'] .action-btn.password-reset-btn { color: #cbd5e1; }
+@media (hover: hover) {
+  .action-btn.password-reset-btn:hover:not(:disabled) { background: #e2e8f0; }
+  html[data-theme='dark'] .action-btn.password-reset-btn:hover:not(:disabled) { background: #334155; }
+}
 /* --- Базовая структура --- */
 .card {
   background: #ffffff;
@@ -752,22 +904,6 @@ export default {
   font-weight: 600;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  transition: 0.2s;
-}
-
-.close-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
 .modal-body {
   padding: 24px;
 }
@@ -920,4 +1056,55 @@ export default {
     opacity: 1;
   }
 }
+.password-reset-overlay { padding: 20px; background: rgb(9 17 32 / .54); backdrop-filter: blur(6px); }
+.password-reset-modal {
+  --reset-ink: #172033; --reset-muted: #637187; --reset-tint: #f1f6fd;
+  --reset-emblem: #e5efff; --reset-accent: #285bd4; --reset-border: #e3e8ef; --reset-input: #f8fafc;
+  max-width: 480px; max-height: calc(100dvh - 40px); border: 0; border-radius: 24px;
+  overflow: hidden; color: var(--reset-ink); box-shadow: 0 24px 80px rgb(9 17 32 / .22);
+}
+html[data-theme='dark'] .password-reset-modal {
+  --reset-ink: #e2e8f0; --reset-muted: #9eafc5; --reset-tint: #152136;
+  --reset-emblem: #203657; --reset-accent: #86b0ff; --reset-border: #28364b; --reset-input: #0d1625;
+  border: 0 !important;
+}
+.password-reset-modal .password-reset-header { position: relative; flex-shrink: 0; justify-content: flex-start; gap: 16px; padding: 30px 54px 26px 28px; border: 0; background: var(--reset-tint) !important; }
+.password-reset-header .modal-round-close { position: absolute; top: 14px; right: 14px; }
+.password-reset-symbol { display: grid; place-items: center; flex: 0 0 52px; height: 52px; border-radius: 16px; color: var(--reset-accent); background: var(--reset-emblem); }
+.password-reset-symbol svg { width: 28px; height: 28px; }
+.password-reset-identity { min-width: 0; }
+.password-reset-header h3 { font-size: 23px; line-height: 1.2; letter-spacing: -.025em; font-weight: 600; }
+.password-reset-target { margin: 7px 0 0; color: var(--reset-muted); font-size: 13px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+.password-reset-modal .modal-body { padding: 24px 28px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.password-reset-modal .password-reset-note { color: var(--reset-muted); margin: 0 0 22px; font-size: 13px; line-height: 1.55; }
+.password-reset-modal .form-group { gap: 8px; margin-bottom: 20px; }
+.password-reset-modal .form-group label { color: var(--reset-muted); font-size: 13px; }
+.password-reset-modal .form-input { min-height: 44px; background: var(--reset-input); border-radius: 10px; color: var(--reset-ink); font-size: 15px; transition: border-color 150ms ease; }
+.password-reset-modal .form-input:focus { outline: none; border-color: var(--reset-accent); box-shadow: inset 0 0 0 1px var(--reset-accent); }
+html[data-theme='dark'] .password-reset-modal .form-input:focus { border-color: var(--reset-accent) !important; }
+.password-reset-modal .modal-actions { padding-top: 20px; margin-top: 24px; border-top: 1px solid var(--reset-border); gap: 8px; }
+.password-reset-modal .modal-action-btn { width: auto; min-width: 0; min-height: 40px; border-radius: 10px; padding: 10px 16px; font-size: 13px; transition: background-color 150ms ease; }
+.password-reset-modal .btn-secondary { color: var(--reset-ink); background: transparent; border: 1px solid var(--reset-border); }
+.password-reset-modal .btn-primary { background: #285bd4; color: #fff; }
+.password-reset-modal .btn:disabled { opacity: .55; cursor: default; }
+.password-reset-modal .btn:focus-visible { outline: 2px solid var(--reset-accent); outline-offset: 3px; }
+@media (hover: hover) {
+  .password-reset-modal .btn-primary:hover:not(:disabled) { background: #204ebd; transform: none; }
+  .password-reset-modal .btn-secondary:hover:not(:disabled) { background: var(--reset-tint); transform: none; }
+}
+@media (max-width: 480px) {
+  .password-reset-overlay { padding: 12px; }
+  .password-reset-modal { max-height: calc(100dvh - 24px); border-radius: 18px; }
+  .password-reset-modal .password-reset-header { padding: 26px 50px 22px 22px; gap: 12px; }
+  .password-reset-symbol { flex-basis: 42px; height: 42px; border-radius: 12px; }
+  .password-reset-header h3 { font-size: 21px; }
+  .password-reset-modal .modal-body { padding: 22px; }
+  .password-reset-modal .form-input { font-size: 16px; }
+  .password-reset-modal .modal-action-btn { min-height: 44px; }
+  .password-reset-modal .btn-primary { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .password-reset-overlay, .password-reset-overlay .password-reset-modal { animation: none; transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) { .password-reset-overlay { backdrop-filter: none; } }
 </style>

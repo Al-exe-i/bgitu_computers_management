@@ -2,7 +2,6 @@ from collections.abc import Iterator, Sequence
 from typing import Protocol
 
 from modules.identity.contracts import (
-    InviteRegistrationData,
     LogoutResult,
     RevokeSessionResult,
     TokenIssueResult,
@@ -10,13 +9,6 @@ from modules.identity.contracts import (
     UserPhotoUpdateResult,
 )
 from modules.identity.roles import UserRole
-from modules.identity.schemas.invite import (
-    InviteCreateBatch,
-    InviteCreateOne,
-    InviteCreateResult,
-    InviteListItem,
-    InvitePreviewResponse,
-)
 from modules.identity.schemas.user import UserCreate, UserOut, UserUpdate
 from modules.identity.schemas.user_session import UserSessionOut
 
@@ -111,27 +103,3 @@ class UserServicePort(Protocol):
     ) -> UserPhotoUpdateResult | None: ...
 
     async def delete_photo(self, user_id: int) -> UserPhotoUpdateResult | None: ...
-
-
-class InviteServicePort(Protocol):
-    async def preview(self, token: str) -> InvitePreviewResponse: ...
-
-    async def get_active_for_registration(self, token: str) -> InviteRegistrationData: ...
-
-    async def mark_used(self, invite_id: int, *, used_by_user_id: int) -> None: ...
-
-    async def create_one(
-        self,
-        created_by_user_id: int,
-        schema: InviteCreateOne,
-    ) -> InviteCreateResult: ...
-
-    async def create_batch(
-        self,
-        created_by_user_id: int,
-        schema: InviteCreateBatch,
-    ) -> list[InviteCreateResult]: ...
-
-    async def list_all(self) -> list[InviteListItem]: ...
-    async def revoke(self, invite_id: int) -> InviteListItem: ...
-    async def delete(self, invite_id: int) -> None: ...

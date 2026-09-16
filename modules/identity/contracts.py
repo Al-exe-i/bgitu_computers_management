@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-from modules.identity.roles import UserRole
 from modules.identity.schemas.user import UserOut
 
 
@@ -30,13 +29,6 @@ class LogoutResult:
 @dataclass(frozen=True, slots=True)
 class RevokeSessionResult:
     revoked_current_session: bool
-
-
-@dataclass(frozen=True, slots=True)
-class InviteRegistrationData:
-    id: int
-    target_email: str | None
-    target_role: UserRole
 
 
 @dataclass(frozen=True, slots=True)

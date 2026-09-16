@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.mark.parametrize("first_import", [
-    "modules.identity.models.invite_link", "modules.identity.models.user",
+    "modules.identity.models.user",
     "modules.identity.public", "modules.inventory.models.hardware", "db.session",
     "modules.inventory.models.audience", "modules.inventory.public",
     "modules.notifications.models.subscription", "modules.notifications.public",
@@ -23,7 +23,7 @@ configure_mappers()
 from modules.administration.models.audit_log import AuditLog
 assert not AuditLog.__mapper__.relationships
 assert set(Base.metadata.tables) == {{
-    'audiences', 'audit_logs', 'hardware_files', 'hardwares', 'invite_links',
+    'audiences', 'audit_logs', 'hardware_files', 'hardwares',
     'notification_subscriptions', 'offices', 'spec_templates', 'used_refresh_tokens',
     'user_sessions', 'users', 'floor_plans',
 }}

@@ -8,7 +8,6 @@ const HomeView = () => import("@/views/HomeView.vue");
 const OfficeView = () => import("@/views/OfficeView.vue");
 const AudienceView = () => import("@/views/AudienceView.vue");
 const NotFoundView = () => import("@/views/NotFoundView.vue");
-const InviteRegistrationView = () => import("@/views/InviteRegistrationView.vue");
 const CreateAudience = () => import("@/components/Layout/CreateAudience.vue");
 const SettingsLayout = () => import("@/components/Layout/Settings/SettingsLayout.vue");
 const UserProfile = () => import("@/components/Layout/Settings/UserProfile.vue");
@@ -17,7 +16,6 @@ const SystemLayout = () => import("@/components/Layout/Settings/System/SystemLay
 const ManageUsers = () => import("@/components/Layout/Settings/System/ManageUsers.vue");
 const ManageOffices = () => import("@/components/Layout/Settings/System/ManageOffices.vue");
 const ManageAudiences = () => import("@/components/Layout/Settings/System/ManageAudiences.vue");
-const ManageInvites = () => import("@/components/Layout/Settings/System/ManageInvites.vue");
 const ManageHardwareAnalytics = () => import("@/components/Layout/Settings/System/ManageHardwareAnalytics.vue");
 const ManageAuditLogs = () => import("@/components/Layout/Settings/System/ManageAuditLogs.vue");
 
@@ -81,13 +79,6 @@ const routes = [
     },
 
     {
-        path: '/register',
-        name: 'InviteRegister',
-        component: InviteRegistrationView,
-        meta: { title: 'Регистрация' }
-    },
-
-    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: NotFoundView
@@ -135,13 +126,6 @@ const routes = [
                         name: 'SystemUsers',
                         component: ManageUsers,
                         meta: { title: 'Управление пользователями' }
-                    },
-
-                    {
-                        path: 'invites',
-                        name: 'SystemInvites',
-                        component: ManageInvites,
-                        meta: { title: 'Пригласительные ссылки' }
                     },
 
                     {

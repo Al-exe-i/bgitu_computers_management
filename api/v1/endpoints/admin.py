@@ -5,16 +5,8 @@ from dependencies.administration import (
     administration_audit_log_queries_dep,
     administration_protected_file_queries_dep,
 )
-from dependencies.audit_actor import admin_audit_actor_dep
 from dependencies.auth import admin_dep
-from dependencies.identity import identity_invite_use_cases_dep
 from modules.administration.schemas import AuditLogListResponse
-from modules.identity.schemas.invite import (
-    InviteCreateBatch,
-    InviteCreateOne,
-    InviteCreateResult,
-    InviteListItem,
-)
 from utils.file_responses import secure_file_headers
 
 router = APIRouter(prefix="")
@@ -58,67 +50,4 @@ async def get_audit_log(
         entity_id=entity_id,
         limit=limit,
         offset=offset,
-    )
-
-
-@router.post("/invites/one", response_model=InviteCreateResult)
-async def create_invite_one(
-    data: InviteCreateOne,
-    use_cases: identity_invite_use_cases_dep,
-    audit: admin_audit_actor_dep,
-):
-    result = await use_cases.create_one(
-        data=data,
-        created_by_user_id=audit.user.id,
-        audit=audit,
-    )
-    return result.invite
-
-
-@router.post("/invites/batch", response_model=list[InviteCreateResult])
-async def create_invite_batch(
-    data: InviteCreateBatch,
-    use_cases: identity_invite_use_cases_dep,
-    audit: admin_audit_actor_dep,
-):
-    result = await use_cases.create_batch(
-        data=data,
-        created_by_user_id=audit.user.id,
-        audit=audit,
-    )
-
-    return result.invites
-
-
-@router.get("/invites", response_model=list[InviteListItem])
-async def list_invites(
-    use_cases: identity_invite_use_cases_dep,
-    user: admin_dep,
-):
-    return await use_cases.list_invites()
-
-
-@router.post("/invites/{invite_id}/revoke", response_model=InviteListItem)
-async def revoke_invite(
-    invite_id: int,
-    use_cases: identity_invite_use_cases_dep,
-    audit: admin_audit_actor_dep,
-):
-    result = await use_cases.revoke(
-        invite_id=invite_id,
-        audit=audit,
-    )
-
-    return result.invite
-
-
-@router.delete("/invites/{invite_id}", status_code=204)
-async def delete_invite(
-    invite_id: int,
-    use_cases: identity_invite_use_cases_dep,
-    audit: admin_audit_actor_dep,
-):
-    await use_cases.delete(
-        invite_id=invite_id,
-        audit=audit,
     )

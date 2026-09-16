@@ -1,15 +1,21 @@
 <script>
 import api from "@/services/api";
+import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
+import EntityInfoModal from '@/components/Common/EntityInfoModal.vue';
+import { OFFICE_INFO_FIELDS } from '@/config/locationInfo';
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useOfficeStore } from "@/stores/offices"; // Убрали .js, так современнее
 
 export default {
+  components: { ModalCloseButton, EntityInfoModal },
   name: "ManageOffices",
 
   data() {
     return {
       showModal: false,
+      detailsOffice: null,
+      officeInfoFields: OFFICE_INFO_FIELDS,
       isEditMode: false,
       isSaving: false, // Защита от двойного клика при сохранении
       processingIds: [], // ID корпусов, которые прямо сейчас удаляются
@@ -176,7 +182,10 @@ export default {
         <!-- Данные -->
         <tr v-else v-for="office in offices" :key="office.id" class="table-row">
           <td>
-            <span class="office-number">{{ office.id }}</span>
+            <button type="button" class="office-number office-info-trigger" :aria-label="`Информация о корпусе №${office.id}`" title="Информация о корпусе" @click="detailsOffice = office">
+              {{ office.id }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>
+            </button>
           </td>
 
           <td>
@@ -219,6 +228,11 @@ export default {
       </table>
     </div>
 
+    <EntityInfoModal v-if="detailsOffice" :key="detailsOffice.id" :marker="detailsOffice.id"
+      :title="`Корпус №${detailsOffice.id}`" :endpoint="`/offices/${detailsOffice.id}`"
+      :fields="officeInfoFields" :editable="authStore.isAuthenticated && authStore.user?.role === 1"
+      @close="detailsOffice = null" @saved="officeStore.updateOffice($event)" />
+
     <!-- Модалка -->
     <Teleport to="body">
     <transition name="modal">
@@ -227,7 +241,7 @@ export default {
 
           <div class="modal-header">
             <h3>{{ isEditMode ? 'Редактирование корпуса' : 'Новый корпус' }}</h3>
-            <button class="close-btn" @click="closeModal" title="Закрыть">✕</button>
+            <ModalCloseButton @click="closeModal" />
           </div>
 
           <form @submit.prevent="saveOffice" class="modal-body">
@@ -291,6 +305,13 @@ export default {
 </template>
 
 <style scoped>
+.office-info-trigger { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; border: 0; cursor: pointer; }
+.office-info-trigger svg { width: 16px; height: 16px; color: #64748b; }
+.office-info-trigger:focus-visible { outline: 2px solid #3b82f6; outline-offset: 3px; }
+html[data-theme='dark'] .office-info-trigger { background: #1e293b; color: #dbeafe; }
+html[data-theme='dark'] .office-info-trigger svg { color: #a4b8d1; }
+@media (hover: hover) { .office-info-trigger:hover { background: #dbeafe; color: #1d4ed8; } html[data-theme='dark'] .office-info-trigger:hover { background: #263c5d; color: #dbeafe; } }
+@media (pointer: coarse) { .office-info-trigger { min-height: 44px; } }
 /* --- Базовая структура --- */
 .card {
   background: #ffffff;
@@ -556,30 +577,6 @@ export default {
   font-weight: 600;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #94a3b8;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  border-radius: 6px;
-  transition: 0.2s;
-}
-
-.close-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
 .modal-body {
   padding: 24px;
 }
@@ -657,18 +654,6 @@ html[data-theme='dark'] .modal-content {
 
 html[data-theme='dark'] .modal-header {
   border-bottom-color: #334155;
-}
-
-html[data-theme='dark'] .modal-header .close-btn {
-  background: #0f172a !important;
-  border: 1px solid #475569 !important;
-  color: #cbd5e1 !important;
-}
-
-html[data-theme='dark'] .modal-header .close-btn:hover {
-  background: #1e293b !important;
-  border-color: #64748b !important;
-  color: #f8fafc !important;
 }
 
 html[data-theme='dark'] .modal-actions .btn-primary {

@@ -18,6 +18,7 @@ from dependencies.events import identity_event_dispatcher_dep
 from dependencies.identity import identity_user_use_cases_dep
 from modules.identity.schemas.user import (
     ChangePasswordSchema,
+    ResetUserPasswordSchema,
     UserCreate,
     UserOut,
     UserUpdate,
@@ -127,6 +128,27 @@ async def change_password(
     clear_auth_cookies(response)
 
     return {"message": "Password updated successfully"}
+
+
+@router.post("/{user_id}/password", status_code=204)
+async def reset_user_password(
+    user_id: int,
+    data: ResetUserPasswordSchema,
+    use_cases: identity_user_use_cases_dep,
+    audit: superuser_audit_actor_dep,
+    events: identity_event_dispatcher_dep,
+):
+    await dispatch_result_events(
+        await use_cases.reset_user_password(
+            user_id=user_id,
+            data=data,
+            actor=audit.user,
+            audit=audit,
+            ip=audit.meta.get("ip"),
+            user_agent=audit.meta.get("user_agent"),
+        ),
+        events,
+    )
 
 
 @router.delete("/{user_id}")

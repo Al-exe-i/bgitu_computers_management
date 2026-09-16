@@ -18,12 +18,6 @@ from core.exceptions import (
     InvalidCredentialsError,
     InvalidCurrentPasswordError,
     InvalidUserPhotoError,
-    InviteAlreadyUsedError,
-    InviteAssignedToAnotherEmailError,
-    InviteBatchInputError,
-    InviteInvalidError,
-    InviteNotFoundError,
-    InviteUserAlreadyExistsError,
     NotificationAudienceNotFoundError,
     NotificationScopeInvalidError,
     NotificationScopeNotFoundError,
@@ -48,7 +42,6 @@ from core.exceptions import (
     UserNotFoundError,
     UserPermissionDeniedError,
 )
-
 from core.exceptions.floor_plan import FloorPlanConflictError, FloorPlanRoomError
 
 ExceptionHandler = Callable[[Request, Exception], Awaitable[JSONResponse]]
@@ -70,12 +63,6 @@ DOMAIN_EXCEPTION_STATUS: dict[type[Exception], int] = {
     InvalidUserPhotoError: HTTPStatus.BAD_REQUEST,
     UserPermissionDeniedError: HTTPStatus.FORBIDDEN,
     UserNotFoundError: HTTPStatus.NOT_FOUND,
-    InviteBatchInputError: HTTPStatus.BAD_REQUEST,
-    InviteAlreadyUsedError: HTTPStatus.BAD_REQUEST,
-    InviteInvalidError: HTTPStatus.BAD_REQUEST,
-    InviteAssignedToAnotherEmailError: HTTPStatus.BAD_REQUEST,
-    InviteNotFoundError: HTTPStatus.NOT_FOUND,
-    InviteUserAlreadyExistsError: HTTPStatus.CONFLICT,
     UserAlreadyExistsError: HTTPStatus.CONFLICT,
     NotificationUserNotFoundError: HTTPStatus.NOT_FOUND,
     NotificationSubscriptionAlreadyExistsError: HTTPStatus.CONFLICT,

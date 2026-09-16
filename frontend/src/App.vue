@@ -874,19 +874,7 @@ html[data-theme='dark'] .system-content .card .card-header .btn-primary:hover:no
   border-color: #3b82f6 !important;
 }
 
-html[data-theme='dark'] .invite-admin-page .invite-panel,
-html[data-theme='dark'] .invite-admin-page .created-results {
-  background:
-      radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 34%),
-      linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(17, 24, 39, 0.96)) !important;
-  border: 1px solid #334155 !important;
-  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.2) !important;
-}
 
-html[data-theme='dark'] .invite-admin-page .created-result-card {
-  background: rgba(15, 23, 42, 0.72) !important;
-  border-color: #334155 !important;
-}
 
 html[data-theme='dark'] .error-shell {
   --error-card-border: #334155;

@@ -1,1 +1,1 @@
-"""Identity module: authentication, sessions, invites and user account security."""
+"""Identity module: authentication, sessions and user account security."""

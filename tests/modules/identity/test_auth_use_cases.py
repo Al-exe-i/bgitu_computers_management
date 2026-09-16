@@ -1,20 +1,15 @@
 import asyncio
-from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from core.exceptions import (
-    InviteAssignedToAnotherEmailError,
-    InviteUserAlreadyExistsError,
     RefreshTokenReuseDetectedError,
 )
 from modules.identity.application import IdentityAuthUseCases
 from modules.identity.application.auth import LOGIN_EVENT_NAME, LOGOUT_ALL_EVENT_NAME
-from modules.identity.contracts import InviteRegistrationData, TokenIssueResult
+from modules.identity.contracts import TokenIssueResult
 from modules.identity.events import AuthSecurityNotificationEvent
-from modules.identity.roles import UserRole
-from modules.identity.schemas.invite import RegisterByInviteRequest
 
 
 class FakeAuthService:
@@ -50,56 +45,9 @@ class FakeAudit:
         self.logs.append(kwargs)
 
 
-class FakeInviteService:
-    def __init__(
-        self,
-        invite: InviteRegistrationData | None = None,
-    ) -> None:
-        self.invite = invite or InviteRegistrationData(
-            id=5,
-            target_email=None,
-            target_role=UserRole.teacher,
-        )
-        self.tokens: list[str] = []
-        self.marked_used: list[dict] = []
-
-    async def get_active_for_registration(self, token: str) -> InviteRegistrationData:
-        self.tokens.append(token)
-        return self.invite
-
-    async def mark_used(self, invite_id: int, *, used_by_user_id: int) -> None:
-        self.marked_used.append(
-            {
-                "invite_id": invite_id,
-                "used_by_user_id": used_by_user_id,
-            }
-        )
-
-
-class FakeUserService:
-    def __init__(self, existing_user=None) -> None:
-        self.existing_user = existing_user
-        self.created: list[object] = []
-        self.lookup_emails: list[str] = []
-
-    async def get_by_email(self, email: str):
-        self.lookup_emails.append(email)
-        return self.existing_user
-
-    async def create(self, data):
-        self.created.append(data)
-        return SimpleNamespace(
-            id=7,
-            email=data.email,
-            role=data.role,
-        )
-
-
-def make_use_cases(auth_service=None, invite_service=None, user_service=None) -> IdentityAuthUseCases:
+def make_use_cases(auth_service=None) -> IdentityAuthUseCases:
     return IdentityAuthUseCases(
         auth_service=auth_service or FakeAuthService(),
-        invite_service=invite_service,
-        user_service=user_service,
         transaction=AsyncMock(),
     )
 
@@ -197,109 +145,5 @@ def test_logout_all_writes_audit_and_returns_auth_security_event() -> None:
                 user_agent="pytest",
             )
         ]
-
-    asyncio.run(scenario())
-
-
-def test_register_by_invite_creates_user_marks_invite_used_and_writes_audit() -> None:
-    async def scenario() -> None:
-        audit = FakeAudit()
-        invite_service = FakeInviteService()
-        user_service = FakeUserService()
-        use_cases = make_use_cases(
-            invite_service=invite_service,
-            user_service=user_service,
-        )
-
-        result = await use_cases.register_by_invite(
-            data=RegisterByInviteRequest(
-                token="invite-token-with-enough-entropy",
-                name="Alex",
-                surname="Ivanov",
-                email="new@example.ru",
-                password="secret123",
-            ),
-            audit=audit,
-        )
-
-        assert result.registration.user_id == 7
-        assert result.registration.email == "new@example.ru"
-        assert result.registration.role == str(UserRole.teacher.value)
-        assert invite_service.tokens == ["invite-token-with-enough-entropy"]
-        assert invite_service.marked_used == [{"invite_id": 5, "used_by_user_id": 7}]
-        assert user_service.lookup_emails == ["new@example.ru"]
-        assert user_service.created[0].email == "new@example.ru"
-        assert user_service.created[0].role == UserRole.teacher
-        assert audit.logs == [
-            {
-                "action": "auth.register_by_invite",
-                "entity_type": "user",
-                "entity_id": 7,
-                "payload": {"email": "new@example.ru", "role": str(UserRole.teacher.value)},
-                "user_id": 7,
-            }
-        ]
-
-    asyncio.run(scenario())
-
-
-def test_register_by_invite_rejects_email_mismatch_before_user_create() -> None:
-    async def scenario() -> None:
-        audit = FakeAudit()
-        invite_service = FakeInviteService(
-            InviteRegistrationData(
-                id=5,
-                target_email="target@example.ru",
-                target_role=UserRole.teacher,
-            )
-        )
-        user_service = FakeUserService()
-        use_cases = make_use_cases(
-            invite_service=invite_service,
-            user_service=user_service,
-        )
-
-        with pytest.raises(InviteAssignedToAnotherEmailError):
-            await use_cases.register_by_invite(
-                data=RegisterByInviteRequest(
-                    token="invite-token-with-enough-entropy",
-                    email="other@example.ru",
-                    password="secret123",
-                ),
-                audit=audit,
-            )
-
-        assert user_service.lookup_emails == []
-        assert user_service.created == []
-        assert invite_service.marked_used == []
-        assert audit.logs == []
-
-    asyncio.run(scenario())
-
-
-def test_register_by_invite_rejects_existing_user_before_marking_invite_used() -> None:
-    async def scenario() -> None:
-        audit = FakeAudit()
-        invite_service = FakeInviteService()
-        user_service = FakeUserService(existing_user=SimpleNamespace(id=9))
-        use_cases = make_use_cases(
-            invite_service=invite_service,
-            user_service=user_service,
-        )
-
-        with pytest.raises(InviteUserAlreadyExistsError):
-            await use_cases.register_by_invite(
-                data=RegisterByInviteRequest(
-                    token="invite-token-with-enough-entropy",
-                    email="new@example.ru",
-                    password="secret123",
-                ),
-                audit=audit,
-            )
-
-        assert user_service.lookup_emails == ["new@example.ru"]
-        assert user_service.created == []
-        assert invite_service.marked_used == []
-        assert audit.logs == []
 
     asyncio.run(scenario())

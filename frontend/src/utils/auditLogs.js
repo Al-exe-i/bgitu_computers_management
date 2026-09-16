@@ -1,4 +1,4 @@
-import { getInviteRoleLabel } from "@/utils/invites.js";
+import { getUserRoleLabel } from "@/utils/users.js";
 
 const ENTITY_LABELS = Object.freeze({
   audience: "Аудитория",
@@ -32,6 +32,7 @@ const FIELD_LABELS = Object.freeze({
   height: "высота",
   id: "ID",
   inv_number: "инвентарный номер",
+  internet_provider: "интернет-провайдер",
   ip: "IP-адрес",
   landmarks: "ориентиры",
   method: "метод",
@@ -71,6 +72,8 @@ const ACTION_LABELS = Object.freeze({
   "audience.delete": "Удаление аудитории",
   "office.create": "Создание корпуса",
   "office.update": "Обновление корпуса",
+  "floor.info_update": "Обновление сведений об этаже",
+  "floor_plan.update": "Обновление схемы этажа",
   "office.delete": "Удаление корпуса",
   "hardware.file_add": "Добавление файлов к оборудованию",
   "hardware.update": "Обновление оборудования",
@@ -79,6 +82,7 @@ const ACTION_LABELS = Object.freeze({
   "user.update": "Изменение пользователя",
   "user.delete": "Удаление пользователя",
   "user.password_change": "Смена пароля",
+  "user.password_reset": "Смена пароля суперпользователем",
   "user.photo_upload": "Загрузка фото",
   "user.photo_delete": "Удаление фото",
   "invite.create": "Создание приглашения",
@@ -259,6 +263,7 @@ function getAuditToneClass(action) {
     normalized.endsWith(".file_add") ||
     normalized.endsWith(".file_delete") ||
     normalized === "user.password_change" ||
+    normalized === "user.password_reset" ||
     normalized === "auth.logout_all" ||
     normalized === "auth.session_revoke" ||
     normalized === "auth.refresh"
@@ -331,7 +336,7 @@ function getRoleLabelFromPayload(payload) {
   const role = payload?.target_role ?? payload?.role ?? payload?.new_role ?? payload?.user_role;
   if (role == null || role === "") return "";
 
-  const inviteRoleLabel = getInviteRoleLabel(role);
+  const inviteRoleLabel = getUserRoleLabel(role);
   if (inviteRoleLabel && inviteRoleLabel !== "Не указано") return inviteRoleLabel.toLowerCase();
 
   return humanizeToken(role).toLowerCase();
@@ -654,6 +659,14 @@ const ACTION_FORMATTERS = Object.freeze({
     title: withActor(actorLabel, `создал ${formatEntityTail(entityLabel)}`, entityLabel ? `Создан ${formatEntityTail(entityLabel)}`.replace(/^./, (c) => c.toUpperCase()) : "Создан корпус"),
     summary: buildOfficeSummary(payload),
   }),
+  "floor.info_update": ({ actorLabel, payload }) => ({
+    title: withActor(actorLabel, `обновил сведения об этаже ${payload.floor}`, `Обновлены сведения об этаже ${payload.floor}`),
+    summary: buildGenericUpdateSummary(payload, ''),
+  }),
+  "floor_plan.update": ({ actorLabel, payload }) => ({
+    title: withActor(actorLabel, `обновил схему этажа ${payload.floor}`, `Обновлена схема этажа ${payload.floor}`),
+    summary: `Размер: ${payload.width} × ${payload.height}. Кабинетов на плане: ${payload.rooms_count}.`,
+  }),
   "office.update": ({ actorLabel, entityLabel, payload }) => ({
     title: withActor(actorLabel, `обновил ${formatEntityTail(entityLabel)}`, entityLabel ? `Обновлён ${formatEntityTail(entityLabel)}`.replace(/^./, (c) => c.toUpperCase()) : "Обновлён корпус"),
     summary: buildGenericUpdateSummary(payload, buildOfficeSummary(payload)),
@@ -701,6 +714,10 @@ const ACTION_FORMATTERS = Object.freeze({
       return withActor(actorLabel, `сменил пароль для ${formatEntityTail(entityLabel)}`, entityLabel ? `Изменён пароль для ${formatEntityTail(entityLabel)}`.replace(/^./, (c) => c.toUpperCase()) : "Пароль изменён");
     })(),
     summary: "Пароль пользователя был обновлён.",
+  }),
+  "user.password_reset": ({ actorLabel, entityLabel }) => ({
+    title: withActor(actorLabel, `изменил пароль для ${formatEntityTail(entityLabel)}`, "Пароль изменён суперпользователем"),
+    summary: "Пароль обновлён. Все сессии пользователя завершены.",
   }),
   "user.photo_upload": ({ actorLabel, entityLabel, log }) => ({
     title: (() => {

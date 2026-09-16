@@ -1,5 +1,6 @@
 <script>
 import api from "@/services/api";
+import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
 import { useNotificationsStore } from "@/stores/notifications";
 import {
   AUDIT_ACTION_OPTIONS,
@@ -101,6 +102,7 @@ function stringifyQuery(query = {}) {
 }
 
 export default {
+  components: { ModalCloseButton },
   name: "ManageAuditLogs",
 
   data() {
@@ -866,11 +868,7 @@ export default {
                 <p class="modal-subtitle">{{ selectedPresentation.summary }}</p>
               </div>
 
-              <button class="audit-modal-close" type="button" @click="closeDetails" aria-label="Закрыть">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/>
-                </svg>
-              </button>
+              <ModalCloseButton @click="closeDetails" />
             </div>
 
             <div class="modal-body audit-modal-body">
@@ -1481,32 +1479,6 @@ export default {
   color: #64748b;
 }
 
-.audit-modal-close {
-  width: 38px;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.72);
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.audit-modal-close:hover {
-  background: #ffffff;
-  color: #0f172a;
-}
-
-.audit-modal-close svg {
-  width: 16px;
-  height: 16px;
-}
-
 .audit-modal-body {
   padding: 24px;
   flex: 1 1 auto;
@@ -1819,17 +1791,6 @@ export default {
   border-top-color: #334155;
 }
 
-:global(html[data-theme='dark']) .audit-log-modal-overlay .audit-modal-close {
-  background: rgba(15, 23, 42, 0.82);
-  border-color: #334155;
-  color: #94a3b8;
-}
-
-:global(html[data-theme='dark']) .audit-log-modal-overlay .audit-modal-close:hover {
-  background: rgba(30, 41, 59, 0.96);
-  color: #f8fafc;
-}
-
 @media (max-width: 900px) {
   .audit-entry-top,
   .results-toolbar {
@@ -1856,7 +1817,7 @@ export default {
     flex-direction: column;
   }
 
-  .audit-modal-close {
+  .modal-round-close {
     align-self: flex-end;
   }
 }

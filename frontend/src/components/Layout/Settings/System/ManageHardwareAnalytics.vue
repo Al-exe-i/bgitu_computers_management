@@ -1,5 +1,6 @@
 ﻿<script>
 import api from "@/services/api";
+import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
 import { useNotificationsStore } from "@/stores/notifications";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
 
@@ -67,7 +68,7 @@ function createRangeDraft() {
 
 export default {
   name: "ManageHardwareAnalytics",
-  components: { TrustedSvgIcon },
+  components: { TrustedSvgIcon, ModalCloseButton },
 
   data() {
     return {
@@ -1466,12 +1467,7 @@ export default {
                 </div>
               </div>
 
-              <button class="close-btn" type="button" @click="closeDetails" aria-label="Закрыть">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 6 6 18"></path>
-                  <path d="m6 6 12 12"></path>
-                </svg>
-              </button>
+              <ModalCloseButton @click="closeDetails" />
             </div>
 
             <div class="modal-body">
@@ -2709,33 +2705,6 @@ export default {
   font-size: 13px;
 }
 
-.close-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.close-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.close-btn:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
-}
-
 .modal-body {
   display: flex;
   flex-direction: column;
@@ -3178,18 +3147,6 @@ html[data-theme='dark'] .analytics-modal-overlay .modal-secondary,
 html[data-theme='dark'] .analytics-modal-overlay .details-label,
 html[data-theme='dark'] .analytics-modal-overlay .details-hint {
   color: #94a3b8;
-}
-
-html[data-theme='dark'] .analytics-modal-overlay .close-btn {
-  background: #111827;
-  border-color: #334155;
-  color: #cbd5e1;
-}
-
-html[data-theme='dark'] .analytics-modal-overlay .close-btn:hover {
-  background: rgba(37, 99, 235, 0.18);
-  border-color: #60a5fa;
-  color: #dbeafe;
 }
 
 html[data-theme='dark'] .analytics-modal-overlay .analytics-modal-action-btn-secondary {

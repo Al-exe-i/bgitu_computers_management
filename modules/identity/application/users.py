@@ -24,6 +24,7 @@ from modules.identity.ports import (
 from modules.identity.roles import UserRole
 from modules.identity.schemas.user import (
     ChangePasswordSchema,
+    ResetUserPasswordSchema,
     UserCreate,
     UserOut,
     UserUpdate,
@@ -167,6 +168,44 @@ class IdentityUserUseCases:
                 )
             ],
         )
+
+    async def reset_user_password(
+        self,
+        *,
+        user_id: int,
+        data: ResetUserPasswordSchema,
+        actor: IdentityActor,
+        audit: AuditLogger,
+        ip: str | None,
+        user_agent: str | None,
+    ) -> IdentityUserCommandResult:
+        if not actor.is_superuser or actor.id == user_id:
+            raise UserPermissionDeniedError()
+
+        user = await self.user_service.get(user_id)
+        if user is None:
+            raise UserNotFoundError()
+        self._ensure_can_change_superuser(actor, user)
+
+        updated = await self.user_service.update_password(user_id, data.new_password)
+        if updated is None:
+            raise UserNotFoundError()
+        await self.auth_service.logout_all(user_id=user_id)
+
+        await audit.log(
+            action="user.password_reset",
+            entity_type="user",
+            entity_id=user_id,
+            payload={"target_user_id": user_id},
+        )
+        return IdentityUserCommandResult(events=[
+            AuthSecurityNotificationEvent(
+                user_id=user_id,
+                event_name="Пароль изменён суперпользователем",
+                ip=ip,
+                user_agent=user_agent,
+            )
+        ])
 
     async def delete_user(
         self,

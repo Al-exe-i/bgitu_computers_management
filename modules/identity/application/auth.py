@@ -1,14 +1,8 @@
 from dataclasses import dataclass
 
-from loguru import logger
-
 from core.exceptions import (
-    IdentityError,
-    InviteAssignedToAnotherEmailError,
-    InviteUserAlreadyExistsError,
     RefreshTokenReuseDetectedError,
     RefreshUserNotFoundError,
-    UserAlreadyExistsError,
 )
 from modules.administration.public import AuditLogger
 from modules.identity.contracts import (
@@ -19,16 +13,8 @@ from modules.identity.contracts import (
 from modules.identity.events import AuthSecurityNotificationEvent, IdentityEvent
 from modules.identity.ports import (
     AuthServicePort,
-    InviteServicePort,
     Transaction,
-    UserServicePort,
 )
-from modules.identity.schemas.invite import (
-    InvitePreviewResponse,
-    RegisterByInviteRequest,
-    RegisterByInviteResponse,
-)
-from modules.identity.schemas.user import UserCreate
 from modules.identity.schemas.user_session import UserSessionOut
 
 LOGIN_EVENT_NAME = "Выполнен вход в аккаунт"
@@ -53,24 +39,14 @@ class IdentityRevokeSessionResult:
     events: list[IdentityEvent]
 
 
-@dataclass(slots=True, frozen=True)
-class IdentityRegisterResult:
-    registration: RegisterByInviteResponse
-    events: list[IdentityEvent]
-
-
 class IdentityAuthUseCases:
     def __init__(
         self,
         *,
         auth_service: AuthServicePort,
-        invite_service: InviteServicePort,
-        user_service: UserServicePort,
         transaction: Transaction,
     ) -> None:
         self.auth_service = auth_service
-        self.invite_service = invite_service
-        self.user_service = user_service
         self.transaction = transaction
 
     async def login(
@@ -215,9 +191,6 @@ class IdentityAuthUseCases:
             refresh_token=refresh_token,
         )
 
-    async def preview_invite(self, *, token: str) -> InvitePreviewResponse:
-        return await self.invite_service.preview(token)
-
     async def revoke_session(
         self,
         *,
@@ -240,71 +213,3 @@ class IdentityAuthUseCases:
         )
 
         return IdentityRevokeSessionResult(session=result, events=[])
-
-    async def register_by_invite(
-        self,
-        *,
-        data: RegisterByInviteRequest,
-        audit: AuditLogger,
-    ) -> IdentityRegisterResult:
-        invite = await self.invite_service.get_active_for_registration(data.token)
-
-        if invite.target_email and invite.target_email.lower() != str(data.email).lower():
-            logger.warning(
-                "Register by invite failed: invite_id={} assigned to another email target_email={} requested_email={}",
-                invite.id,
-                invite.target_email,
-                data.email,
-            )
-            raise InviteAssignedToAnotherEmailError()
-
-        existing_user = await self.user_service.get_by_email(str(data.email))
-        if existing_user is not None:
-            logger.warning(
-                "Register by invite failed: email already exists invite_id={} email={}",
-                invite.id,
-                data.email,
-            )
-            raise InviteUserAlreadyExistsError()
-
-        try:
-            created_user = await self.user_service.create(
-                UserCreate(
-                    name=data.name,
-                    surname=data.surname,
-                    email=str(data.email),
-                    password=data.password,
-                    role=invite.target_role,
-                )
-            )
-        except UserAlreadyExistsError as exc:
-            raise InviteUserAlreadyExistsError() from exc
-        if created_user is None:
-            raise IdentityError("User was not created")
-
-        await self.invite_service.mark_used(
-            invite.id,
-            used_by_user_id=created_user.id,
-        )
-        logger.info(
-            "Invite consumed: invite_id={} user_id={} email={}",
-            invite.id,
-            created_user.id,
-            created_user.email,
-        )
-
-        result = RegisterByInviteResponse(
-            user_id=created_user.id,
-            email=created_user.email,
-            role=str(created_user.role.value if hasattr(created_user.role, "value") else created_user.role),
-        )
-
-        await audit.log(
-            action="auth.register_by_invite",
-            entity_type="user",
-            entity_id=result.user_id,
-            payload={"email": result.email, "role": result.role},
-            user_id=result.user_id,
-        )
-
-        return IdentityRegisterResult(registration=result, events=[])
