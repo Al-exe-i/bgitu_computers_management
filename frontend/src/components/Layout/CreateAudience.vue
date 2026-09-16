@@ -5,6 +5,7 @@ import {useNotificationsStore} from "@/stores/notifications.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {useAuthStore} from "@/stores/auth.js";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
+import { preserveAudienceOrigin } from '@/utils/officeNavigation.js';
 
 const EQUIPMENT_TYPES = Object.freeze([
   {
@@ -132,6 +133,7 @@ export default {
   data() {
     return {
       classroomNumber: null,
+      roomType: 'educational',
       offices_ids: [],
       floorNumber: 1,
       officeNumber: 1,
@@ -1007,6 +1009,7 @@ export default {
 
       return JSON.stringify({
         classroomNumber: this.classroomNumber ?? null,
+        roomType: this.roomType,
         floorNumber: this.floorNumber,
         officeNumber: this.officeNumber,
         gridWidth: this.gridWidth,
@@ -1062,6 +1065,7 @@ export default {
       this.clearEquipmentRemovalTimers();
       this.isApplyingHistory = true;
       this.classroomNumber = data.classroomNumber ?? null;
+      this.roomType = data.roomType ?? 'educational';
       this.floorNumber = Number(data.floorNumber ?? 1);
       this.officeNumber = Number(data.officeNumber ?? 1);
       this.gridWidth = Number(data.gridWidth ?? 1);
@@ -1132,6 +1136,7 @@ export default {
         const data = res.data;
 
         this.classroomNumber = String(data.number ?? data.id);
+        this.roomType = data.room_type ?? 'educational';
         this.updatePageTitle();
         this.floorNumber = data.floor;
         this.officeNumber = data.office_id;
@@ -1224,13 +1229,14 @@ export default {
           item.y + item.height <= this.gridHeight
       );
 
-      if (validItems.length === 0) {
+      if (validItems.length === 0 && this.roomType !== 'administrative') {
         this.notify.warning('Добавьте хотя бы одно оборудование!');
         return;
       }
 
       const classroomData = {
         number: Number(this.classroomNumber),
+        room_type: this.roomType,
         floor: this.floorNumber,
         width: this.gridWidth,
         height: this.gridHeight,
@@ -1245,7 +1251,7 @@ export default {
               this.notify.success(`Аудитория обновлена!`);
               this.audienceContext.setOffice(classroomData.office_id);
               this.hasUnsavedChanges = false;
-              router.push({ name: "Audience", params: { audiencePublicId: this.publicId } });
+              router.push({ name: "Audience", params: { audiencePublicId: this.publicId }, query: preserveAudienceOrigin(this.$route.query) });
             })
             .catch(err => {
               this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
@@ -1336,6 +1342,9 @@ export default {
   },
 
   watch: {
+    roomType() {
+      this.recomputeUnsavedChanges();
+    },
     equipmentItems: {
       handler() {
         this.clearGridClicked = false;
@@ -1470,6 +1479,19 @@ export default {
                   @input="classroomNumberFilter"
                   :disabled="isEditMode"
               >
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="audience-room-type">Тип кабинета</label>
+              <div class="select-field">
+                <select id="audience-room-type" class="form-select" v-model="roomType">
+                  <option value="educational">Учебный</option>
+                  <option value="administrative">Административный</option>
+                </select>
+                <svg class="select-field-arrow" viewBox="0 0 12 8" aria-hidden="true">
+                  <path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
             </div>
 
             <div class="form-group">
@@ -2180,6 +2202,7 @@ export default {
 
 
 <style scoped>
+@import '../Common/landmark-editor.css';
 /* Scoped стили применяются только к этому компоненту */
 
 .page-wrapper {
@@ -2536,110 +2559,6 @@ export default {
   height: 20px;
 }
 
-.landmark-editor-popup {
-  position: absolute;
-  z-index: 7;
-  min-width: 210px;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
-}
-
-.landmark-editor-popup.is-north {
-  top: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.landmark-editor-popup.is-south {
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.landmark-editor-popup.is-west-popup {
-  top: 50%;
-  left: calc(100% + 10px);
-  transform: translateY(-50%);
-}
-
-.landmark-editor-popup.is-east-popup {
-  top: 50%;
-  right: calc(100% + 10px);
-  transform: translateY(-50%);
-}
-
-.landmark-editor-title {
-  margin-bottom: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.landmark-editor-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.landmark-editor-input {
-  flex: 1;
-  min-width: 0;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #0f172a;
-  font-size: 13px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.landmark-editor-input:focus {
-  outline: none;
-  border-color: rgba(59, 130, 246, 0.58);
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
-}
-
-.landmark-editor-action {
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #475569;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
-}
-
-.landmark-editor-action:hover {
-  transform: translateY(-1px);
-  border-color: rgba(100, 116, 139, 0.32);
-  color: #1e293b;
-}
-
-.landmark-editor-action.is-confirm {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  border-color: transparent;
-  color: #ffffff;
-}
-
-.landmark-editor-action.is-confirm:hover {
-  color: #ffffff;
-}
-
-.landmark-editor-action svg {
-  width: 16px;
-  height: 16px;
-}
 
 .grid-size-inputs {
   display: grid;

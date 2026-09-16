@@ -1,6 +1,7 @@
 ﻿<script>
 import api from "@/services/api.js";
 import router from "@/router/index.js";
+import { officeBackLocation, preserveAudienceOrigin } from '@/utils/officeNavigation.js';
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
@@ -2171,13 +2172,14 @@ export default {
     },
 
     goBack() {
-      router.go(-1)
+      router.push(officeBackLocation(this.classroom, this.$route.query));
     },
 
     editClassroom() {
       router.push({
         name: 'ChangeAudience',
-        params: { audiencePublicId: this.classroom.publicId }
+        params: { audiencePublicId: this.classroom.publicId },
+        query: preserveAudienceOrigin(this.$route.query),
       });
     },
 

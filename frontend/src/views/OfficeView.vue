@@ -1,15 +1,18 @@
 <script>
 import FloorSection from "@/components/Common/FloorSection.vue";
+import EntityInfoModal from '@/components/Common/EntityInfoModal.vue';
+import { OFFICE_INFO_FIELDS } from '@/config/locationInfo.js';
 import api from "@/services/api.js";
 import router from "@/router/index.js";
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import {useAuthStore} from "@/stores/auth.js";
 import {useThemeStore} from "@/stores/theme.js";
+import { officeView, officeFloor } from '@/utils/officeNavigation.js';
 
 const AUDIENCE_VIEW_MODE_STORAGE_KEY = 'bgitu-office-audience-view-mode';
 const DEFAULT_AUDIENCE_VIEW_MODE = 'cards';
-const AUDIENCE_VIEW_MODES = new Set(['cards', 'compact']);
+const AUDIENCE_VIEW_MODES = new Set(['cards', 'compact', 'plan']);
 
 function normalizeAudienceViewMode(mode) {
   return AUDIENCE_VIEW_MODES.has(mode) ? mode : DEFAULT_AUDIENCE_VIEW_MODE;
@@ -37,24 +40,33 @@ function storeAudienceViewMode(mode) {
 
 export default {
   name: "floor",
-  components: {LoaderContainer, FloorSection},
+  components: {LoaderContainer, FloorSection, EntityInfoModal},
   props: ["officeNumber"],
   data() {
     return {
       totalHardware: 0,
       brokenHardware: 0,
       office: null,
+      showOfficeInfo: false,
+      officeInfoFields: OFFICE_INFO_FIELDS,
       floors: null,
       loading: true,
       filterMode: "all",
       isStatusDropdownOpen: false,
       proxyFloors: null,
       searchField: ``,
-      audienceViewMode: readStoredAudienceViewMode(),
+      audienceViewMode: officeView(this.$route?.query?.view) ?? readStoredAudienceViewMode(),
+      planStates: {},
+      officeRequestId: 0,
+      floorPlansReady: {},
+      returnPositionPending: false,
     }
   },
 
   computed: {
+    visibleFloors() { return this.audienceViewMode === 'plan' ? this.floors : this.proxyFloors; },
+    hasPlanChanges() { return Object.values(this.planStates).some(state => state.dirty); },
+    isPlanSaving() { return Object.values(this.planStates).some(state => state.saving); },
     notify()
     {
       return useNotificationsStore()
@@ -124,16 +136,26 @@ export default {
   methods: {
     async getOffice(officeNumber)
     {
+      const requestId = ++this.officeRequestId;
+      this.loading = true;
+      this.floors = null;
+      this.planStates = {};
+      this.floorPlansReady = {};
+      this.returnPositionPending = officeFloor(this.$route?.query?.floor) !== null;
       await api.get(`/offices/${officeNumber}`).then((response) => {
+        if (requestId !== this.officeRequestId) return;
         this.office = response.data;
         this.arrangeFloors(this.office.audiences)
         this.proxyFloors = this.floors
         this.countTotalHardware()
         this.loading = false
         this.filterMode = "all"
+        this.applyFilters();
+        this.restoreFloorPosition();
       }).catch(error => {
+        if (requestId !== this.officeRequestId) return;
         router.push({ path: `/` })
-        if (error.response.status === 404)
+        if (error.response?.status === 404)
           this.notify.warning("Вы пытаетесь открыть несуществующий корпус")
         else
           this.notify.error("Не удалось загрузить данные")
@@ -245,8 +267,42 @@ export default {
     setAudienceViewMode(mode)
     {
       const normalizedMode = normalizeAudienceViewMode(mode);
+      if (normalizedMode === this.audienceViewMode || !this.confirmPlanLeave()) return;
+      this.planStates = {};
       this.audienceViewMode = normalizedMode;
       storeAudienceViewMode(normalizedMode);
+    },
+
+    confirmPlanLeave() {
+      if (this.isPlanSaving) {
+        this.notify.info('Дождитесь сохранения схемы этажа');
+        return false;
+      }
+      return !this.hasPlanChanges || window.confirm('На схеме этажа есть несохранённые изменения. Покинуть редактор?');
+    },
+    async restoreFloorPosition() {
+      if (!this.returnPositionPending) return;
+      if (this.audienceViewMode === 'plan' && Object.keys(this.floorPlansReady).length < Object.keys(this.floors ?? {}).length) return;
+      const floor = officeFloor(this.$route?.query?.floor);
+      if (floor === null) return;
+      const requestId = this.officeRequestId;
+      await this.$nextTick();
+      if (requestId !== this.officeRequestId || !this.returnPositionPending) return;
+      this.returnPositionPending = false;
+      document.getElementById(`office-${this.office?.id}-floor-${floor}`)?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    },
+    onFloorPlanReady(floorKey) {
+      this.floorPlansReady[floorKey] = true;
+      this.restoreFloorPosition();
+    },
+    handlePlanBeforeUnload(event) {
+      if (!this.hasPlanChanges && !this.isPlanSaving) return;
+      event.preventDefault();
+      event.returnValue = '';
+    },
+    floorMatchingIds(floorKey) {
+      if (!this.searchField.trim() && this.filterMode === 'all') return null;
+      return (this.proxyFloors?.[floorKey]?.audiences ?? []).map(room => room.public_id);
     },
 
     addNewAudience()
@@ -261,16 +317,26 @@ export default {
   mounted()
   {
     document.addEventListener('click', this.handleStatusDropdownOutside)
+    window.addEventListener('beforeunload', this.handlePlanBeforeUnload);
     this.getOffice(this.officeNumber)
   },
 
   beforeUnmount() {
+    this.officeRequestId++;
+    window.removeEventListener('beforeunload', this.handlePlanBeforeUnload);
     document.removeEventListener('click', this.handleStatusDropdownOutside)
+  },
+
+  beforeRouteLeave() { return this.confirmPlanLeave(); },
+  beforeRouteUpdate(to, from) {
+    if (to.params.officeNumber !== from.params.officeNumber) return this.confirmPlanLeave();
+    return true;
   },
 
   watch: {
     officeNumber(newOfficeNumber)
     {
+      this.audienceViewMode = officeView(this.$route?.query?.view) ?? readStoredAudienceViewMode();
       this.getOffice(newOfficeNumber)
     },
 
@@ -293,10 +359,13 @@ export default {
   <LoaderContainer v-if="loading"/>
 
   <div class="building-container">
+    <EntityInfoModal v-if="showOfficeInfo && office" :key="office.id" :marker="office.id" :title="`Корпус №${office.id}`" :endpoint="`/offices/${office.id}`" :fields="officeInfoFields"
+      :editable="authStore.isAuthenticated && authStore.user?.role === 1" @close="showOfficeInfo = false" @saved="data => Object.assign(office, data)" />
     <div v-if="!loading" class="building-info" :class="{ 'is-dark': themeStore.isDark }">
       <div class="building-hero">
         <div class="building-identity">
-          <div class="building-symbol" aria-hidden="true">
+          <div class="building-symbol">
+            <button type="button" class="building-info-trigger" aria-label="Информация о корпусе" title="Информация о корпусе" @click="showOfficeInfo = true">Подробнее</button>
             <div class="building-symbol-backdrop"></div>
             <svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640"><path fill="currentColor" d="M335.9 84.2c-9.8-5.6-21.9-5.6-31.8 0l-224 128c-12.6 7.2-18.8 22-15.1 36S81.5 272 96 272h32v208l-51.2 38.4c-8.1 6-12.8 15.5-12.8 25.6c0 17.7 14.3 32 32 32h448c17.7 0 32-14.3 32-32c0-10.1-4.7-19.6-12.8-25.6L512 480V272h32c14.5 0 27.2-9.8 30.9-23.8s-2.5-28.8-15.1-36l-224-128zM464 272v208h-64V272zm-112 0v208h-64V272zm-112 0v208h-64V272zm80-112c17.7 0 32 14.3 32 32s-14.3 32-32 32s-32-14.3-32-32s14.3-32 32-32"/></svg>
             <span class="building-symbol-number">{{ office.id }}</span>
@@ -532,13 +601,22 @@ export default {
           </svg>
           <span class="mode-label">Список</span>
         </button>
+        <button class="mode-btn" aria-label="Схема этажа" title="Схема этажа" :aria-pressed="audienceViewMode === 'plan'" :class="{ active: audienceViewMode === 'plan' }" @click="setAudienceViewMode('plan')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3h18v18H3zM3 10h7V3m4 18v-8h7M3 16h5" /></svg>
+          <span class="mode-label">Схема</span>
+        </button>
       </div>
     </div>
 
     <floor-section
       v-if="floors"
-      v-for="(floor, floorKey, floorIndex) in proxyFloors"
-      :key="`floor-${floorKey}`"
+      v-for="(floor, floorKey, floorIndex) in visibleFloors"
+      :key="`floor-${office.id}-${floorKey}`"
+      :id="`office-${office.id}-floor-${floorKey}`"
+      :office-id="office.id"
+      :matching-ids="floorMatchingIds(floorKey)"
+      @edit-state="planStates[floorKey] = $event"
+      @plan-ready="onFloorPlanReady(floorKey)"
       :audiences="floor.audiences"
       :number="floor.number"
       :display-mode="audienceViewMode"
@@ -568,6 +646,11 @@ export default {
 </template>
 
 <style scoped>
+.building-symbol .building-info-trigger { position: absolute; inset: 0; z-index: 2; border: 0; border-radius: inherit; background: rgb(15 23 42 / .78); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; opacity: 0; transition: opacity 150ms ease-out; }
+.building-symbol:hover .building-info-trigger, .building-symbol .building-info-trigger:focus-visible { opacity: 1; }
+.building-info-trigger:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
+@media (hover: none) { .building-symbol .building-info-trigger { inset: auto 0 0; padding: 4px 0; opacity: 1; border-radius: 0 0 16px 16px; font-size: 10px; } }
+@media (prefers-reduced-motion: reduce) { .building-symbol .building-info-trigger { transition: none; } }
 * {
   margin: 0;
   padding: 0;
@@ -1736,7 +1819,7 @@ body {
   .view-mode-switch {
     width: auto;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
     padding: 6px;
   }

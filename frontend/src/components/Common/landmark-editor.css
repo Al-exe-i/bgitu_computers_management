@@ -1,0 +1,104 @@
+.landmark-editor-popup {
+  position: absolute;
+  z-index: 7;
+  min-width: 210px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+}
+
+.landmark-editor-popup.is-north {
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.landmark-editor-popup.is-south {
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.landmark-editor-popup.is-west-popup {
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+
+.landmark-editor-popup.is-east-popup {
+  top: 50%;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+
+.landmark-editor-title {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.landmark-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landmark-editor-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.landmark-editor-input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.58);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.landmark-editor-action {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.landmark-editor-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(100, 116, 139, 0.32);
+  color: #1e293b;
+}
+
+.landmark-editor-action.is-confirm {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.landmark-editor-action.is-confirm:hover {
+  color: #ffffff;
+}
+
+.landmark-editor-action svg {
+  width: 16px;
+  height: 16px;
+}

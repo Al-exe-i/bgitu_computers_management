@@ -1,10 +1,19 @@
 <script>
 import router from "@/router/index.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
+import FloorPlan from './FloorPlan.vue';
+import EntityInfoModal from './EntityInfoModal.vue';
+import { FLOOR_INFO_FIELDS } from '@/config/locationInfo.js';
+import { useAuthStore } from '@/stores/auth.js';
+import { audienceOriginQuery } from '@/utils/officeNavigation.js';
 
 export default {
   name: "floorSection",
+  components: { FloorPlan, EntityInfoModal },
+  emits: ['edit-state', 'plan-ready'],
   props: {
+    officeId: { type: Number, default: null },
+    matchingIds: { type: Array, default: null },
     number: {
       type: Number,
       required: true
@@ -21,6 +30,8 @@ export default {
   data() {
     return {
       collapsed: false,
+      showFloorInfo: false,
+      floorInfoFields: FLOOR_INFO_FIELDS,
     }
   },
   methods: {
@@ -48,6 +59,8 @@ export default {
           return "Девятый"
         case 10:
           return "Десятый"
+        default:
+          return String(number)
       }
     },
     handleAudienceClick(audiencePublicId, officeId)
@@ -55,6 +68,7 @@ export default {
       router.push({
         name: "Audience",
         params: {audiencePublicId: audiencePublicId},
+        query: audienceOriginQuery(this.displayMode, this.number),
       })
       this.audienceContext.setOffice(officeId)
     },
@@ -71,6 +85,7 @@ export default {
     }
   },
   computed: {
+    canEditInfo() { return useAuthStore().isAuthenticated && useAuthStore().user?.role === 1; },
     audienceContext()
     {
       return useAudienceContext()
@@ -84,9 +99,10 @@ export default {
 </script>
 
 <template>
-  <div class="floor-section" :class="{collapsed: this.collapsed}">
+  <div class="floor-section" :class="{ collapsed: this.collapsed, 'has-plan': displayMode === 'plan' }">
+    <EntityInfoModal v-if="showFloorInfo" kind="floor" :marker="number" :title="`${number} этаж · корпус №${officeId}`" :endpoint="`/offices/${officeId}/floors/${number}/info`" :fields="floorInfoFields" :editable="canEditInfo" @close="showFloorInfo = false" />
     <div class="floor-header" @click="this.collapsed = !this.collapsed">
-      <div class="floor-number">{{ this.number }}</div>
+      <div class="floor-number"><button type="button" class="floor-info-trigger" :aria-label="`Информация о ${number} этаже`" title="Информация об этаже" @click.stop="showFloorInfo = true">{{ number }}<span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v8m0-12v1"/></svg></span></button></div>
       <div class="floor-heading">
         <h2 class="floor-title">{{ this.numberToLiteral(this.number) }} этаж</h2>
       </div>
@@ -97,12 +113,15 @@ export default {
       </div>
     </div>
 
-    <div class="classrooms-content">
+    <div class="classrooms-content" :inert="collapsed">
+      <FloorPlan v-if="displayMode === 'plan'" :office-id="officeId" :floor="number"
+        :matching-ids="matchingIds" @edit-state="$emit('edit-state', $event)" @ready="$emit('plan-ready')" />
 
-      <div class="classrooms-grid" :class="{ 'compact-mode': isCompactMode }">
+      <div v-else class="classrooms-grid" :class="{ 'compact-mode': isCompactMode }">
 
         <div
           v-for="audience in audiences"
+          :key="audience.public_id"
           class="classroom-card"
           :class="{ 'compact-mode': isCompactMode }"
           @click="handleAudienceClick(audience.public_id, audience.office_id)"
@@ -162,8 +181,17 @@ export default {
 </template>
 
 <style scoped>
+.floor-info-trigger { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; height: 100%; background: transparent; border: 0; border-radius: inherit; font: inherit; color: inherit; cursor: pointer; padding: 0; }
+.floor-info-trigger span { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #255bd8; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 150ms ease-out; }
+.floor-info-trigger:hover span, .floor-info-trigger:focus-visible span { opacity: 1; }
+.floor-info-trigger svg { width: 16px; height: 16px; }
+.floor-info-trigger:focus-visible { outline: 2px solid #60a5fa; outline-offset: 4px; }
+html[data-theme='dark'] .floor-info-trigger span { background: #1e293b; color: #bfdbfe; }
+@media (hover: none) { .floor-info-trigger span { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .floor-info-trigger span { transition: none; } }
 .floor-section
 {
+  scroll-margin-top: 120px;
   background: white;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -171,6 +199,8 @@ export default {
   overflow: hidden;
   animation: floorSectionReveal 0.66s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.floor-section.has-plan, .has-plan > .classrooms-content { overflow: clip; }
 
 .floor-header {
   display: flex;
