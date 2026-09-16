@@ -250,3 +250,5 @@ static
 /docs_local/
 /frontend/node_modules/
 /.vscode/
+.agents
+.claude
