@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { parse, compileStyle } from '@vue/compiler-sfc';
 
@@ -37,4 +37,22 @@ test('legacy close button dimensions do not override the shared round control', 
   assert.ok(block);
   assert.match(block, /button:not\(\.modal-round-close\)\s*\{/);
   assert.doesNotMatch(block, /\n\s*button\s*\{/);
+});
+
+test('component theme selectors never collapse into styling the document root', () => {
+  function check(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), directory);
+      if (entry.isDirectory()) { check(url); continue; }
+      if (!entry.name.endsWith('.vue')) continue;
+      const { descriptor } = parse(readFileSync(url, 'utf8'));
+      for (const style of descriptor.styles) {
+        if (!style.scoped) continue;
+        const result = compileStyle({ source: style.content, filename: url.pathname, id: 'data-v-test', scoped: true });
+        assert.equal(result.errors.length, 0, url.pathname);
+        assert.doesNotMatch(result.code, /(?:^|\n)\s*html\[data-theme=['"]dark['"]\]\s*\{/, url.pathname);
+      }
+    }
+  }
+  check(new URL('../src/', import.meta.url));
 });

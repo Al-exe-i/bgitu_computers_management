@@ -28,7 +28,8 @@ function page(get, confirm = () => false) {
     .replace('export default', 'globalThis.component =');
   const context = vm.createContext({ api: { get }, FloorPlan: {}, EntityInfoModal: {}, FLOOR_INFO_FIELDS: [], officeFloor,
     readFloorView: () => ({ search: '', x: 0, y: 0, pageY: 0 }), saveFloorView() {},
-    useNotificationsStore: () => ({ info() {} }), window: { confirm, scrollY: 0, scrollTo() {} } });
+    createConfirmationScope: () => ({ ask: async options => confirm(options), cancel() {} }),
+    useNotificationsStore: () => ({ info() {} }), window: { scrollY: 0, scrollTo() {} } });
   vm.runInContext(source, context);
   const definition = context.component;
   const instance = { ...definition.data(), officeNumber: '1', floorNumber: '2', $route: { query: {} }, $refs: {} };
@@ -37,14 +38,32 @@ function page(get, confirm = () => false) {
   return instance;
 }
 
-test('floor leave is blocked while saving and dirty drafts need confirmation', () => {
+test('floor leave is blocked while saving and dirty drafts need confirmation', async () => {
   const instance = page();
   instance.editState.saving = true;
-  assert.equal(instance.allowLeave(), false);
+  assert.equal(await instance.allowLeave(), false);
   instance.editState = { saving: false, dirty: true };
-  assert.equal(instance.allowLeave(), false);
+  assert.equal(await instance.allowLeave(), false);
   instance.editState.dirty = false;
-  assert.equal(instance.allowLeave(), true);
+  assert.equal(await instance.allowLeave(), true);
+});
+
+test('route guard awaits approval and rechecks saving before leaving', async () => {
+  let resolve;
+  const instance = page(undefined, () => new Promise(done => { resolve = done; }));
+  instance.editState.dirty = true;
+  let left = false;
+  const pending = instance.allowLeave().then(value => { left = value; });
+  await Promise.resolve();
+  assert.equal(left, false);
+  instance.editState.saving = true;
+  resolve(true);
+  await pending;
+  assert.equal(left, false);
+  instance.editState.saving = false;
+  const approved = instance.allowLeave();
+  resolve(true);
+  assert.equal(await approved, true);
 });
 
 test('late office response cannot replace a newly selected building', async () => {

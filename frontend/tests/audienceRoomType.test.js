@@ -7,6 +7,7 @@ function form() {
   const writes = [];
   const warnings = [];
   const context = vm.createContext({ TrustedSvgIcon: {}, document: {},
+    createConfirmationScope: () => ({ ask: async () => false, cancel() {} }),
     api: { post: async (url, payload) => { writes.push(payload); return { data: { public_id: 'room-id' } }; } },
     router: { push() {} },
   });

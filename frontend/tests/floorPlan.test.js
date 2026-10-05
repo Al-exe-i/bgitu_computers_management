@@ -24,7 +24,8 @@ function component({ get = async () => ({ data: response() }), put = async () =>
   const navigations = [];
   const warnings = [];
   const auth = { isAuthenticated: role !== null, user: role === null ? null : { role } };
-  const context = vm.createContext({ ...geometry, ...navigation, ContextHelp: {}, api: { get, put }, window: { confirm },
+  const context = vm.createContext({ ...geometry, ...navigation, ContextHelp: {}, api: { get, put }, window: {},
+    createConfirmationScope: () => ({ ask: async options => confirm(options), cancel() {} }),
     useNotificationsStore: () => ({ warning: message => warnings.push(message) }),
     requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout,
     document: { removeEventListener() {} },
@@ -280,7 +281,7 @@ test('saving blocks mutations, repeated save and reload', async () => {
   assert.equal(instance.commit(layout()), false);
   await instance.save();
   await instance.load();
-  instance.discard();
+  await instance.discard();
   assert.equal(instance.draft.rooms[0].x, 4);
   assert.equal(calls, 1);
   request.resolve({ data: response() });
@@ -292,10 +293,40 @@ test('failed save and rejected reload confirmation preserve edits', async () => 
   instance.commit(geometry.placeRoom(instance.draft, room('a', 4)));
   await instance.save();
   await instance.load();
-  instance.discard();
+  await instance.discard();
   assert.equal(instance.saving, false);
   assert.equal(instance.draft.rooms[0].x, 4);
   assert.equal(instance.dirty, true);
+});
+
+test('discard waits for approval and cannot clear a newer draft', async () => {
+  const approval = deferred();
+  const { instance } = component({ confirm: () => approval.promise });
+  instance.commit(geometry.placeRoom(instance.draft, room('a', 4)));
+  const pending = instance.discard();
+  assert.equal(instance.editing, true);
+  assert.equal(instance.dirty, true);
+  instance.commit(geometry.placeRoom(instance.draft, room('a', 5)));
+  approval.resolve(true);
+  await pending;
+  assert.equal(instance.draft.rooms[0].x, 5);
+  assert.equal(instance.editing, true);
+  await instance.discard();
+  assert.equal(instance.editing, false);
+  assert.equal(instance.dirty, false);
+});
+
+test('reload does not send a request until the dirty draft is approved', async () => {
+  const approval = deferred();
+  let calls = 0;
+  const { instance } = component({ confirm: () => approval.promise, get: async () => { calls++; return { data: response() }; } });
+  instance.commit(geometry.placeRoom(instance.draft, room('a', 4)));
+  const pending = instance.load();
+  assert.equal(calls, 0);
+  approval.resolve(true);
+  await pending;
+  assert.equal(calls, 1);
+  assert.equal(instance.dirty, false);
 });
 
 test('late response after unmount cannot change state', async () => {

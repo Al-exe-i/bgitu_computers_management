@@ -1,5 +1,6 @@
 <script>
 import api from "@/services/api";
+import { createConfirmationScope } from '@/services/confirmation.js';
 import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
 import EntityInfoModal from '@/components/Common/EntityInfoModal.vue';
 import PasswordEyeButton from '@/components/Common/PasswordEyeButton.vue';
@@ -23,6 +24,7 @@ export default {
   data() {
     return {
       users: [],
+      confirmation: createConfirmationScope(),
       detailsUser: null,
       // Общая загрузка страницы
       loading: true,
@@ -303,7 +305,14 @@ export default {
     },
 
     async deleteUser(user) {
-      if (!confirm(`Вы действительно хотите удалить пользователя ${user.email}? Это действие необратимо.`)) return;
+      if (!this.isSuperuser || user.id === this.authStore.user?.id || this.processingIds.includes(user.id)) return;
+      const accepted = await this.confirmation.ask({
+        title: 'Удалить пользователя?', subject: user.email,
+        message: 'Пользователь больше не сможет войти в систему.',
+        detail: 'Это действие нельзя отменить.', confirmLabel: 'Удалить пользователя', tone: 'danger',
+      });
+      const currentUser = this.users.find(item => item.id === user.id);
+      if (!accepted || !currentUser || !this.isSuperuser || user.id === this.authStore.user?.id || this.processingIds.includes(user.id)) return;
 
       this.processingIds.push(user.id);
 
@@ -324,6 +333,7 @@ export default {
   },
 
   beforeUnmount() {
+    this.confirmation.cancel();
     this.passwordTarget = null;
     this.passwordReturnFocus = null;
     this.passwordForm = { password: '', repeat: '' };

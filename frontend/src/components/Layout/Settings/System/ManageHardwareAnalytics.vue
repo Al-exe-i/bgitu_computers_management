@@ -3226,19 +3226,19 @@ html[data-theme='dark'] .analytics-card .load-more-wrapper {
   border-color: #334155;
 }
 
-:global(html[data-theme='dark']) .analytics-jump-controls {
+html[data-theme='dark'] .analytics-jump-controls {
   background: rgba(15, 23, 42, 0.88);
   border-color: rgba(51, 65, 85, 0.92);
   box-shadow: 0 12px 28px rgba(2, 6, 23, 0.34);
 }
 
-:global(html[data-theme='dark']) .analytics-jump-controls .jump-arrow-btn {
+html[data-theme='dark'] .analytics-jump-controls .jump-arrow-btn {
   background: #0f172a;
   border-color: #334155;
   color: #cbd5e1;
 }
 
-:global(html[data-theme='dark']) .analytics-jump-controls .jump-arrow-btn:hover {
+html[data-theme='dark'] .analytics-jump-controls .jump-arrow-btn:hover {
   background: rgba(37, 99, 235, 0.18);
   border-color: #60a5fa;
   color: #dbeafe;

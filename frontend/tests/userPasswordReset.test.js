@@ -9,6 +9,7 @@ function component(post = async () => {}, isSuperuser = true) {
     .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];\r?\n/gm, '')
     .replace('export default', 'globalThis.component =');
   const context = vm.createContext({ api: { post }, ModalCloseButton: {},
+    createConfirmationScope: () => ({ ask: async () => false, cancel() {} }),
     EntityInfoModal: {}, PasswordEyeButton: {}, PasswordStrength: {}, RoleHelp: {},
     document: { body: { style: { overflow: '' } }, addEventListener() {}, removeEventListener() {} } });
   vm.runInContext(source, context);

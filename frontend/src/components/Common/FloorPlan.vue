@@ -1,5 +1,6 @@
 <script>
 import api from '@/services/api.js';
+import { createConfirmationScope } from '@/services/confirmation.js';
 import { useAuthStore } from '@/stores/auth.js';
 import { useThemeStore } from '@/stores/theme.js';
 import { useAudienceContext } from '@/stores/officeCtx.js';
@@ -20,6 +21,7 @@ export default {
   emits: ['edit-state', 'ready'],
   data: () => ({
     plan: null, draft: null, baseline: '', loading: true, saving: false,
+    confirmation: createConfirmationScope(),
     editing: false, selectedId: null, error: '', notice: '', conflict: false,
     drag: null, preview: null, requestId: 0,
     editingLandmark: null,
@@ -66,6 +68,7 @@ export default {
     }
   },
   beforeUnmount() {
+    this.confirmation.cancel();
     this.requestId++; this.cancelDrag(); this.headerObserver?.disconnect();
     this.exitFullscreen();
     document.removeEventListener('keydown', this.onDocumentKey);
@@ -120,7 +123,16 @@ export default {
       this.conflict = false;
     },
     async load() {
-      if (this.saving || (this.dirty && !window.confirm('Загрузить сохранённую схему? Ваши изменения будут потеряны.'))) return;
+      if (this.saving) return;
+      if (this.dirty) {
+        const version = this.requestId, snapshot = planSnapshot(this.draft);
+        const accepted = await this.confirmation.ask({
+          title: 'Загрузить сохранённую схему?',
+          message: 'Несохранённые изменения будут потеряны. Вместо них откроется последняя сохранённая версия.',
+          confirmLabel: 'Загрузить схему', cancelLabel: 'Продолжить редактирование',
+        });
+        if (!accepted || this.saving || version !== this.requestId || snapshot !== planSnapshot(this.draft)) return;
+      }
       this.cancelDrag();
       const id = ++this.requestId;
       this.loading = true;
@@ -163,8 +175,17 @@ export default {
         if (id === this.requestId) this.saving = false;
       }
     },
-    discard() {
-      if (this.saving || (this.dirty && !window.confirm('Отменить изменения схемы этажа?'))) return;
+    async discard() {
+      if (this.saving) return;
+      if (this.dirty) {
+        const version = this.requestId, snapshot = planSnapshot(this.draft);
+        const accepted = await this.confirmation.ask({
+          title: 'Отменить изменения схемы?',
+          message: 'Все изменения с момента последнего сохранения будут отменены.',
+          confirmLabel: 'Отменить изменения', cancelLabel: 'Продолжить редактирование',
+        });
+        if (!accepted || this.saving || version !== this.requestId || snapshot !== planSnapshot(this.draft)) return;
+      }
       this.cancelDrag();
       this.accept(this.plan);
       this.editing = false;

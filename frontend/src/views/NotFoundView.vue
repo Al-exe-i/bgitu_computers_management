@@ -391,7 +391,7 @@ export default {
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 72%);
 }
 
-:global(html[data-theme='dark']) .not-found-view {
+html[data-theme='dark'] .not-found-view {
   --nf-surface:
       linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.96));
   --nf-surface-soft: rgba(15, 23, 42, 0.64);
@@ -410,18 +410,18 @@ export default {
   --nf-primary-shadow: 0 16px 36px rgba(29, 78, 216, 0.28);
 }
 
-:global(html[data-theme='dark']) .not-found-grid {
+html[data-theme='dark'] .not-found-grid {
   background-image:
       linear-gradient(rgba(71, 85, 105, 0.18) 1px, transparent 1px),
       linear-gradient(90deg, rgba(71, 85, 105, 0.18) 1px, transparent 1px);
 }
 
-:global(html[data-theme='dark']) .nf-btn-secondary {
+html[data-theme='dark'] .nf-btn-secondary {
   background: rgba(15, 23, 42, 0.72);
   color: #e2e8f0;
 }
 
-:global(html[data-theme='dark']) .nf-btn-secondary:hover {
+html[data-theme='dark'] .nf-btn-secondary:hover {
   background: rgba(30, 41, 59, 0.92);
 }
 

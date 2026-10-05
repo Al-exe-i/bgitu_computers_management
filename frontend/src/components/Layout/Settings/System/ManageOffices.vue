@@ -1,5 +1,6 @@
 <script>
 import api from "@/services/api";
+import { createConfirmationScope } from '@/services/confirmation.js';
 import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
 import EntityInfoModal from '@/components/Common/EntityInfoModal.vue';
 import { OFFICE_INFO_FIELDS } from '@/config/locationInfo';
@@ -14,6 +15,7 @@ export default {
   data() {
     return {
       showModal: false,
+      confirmation: createConfirmationScope(),
       detailsOffice: null,
       officeInfoFields: OFFICE_INFO_FIELDS,
       isEditMode: false,
@@ -108,8 +110,14 @@ export default {
     },
 
     async deleteOffice(office) {
-      const confirmText = `ВНИМАНИЕ!\nУдаление корпуса №${office.id} приведет к безвозвратному удалению ВСЕХ привязанных к нему аудиторий и оборудования.\n\nВы уверены, что хотите продолжить?`;
-      if (!confirm(confirmText)) return;
+      if (!this.isSuperuser || this.processingIds.includes(office.id)) return;
+      const accepted = await this.confirmation.ask({
+        title: `Удалить корпус №${office.id}?`, subject: office.address,
+        message: 'Все аудитории корпуса и привязанное к ним оборудование также будут удалены.',
+        detail: 'Это действие нельзя отменить.', confirmLabel: 'Удалить корпус', tone: 'danger',
+      });
+      if (!accepted || !this.isSuperuser || this.processingIds.includes(office.id)
+          || !this.offices.some(item => item.id === office.id)) return;
 
       // Блокируем строку на время удаления
       this.processingIds.push(office.id);
@@ -132,6 +140,7 @@ export default {
   },
 
   beforeUnmount() {
+    this.confirmation.cancel();
     this.removeModalListeners();
   }
 };

@@ -2,6 +2,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import api from "@/services/api";
+import { createConfirmationScope } from '@/services/confirmation.js';
 import RealtimeNotificationsSection from "@/components/Layout/Settings/RealtimeNotificationsSection.vue";
 
 export default {
@@ -14,6 +15,7 @@ export default {
   data() {
     return {
       activeSection: "profile",
+      confirmation: createConfirmationScope(),
       notificationsSectionMounted: false,
       isSaving: false,
       isAvatarUploading: false,
@@ -156,18 +158,31 @@ export default {
     },
 
     async handleDeleteAvatar() {
-      if (!confirm("Вы уверены, что хотите удалить фото профиля?")) return;
+      const userId = this.authStore.user?.id;
+      const photo = this.userPhoto;
+      if (!userId || !photo || this.isAvatarUploading) return;
+      const accepted = await this.confirmation.ask({
+        title: 'Удалить фото профиля?',
+        message: 'Вместо фотографии будет показан стандартный аватар. Новое фото можно загрузить в любой момент.',
+        confirmLabel: 'Удалить фото', tone: 'danger',
+      });
+      if (!accepted || this.authStore.user?.id !== userId || this.userPhoto !== photo || this.isAvatarUploading) return;
 
+      this.isAvatarUploading = true;
       try {
-        const userId = this.authStore.user.id;
         await api.delete(`/users/${userId}/photo`);
         await this.authStore.fetchUser();
         this.notify.info("Фотография удалена");
       } catch (error) {
         this.notify.error("Произошла ошибка при удалении фото");
+      } finally {
+        this.isAvatarUploading = false;
       }
     }
-  }
+  },
+  beforeUnmount() {
+    this.confirmation.cancel();
+  },
 };
 </script>
 

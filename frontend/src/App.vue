@@ -1,6 +1,7 @@
 <script>
 
 import AppHeader from "@/components/Layout/AppHeader.vue";
+import ConfirmationModal from "@/components/Common/ConfirmationModal.vue";
 import LoginModal from "@/components/Layout/LoginModal.vue";
 import NotificationsModal from "@/components/Layout/NotificationsModal.vue";
 import AppFooter from "@/components/Layout/AppFooter.vue";
@@ -10,7 +11,7 @@ import {getNotificationSseUrl, getRealtimeClientId, withSseParams} from "@/confi
 
 export default {
   name: "AppView",
-  components: {AppFooter, NotificationsModal, LoginModal, AppHeader},
+  components: {AppFooter, NotificationsModal, LoginModal, AppHeader, ConfirmationModal},
   data()
   {
     return {
@@ -213,6 +214,7 @@ export default {
     <router-view></router-view>
   </main>
   <Teleport to="body"><NotificationsModal /></Teleport>
+  <ConfirmationModal />
   <app-footer></app-footer>
 </template>
 

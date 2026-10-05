@@ -87,7 +87,7 @@ function loadApp() {
         close() { this.closed = true; }
     }
     const context = vm.createContext({
-        AppHeader: {}, LoginModal: {}, NotificationsModal: {}, AppFooter: {},
+        AppHeader: {}, LoginModal: {}, NotificationsModal: {}, AppFooter: {}, ConfirmationModal: {},
         EventSource: FakeEventSource,
         getNotificationSseUrl: () => '/events/notifications',
         getRealtimeClientId: () => 'test-client', withSseParams: url => url,

@@ -1,5 +1,6 @@
 <script>
 import api from '@/services/api.js';
+import { createConfirmationScope } from '@/services/confirmation.js';
 import FloorPlan from '@/components/Common/FloorPlan.vue';
 import EntityInfoModal from '@/components/Common/EntityInfoModal.vue';
 import { FLOOR_INFO_FIELDS } from '@/config/locationInfo.js';
@@ -13,6 +14,7 @@ export default {
   components: { FloorPlan, EntityInfoModal },
   props: { officeNumber: { type: String, required: true }, floorNumber: { type: String, required: true } },
   data: () => ({ office: null, loading: true, error: '', search: '', requestId: 0,
+    confirmation: createConfirmationScope(),
     editState: { dirty: false, saving: false }, showInfo: false, fields: FLOOR_INFO_FIELDS }),
   computed: {
     viewKey() { return `${this.officeNumber}:${this.floorNumber}`; },
@@ -32,6 +34,7 @@ export default {
     window.addEventListener('pagehide', this.remember);
   },
   beforeUnmount() {
+    this.confirmation.cancel();
     this.requestId++;
     window.removeEventListener('beforeunload', this.beforeUnload);
     window.removeEventListener('pagehide', this.remember);
@@ -82,12 +85,20 @@ export default {
       this.$refs.plan?.getScrollElement()?.scrollTo({ left: state.x, top: state.y, behavior: 'instant' });
       window.scrollTo({ top: state.pageY, behavior: 'instant' });
     },
-    allowLeave() {
+    async allowLeave() {
       if (this.editState.saving) {
         useNotificationsStore().info('Дождитесь сохранения схемы этажа');
         return false;
       }
-      if (this.editState.dirty && !window.confirm('На схеме есть несохранённые изменения. Уйти без сохранения?')) return false;
+      if (this.editState.dirty) {
+        const version = this.requestId, draft = this.$refs.plan?.draft;
+        const accepted = await this.confirmation.ask({
+          title: 'Уйти без сохранения?',
+          message: 'На схеме этажа есть несохранённые изменения. При переходе они будут потеряны.',
+          confirmLabel: 'Уйти без сохранения', cancelLabel: 'Остаться',
+        });
+        if (!accepted || this.editState.saving || version !== this.requestId || draft !== this.$refs.plan?.draft) return false;
+      }
       this.remember();
       return true;
     },

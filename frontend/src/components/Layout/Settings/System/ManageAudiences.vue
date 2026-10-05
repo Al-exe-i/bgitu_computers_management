@@ -1,5 +1,6 @@
 <script>
 import api from "@/services/api";
+import { createConfirmationScope } from '@/services/confirmation.js';
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useOfficeStore } from "@/stores/offices";
@@ -11,6 +12,7 @@ export default {
     return {
       // Глобальная загрузка при первом открытии
       loading: true,
+      confirmation: createConfirmationScope(),
       audiences: [],
 
       // Сюда будем складывать ID аудиторий, которые прямо сейчас удаляются сервером.
@@ -100,9 +102,15 @@ export default {
     },
 
     async deleteAudience(a) {
-      if (!confirm(`Удалить аудиторию №${this.audienceNumber(a)}?\n\nВнимание: всё привязанное оборудование также будет безвозвратно удалено.`)) {
-        return;
-      }
+      if (!this.isAdmin || this.deletingIds.includes(a.id)) return;
+      const accepted = await this.confirmation.ask({
+        title: `Удалить аудиторию №${this.audienceNumber(a)}?`,
+        subject: `Корпус №${a.office_id} · ${a.floor} этаж`,
+        message: 'Всё оборудование этой аудитории также будет удалено.',
+        detail: 'Это действие нельзя отменить.', confirmLabel: 'Удалить аудиторию', tone: 'danger',
+      });
+      if (!accepted || !this.isAdmin || this.deletingIds.includes(a.id)
+          || !this.audiences.some(item => item.id === a.id)) return;
 
       // Добавляем ID в массив удаляемых (чтобы показать спиннер на кнопке)
       this.deletingIds.push(a.id);
@@ -124,6 +132,9 @@ export default {
 
   mounted() {
     this.fetchAll();
+  },
+  beforeUnmount() {
+    this.confirmation.cancel();
   },
 };
 </script>

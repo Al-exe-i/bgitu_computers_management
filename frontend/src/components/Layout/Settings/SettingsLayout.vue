@@ -327,43 +327,43 @@ export default {
   transform: translateY(-8px);
 }
 
-:global(html[data-theme='dark']) .settings-layout {
+html[data-theme='dark'] .settings-layout {
   background-color: transparent;
 }
 
-:global(html[data-theme='dark']) .settings-layout .settings-subheader {
+html[data-theme='dark'] .settings-layout .settings-subheader {
   border-bottom-color: #334155;
 }
 
-:global(html[data-theme='dark']) .settings-layout .glass-effect {
+html[data-theme='dark'] .settings-layout .glass-effect {
   background: rgba(15, 23, 42, 0.82);
 }
 
-:global(html[data-theme='dark']) .settings-layout .section-title {
+html[data-theme='dark'] .settings-layout .section-title {
   color: #e2e8f0 !important;
 }
 
-:global(html[data-theme='dark']) .settings-layout .settings-tabs {
+html[data-theme='dark'] .settings-layout .settings-tabs {
   background: rgba(30, 41, 59, 0.88) !important;
   box-shadow: inset 0 0 0 1px rgba(51, 65, 85, 0.9);
 }
 
-:global(html[data-theme='dark']) .settings-layout .settings-tab-indicator {
+html[data-theme='dark'] .settings-layout .settings-tab-indicator {
   background: #111827;
   box-shadow:
     0 10px 20px rgba(2, 6, 23, 0.32),
     0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-:global(html[data-theme='dark']) .settings-layout .settings-tab {
+html[data-theme='dark'] .settings-layout .settings-tab {
   color: #94a3b8;
 }
 
-:global(html[data-theme='dark']) .settings-layout .settings-tab:hover:not(.active) {
+html[data-theme='dark'] .settings-layout .settings-tab:hover:not(.active) {
   color: #cbd5e1;
 }
 
-:global(html[data-theme='dark']) .settings-layout .settings-tab.active {
+html[data-theme='dark'] .settings-layout .settings-tab.active {
   background: transparent !important;
   color: #93c5fd !important;
 }

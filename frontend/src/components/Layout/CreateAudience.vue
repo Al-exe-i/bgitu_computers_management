@@ -1,6 +1,7 @@
 <script>
 import router from "@/router/index.js";
 import api from "@/services/api.js";
+import { createConfirmationScope } from '@/services/confirmation.js';
 import {useNotificationsStore} from "@/stores/notifications.js";
 import {useAudienceContext} from "@/stores/officeCtx.js";
 import {useAuthStore} from "@/stores/auth.js";
@@ -133,6 +134,8 @@ export default {
   data() {
     return {
       classroomNumber: null,
+      confirmation: createConfirmationScope(),
+      isClassroomSaving: false,
       roomType: 'educational',
       offices_ids: [],
       floorNumber: 1,
@@ -258,10 +261,11 @@ export default {
     },
 
     isSaveDisabled() {
-      return this.isEditMode && !this.hasUnsavedChanges;
+      return this.isClassroomSaving || (this.isEditMode && !this.hasUnsavedChanges);
     },
 
     saveButtonTitle() {
+      if (this.isClassroomSaving) return 'Дождитесь сохранения аудитории';
       return this.isSaveDisabled ? 'Нет изменений для сохранения' : '';
     },
 
@@ -1197,7 +1201,8 @@ export default {
       }));
     },
 
-    saveClassroom() {
+    async saveClassroom() {
+      if (this.isClassroomSaving) return;
       if (!this.classroomNumber) {
         this.notify.warning('Введите номер аудитории!');
         return;
@@ -1212,14 +1217,14 @@ export default {
       const outOfBoundsItems = this.outOfBoundsEquipmentItems
 
       if (outOfBoundsItems.length > 0) {
-        const confirmMsg =
-            `Внимание! Вы уменьшили размеры сетки.\n` +
-            `${outOfBoundsItems.length} ед. оборудования окажутся за пределами и будут удалены.\n\n` +
-            `Продолжить?`;
-
-        if (!confirm(confirmMsg)) {
-          return;
-        }
+        const snapshot = this.buildAudienceSnapshot();
+        const accepted = await this.confirmation.ask({
+          title: 'Сохранить уменьшенную сетку?',
+          message: `За границами сетки осталось оборудование: ${outOfBoundsItems.length} ед. При сохранении оно будет удалено.`,
+          detail: 'Чтобы сохранить оборудование, отмените действие и увеличьте сетку или переместите устройства.',
+          confirmLabel: 'Сохранить и удалить', tone: 'danger',
+        });
+        if (!accepted || this.isClassroomSaving || snapshot !== this.buildAudienceSnapshot()) return;
       }
 
       const validItems = this.equipmentItems.filter(item =>
@@ -1245,36 +1250,35 @@ export default {
         landmarks: buildLandmarksPayload(this.landmarks)
       };
 
-      if (this.isEditMode) {
-        api.put(`/audiences/${this.publicId}`, classroomData)
-            .then(() => {
-              this.notify.success(`Аудитория обновлена!`);
-              this.audienceContext.setOffice(classroomData.office_id);
-              this.hasUnsavedChanges = false;
-              router.push({ name: "Audience", params: { audiencePublicId: this.publicId }, query: preserveAudienceOrigin(this.$route.query) });
-            })
-            .catch(err => {
-              this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
-            });
-      } else {
-        api.post(`/audiences`, classroomData)
-            .then((response) => {
-              const createdPublicId = response.data?.public_id;
-              if (!createdPublicId) {
-                this.notify.error(`Аудитория создана, но сервер не вернул UUID для перехода.`);
-                return;
-              }
-              this.notify.success(`Аудитория создана!`);
-              this.hasUnsavedChanges = false;
-              router.push({ name: "Audience", params: { audiencePublicId: createdPublicId } });
-            })
-            .catch(err => {
-              if (err.response?.status === 409) {
-                this.notify.error(`В выбранном корпусе уже есть аудитория с таким номером!`);
-              } else {
-                this.notify.error(`Не удалось создать аудиторию!`);
-              }
-            });
+      this.isClassroomSaving = true;
+      try {
+        if (this.isEditMode) {
+          await api.put(`/audiences/${this.publicId}`, classroomData);
+          this.notify.success('Аудитория обновлена!');
+          this.audienceContext.setOffice(classroomData.office_id);
+          this.hasUnsavedChanges = false;
+          router.push({ name: 'Audience', params: { audiencePublicId: this.publicId }, query: preserveAudienceOrigin(this.$route.query) });
+        } else {
+          const response = await api.post('/audiences', classroomData);
+          const createdPublicId = response.data?.public_id;
+          if (!createdPublicId) {
+            this.notify.error('Аудитория создана, но сервер не вернул UUID для перехода.');
+            return;
+          }
+          this.notify.success('Аудитория создана!');
+          this.hasUnsavedChanges = false;
+          router.push({ name: 'Audience', params: { audiencePublicId: createdPublicId } });
+        }
+      } catch (err) {
+        if (this.isEditMode) {
+          this.notify.error(`Ошибка обновления: ${err.response?.data?.detail || ''}`);
+        } else {
+          this.notify.error(err.response?.status === 409
+            ? 'В выбранном корпусе уже есть аудитория с таким номером!'
+            : 'Не удалось создать аудиторию!');
+        }
+      } finally {
+        this.isClassroomSaving = false;
       }
     },
 
@@ -1407,6 +1411,7 @@ export default {
 
   beforeUnmount()
   {
+    this.confirmation.cancel();
     document.removeEventListener('pointerdown', this.handleGridActionsOutsideClick);
     window.removeEventListener('keydown', this.handleAudienceKeyboardShortcuts);
     this.clearEquipmentRemovalTimers();
@@ -2449,7 +2454,7 @@ export default {
   transform: translateY(-50%);
 }
 
-:global(html[data-theme='dark']) .create-audience-page .select-field-arrow {
+html[data-theme='dark'] .create-audience-page .select-field-arrow {
   color: #cbd5e1;
 }
 

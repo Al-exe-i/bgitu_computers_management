@@ -249,7 +249,7 @@ export default {
   white-space: pre-wrap;
 }
 
-:global(html[data-theme='dark']) .error-shell {
+html[data-theme='dark'] .error-shell {
   --error-card-border: #334155;
   --error-card-bg:
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 28%),
