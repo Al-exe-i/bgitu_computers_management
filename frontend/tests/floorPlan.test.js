@@ -22,22 +22,120 @@ function component({ get = async () => ({ data: response() }), put = async () =>
     .split('<script>')[1].split('</script>')[0]
     .replace(/^import .*;\r?\n/gm, '').replace('export default', 'globalThis.component =');
   const navigations = [];
+  const warnings = [];
   const auth = { isAuthenticated: role !== null, user: role === null ? null : { role } };
   const context = vm.createContext({ ...geometry, ...navigation, ContextHelp: {}, api: { get, put }, window: { confirm },
+    useNotificationsStore: () => ({ warning: message => warnings.push(message) }),
+    requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout,
+    document: { removeEventListener() {} },
     useAuthStore: () => auth, useThemeStore: () => ({ isDark: false }),
     useAudienceContext: () => ({ setOffice() {} }) });
   vm.runInContext(source, context);
   const definition = context.component;
   const instance = { ...definition.data(), officeId: 1, floor: 2, matchingIds: null,
     $router: { push: route => navigations.push(route) }, $emit() {},
-    $refs: { grid: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 640 }) } } };
+    $refs: {
+      grid: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 640, right: 640, bottom: 384 }) },
+      scroll: { getBoundingClientRect: () => ({ left: 0, top: 0, right: 640, bottom: 384 }) },
+    } };
+  context.window.removeEventListener = () => {};
   for (const [key, fn] of Object.entries(definition.methods)) instance[key] = fn.bind(instance);
   for (const [key, fn] of Object.entries(definition.computed)) Object.defineProperty(instance, key, { get: fn.bind(instance) });
   instance.accept(response());
   instance.loading = false;
   instance.editing = true;
-  return { instance, definition, auth, navigations };
+  return { instance, definition, auth, navigations, warnings, context };
 }
+
+const pointer = (x = 10, y = 10) => ({ pointerId: 1, isPrimary: true, button: 0, clientX: x, clientY: y,
+  currentTarget: { setPointerCapture() {} } });
+
+test('unplaced room drag previews without mutation and places on release', () => {
+  const { instance } = component();
+  instance.startDrag(pointer(20, 450), response().rooms[1]);
+  instance.moveDrag(pointer(160, 96));
+  assert.equal(instance.drag.mode, 'place');
+  assert.equal(instance.preview.x, 5);
+  assert.equal(instance.preview.y, 3);
+  assert.equal(instance.dirty, false);
+  instance.finishDrag(pointer(160, 96));
+  assert.equal(instance.placements.get('b').x, 5);
+  assert.equal(instance.placements.get('b').height, 2);
+});
+
+test('corner resize snaps cells, rejects overlaps and bounds with a warning', () => {
+  const { instance, warnings } = component();
+  instance.startDrag(pointer(90, 60), response().rooms[0], 'resize');
+  instance.finishDrag(pointer(154, 92));
+  assert.equal(instance.placements.get('a').width, 5);
+  assert.equal(instance.placements.get('a').height, 3);
+  const snapshot = geometry.planSnapshot(instance.draft);
+  instance.startDrag(pointer(154, 92), response().rooms[0], 'resize');
+  instance.finishDrag(pointer(900, 92));
+  assert.equal(geometry.planSnapshot(instance.draft), snapshot);
+  assert.match(warnings[0], /границы/);
+  assert.equal(instance.error, '');
+  instance.commit(geometry.placeRoom(instance.draft, room('b', 5)));
+  instance.startDrag(pointer(154, 92), response().rooms[0], 'resize');
+  instance.finishDrag(pointer(186, 92));
+  assert.match(warnings[1], /пересекаться/);
+});
+
+test('dropping outside cancels, explicit return zone removes placement only', () => {
+  const { instance } = component();
+  instance.startDrag(pointer(), response().rooms[0]);
+  instance.finishDrag(pointer(-40, 100));
+  assert.equal(instance.dirty, false);
+  instance.$refs.dropzone = { getBoundingClientRect: () => ({ left: 100, right: 300, top: 420, bottom: 480 }) };
+  instance.startDrag(pointer(), response().rooms[0]);
+  instance.finishDrag(pointer(180, 450));
+  assert.equal(instance.placements.has('a'), false);
+  assert.equal(instance.plan.rooms.length, 2);
+});
+
+test('Escape and permission loss cancel resize and release capture', () => {
+  const { instance, definition } = component();
+  let released = 0;
+  const event = pointer();
+  event.currentTarget.hasPointerCapture = () => true;
+  event.currentTarget.releasePointerCapture = () => released++;
+  instance.startDrag(event, response().rooms[0], 'resize');
+  instance.moveDrag(pointer(110, 100));
+  instance.onDocumentKey({ key: 'Escape', preventDefault() {} });
+  assert.equal(instance.dirty, false);
+  assert.equal(released, 1);
+  instance.startDrag(event, response().rooms[0]);
+  definition.watch.canEdit.call(instance, false);
+  assert.equal(instance.drag, null);
+  assert.equal(released, 2);
+});
+
+test('fullscreen restores focus, background accessibility and scroll lock', async () => {
+  const { instance, context } = component();
+  const app = { inert: false };
+  let focused = 0;
+  context.document.activeElement = { isConnected: true, focus: () => focused++ };
+  context.document.body = { style: { overflow: 'auto' } };
+  context.document.getElementById = () => app;
+  instance.$nextTick = callback => callback ? callback() : Promise.resolve();
+  instance.$refs.editor = {};
+  await instance.toggleFullscreen();
+  assert.equal(instance.fullscreen, true);
+  assert.equal(app.inert, true);
+  assert.equal(context.document.body.style.overflow, 'hidden');
+  instance.onDocumentKey({ key: 'Escape', preventDefault() {} });
+  assert.equal(app.inert, false);
+  assert.equal(instance.fullscreen, false);
+  assert.equal(context.document.body.style.overflow, 'auto');
+  assert.equal(focused, 1);
+});
+
+test('Shift + arrow resizes using the same validation as pointer input', () => {
+  const { instance } = component();
+  instance.roomKey({ key: 'ArrowRight', shiftKey: true, preventDefault() {} }, response().rooms[0]);
+  assert.equal(instance.placements.get('a').width, 4);
+  assert.equal(instance.placements.get('a').x, 0);
+});
 
 test('search highlights placed and unplaced matches without changing layout or selection', () => {
   const { instance } = component();

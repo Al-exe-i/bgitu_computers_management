@@ -43,7 +43,7 @@ export default {
 </script>
 
 <template>
-  <div class="notifications-container">
+  <div class="notifications-container" aria-live="polite" aria-relevant="additions">
     <transition-group name="notification">
       <div
           v-for="notif in notificationsStore.notifications"
@@ -58,7 +58,7 @@ export default {
           <div class="notification-title">{{ notif.title || getTitle(notif.type) }}</div>
           <div class="notification-message">{{ notif.text }}</div>
         </div>
-        <button class="notification-close" @click="closeNotification(notif.id)">✕</button>
+        <button class="notification-close" aria-label="Закрыть уведомление" @click="closeNotification(notif.id)">✕</button>
 
         <svg
             v-if="notif.duration > 0"

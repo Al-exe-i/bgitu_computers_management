@@ -3,7 +3,8 @@ import api from '@/services/api.js';
 import { useAuthStore } from '@/stores/auth.js';
 import { useThemeStore } from '@/stores/theme.js';
 import { useAudienceContext } from '@/stores/officeCtx.js';
-import { planDraft, planSnapshot, planError, placeRoom, moveFromPointer, FLOOR_DIRECTIONS } from '@/utils/floorPlan.js';
+import { planDraft, planSnapshot, planError, placeRoom, moveFromPointer, resizeFromPointer, pointInRect, FLOOR_DIRECTIONS } from '@/utils/floorPlan.js';
+import { useNotificationsStore } from '@/stores/notifications.js';
 import { audienceOriginQuery } from '@/utils/officeNavigation.js';
 import ContextHelp from './ContextHelp.vue';
 
@@ -25,6 +26,8 @@ export default {
     landmarkDraft: '',
     headerOffset: 0,
     headerObserver: null,
+    fullscreen: false, previousOverflow: '', returnFocus: null, appWasInert: false,
+    scrollFrame: null, suppressClick: false,
   }),
   computed: {
     directions() { return FLOOR_DIRECTIONS; },
@@ -52,6 +55,8 @@ export default {
   },
   mounted() {
     this.load();
+    document.addEventListener('keydown', this.onDocumentKey);
+    window.addEventListener('blur', this.cancelDrag);
     const header = document.querySelector('header');
     if (header) {
       const measure = () => { this.headerOffset = header.getBoundingClientRect().height; };
@@ -60,8 +65,50 @@ export default {
       this.headerObserver.observe(header);
     }
   },
-  beforeUnmount() { this.requestId++; this.cancelDrag(); this.headerObserver?.disconnect(); },
+  beforeUnmount() {
+    this.requestId++; this.cancelDrag(); this.headerObserver?.disconnect();
+    this.exitFullscreen();
+    document.removeEventListener('keydown', this.onDocumentKey);
+    window.removeEventListener('blur', this.cancelDrag);
+  },
   methods: {
+    getScrollElement() { return this.$refs.scroll; },
+    async toggleFullscreen() {
+      if (this.fullscreen) { this.exitFullscreen(); return; }
+      this.cancelDrag();
+      this.returnFocus = document.activeElement;
+      this.previousOverflow = document.body.style.overflow;
+      this.appWasInert = Boolean(document.getElementById('app')?.inert);
+      this.fullscreen = true;
+      document.body.style.overflow = 'hidden';
+      await this.$nextTick();
+      if (!this.fullscreen || !this.$refs.editor) return;
+      const app = document.getElementById('app');
+      if (app) app.inert = true;
+      this.$refs.fullscreenToggle?.focus();
+    },
+    exitFullscreen() {
+      if (!this.fullscreen) return;
+      this.cancelDrag();
+      this.fullscreen = false;
+      document.body.style.overflow = this.previousOverflow;
+      const app = document.getElementById('app');
+      if (app) app.inert = this.appWasInert;
+      this.$nextTick(() => this.returnFocus?.isConnected && this.returnFocus.focus({ preventScroll: true }));
+    },
+    onDocumentKey(event) {
+      if (event.key === 'Escape') {
+        if (this.drag) { event.preventDefault(); this.cancelDrag(); }
+        else if (this.fullscreen && !this.editingLandmark) { event.preventDefault(); this.exitFullscreen(); }
+      }
+      if (this.fullscreen && event.key === 'Tab') {
+        const nodes = [...this.$refs.editor.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]')]
+          .filter(node => node.getClientRects().length);
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    },
     typeLabel(room) { return room.room_type === 'administrative' ? 'Административный' : 'Учебный'; },
     matchesFilter(room) { return !this.matches || this.matches.has(room.audience_public_id); },
     accept(plan) {
@@ -93,8 +140,8 @@ export default {
     },
     async save() {
       if (!this.editable || !this.dirty || this.conflict || this.drag) return;
-      this.error = planError(this.draft);
-      if (this.error) return;
+      const validation = planError(this.draft);
+      if (validation) { useNotificationsStore().warning(validation); return; }
       this.saving = true;
       this.notice = '';
       const id = this.requestId;
@@ -128,8 +175,8 @@ export default {
       if (!this.editable) return false;
       const error = planError(next);
       this.notice = '';
-      this.error = error;
-      if (error) return false;
+      if (error) { useNotificationsStore().warning(error); return false; }
+      this.error = '';
       this.draft = next;
       return true;
     },
@@ -148,13 +195,14 @@ export default {
       this.commit({ ...this.draft, rooms: this.draft.rooms.filter(room => room.audience_public_id !== this.selectedId) });
     },
     activate(room) {
+      if (this.suppressClick) return;
       if (this.editing) { if (this.editable) this.selectedId = room.audience_public_id; return; }
       useAudienceContext().setOffice(this.officeId);
       this.$router.push({ name: 'Audience', params: { audiencePublicId: room.audience_public_id },
         query: audienceOriginQuery('plan', this.floor, this.searchText) });
     },
     placeAt(event) {
-      if (!this.editable || !this.selected || this.selectedPlacement || event.target !== this.$refs.grid) return;
+      if (this.suppressClick || !this.editable || !this.selected || this.selectedPlacement || event.target !== this.$refs.grid) return;
       const rect = this.$refs.grid.getBoundingClientRect();
       const cell = rect.width / this.draft.width;
       this.commit(placeRoom(this.draft, {
@@ -173,7 +221,7 @@ export default {
           if (!planError(next)) { this.commit(next); return; }
         }
       }
-      this.error = 'Нет свободного места для кабинета. Увеличьте сетку или освободите участок.';
+      useNotificationsStore().warning('Нет свободного места для кабинета. Увеличьте сетку или освободите участок.');
     },
     roomStyle(placement) {
       return {
@@ -192,29 +240,77 @@ export default {
       if (this.commit({ ...this.draft, landmarks: { ...this.draft.landmarks,
         [this.editingLandmark]: this.landmarkDraft.trim() } })) this.editingLandmark = null;
     },
-    startDrag(event, room) {
+    startDrag(event, room, mode = 'move') {
       if (!this.editable || this.drag || !event.isPrimary || event.button !== 0) return;
+      this.suppressClick = false;
       const hadSelection = Boolean(this.selected);
       this.selectedId = room.audience_public_id;
       const rect = this.$refs.grid.getBoundingClientRect();
-      this.drag = { room: { ...this.placements.get(this.selectedId) }, pointerId: event.pointerId,
+      const placement = this.placements.get(this.selectedId);
+      this.drag = { room: placement ? { ...placement } : { audience_public_id: this.selectedId,
+        x: 0, y: 0, width: Math.min(3, this.draft.width), height: Math.min(2, this.draft.height) },
+        mode: placement ? mode : 'place', pointerId: event.pointerId, source: event.currentTarget,
         localX: event.clientX - rect.left, localY: event.clientY - rect.top,
-        clientX: event.clientX, clientY: event.clientY, moved: false, hadSelection };
+        clientX: event.clientX, clientY: event.clientY, currentX: event.clientX, currentY: event.clientY,
+        moved: false, hadSelection, overGrid: false, overTray: false };
       event.currentTarget.setPointerCapture(event.pointerId);
     },
     moveDrag(event) {
       if (!this.drag || this.drag.pointerId !== event.pointerId) return;
       if (Math.hypot(event.clientX - this.drag.clientX, event.clientY - this.drag.clientY) > 4) this.drag.moved = true;
-      if (this.drag.moved) this.preview = moveFromPointer(this.drag, event.clientX, event.clientY,
-        this.$refs.grid.getBoundingClientRect(), this.draft.width);
+      this.drag.currentX = event.clientX; this.drag.currentY = event.clientY;
+      if (!this.drag.moved) return;
+      this.updatePreview();
+      if (this.scrollFrame === null) this.scrollFrame = requestAnimationFrame(this.autoScroll);
+    },
+    updatePreview() {
+      const drag = this.drag;
+      if (!drag) return;
+      const rect = this.$refs.grid.getBoundingClientRect();
+      const viewport = this.$refs.scroll.getBoundingClientRect();
+      drag.overGrid = pointInRect(drag.currentX, drag.currentY, rect) && pointInRect(drag.currentX, drag.currentY, viewport);
+      drag.overTray = drag.mode === 'move' && (pointInRect(drag.currentX, drag.currentY, this.$refs.dropzone?.getBoundingClientRect())
+        || pointInRect(drag.currentX, drag.currentY, this.$refs.unplaced?.getBoundingClientRect()));
+      if (drag.mode === 'resize') this.preview = resizeFromPointer(drag, drag.currentX, drag.currentY, rect, this.draft.width);
+      else if (!drag.overGrid || drag.overTray) this.preview = null;
+      else if (drag.mode === 'place') {
+        const cell = rect.width / this.draft.width;
+        this.preview = { ...drag.room, x: Math.floor((drag.currentX - rect.left) / cell), y: Math.floor((drag.currentY - rect.top) / cell) };
+      } else this.preview = moveFromPointer(drag, drag.currentX, drag.currentY, rect, this.draft.width);
+    },
+    autoScroll() {
+      this.scrollFrame = null;
+      if (!this.drag?.moved) return;
+      const { currentX: x, currentY: y, overTray } = this.drag;
+      const scroll = this.$refs.scroll, rect = scroll.getBoundingClientRect();
+      const edge = (value, start, end) => value < start + 32 ? -10 : value > end - 32 ? 10 : 0;
+      if (!overTray && pointInRect(x, y, rect)) {
+        scroll.scrollBy(edge(x, rect.left, rect.right), edge(y, rect.top, rect.bottom));
+      }
+      const page = this.fullscreen ? this.$refs.editor : document.scrollingElement;
+      if (!overTray) page?.scrollBy(0, edge(y, 0, window.innerHeight));
+      this.updatePreview();
+      this.scrollFrame = requestAnimationFrame(this.autoScroll);
     },
     finishDrag(event) {
       if (!this.drag || this.drag.pointerId !== event.pointerId) return;
       this.moveDrag(event);
-      if (this.preview) this.commit(placeRoom(this.draft, this.preview));
+      if (this.drag.moved) {
+        this.suppressClick = true;
+        if (this.drag.overTray) this.unplace();
+        else if (this.preview) this.commit(placeRoom(this.draft, this.preview));
+        // Click follows pointerup; keep it from reopening a removed room.
+        setTimeout(() => { this.suppressClick = false; }, 0);
+      }
       this.cancelDrag();
     },
-    cancelDrag() { this.drag = null; this.preview = null; },
+    cancelDrag() {
+      const drag = this.drag;
+      this.drag = null; this.preview = null;
+      if (this.scrollFrame !== null) cancelAnimationFrame(this.scrollFrame);
+      this.scrollFrame = null;
+      if (drag?.source?.hasPointerCapture?.(drag.pointerId)) drag.source.releasePointerCapture(drag.pointerId);
+    },
     cancelPointer(event) {
       if (this.drag?.pointerId === event.pointerId) this.cancelDrag();
     },
@@ -226,14 +322,17 @@ export default {
       event.preventDefault();
       this.selectedId = room.audience_public_id;
       const current = this.placements.get(this.selectedId);
-      this.commit(placeRoom(this.draft, { ...current, x: current.x + delta[0], y: current.y + delta[1] }));
+      this.commit(placeRoom(this.draft, event.shiftKey
+        ? { ...current, width: current.width + delta[0], height: current.height + delta[1] }
+        : { ...current, x: current.x + delta[0], y: current.y + delta[1] }));
     },
   },
 };
 </script>
 
 <template>
-  <section class="floor-plan" :class="{ 'is-dark': isDark, 'is-editing': editable }" :style="{ '--fp-header-offset': `${headerOffset}px` }" :aria-label="`Схема ${floor} этажа`" :aria-busy="loading || saving">
+  <Teleport to="body" :disabled="!fullscreen">
+  <section ref="editor" class="floor-plan" :class="{ 'is-dark': isDark, 'is-editing': editable, 'is-fullscreen': fullscreen }" :style="{ '--fp-header-offset': `${fullscreen ? 0 : headerOffset}px` }" :role="fullscreen ? 'dialog' : undefined" :aria-modal="fullscreen || undefined" :aria-label="`Схема ${floor} этажа`" :aria-busy="loading || saving">
     <div class="fp-toolbar">
       <div class="fp-caption">
         <strong>{{ editing ? 'Расстановка кабинетов' : 'План этажа' }}</strong>
@@ -248,6 +347,9 @@ export default {
           <svg class="fp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m16 3 5 5-12 12H4v-5zM13 6l5 5"/></svg>Редактировать
         </button>
         <button type="button" :disabled="loading || saving" @click="load">{{ conflict ? 'Загрузить актуальную' : 'Обновить' }}</button>
+        <button ref="fullscreenToggle" type="button" class="fp-fullscreen-toggle" :title="fullscreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'" :aria-label="fullscreen ? 'Выйти из полноэкранного режима' : 'На весь экран'" :aria-pressed="fullscreen" @click="toggleFullscreen">
+          <svg class="fp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path v-if="fullscreen" d="M4 9h5V4m6 0v5h5M4 15h5v5m6 0v-5h5"/><path v-else d="M9 4H4v5m11-5h5v5M4 15v5h5m6 0h5v-5"/></svg>
+        </button>
       </div>
     </div>
     <p v-if="loading" class="fp-message" role="status">Загружаем схему…</p>
@@ -262,8 +364,9 @@ export default {
           <label>Ряды<input type="number" min="1" max="50" :value="draft.height" @change="resizePlan('height', $event)"></label>
         </fieldset>
         <ContextHelp :id="`floor-help-${officeId}-${floor}`" label="Как редактировать схему">
-          <p>Перетаскивайте кабинеты, оставляя место для проходов. Положение и размер выбранного кабинета меняются в панели над сеткой.</p>
-          <p>Стрелки клавиатуры сдвигают кабинет на клетку. Чтобы убрать его с сетки, нажмите «Снять с плана».</p>
+          <p>Перетащите кабинет из списка на сетку. Потяните за уголок выбранного кабинета, чтобы изменить размер.</p>
+          <p>Стрелки сдвигают кабинет на клетку, Shift + стрелки меняют размер. Чтобы снять кабинет с плана, перетащите его в появившуюся зону «Вернуть вне плана» или нажмите «Снять с плана».</p>
+          <p>Esc отменяет перетаскивание или закрывает полноэкранный режим.</p>
           <p>Изменения применяются после нажатия «Сохранить».</p>
         </ContextHelp>
       </div>
@@ -303,7 +406,7 @@ export default {
             </div>
           </form>
         </div>
-        <div class="fp-scroll" tabindex="0" aria-label="План этажа, прокручиваемая область">
+        <div ref="scroll" class="fp-scroll" tabindex="0" aria-label="План этажа, прокручиваемая область">
         <div ref="grid" class="fp-grid" :style="{ '--columns': draft.width, '--rows': draft.height }" @click="placeAt">
           <button v-for="room in placedRooms" :key="room.audience_public_id" type="button" class="fp-room"
             :class="{ administrative: room.room_type === 'administrative', selected: editing && selectedId === room.audience_public_id,
@@ -316,25 +419,33 @@ export default {
             @pointerdown="startDrag($event, room)" @pointermove="moveDrag" @pointerup="finishDrag"
             @pointercancel="cancelPointer" @lostpointercapture="cancelPointer">
             <strong>{{ room.number }}</strong><span class="fp-room-type">{{ typeLabel(room) }}</span>
+            <span v-if="editable && selectedId === room.audience_public_id" class="fp-resize-handle" aria-hidden="true" title="Потяните, чтобы изменить размер" @pointerdown.stop="startDrag($event, room, 'resize')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 13 13 5M9 13l4-4"/></svg></span>
           </button>
           <div v-if="preview" class="fp-preview" :class="{ invalid: !!previewError }" :style="roomStyle(preview)" aria-hidden="true">{{ selected?.number }}</div>
         </div>
         </div>
       </div>
       </div>
-      <div v-if="unplacedRooms.length" class="fp-unplaced">
+      <div v-if="unplacedRooms.length" ref="unplaced" class="fp-unplaced" :class="{ 'is-drop-target': drag?.overTray }">
         <p>Вне плана <span>{{ unplacedRooms.length }}</span></p>
-        <p v-if="editing" class="fp-help">Выберите кабинет, затем укажите место на сетке.</p>
+        <p v-if="editing" class="fp-help">Перетащите кабинет на сетку или выберите его и нажмите свободное место.</p>
         <div class="fp-room-list">
           <button v-for="room in unplacedRooms" :key="room.audience_public_id" type="button"
             :class="{ selected: editing && selectedId === room.audience_public_id, muted: !!matches && !matchesFilter(room), 'is-match': !!matches && matchesFilter(room) }"
-            :disabled="saving || loading" :aria-pressed="editing ? selectedId === room.audience_public_id : undefined" @click="activate(room)">
+            :disabled="saving || loading" :aria-pressed="editing ? selectedId === room.audience_public_id : undefined" @click="activate(room)"
+            @pointerdown="startDrag($event, room)" @pointermove="moveDrag" @pointerup="finishDrag" @pointercancel="cancelPointer" @lostpointercapture="cancelPointer">
             <strong>{{ room.number }}</strong><span>{{ typeLabel(room) }}</span>
           </button>
         </div>
       </div>
     </template>
+    <div v-if="drag?.moved && drag.mode === 'move'" ref="dropzone" class="fp-dropzone" :class="{ 'is-active': drag.overTray }" role="status">
+      <svg class="fp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 4H4v16h5m3-12 4 4-4 4m-4-4h13"/></svg>
+      {{ drag.overTray ? 'Отпустите, чтобы снять с плана' : 'Вернуть вне плана' }}
+    </div>
+    <div v-if="drag?.moved && !preview" class="fp-drag-ghost" :style="{ left: `${drag.currentX + 16}px`, top: `${drag.currentY + 16}px` }" aria-hidden="true">{{ selected?.number }}</div>
   </section>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -350,6 +461,18 @@ export default {
   --fp-border: #3b506e; --fp-grid: #202e43; --fp-room: #1d385a; --fp-admin: #1b3d38;
   --fp-room-ink: #c1d9ff; --fp-admin-ink: #b6e7d7; --fp-accent: #8ab6ff; --fp-error: #ffa3ac;
 }
+.floor-plan.is-fullscreen { position: fixed; inset: 0; z-index: 1400; overflow: auto; padding: 24px; background: var(--fp-bg); box-sizing: border-box; overscroll-behavior: contain; }
+.floor-plan.is-fullscreen .fp-toolbar { position: sticky; top: -24px; z-index: 12; margin: -24px -24px 16px; padding: 16px 24px; background: var(--fp-bg); border-bottom: 1px solid var(--fp-border); }
+.floor-plan.is-fullscreen .fp-inspector { position: static; }
+.floor-plan.is-fullscreen .fp-scroll { max-height: 70dvh; }
+.floor-plan .fp-fullscreen-toggle { padding: 9px; width: 40px; flex-shrink: 0; }
+.fp-resize-handle { position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; display: grid; place-items: center; cursor: nwse-resize; color: var(--fp-room-ink); touch-action: none; }
+.fp-resize-handle svg { width: 16px; height: 16px; pointer-events: none; }
+.is-editing .fp-room-list button { touch-action: none; user-select: none; cursor: grab; }
+.fp-dropzone { position: fixed; z-index: 1500; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 10px; width: min(360px, calc(100vw - 32px)); min-height: 64px; padding: 12px 18px; box-sizing: border-box; border: 2px dashed var(--fp-border); border-radius: 14px; background: var(--fp-surface); color: var(--fp-text); box-shadow: 0 12px 40px #0003; pointer-events: none; }
+.fp-dropzone.is-active { border-style: solid; border-color: var(--fp-accent); background: var(--fp-room); }
+.fp-drag-ghost { position: fixed; z-index: 1501; pointer-events: none; padding: 8px 14px; border-radius: 8px; background: var(--fp-room); color: var(--fp-room-ink); border: 1px solid var(--fp-accent); font-weight: 650; }
+.fp-unplaced.is-drop-target { outline: 2px dashed var(--fp-accent); outline-offset: 6px; border-radius: 8px; }
 .fp-toolbar, .fp-actions, .fp-editor, .fp-legend, .fp-inspector { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .fp-toolbar { justify-content: space-between; margin-bottom: 16px; }
 .fp-caption { display: grid; gap: 3px; }

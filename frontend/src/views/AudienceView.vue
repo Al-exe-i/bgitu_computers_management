@@ -5,6 +5,7 @@ import { officeBackLocation, preserveAudienceOrigin, audienceBackLabel, audience
 import {useNotificationsStore} from "@/stores/notifications.js";
 import LoaderContainer from "@/components/Common/LoaderContainer.vue";
 import TrustedSvgIcon from "@/components/Common/TrustedSvgIcon.vue";
+import ModalCloseButton from '@/components/Common/ModalCloseButton.vue';
 import {useAuthStore} from "@/stores/auth.js";
 import {getApiUrl, getRealtimeClientId, getSseUrl, withSseParams} from "@/config/api.js";
 import {
@@ -23,7 +24,7 @@ const MAX_SOFTWARE_NAME_LENGTH = 128;
 
 export default {
   name: 'AudienceView',
-  components: { LoaderContainer, TrustedSvgIcon},
+  components: { LoaderContainer, TrustedSvgIcon, ModalCloseButton },
   props: ['audiencePublicId'],
   data() {
     return {
@@ -1663,6 +1664,7 @@ export default {
         this.specsEdit = false;
 
         this.notify.success('Характеристики сохранены');
+        this.specTemplatesExpanded = false;
       } catch (err) {
         this.notify.error('Не удалось сохранить характеристики');
       } finally {
@@ -1671,6 +1673,7 @@ export default {
     },
 
     cancelSpecsEdit() {
+      this.specTemplatesExpanded = false;
       this.specsDraft = this.createSpecsDraft(this.selectedCell?.data?.specs);
       this.specListInputs = {};
       this.customSoftwareExpanded = false;
@@ -3326,12 +3329,7 @@ export default {
       >
         <div class="modal-content specs-modal-content">
           <div class="modal-close-upper">
-            <button @click="closeSpecsModal" class="close">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
+            <ModalCloseButton @click="closeSpecsModal" />
           </div>
 
           <div class="specs-modal-hero">
@@ -3415,7 +3413,7 @@ export default {
                 <button
                     v-if="!specsEdit"
                     class="specs-btn specs-btn-secondary"
-                    @click="specsEdit = true"
+                    @click="specsEdit = true; specTemplatesExpanded = false"
                 >
                   Изменить
                 </button>
@@ -4984,7 +4982,7 @@ html[data-theme='dark'] .audience-breadcrumbs a:hover { color: #8ab6ff; }
   justify-content: end;
   padding-top: 1rem;
 
-  button
+  button:not(.modal-round-close)
   {
     width: 40px;
     height: 40px;
@@ -5001,14 +4999,14 @@ html[data-theme='dark'] .audience-breadcrumbs a:hover { color: #8ab6ff; }
     will-change: transform;
   }
 
-  button svg
+  button:not(.modal-round-close) svg
   {
     width: 20px;
     height: 20px;
     stroke: #e82935;
   }
 
-  button:hover
+  button:not(.modal-round-close):hover
   {
     background: #e5e7eb;
     transform: scale(1.05);
@@ -7435,37 +7433,12 @@ html[data-theme='dark'] .audience-breadcrumbs a:hover { color: #8ab6ff; }
   height: 16px;
 }
 
-:global(html[data-theme='dark']) .problem-input {
-  background:
-      linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.74)),
-      #020617;
-  border-color: rgba(51, 65, 85, 0.96);
-  color: #dbe4ef;
-  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
-}
-
 :global(html[data-theme='dark']) .problem-list-scroll {
   scrollbar-color: rgba(96, 165, 250, 0.52) transparent;
 }
 
 :global(html[data-theme='dark']) .problem-list-scroll::-webkit-scrollbar-thumb {
   background: rgba(96, 165, 250, 0.46);
-}
-
-:global(html[data-theme='dark']) .problem-input::placeholder {
-  color: #64748b;
-}
-
-:global(html[data-theme='dark']) .problem-input:focus {
-  border-color: rgba(96, 165, 250, 0.9);
-  box-shadow:
-      0 0 0 3px rgba(59, 130, 246, 0.16),
-      inset 0 1px 0 rgba(148, 163, 184, 0.08);
-}
-
-:global(html[data-theme='dark']) .problem-input:disabled {
-  background: rgba(15, 23, 42, 0.68);
-  color: #94a3b8;
 }
 
 :global(html[data-theme='dark']) .problem-index {
@@ -8819,6 +8792,36 @@ html[data-theme='dark'] .audience-breadcrumbs a:hover { color: #8ab6ff; }
   min-width: 0;
 }
 
+.specs-modal-content .modal-close-upper :deep(.modal-round-close) {
+  border-radius: 50%;
+  margin: 0;
+  color: #64748b;
+  box-shadow: none;
+}
+.specs-modal-content .modal-close-upper :deep(.modal-round-close svg) { stroke: currentColor; }
+html[data-theme='dark'] .specs-modal-content .modal-close-upper :deep(.modal-round-close) { color: #cbd5e1; }
+
+.audience-drop-classroom-overlay .action-btns { gap: 12px; }
+.audience-drop-classroom-overlay .action-btn {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  box-shadow: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.audience-drop-classroom-overlay .action-btn.delete-btn { background: #be123c; color: #fff; }
+.audience-drop-classroom-overlay .action-btn.delete-btn:hover { background: #9f1239; transform: none; }
+.audience-drop-classroom-overlay .action-btn.cancel-btn { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+.audience-drop-classroom-overlay .action-btn.cancel-btn:hover { background: #e2e8f0; transform: none; }
+.audience-drop-classroom-overlay .action-btn:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .action-btn.cancel-btn { background: #1e293b; color: #e2e8f0; border-color: #475569; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .action-btn.cancel-btn:hover { background: #334155; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .action-btn.delete-btn { background: #be123c; color: #fff; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .action-btn.delete-btn:hover { background: #9f1239; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .warning-box { background: #2d1c29; border-color: #713247; color: #fda4af; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .warning-box p { color: inherit; }
+html[data-theme='dark'] .audience-drop-classroom-overlay .modal-content > p { color: #a8b5c7 !important; }
+
 .equipment-modal-kicker {
   display: block;
   margin-bottom: 3px;
@@ -9152,13 +9155,25 @@ html[data-theme='dark'] .audience-breadcrumbs a:hover { color: #8ab6ff; }
 .equipment-modal-content .problem-input:focus {
   outline: none;
   border-color: var(--eq-blue);
-  box-shadow: 0 0 0 3px var(--eq-blue-soft);
+  box-shadow: inset 0 0 0 1px var(--eq-blue);
 }
 
 .equipment-modal-content .problem-input:disabled {
   color: var(--eq-secondary);
   background: var(--eq-surface);
 }
+
+html[data-theme='dark'] .equipment-modal-content .problem-input {
+  background: var(--eq-input) !important;
+  border-color: var(--eq-border-strong) !important;
+  box-shadow: none;
+}
+html[data-theme='dark'] .equipment-modal-content .problem-input:focus {
+  border-color: #60a5fa !important;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #60a5fa;
+}
+html[data-theme='dark'] .equipment-modal-content .problem-input:disabled { background: var(--eq-surface) !important; }
 
 .equipment-modal-content .problem-add,
 .equipment-modal-content .problem-remove {

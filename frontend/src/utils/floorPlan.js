@@ -62,3 +62,16 @@ export function moveFromPointer(drag, clientX, clientY, rect, columns) {
     y: drag.room.y + Math.round((clientY - rect.top - drag.localY) / cell),
   };
 }
+
+export function resizeFromPointer(drag, clientX, clientY, rect, columns) {
+  const cell = rect.width / columns;
+  return {
+    ...drag.room,
+    width: Math.max(1, drag.room.width + Math.round((clientX - rect.left - drag.localX) / cell)),
+    height: Math.max(1, drag.room.height + Math.round((clientY - rect.top - drag.localY) / cell)),
+  };
+}
+
+export function pointInRect(x, y, rect) {
+  return Boolean(rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom);
+}

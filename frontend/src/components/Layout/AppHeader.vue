@@ -2096,14 +2096,14 @@ header {
   }
 
   .profile-dropdown-content {
-    position: fixed;
-    left: 50%;
-    right: auto;
+    position: absolute;
+    left: auto;
+    right: 0;
     top: 54px;
     width: min(320px, calc(100vw - 16px));
     min-width: 0;
-    transform: translateX(-50%);
-    animation: notificationsDropdownMobileIn 0.24s ease;
+    transform: none;
+    animation: fadeIn 0.24s ease;
   }
 
   .notifications-dropdown-content {
@@ -2149,6 +2149,16 @@ header {
     --toggle-height: 36px;
     --toggle-padding: 3px;
     --toggle-thumb-size: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-dropdown-content {
+    position: fixed;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    animation: notificationsDropdownMobileIn 0.24s ease;
   }
 }
 

@@ -87,7 +87,7 @@ test('search on the floor page never removes rooms from the source data', () => 
 test('scroll restoration waits for render and ignores an obsolete page', async () => {
   const instance = page();
   let restoreCount = 0;
-  instance.$refs.plan = { $el: { querySelector: () => ({ scrollTo: () => { restoreCount++; } }) } };
+  instance.$refs.plan = { getScrollElement: () => ({ scrollTo: () => { restoreCount++; } }) };
   instance.$nextTick = async () => {};
   await instance.restorePosition();
   assert.equal(restoreCount, 1);

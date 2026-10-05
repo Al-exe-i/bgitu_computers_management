@@ -70,7 +70,7 @@ export default {
     },
     remember() {
       if (this.loading || this.error) return;
-      const scroll = this.$refs.plan?.$el.querySelector('.fp-scroll');
+      const scroll = this.$refs.plan?.getScrollElement();
       saveFloorView(this.viewKey, { search: this.search, x: scroll?.scrollLeft ?? 0,
         y: scroll?.scrollTop ?? 0, pageY: window.scrollY });
     },
@@ -79,7 +79,7 @@ export default {
       const state = readFloorView(this.viewKey);
       await this.$nextTick();
       if (id !== this.requestId) return;
-      this.$refs.plan?.$el.querySelector('.fp-scroll')?.scrollTo({ left: state.x, top: state.y, behavior: 'instant' });
+      this.$refs.plan?.getScrollElement()?.scrollTo({ left: state.x, top: state.y, behavior: 'instant' });
       window.scrollTo({ top: state.pageY, behavior: 'instant' });
     },
     allowLeave() {

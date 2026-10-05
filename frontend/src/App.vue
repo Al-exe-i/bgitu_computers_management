@@ -212,7 +212,7 @@ export default {
   <main class="app-main">
     <router-view></router-view>
   </main>
-  <NotificationsModal></NotificationsModal>
+  <Teleport to="body"><NotificationsModal /></Teleport>
   <app-footer></app-footer>
 </template>
 
@@ -326,7 +326,7 @@ html[data-theme='dark'] a {
   color: #93c5fd;
 }
 
-html[data-theme='dark'] header,
+html[data-theme='dark'] #app > header,
 html[data-theme='dark'] .site-footer,
 html[data-theme='dark'] .settings-layout,
 html[data-theme='dark'] .settings-subheader,
