@@ -2,10 +2,10 @@
 
 # BGITU Hardware Management
 
-### Backend-сервис для учета компьютерного оборудования в корпусах и аудиториях БГИТУ
+### Веб-приложение для учета оборудования в корпусах, на этажах и в аудиториях БГИТУ
 
 <p>
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white">
   <img alt="Vue" src="https://img.shields.io/badge/Vue-Frontend-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white">
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
@@ -38,16 +38,18 @@
 - [SSE и realtime](#sse-и-realtime)
 - [API](#api)
 - [Seed-данные](#seed-данные)
+- [Проверки качества](#проверки-качества)
 - [Roadmap](#roadmap)
 
 ---
 
 ## О проекте
 
-**BGITU Hardware Management** — backend-сервис для централизованного учета компьютерного оборудования, размещенного в учебных корпусах и аудиториях.
+**BGITU Hardware Management** — веб-приложение для централизованного учета компьютерного оборудования, размещенного в учебных корпусах и аудиториях.
 
 Система помогает хранить сведения об аудиториях, оборудовании, файлах, пользователях и действиях в одном месте.
 Backend предоставляет REST API для frontend-приложения, поддерживает аутентификацию, аудит, аналитику, фоновые задачи, хранение файлов и realtime-обновления через SSE.
+Frontend на Vue 3 включает схемы этажей, сетки оборудования, аналитику, администрирование и светлую/темную темы.
 
 Проект ориентирован на практическую эксплуатацию в образовательной организации: преподаватель или администратор может быстро открыть аудиторию, увидеть оборудование, изменить его состояние и зафиксировать событие в системе.
 
@@ -92,7 +94,8 @@ Backend предоставляет REST API для frontend-приложения
 
 | Область         | Технологии                                   |
 | --------------- | -------------------------------------------- |
-| Backend         | Python 3.13, FastAPI, Pydantic               |
+| Backend         | Python 3.14, FastAPI, Pydantic               |
+| Frontend        | Vue 3, Pinia, Vue Router, Vite               |
 | Database        | PostgreSQL, SQLAlchemy 2.x, asyncpg, Alembic |
 | Cache / Broker  | Redis                                        |
 | Background jobs | TaskIQ, Redis Streams, TaskIQ Scheduler      |
@@ -143,19 +146,19 @@ flowchart LR
 ├── core/             # конфигурация, безопасность, ошибки и логирование
 ├── db/               # engine, sessions, database setup
 ├── modules/          # модули приложения: use cases, ports и события
-├── models/           # SQLAlchemy ORM-модели
-├── schemas/          # Pydantic-схемы
-├── repositories/     # адаптеры доступа к данным
-├── services/         # инфраструктурные и доменные адаптеры
+├── models/           # общий реестр моделей модулей
+├── services/         # общие инфраструктурные адаптеры
 ├── dependencies/     # composition root для FastAPI
 ├── management/       # bootstrap и CLI управления пользователями
 ├── tasks/            # Асинхронные задачи TaskIQ
 ├── utils/            # вспомогательные функции
 ├── websocket/        # realtime-логика и Redis-backed SSE
 ├── alembic/          # миграции базы данных
+├── frontend/         # Vue-приложение и Nginx
+├── tests/            # тесты поведения, архитектуры и интеграций
+├── .github/          # CI и обновления зависимостей
 ├── static/           # загруженные файлы и аватары
-├── logs/             # лог-файлы приложения
-└── scripts/          # служебные скрипты запуска
+└── logs/             # лог-файлы приложения
 ```
 
 ---
@@ -164,7 +167,8 @@ flowchart LR
 
 Для локального запуска понадобятся:
 
-- Python 3.13+
+- Python 3.14 для текущего окружения, Docker и CI; минимальная версия в `pyproject.toml` — 3.13
+- Node.js 22.12+ для сборки frontend
 - PostgreSQL 17+ или совместимая версия
 - Redis 7+
 - MinIO, если используется объектное хранилище
@@ -214,7 +218,7 @@ docker compose up -d db redis minio
 ### 3. Установить зависимости
 
 ```powershell
-uv sync
+uv sync --locked --dev
 ```
 
 ### 4. Применить миграции
@@ -342,6 +346,16 @@ BGITU__CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 ```
 
 В Docker Compose используется MinIO.
+
+При замене аватара и удалении вложения старый объект удаляется только после
+подтвержденного commit БД. Новые загрузки очищаются при rollback до начала
+COMMIT, включая ошибки аудита, flush и отмену запроса после загрузки. Ошибка
+или отмена во время COMMIT может означать потерю ответа уже выполненной
+транзакции: в этом случае сохраняются и старые, и новые файлы, а неопределенный
+исход записывается в журнал. Перед удалением лишних файлов проверьте ссылки
+на них в БД. Это компенсация, а не общая транзакция PostgreSQL и MinIO:
+аварийное завершение процесса или недоступность хранилища тоже могут оставить
+лишний объект; ошибки очистки записываются в журнал.
 
 Доступ с хоста:
 
@@ -481,6 +495,38 @@ Bootstrap не перезаписывает пароль существующе�
 uv run python -m management.users create-su --email admin@example.ru
 uv run python -m management.users create-admin --email manager@example.ru
 ```
+
+---
+
+## Проверки качества
+
+Из корня проекта:
+
+```powershell
+uv sync --locked --dev
+uv run --no-sync ruff check .
+uv run --no-sync pytest -q
+docker compose config --quiet
+```
+
+В каталоге `frontend`:
+
+```powershell
+npm ci
+npm test
+npm run build
+```
+
+GitHub Actions выполняет эти проверки для pull request и изменений ветки
+`prod`. В CI дополнительно запускаются отдельные PostgreSQL 17 и Redis 7:
+проверяются вся цепочка миграций, сохранение существующих записей и доставка
+задач TaskIQ. CI не разворачивает приложение и не использует данные сервера.
+
+Локальные интеграционные проверки включаются через `TEST_POSTGRES_URL`
+(`postgresql+asyncpg://...`) и `TEST_TASKIQ_REDIS_URL` (`redis://...`). Используйте
+отдельные тестовые экземпляры. PostgreSQL-тесты создают и удаляют только
+уникальную схему `test_bgitu_*`, а Redis-тесты работают с уникальными ключами.
+Без этих переменных интеграционные проверки пропускаются.
 
 ---
 

@@ -1,6 +1,6 @@
 # Identity Module
 
-Identity owns users, credentials, sessions, refresh rotation and invitations.
+Identity owns users, credentials, sessions and refresh rotation.
 It is part of a modular monolith, not a separately deployed service.
 
 ## Structure
@@ -61,8 +61,14 @@ management.runtime. Bootstrap consumes public provisioning contracts. Password
 reset increments the access-token version atomically, revokes refresh sessions
 in the same transaction and schedules cache invalidation after commit.
 
-Avatar replacement still needs rollback-safe storage cleanup; moving its
-adapter does not make object storage transactional.
+Замена аватара использует callbacks commit/rollback, внедряемые через
+`dependencies/`. Старый файл удаляется только после подтвержденного commit,
+новая загрузка удаляется при rollback до начала COMMIT. При ошибке или отмене
+во время COMMIT оба файла сохраняются: ссылка в БД могла уже измениться.
+Неопределенный исход записывается в журнал; перед очисткой проверьте ссылки
+на файлы в БД. Очистка не маскирует исходную ошибку транзакции.
+Это не распределенная транзакция: сбой процесса или хранилища может оставить
+лишний объект, поэтому ошибки callbacks записываются в журнал.
 
 Architecture tests enforce the identity application, repository and public
 boundaries. Registry tests start fresh interpreters to detect import cycles.

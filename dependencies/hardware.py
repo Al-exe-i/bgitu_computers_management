@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from db.post_commit import add_post_commit_hook
+from db.post_rollback import add_post_rollback_hook
 from db.session import session_dep
 from dependencies.cache import office_short_list_cache_dep
 from dependencies.storage import object_storage_dep
@@ -19,7 +20,12 @@ async def get_hardware_service(
     db: session_dep,
     office_short_cache: office_short_list_cache_dep,
 ) -> HardwareService:
-    return HardwareService(HardwareRepository(db), office_short_cache, on_commit=partial(add_post_commit_hook, db))
+    return HardwareService(
+        HardwareRepository(db),
+        office_short_cache,
+        on_commit=partial(add_post_commit_hook, db),
+    )
+
 
 hardware_service_dep = Annotated[HardwareService, Depends(get_hardware_service)]
 
@@ -31,8 +37,14 @@ async def get_hardware_file_service(
 ) -> HardwareFileService:
     return HardwareFileService(
         files_repo=HardwareFilesRepository(db),
-        hardware=HardwareService(HardwareRepository(db), office_short_cache, on_commit=partial(add_post_commit_hook, db)),
+        hardware=HardwareService(
+            HardwareRepository(db),
+            office_short_cache,
+            on_commit=partial(add_post_commit_hook, db),
+        ),
         storage=HardwareFileStorage(storage),
+        on_commit=partial(add_post_commit_hook, db),
+        on_rollback=partial(add_post_rollback_hook, db),
     )
 
 

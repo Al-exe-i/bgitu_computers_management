@@ -1,5 +1,6 @@
-from collections.abc import Sequence
-from typing import Protocol
+from collections.abc import Awaitable, Callable, Sequence
+from functools import partial
+from typing import Any, Protocol
 
 from loguru import logger
 
@@ -29,10 +30,14 @@ class HardwareFileService:
         files_repo: HardwareFilesRepository,
         hardware: HardwareLookupPort,
         storage: HardwareFileStorage,
+        on_commit: Callable[[Callable[[], Any | Awaitable[Any]]], None],
+        on_rollback: Callable[[Callable[[], Any | Awaitable[Any]]], None],
     ) -> None:
         self.files_repo = files_repo
         self.hardware = hardware
         self.storage = storage
+        self.on_commit = on_commit
+        self.on_rollback = on_rollback
 
     async def update_files(
         self,
@@ -70,6 +75,7 @@ class HardwareFileService:
                 continue
 
             file_path = await self.storage.save(file, extension=extension)
+            self.on_rollback(partial(self.storage.delete, file_path))
             db_file = HardwareFile(
                 hardware_id=hardware_id,
                 file_type=content_type,
@@ -77,7 +83,9 @@ class HardwareFileService:
             )
 
             created = await self.files_repo.create(db_file)
-            created_files.append(HardwareFileResponse.model_validate(created, from_attributes=True))
+            created_files.append(
+                HardwareFileResponse.model_validate(created, from_attributes=True)
+            )
             logger.info(
                 "Hardware file stored: hardware_id={} audience_id={} file_id={} filename={}",
                 hardware_id,
@@ -101,28 +109,32 @@ class HardwareFileService:
         if not hardware:
             raise HardwareNotFoundError()
 
-        if self.storage.delete(db_file.file_path):
+        file_path = db_file.file_path
+        hardware_id = db_file.hardware_id
+        await self.files_repo.delete(file_id)
+        self.on_commit(partial(self._delete_stored_file, file_id, file_path))
+        logger.info(
+            "Hardware file record deleted: file_id={} hardware_id={} audience_id={}",
+            file_id,
+            hardware_id,
+            hardware.audience_id,
+        )
+
+        return HardwareFileDeleteResult(audience_id=hardware.audience_id)
+
+    def _delete_stored_file(self, file_id: int, file_path: str) -> None:
+        if self.storage.delete(file_path):
             logger.info(
                 "Hardware file removed from disk: file_id={} path={}",
                 file_id,
-                db_file.file_path,
+                file_path,
             )
         else:
             logger.warning(
                 "Hardware file missing on disk during delete: file_id={} path={}",
                 file_id,
-                db_file.file_path,
+                file_path,
             )
-
-        await self.files_repo.delete(file_id)
-        logger.info(
-            "Hardware file record deleted: file_id={} hardware_id={} audience_id={}",
-            file_id,
-            db_file.hardware_id,
-            hardware.audience_id,
-        )
-
-        return HardwareFileDeleteResult(audience_id=hardware.audience_id)
 
     @staticmethod
     def _is_supported_content_type(content_type: str) -> bool:

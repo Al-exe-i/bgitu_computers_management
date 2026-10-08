@@ -1,4 +1,6 @@
 from collections.abc import Awaitable, Callable, Sequence
+from functools import partial
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 
@@ -27,17 +29,24 @@ class UserService:
         repo: UserRepository,
         avatar_storage: AvatarStorage | None = None,
         user_cache: UserCache | None = None,
-        on_commit: Callable[[Callable[[], Awaitable[None]]], None] | None = None,
+        on_commit: Callable[[Callable[[], Any | Awaitable[Any]]], None] | None = None,
+        on_rollback: Callable[[Callable[[], Any | Awaitable[Any]]], None] | None = None,
     ):
         if user_cache is not None and on_commit is None:
             raise ValueError("User cache requires a post-commit scheduler")
+        if avatar_storage is not None and (on_commit is None or on_rollback is None):
+            raise ValueError("Avatar storage requires commit and rollback schedulers")
         self.repo = repo
         self.avatar_storage = avatar_storage
         self.user_cache = user_cache
         self.on_commit = on_commit
+        self.on_rollback = on_rollback
 
     async def get_all(self) -> Sequence[UserOut]:
-        return [UserOut.model_validate(user, from_attributes=True) for user in await self.repo.get_all()]
+        return [
+            UserOut.model_validate(user, from_attributes=True)
+            for user in await self.repo.get_all()
+        ]
 
     async def get(self, user_id: int) -> UserOut | None:
         if self.user_cache is not None:
@@ -57,12 +66,18 @@ class UserService:
         user = await self.repo.get_by_email(email)
         if user is None:
             return None
-        return UserCredentials(user.id, user.email, user.password, user.access_token_version)
+        return UserCredentials(
+            user.id, user.email, user.password, user.access_token_version
+        )
 
     async def get_for_authentication(self, user_id: int) -> AuthenticatedUser | None:
         # Roles, superuser status and token version must come from one DB snapshot.
         user = await self.repo.get(user_id)
-        return AuthenticatedUser.model_validate(user, from_attributes=True) if user else None
+        return (
+            AuthenticatedUser.model_validate(user, from_attributes=True)
+            if user
+            else None
+        )
 
     async def exists(self, user_id: int) -> bool:
         return await self.repo.exists(user_id)
@@ -131,12 +146,14 @@ class UserService:
             return None
 
         old_photo = user.photo
-        new_photo = await self._avatar_storage().save(file)
-
-        if old_photo:
-            self._avatar_storage().delete(old_photo)
+        storage = self._avatar_storage()
+        new_photo = await storage.save(file)
+        # Register compensation before any DB write or subsequent audit can fail.
+        self._after_rollback(partial(storage.delete, new_photo))
 
         updated = await self.repo.update_photo(user, new_photo)
+        if old_photo:
+            self._after_commit(partial(storage.delete, old_photo))
         self._invalidate_after_commit(user_id)
         updated_user = UserOut.model_validate(updated, from_attributes=True)
 
@@ -151,10 +168,9 @@ class UserService:
             return None
 
         old_photo = user.photo
-        if old_photo:
-            self._avatar_storage().delete(old_photo)
-
         updated = await self.repo.update_photo(user, None)
+        if old_photo:
+            self._after_commit(partial(self._avatar_storage().delete, old_photo))
         self._invalidate_after_commit(user_id)
         updated_user = UserOut.model_validate(updated, from_attributes=True)
 
@@ -173,7 +189,12 @@ class UserService:
             return
         self._after_commit(lambda: self.user_cache.invalidate(user_id))
 
-    def _after_commit(self, callback: Callable[[], Awaitable[None]]) -> None:
+    def _after_commit(self, callback: Callable[[], Any | Awaitable[Any]]) -> None:
         if self.on_commit is None:
-            raise RuntimeError("User cache requires a post-commit scheduler")
+            raise RuntimeError("Post-commit scheduler is not configured")
         self.on_commit(callback)
+
+    def _after_rollback(self, callback: Callable[[], Any | Awaitable[Any]]) -> None:
+        if self.on_rollback is None:
+            raise RuntimeError("Post-rollback scheduler is not configured")
+        self.on_rollback(callback)

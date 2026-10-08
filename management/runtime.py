@@ -5,7 +5,7 @@ from functools import partial
 
 from core.redis_client import close_cache_redis
 from db.bootstrap_lock import PostgresBootstrapLock
-from db.post_commit import add_post_commit_hook, clear_post_commit_hooks
+from db.post_commit import add_post_commit_hook
 from db.session import engine, session_factory
 from db.transaction import SessionTransaction
 from dependencies.cache import (
@@ -50,8 +50,7 @@ async def managed_session():
         try:
             yield session
         except BaseException:
-            clear_post_commit_hooks(session)
-            await session.rollback()
+            await SessionTransaction(session).rollback()
             raise
         else:
             await SessionTransaction(session).commit()

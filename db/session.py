@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 import db.base  # noqa: F401 -- register models before any session is used
 from core.config import settings
-from db.post_commit import clear_post_commit_hooks
 from db.transaction import SessionTransaction
 
 engine = create_async_engine(
@@ -20,10 +19,7 @@ engine = create_async_engine(
 )
 
 session_factory = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False
+    bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
 )
 
 
@@ -32,8 +28,7 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
         try:
             yield session
         except BaseException:
-            clear_post_commit_hooks(session)
-            await session.rollback()
+            await SessionTransaction(session).rollback()
             raise
         else:
             await SessionTransaction(session).commit()

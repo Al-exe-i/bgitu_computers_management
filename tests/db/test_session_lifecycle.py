@@ -9,6 +9,7 @@ from api.v1.endpoints.auth import router as auth_router
 from core.exception_handlers import register_exception_handlers
 from db import session as db_session
 from db.post_commit import add_post_commit_hook
+from db.post_rollback import add_post_rollback_hook
 from db.session import session_dep
 from db.transaction import SessionTransaction
 from dependencies.audit_actor import get_audit_ctx
@@ -27,6 +28,7 @@ class RecordingSession:
         self.pending = {}
         self.saved = {}
         self.closed = False
+        self.fail_flush = False
         self.fail_commit = False
 
     async def __aenter__(self):
@@ -35,6 +37,11 @@ class RecordingSession:
     async def __aexit__(self, *args):
         self.closed = True
         self.calls.append("close")
+
+    async def flush(self):
+        self.calls.append("flush")
+        if self.fail_flush:
+            raise RuntimeError("flush failed")
 
     async def commit(self):
         self.calls.append("commit")
@@ -54,15 +61,17 @@ def session(monkeypatch):
     return session
 
 
-@pytest.mark.parametrize("fail_commit", [False, True])
-def test_commit_finishes_before_success_response_and_cookie(session, fail_commit):
+@pytest.mark.parametrize("failure", [None, "flush", "commit"])
+def test_commit_finishes_before_success_response_and_cookie(session, failure):
     app = FastAPI()
-    session.fail_commit = fail_commit
+    session.fail_flush = failure == "flush"
+    session.fail_commit = failure == "commit"
 
     @app.post("/")
     async def endpoint(db: session_dep, response: Response):
         db.pending["changed"] = True
         add_post_commit_hook(db, lambda: db.calls.append("hook"))
+        add_post_rollback_hook(db, lambda: db.calls.append("cleanup"))
         response.set_cookie("access_token", "must-not-leak-on-failure")
         return {"ok": True}
 
@@ -71,16 +80,20 @@ def test_commit_finishes_before_success_response_and_cookie(session, fail_commit
 
     assert session.closed
     assert session.info == {}
-    if fail_commit:
+    if failure:
         assert response.status_code == 500
         assert "set-cookie" not in response.headers
         assert session.saved == {}
-        assert session.calls == ["commit", "rollback", "close"]
+        assert session.calls == (
+            ["flush", "rollback", "cleanup", "close"]
+            if failure == "flush"
+            else ["flush", "commit", "rollback", "close"]
+        )
     else:
         assert response.status_code == 200
         assert "access_token" in response.cookies
         assert session.saved == {"changed": True}
-        assert session.calls == ["commit", "hook", "close"]
+        assert session.calls == ["flush", "commit", "hook", "close"]
 
 
 @pytest.mark.parametrize("fail_commit", [False, True])
@@ -124,7 +137,9 @@ def test_notifications_sse_releases_db_before_connecting(session, fail_commit):
 
 @pytest.mark.parametrize("replayed", [False, True])
 @pytest.mark.parametrize("failure", [None, "audit", "commit"])
-def test_refresh_denial_commits_security_changes_but_not_partial_failures(session, replayed, failure):
+def test_refresh_denial_commits_security_changes_but_not_partial_failures(
+    session, replayed, failure
+):
     app = FastAPI()
     app.include_router(auth_router)
     register_exception_handlers(app)
@@ -143,7 +158,9 @@ def test_refresh_denial_commits_security_changes_but_not_partial_failures(sessio
         session.pending["audit"] = kwargs["action"]
 
     sessions = SimpleNamespace(
-        get_active_by_refresh_token=AsyncMock(return_value=None if replayed else user_session),
+        get_active_by_refresh_token=AsyncMock(
+            return_value=None if replayed else user_session
+        ),
         get_active_by_used_refresh_token=AsyncMock(return_value=user_session),
         rotate_refresh_token=AsyncMock(return_value=False),
         revoke=AsyncMock(side_effect=revoke),
@@ -171,5 +188,9 @@ def test_refresh_denial_commits_security_changes_but_not_partial_failures(sessio
         assert session.saved == {}
     else:
         assert response.status_code == 401
-        assert session.saved == {"revoked": "sid-1", "version": 1, "audit": "auth.refresh_reuse"}
+        assert session.saved == {
+            "revoked": "sid-1",
+            "version": 1,
+            "audit": "auth.refresh_reuse",
+        }
     assert session.closed

@@ -12,8 +12,8 @@ from modules.notifications.models.subscription import NotificationSubscription
 
 __all__ = [
     "Audience",
-    "FloorPlan",
     "AuditLog",
+    "FloorPlan",
     "Hardware",
     "HardwareFile",
     "NotificationSubscription",

@@ -46,6 +46,12 @@ table lock; sequence synchronization never rewinds an existing sequence.
 Sequence advancement can leave gaps after rollback, but cannot undo a user's
 data or force the next generated ID onto an existing seeded row.
 
-Object storage is not transactional: deleting a file before a DB rollback and
-cleaning uploads after failed transactions still require dedicated lifecycle
-handling. This refactor isolates storage code but does not claim to solve it.
+Для загрузки и удаления вложений используются callbacks commit/rollback,
+внедряемые через `dependencies/`. Файл удаляется из хранилища только после
+подтвержденного commit; при rollback до COMMIT очищаются все уже сохраненные
+объекты пакета загрузки. При ошибке или отмене во время COMMIT объекты
+сохраняются, поскольку БД могла уже зафиксировать ссылки на них. Неопределенный
+исход записывается в журнал; удаление возможно только после проверки ссылок в БД.
+Callbacks захватывают пути файлов, а не ORM-объекты. Это не распределенная
+транзакция: авария процесса или хранилища может оставить лишний объект;
+ошибки очистки записываются в журнал.

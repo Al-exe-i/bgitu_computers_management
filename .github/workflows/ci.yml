@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [prod]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bgitu_ci
+          POSTGRES_PASSWORD: ci-only-db-password
+          POSTGRES_DB: bgitu_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U bgitu_ci -d bgitu_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    # Только тестовые значения: CI не подключается к серверу приложения.
+    env:
+      BGITU__DEBUG: "0"
+      BGITU__DB__HOST: 127.0.0.1
+      BGITU__DB__PORT: "5432"
+      BGITU__DB__USERNAME: bgitu_ci
+      BGITU__DB__PASSWORD: ci-only-db-password
+      BGITU__DB__DATABASE: bgitu_ci
+      BGITU__JWT__ACCESS_SECRET_KEY: ci-only-secret-key-with-at-least-32-bytes
+      BGITU__STORAGE__BACKEND: local
+      TEST_POSTGRES_URL: postgresql+asyncpg://bgitu_ci:ci-only-db-password@127.0.0.1:5432/bgitu_ci
+      TEST_TASKIQ_REDIS_URL: redis://127.0.0.1:6379/0
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Установить uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: "0.9.18"
+          enable-cache: true
+      - name: Установить зависимости из lock-файла
+        run: uv sync --locked --dev
+      - name: Проверить Python-код
+        run: uv run --no-sync ruff check .
+      - name: Проверить тесты, миграции PostgreSQL и доставку TaskIQ
+        run: uv run --no-sync pytest -q
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Установить Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Установить зависимости из lock-файла
+        run: npm ci
+      - name: Проверить тесты фронта
+        run: npm test
+      - name: Собрать production-фронт
+        run: npm run build
+
+  compose:
+    name: Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Проверить workflow GitHub Actions
+        run: >-
+          docker run --rm --network none --memory 128m --pids-limit 64
+          --mount "type=bind,source=${GITHUB_WORKSPACE}/.github/workflows/ci.yml,target=/ci.yml,readonly"
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color /ci.yml
+      - name: Проверить конфигурацию без запуска контейнеров
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

@@ -4,8 +4,10 @@ from types import SimpleNamespace
 from db.post_commit import run_post_commit_hooks
 from modules.inventory.adapters.fastapi_events import InventoryEventDispatcher
 from modules.inventory.events import AudienceUpdatedEvent, HardwareStateChangedEvent
-from modules.notifications.public import AudienceChangedNotification
-from modules.notifications.public import HardwareStateNotification
+from modules.notifications.public import (
+    AudienceChangedNotification,
+    HardwareStateNotification,
+)
 
 
 class FakeSession:
@@ -25,10 +27,14 @@ class FakeNotifications:
     def __init__(self, calls: list[tuple[str, object]]) -> None:
         self.calls = calls
 
-    async def send_audience_changed(self, notification: AudienceChangedNotification) -> None:
+    async def send_audience_changed(
+        self, notification: AudienceChangedNotification
+    ) -> None:
         self.calls.append(("audience_notification", notification))
 
-    async def send_hardware_state(self, notification: HardwareStateNotification) -> None:
+    async def send_hardware_state(
+        self, notification: HardwareStateNotification
+    ) -> None:
         self.calls.append(("hardware_notification", notification))
 
 
