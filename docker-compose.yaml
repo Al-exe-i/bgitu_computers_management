@@ -94,12 +94,13 @@ services:
       app_init:
         condition: service_completed_successfully
       redis:
-        condition: service_started
+        condition: service_healthy
       minio:
         condition: service_healthy
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     cpus: "0.35"
     mem_limit: 256m
     memswap_limit: 512m
@@ -118,9 +119,22 @@ services:
     memswap_limit: 256m
     pids_limit: 64
     logging: *default-logging
+    # Запас внутри лимита контейнера; ключи очереди TaskIQ не вытесняются.
+    command:
+      - redis-server
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - noeviction
     ports:
       - "127.0.0.1:6379:6379"
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   minio:
     image: minio/minio:latest
@@ -164,7 +178,7 @@ services:
       app_init:
         condition: service_completed_successfully
       redis:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   taskiq_scheduler:
@@ -184,7 +198,7 @@ services:
       app_init:
         condition: service_completed_successfully
       redis:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
