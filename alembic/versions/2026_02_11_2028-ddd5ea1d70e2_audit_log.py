@@ -35,9 +35,7 @@ def upgrade() -> None:
         sa.Column("action", sa.String(length=64), nullable=False),
         sa.Column("entity_type", sa.String(length=32), nullable=False),
         sa.Column("entity_id", sa.Integer(), nullable=True),
-        sa.Column(
-            "payload", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("ip", sa.String(length=45), nullable=True),
         sa.Column("user_agent", sa.String(length=255), nullable=True),
         sa.Column("path", sa.String(length=255), nullable=True),

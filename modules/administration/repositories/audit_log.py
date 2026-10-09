@@ -42,17 +42,23 @@ class AuditLogRepository:
 
         if q:
             q_like = f"%{q.lower()}%"
-            filters.append(or_(
-                func.lower(AuditLog.action).like(q_like),
-                func.lower(AuditLog.entity_type).like(q_like),
-                func.lower(func.coalesce(AuditLog.path, "")).like(q_like),
-            ))
+            filters.append(
+                or_(
+                    func.lower(AuditLog.action).like(q_like),
+                    func.lower(AuditLog.entity_type).like(q_like),
+                    func.lower(func.coalesce(AuditLog.path, "")).like(q_like),
+                )
+            )
 
         if filters:
             stmt = stmt.where(*filters)
             count_stmt = count_stmt.where(*filters)
 
-        stmt = stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
 
         items = (await self.db.execute(stmt)).scalars().all()
         total = (await self.db.execute(count_stmt)).scalar_one()

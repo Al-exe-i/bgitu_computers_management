@@ -11,7 +11,9 @@ class RealtimeNotificationPublisher(Protocol):
 
 
 class NotificationSubscriptionServicePort(Protocol):
-    async def list_for_user(self, user_id: int) -> list[NotificationSubscriptionResponse]: ...
+    async def list_for_user(
+        self, user_id: int
+    ) -> list[NotificationSubscriptionResponse]: ...
 
     async def create(
         self,

@@ -30,7 +30,9 @@ class RealtimeService:
         self.bus: RedisEventBus | None = None
 
         if self.config.enabled and self.config.transport == "redis":
-            registry_redis = Redis.from_url(self.config.redis_url, decode_responses=True)
+            registry_redis = Redis.from_url(
+                self.config.redis_url, decode_responses=True
+            )
             self.registry = RedisConnectionRegistry(
                 registry_redis,
                 instance_ttl_seconds=self.config.instance_ttl_seconds,
@@ -83,7 +85,10 @@ class RealtimeService:
             name="realtime-cleanup",
         )
 
-        logger.info("Realtime service started in redis mode with instance_id={}", self.instance_id)
+        logger.info(
+            "Realtime service started in redis mode with instance_id={}",
+            self.instance_id,
+        )
 
     async def stop(self) -> None:
         if not self.config.enabled:
@@ -102,7 +107,9 @@ class RealtimeService:
                 task.cancel()
 
         if tasks:
-            await asyncio.gather(*(task for task in tasks if task is not None), return_exceptions=True)
+            await asyncio.gather(
+                *(task for task in tasks if task is not None), return_exceptions=True
+            )
 
         removed = await self.manager.close_all()
         for state in removed:
@@ -212,7 +219,9 @@ class RealtimeService:
             await self.bus.publish_notification(user_id=user_id, payload=payload)
             return
 
-        await self.handle_event(RealtimeNotificationEvent.new(user_id=user_id, payload=payload))
+        await self.handle_event(
+            RealtimeNotificationEvent.new(user_id=user_id, payload=payload)
+        )
 
     async def handle_event(self, event: RealtimeEvent) -> None:
         if event.type == "audience_updated":
@@ -261,7 +270,9 @@ class RealtimeService:
                 await self.registry.touch_connection(
                     state.connection_id,
                     instance_id=self.instance_id,
-                    audience_key=self._build_meta(state, ip=None, user_agent=None).audience_key,
+                    audience_key=self._build_meta(
+                        state, ip=None, user_agent=None
+                    ).audience_key,
                 )
 
     async def _cleanup_loop(self) -> None:

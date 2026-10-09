@@ -30,8 +30,7 @@ def test_computer_software_inventory_is_normalized() -> None:
 
 def test_computer_software_inventory_has_bounded_size() -> None:
     software = [
-        f"Application {index}"
-        for index in range(MAX_INSTALLED_SOFTWARE_ITEMS + 1)
+        f"Application {index}" for index in range(MAX_INSTALLED_SOFTWARE_ITEMS + 1)
     ]
 
     with pytest.raises(ValidationError):

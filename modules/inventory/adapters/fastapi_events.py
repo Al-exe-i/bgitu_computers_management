@@ -47,7 +47,9 @@ class InventoryEventDispatcher:
                 partial(self.notifications.send_audience_changed, notification),
             )
 
-    def _register_hardware_state_changed(self, event: HardwareStateChangedEvent) -> None:
+    def _register_hardware_state_changed(
+        self, event: HardwareStateChangedEvent
+    ) -> None:
         hardware = event.hardware
         notification = HardwareStateNotification(
             previous_state=event.previous_state,

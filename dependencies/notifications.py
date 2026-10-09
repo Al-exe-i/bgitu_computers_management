@@ -38,7 +38,9 @@ notification_subscription_service_dep = Annotated[
 def get_realtime_notification_subscription_use_cases(
     subscription_service: notification_subscription_service_dep,
 ) -> RealtimeNotificationSubscriptionUseCases:
-    return RealtimeNotificationSubscriptionUseCases(subscription_service=subscription_service)
+    return RealtimeNotificationSubscriptionUseCases(
+        subscription_service=subscription_service
+    )
 
 
 realtime_notification_subscription_use_cases_dep = Annotated[

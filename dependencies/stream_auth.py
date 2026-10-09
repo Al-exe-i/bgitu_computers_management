@@ -22,4 +22,6 @@ def get_stream_authorization(
     )
 
 
-stream_authorization_dep = Annotated[StreamAuthorization, Depends(get_stream_authorization)]
+stream_authorization_dep = Annotated[
+    StreamAuthorization, Depends(get_stream_authorization)
+]

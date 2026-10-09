@@ -8,14 +8,18 @@ class InvalidateCache(Protocol):
     async def invalidate(self) -> None: ...
 
 
-def invalidate_after_commit(schedule: AfterCommit | None, *caches: InvalidateCache | None) -> None:
+def invalidate_after_commit(
+    schedule: AfterCommit | None, *caches: InvalidateCache | None
+) -> None:
     for cache in caches:
         if cache is None:
             continue
         after_commit(schedule, cache.invalidate)
 
 
-def after_commit(schedule: AfterCommit | None, callback: Callable[[], Awaitable[None]]) -> None:
+def after_commit(
+    schedule: AfterCommit | None, callback: Callable[[], Awaitable[None]]
+) -> None:
     if schedule is None:
         raise ValueError("Inventory cache requires a post-commit scheduler")
     schedule(callback)

@@ -75,7 +75,9 @@ class UserSessionRepository:
         await self.db.flush()
         return True
 
-    async def get_active_by_used_refresh_token_hash(self, token_hash: str) -> UserSession | None:
+    async def get_active_by_used_refresh_token_hash(
+        self, token_hash: str
+    ) -> UserSession | None:
         stmt = (
             select(UserSession)
             .join(UsedRefreshToken, UsedRefreshToken.session_id == UserSession.id)

@@ -14,16 +14,24 @@ from modules.identity.services.users import UserService
 @pytest.fixture
 def user():
     return SimpleNamespace(
-        id=7, name="Alex", surname=None, email="user@example.ru", photo=None,
-        reg_date=datetime(2026, 9, 7, tzinfo=UTC), is_superuser=False,
-        role=UserRole.teacher, access_token_version=3, password="private-hash",
+        id=7,
+        name="Alex",
+        surname=None,
+        email="user@example.ru",
+        photo=None,
+        reg_date=datetime(2026, 9, 7, tzinfo=UTC),
+        is_superuser=False,
+        role=UserRole.teacher,
+        access_token_version=3,
+        password="private-hash",
     )
 
 
 def test_read_boundaries_return_detached_safe_data(user):
     async def scenario():
         repo = SimpleNamespace(
-            get=AsyncMock(return_value=user), get_all=AsyncMock(return_value=[user]),
+            get=AsyncMock(return_value=user),
+            get_all=AsyncMock(return_value=[user]),
             get_by_email=AsyncMock(return_value=user),
         )
         service = UserService(repo)
@@ -51,7 +59,10 @@ def test_read_boundaries_return_detached_safe_data(user):
 
 def test_password_is_hashed_before_it_reaches_repository(user):
     async def scenario():
-        repo = SimpleNamespace(get=AsyncMock(return_value=user), update_password=AsyncMock(return_value=user))
+        repo = SimpleNamespace(
+            get=AsyncMock(return_value=user),
+            update_password=AsyncMock(return_value=user),
+        )
         result = await UserService(repo).update_password(user.id, "new-password")
         stored_hash = repo.update_password.await_args.args[1]
         assert stored_hash != "new-password"

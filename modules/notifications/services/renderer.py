@@ -24,12 +24,18 @@ class RealtimeNotificationRenderer:
     ) -> dict:
         is_fault = event_type == NotificationEventType.hardware_fault
         title = "Оборудование неисправно" if is_fault else "Оборудование восстановлено"
-        hardware_label = notification.title or self._render_hardware_type(notification.hardware_type)
-        audience_label = audience_number if audience_number is not None else notification.audience_id
+        hardware_label = notification.title or self._render_hardware_type(
+            notification.hardware_type
+        )
+        audience_label = (
+            audience_number if audience_number is not None else notification.audience_id
+        )
         message_parts = [f"{hardware_label} в аудитории {audience_label}"]
 
         if notification.x is not None and notification.y is not None:
-            message_parts.append(f"ряд {notification.y + 1}, позиция {notification.x + 1}")
+            message_parts.append(
+                f"ряд {notification.y + 1}, позиция {notification.x + 1}"
+            )
 
         payload = RealtimeNotificationPayload(
             notification_id=uuid4().hex,
@@ -44,7 +50,9 @@ class RealtimeNotificationRenderer:
             audience_public_id=audience_public_id,
             payload={
                 "audience_id": notification.audience_id,
-                "audience_public_id": str(audience_public_id) if audience_public_id else None,
+                "audience_public_id": str(audience_public_id)
+                if audience_public_id
+                else None,
                 "audience_number": audience_number,
                 "hardware_id": notification.hardware_id,
                 "hardware_type": notification.hardware_type,
@@ -59,7 +67,9 @@ class RealtimeNotificationRenderer:
         )
         return payload.model_dump(mode="json")
 
-    def build_auth_security_payload(self, notification: AuthSecurityNotification) -> dict:
+    def build_auth_security_payload(
+        self, notification: AuthSecurityNotification
+    ) -> dict:
         payload = RealtimeNotificationPayload(
             notification_id=uuid4().hex,
             event_type=NotificationEventType.auth_security,
@@ -85,7 +95,9 @@ class RealtimeNotificationRenderer:
         audience_public_id=None,
         audience_number: int | None = None,
     ) -> dict:
-        audience_label = audience_number if audience_number is not None else notification.audience_id
+        audience_label = (
+            audience_number if audience_number is not None else notification.audience_id
+        )
         payload = RealtimeNotificationPayload(
             notification_id=uuid4().hex,
             event_type=NotificationEventType.audience_changed,
@@ -99,7 +111,9 @@ class RealtimeNotificationRenderer:
             audience_public_id=audience_public_id,
             payload={
                 "audience_id": notification.audience_id,
-                "audience_public_id": str(audience_public_id) if audience_public_id else None,
+                "audience_public_id": str(audience_public_id)
+                if audience_public_id
+                else None,
                 "audience_number": audience_number,
             },
             created_at=datetime.now(UTC),

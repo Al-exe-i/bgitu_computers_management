@@ -22,7 +22,13 @@ class FakeHardwareFilesRepo:
 def make_service(row: SimpleNamespace) -> HardwareFileStreamingService:
     return HardwareFileStreamingService(
         FakeHardwareFilesRepo({row.id: row}),
-        FakeStorage({"uploads/manual.pdf": b"manual", "uploads/video.mp4": b"0123456789", "uploads/notes.txt": b"text"}),
+        FakeStorage(
+            {
+                "uploads/manual.pdf": b"manual",
+                "uploads/video.mp4": b"0123456789",
+                "uploads/notes.txt": b"text",
+            }
+        ),
     )
 
 
@@ -45,7 +51,9 @@ class FakeStorage:
 def test_get_download_returns_file_response_data() -> None:
     async def scenario() -> None:
         service = make_service(
-            SimpleNamespace(id=1, file_path="uploads/manual.pdf", file_type="application/pdf")
+            SimpleNamespace(
+                id=1, file_path="uploads/manual.pdf", file_type="application/pdf"
+            )
         )
 
         result = await service.get_download(1)
@@ -59,7 +67,9 @@ def test_get_download_returns_file_response_data() -> None:
 
 def test_prepare_video_stream_parses_range_and_streams_requested_bytes() -> None:
     async def scenario() -> None:
-        service = make_service(SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="video/mp4"))
+        service = make_service(
+            SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="video/mp4")
+        )
 
         result = await service.prepare_video_stream(file_id=1, range_header="bytes=2-5")
 
@@ -75,7 +85,11 @@ def test_prepare_video_stream_parses_range_and_streams_requested_bytes() -> None
 def test_prepare_video_stream_detects_video_by_file_extension() -> None:
     async def scenario() -> None:
         service = make_service(
-            SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="application/octet-stream")
+            SimpleNamespace(
+                id=1,
+                file_path="uploads/video.mp4",
+                file_type="application/octet-stream",
+            )
         )
 
         result = await service.prepare_video_stream(file_id=1, range_header=None)
@@ -88,7 +102,9 @@ def test_prepare_video_stream_detects_video_by_file_extension() -> None:
 
 def test_prepare_video_stream_rejects_bad_range_header() -> None:
     async def scenario() -> None:
-        service = make_service(SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="video/mp4"))
+        service = make_service(
+            SimpleNamespace(id=1, file_path="uploads/video.mp4", file_type="video/mp4")
+        )
 
         with pytest.raises(HardwareFileBadRangeError):
             await service.prepare_video_stream(file_id=1, range_header="bytes=bad")
@@ -98,7 +114,9 @@ def test_prepare_video_stream_rejects_bad_range_header() -> None:
 
 def test_prepare_video_stream_rejects_non_video_file() -> None:
     async def scenario() -> None:
-        service = make_service(SimpleNamespace(id=1, file_path="uploads/notes.txt", file_type="text/plain"))
+        service = make_service(
+            SimpleNamespace(id=1, file_path="uploads/notes.txt", file_type="text/plain")
+        )
 
         with pytest.raises(HardwareFileUnsupportedMediaError):
             await service.prepare_video_stream(file_id=1, range_header=None)

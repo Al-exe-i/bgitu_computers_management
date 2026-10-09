@@ -21,7 +21,9 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.create_index("ix_used_refresh_tokens_session_id", "used_refresh_tokens", ["session_id"])
+    op.create_index(
+        "ix_used_refresh_tokens_session_id", "used_refresh_tokens", ["session_id"]
+    )
 
 
 def downgrade() -> None:

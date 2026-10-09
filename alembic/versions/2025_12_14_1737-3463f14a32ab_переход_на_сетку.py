@@ -59,12 +59,8 @@ def upgrade() -> None:
     op.drop_table("additional_hardwares")
     op.drop_table("computers")
     op.drop_table("rows")
-    op.add_column(
-        "audiences", sa.Column("width", sa.Integer(), nullable=False)
-    )
-    op.add_column(
-        "audiences", sa.Column("height", sa.Integer(), nullable=False)
-    )
+    op.add_column("audiences", sa.Column("width", sa.Integer(), nullable=False))
+    op.add_column("audiences", sa.Column("height", sa.Integer(), nullable=False))
     op.drop_column("audiences", "type")
     # ### end Alembic commands ###
 
@@ -85,9 +81,7 @@ def downgrade() -> None:
     op.drop_column("audiences", "width")
     op.create_table(
         "computers",
-        sa.Column(
-            "name", sa.VARCHAR(length=32), autoincrement=False, nullable=False
-        ),
+        sa.Column("name", sa.VARCHAR(length=32), autoincrement=False, nullable=False),
         sa.Column("row_id", sa.INTEGER(), autoincrement=False, nullable=False),
         sa.Column("state", sa.BOOLEAN(), autoincrement=False, nullable=False),
         sa.Column(
@@ -107,12 +101,8 @@ def downgrade() -> None:
     )
     op.create_table(
         "rows",
-        sa.Column(
-            "name", sa.VARCHAR(length=6), autoincrement=False, nullable=False
-        ),
-        sa.Column(
-            "audience_id", sa.INTEGER(), autoincrement=False, nullable=False
-        ),
+        sa.Column("name", sa.VARCHAR(length=6), autoincrement=False, nullable=False),
+        sa.Column("audience_id", sa.INTEGER(), autoincrement=False, nullable=False),
         sa.Column("id", sa.INTEGER(), autoincrement=True, nullable=False),
         sa.ForeignKeyConstraint(
             ["audience_id"],
@@ -124,9 +114,7 @@ def downgrade() -> None:
     )
     op.create_table(
         "additional_hardwares",
-        sa.Column(
-            "audience_id", sa.INTEGER(), autoincrement=False, nullable=False
-        ),
+        sa.Column("audience_id", sa.INTEGER(), autoincrement=False, nullable=False),
         sa.Column(
             "type",
             postgresql.ENUM(
@@ -141,18 +129,14 @@ def downgrade() -> None:
             autoincrement=False,
             nullable=False,
         ),
-        sa.Column(
-            "name", sa.VARCHAR(length=100), autoincrement=False, nullable=False
-        ),
+        sa.Column("name", sa.VARCHAR(length=100), autoincrement=False, nullable=False),
         sa.Column(
             "description",
             sa.VARCHAR(length=255),
             autoincrement=False,
             nullable=True,
         ),
-        sa.Column(
-            "is_functional", sa.BOOLEAN(), autoincrement=False, nullable=False
-        ),
+        sa.Column("is_functional", sa.BOOLEAN(), autoincrement=False, nullable=False),
         sa.Column(
             "specifications",
             postgresql.JSON(astext_type=sa.Text()),

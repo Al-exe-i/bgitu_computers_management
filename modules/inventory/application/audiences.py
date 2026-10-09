@@ -68,7 +68,9 @@ class InventoryAudienceUseCases:
         data: AudienceUpdate,
         audit: AuditLogger,
     ) -> UpdateAudienceResult:
-        updated = await self.audience_service.update_audience_by_public_id(audience_public_id, data)
+        updated = await self.audience_service.update_audience_by_public_id(
+            audience_public_id, data
+        )
 
         await audit.log(
             action="audience.update",

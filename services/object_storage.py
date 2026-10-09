@@ -46,7 +46,9 @@ class ObjectStorage(Protocol):
 
     def stat(self, key: str) -> ObjectStat: ...
 
-    def iter_range(self, key: str, *, offset: int = 0, length: int | None = None) -> Iterator[bytes]: ...
+    def iter_range(
+        self, key: str, *, offset: int = 0, length: int | None = None
+    ) -> Iterator[bytes]: ...
 
 
 def build_object_key(
@@ -125,13 +127,19 @@ class LocalObjectStorage:
 
         return ObjectStat(size=path.stat().st_size, content_type=None)
 
-    def iter_range(self, key: str, *, offset: int = 0, length: int | None = None) -> Iterator[bytes]:
+    def iter_range(
+        self, key: str, *, offset: int = 0, length: int | None = None
+    ) -> Iterator[bytes]:
         path = self._path_for_key(key)
         with path.open("rb") as file:
             file.seek(offset)
             remaining = length
             while remaining is None or remaining > 0:
-                chunk_size = READ_CHUNK_SIZE_BYTES if remaining is None else min(READ_CHUNK_SIZE_BYTES, remaining)
+                chunk_size = (
+                    READ_CHUNK_SIZE_BYTES
+                    if remaining is None
+                    else min(READ_CHUNK_SIZE_BYTES, remaining)
+                )
                 chunk = file.read(chunk_size)
                 if not chunk:
                     break
@@ -155,7 +163,11 @@ class LocalObjectStorage:
         try:
             resolved.relative_to(root)
         except ValueError as exc:
-            logger.warning("Local storage path traversal attempt: key={} resolved={}", key, resolved)
+            logger.warning(
+                "Local storage path traversal attempt: key={} resolved={}",
+                key,
+                resolved,
+            )
             raise FileNotFoundError(key) from exc
 
         return resolved
@@ -196,7 +208,9 @@ class MinioObjectStorage:
         content_type = file.content_type or "application/octet-stream"
 
         try:
-            with tempfile.SpooledTemporaryFile(max_size=WRITE_CHUNK_SIZE_BYTES * 8) as buffer:
+            with tempfile.SpooledTemporaryFile(
+                max_size=WRITE_CHUNK_SIZE_BYTES * 8
+            ) as buffer:
                 size = 0
                 while content := await file.read(WRITE_CHUNK_SIZE_BYTES):
                     size += len(content)
@@ -250,7 +264,9 @@ class MinioObjectStorage:
             content_type=stat.content_type,
         )
 
-    def iter_range(self, key: str, *, offset: int = 0, length: int | None = None) -> Iterator[bytes]:
+    def iter_range(
+        self, key: str, *, offset: int = 0, length: int | None = None
+    ) -> Iterator[bytes]:
         kwargs = {"offset": offset}
         if length is not None:
             kwargs["length"] = length

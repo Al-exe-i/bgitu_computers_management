@@ -17,7 +17,9 @@ from services.response_cache import RedisTypedCache
 
 class HardwareGridPort(Protocol):
     async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]: ...
-    async def create_in_audience(self, audience_id: int, item: HardwareGridItem) -> Hardware: ...
+    async def create_in_audience(
+        self, audience_id: int, item: HardwareGridItem
+    ) -> Hardware: ...
     async def delete(self, hardware_id: int) -> None: ...
 
 
@@ -35,9 +37,15 @@ class HardwareService:
 
     async def get(self, hardware_id: int) -> HardwareFullResponse | None:
         hardware = await self.repo.get_by_id(hardware_id)
-        return HardwareFullResponse.model_validate(hardware, from_attributes=True) if hardware else None
+        return (
+            HardwareFullResponse.model_validate(hardware, from_attributes=True)
+            if hardware
+            else None
+        )
 
-    async def update(self, hardware_id: int, schema: HardwareUpdate) -> HardwareFullResponse:
+    async def update(
+        self, hardware_id: int, schema: HardwareUpdate
+    ) -> HardwareFullResponse:
         hardware = await self.repo.get_by_id(hardware_id)
         if not hardware:
             raise HardwareNotFoundError()
@@ -59,7 +67,9 @@ class HardwareService:
     async def list_by_audience(self, audience_id: int) -> Sequence[Hardware]:
         return await self.repo.get_by_audience_id(audience_id)
 
-    async def create_in_audience(self, audience_id: int, item: HardwareGridItem) -> Hardware:
+    async def create_in_audience(
+        self, audience_id: int, item: HardwareGridItem
+    ) -> Hardware:
         data = item.model_dump(exclude={"id"})
         data["specs"] = validate_specs(item.type, data.get("specs"))
         hw = Hardware(**data, audience_id=audience_id)

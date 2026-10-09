@@ -34,7 +34,9 @@ def test_new_refresh_token_returns_unique_uuid_strings() -> None:
 def test_hash_refresh_token_returns_sha256_hex_digest() -> None:
     token = "refresh-token"
 
-    assert hash_refresh_token(token) == hashlib.sha256(token.encode("utf-8")).hexdigest()
+    assert (
+        hash_refresh_token(token) == hashlib.sha256(token.encode("utf-8")).hexdigest()
+    )
 
 
 def test_build_token_response_sets_body_and_cookies() -> None:
@@ -47,14 +49,10 @@ def test_build_token_response_sets_body_and_cookies() -> None:
     )
     assert len(cookies) == 2
     assert "access_token=access" in cookies[0]
-    assert (
-        f"Max-Age={settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES * 60}"
-        in cookies[0]
-    )
+    assert f"Max-Age={settings.jwt.ACCESS_TOKEN_EXPIRE_MINUTES * 60}" in cookies[0]
     assert "refresh_token=refresh" in cookies[1]
     assert (
-        f"Max-Age={settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60}"
-        in cookies[1]
+        f"Max-Age={settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60}" in cookies[1]
     )
 
     assert "Path=/" in cookies[0]

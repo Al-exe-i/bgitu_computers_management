@@ -41,12 +41,7 @@ def setup_logging():
     logger.remove()
 
     # Добавляем вывод в консоль (sys.stderr) с цветами
-    logger.add(
-        sys.stderr,
-        format=LOG_FORMAT,
-        level="INFO",
-        colorize=True
-    )
+    logger.add(sys.stderr, format=LOG_FORMAT, level="INFO", colorize=True)
 
     # Добавляем вывод в файл (с ротацией и архивацией)
     # rotation="10 MB" - новый файл каждые 10 МБ
@@ -58,7 +53,7 @@ def setup_logging():
         retention="10 days",
         compression="zip",
         level="DEBUG",  # В файл пишем всё, включая отладку
-        format=LOG_FORMAT
+        format=LOG_FORMAT,
     )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0)

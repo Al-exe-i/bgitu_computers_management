@@ -26,9 +26,13 @@ class StreamAuthorization:
             # Never keep a DB connection for the lifetime of a stream.
             async with asyncio.timeout(2):
                 async with db_session.session_factory() as session:
-                    version = await UserRepository(session).get_access_token_version(self.user_id)
+                    version = await UserRepository(session).get_access_token_version(
+                        self.user_id
+                    )
         except (SQLAlchemyError, OSError, TimeoutError):
-            logger.warning("SSE authorization check unavailable for user_id={}", self.user_id)
+            logger.warning(
+                "SSE authorization check unavailable for user_id={}", self.user_id
+            )
             return "unavailable"
         if time.time() >= self.expires_at:
             return "expired"

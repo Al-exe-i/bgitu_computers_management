@@ -40,7 +40,9 @@ class FakeAudienceRepo:
     public_id = uuid4()
 
     async def get_one_short(self, audience_id: int):
-        return SimpleNamespace(id=audience_id, public_id=self.public_id, number=101, office_id=5)
+        return SimpleNamespace(
+            id=audience_id, public_id=self.public_id, number=101, office_id=5
+        )
 
 
 class FakePublisher:
@@ -169,7 +171,10 @@ def test_dispatcher_sends_auth_security_payload_to_user_scope() -> None:
         )
 
         assert result.sent == 1
-        assert publisher.messages[0]["payload"]["event_type"] == NotificationEventType.auth_security.value
+        assert (
+            publisher.messages[0]["payload"]["event_type"]
+            == NotificationEventType.auth_security.value
+        )
         assert publisher.messages[0]["payload"]["title"] == "Событие безопасности"
 
     asyncio.run(scenario())

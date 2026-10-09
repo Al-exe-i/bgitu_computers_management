@@ -28,10 +28,16 @@ def upgrade() -> None:
     )
 
     bind = op.get_bind()
-    audience_ids = bind.execute(sa.text("SELECT id FROM audiences WHERE public_id IS NULL")).scalars().all()
+    audience_ids = (
+        bind.execute(sa.text("SELECT id FROM audiences WHERE public_id IS NULL"))
+        .scalars()
+        .all()
+    )
     for audience_id in audience_ids:
         bind.execute(
-            sa.text("UPDATE audiences SET public_id = :public_id WHERE id = :audience_id"),
+            sa.text(
+                "UPDATE audiences SET public_id = :public_id WHERE id = :audience_id"
+            ),
             {"public_id": str(uuid4()), "audience_id": audience_id},
         )
 

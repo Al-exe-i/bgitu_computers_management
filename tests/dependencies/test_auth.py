@@ -24,7 +24,9 @@ class DummyUserService:
         return self.users.get(user_id)
 
 
-def make_user(*, user_id: int, role: UserRole = UserRole.admin, is_superuser: bool = False):
+def make_user(
+    *, user_id: int, role: UserRole = UserRole.admin, is_superuser: bool = False
+):
     return SimpleNamespace(
         id=user_id,
         email=f"user{user_id}@example.com",
@@ -55,7 +57,9 @@ def test_get_current_user_prefers_cookie_token_over_header_token() -> None:
     asyncio.run(scenario())
 
 
-def test_get_current_user_accepts_bearer_token_from_header_when_cookie_missing() -> None:
+def test_get_current_user_accepts_bearer_token_from_header_when_cookie_missing() -> (
+    None
+):
     async def scenario() -> None:
         expected_user = make_user(user_id=11)
         service = DummyUserService({11: expected_user})

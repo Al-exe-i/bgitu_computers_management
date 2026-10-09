@@ -79,7 +79,9 @@ class DummySessionRepo:
 
 
 class DummySessionService:
-    def __init__(self, *, current_session=None, repo_rows=None, current_sid=None) -> None:
+    def __init__(
+        self, *, current_session=None, repo_rows=None, current_sid=None
+    ) -> None:
         self.current_session = current_session
         self.current_sid = current_sid
         self.created_sessions: list[dict] = []
@@ -133,10 +135,14 @@ class DummyEventDispatcher:
         return None
 
 
-def override_dependencies(*, user_service, session_service, audit=None, user_audit=None):
+def override_dependencies(
+    *, user_service, session_service, audit=None, user_audit=None
+):
     app.dependency_overrides[get_user_service] = lambda: user_service
     app.dependency_overrides[get_user_session_service] = lambda: session_service
-    app.dependency_overrides[get_identity_event_dispatcher] = lambda: DummyEventDispatcher()
+    app.dependency_overrides[get_identity_event_dispatcher] = lambda: (
+        DummyEventDispatcher()
+    )
     if audit is not None:
         app.dependency_overrides[get_audit_ctx] = lambda: audit
     if user_audit is not None:
@@ -178,7 +184,9 @@ def test_login_endpoint_returns_tokens_and_creates_session() -> None:
             {
                 "user_id": 7,
                 "sid": "sid-1",
-                "refresh_token_hash": hash_refresh_token(response.cookies["refresh_token"]),
+                "refresh_token_hash": hash_refresh_token(
+                    response.cookies["refresh_token"]
+                ),
                 "ip": "127.0.0.1",
                 "user_agent": "pytest",
             }
@@ -245,14 +253,19 @@ def test_refresh_endpoint_rotates_refresh_token() -> None:
         assert len(sessions.rotated_tokens) == 1
         assert sessions.rotated_tokens[0]["sid"] == "sid-1"
         assert sessions.rotated_tokens[0]["old_refresh_token"] == "old-refresh-token"
-        assert sessions.rotated_tokens[0]["new_refresh_token"] == response.cookies["refresh_token"]
+        assert (
+            sessions.rotated_tokens[0]["new_refresh_token"]
+            == response.cookies["refresh_token"]
+        )
         assert audit.logs[0]["action"] == "auth.refresh"
     finally:
         clear_dependency_overrides()
 
 
 def test_logout_endpoint_revokes_current_session_and_clears_cookies() -> None:
-    sessions = DummySessionService(current_session=SimpleNamespace(user_id=7, sid="sid-1"))
+    sessions = DummySessionService(
+        current_session=SimpleNamespace(user_id=7, sid="sid-1")
+    )
     audit = DummyAudit()
     users = DummyUserService()
     override_dependencies(
@@ -278,8 +291,12 @@ def test_logout_endpoint_revokes_current_session_and_clears_cookies() -> None:
         assert audit.logs[0]["payload"]["sid"] == "sid-1"
 
         cookies = response.headers.get_list("set-cookie")
-        assert any("access_token=\"\"" in cookie and "Max-Age=0" in cookie for cookie in cookies)
-        assert any("refresh_token=\"\"" in cookie and "Max-Age=0" in cookie for cookie in cookies)
+        assert any(
+            'access_token=""' in cookie and "Max-Age=0" in cookie for cookie in cookies
+        )
+        assert any(
+            'refresh_token=""' in cookie and "Max-Age=0" in cookie for cookie in cookies
+        )
     finally:
         clear_dependency_overrides()
 
@@ -344,9 +361,7 @@ def test_sessions_endpoint_marks_current_and_active_flags() -> None:
             response = client.get("/api/v1/sessions?include_inactive=true")
 
         assert response.status_code == 200
-        assert sessions.list_calls == [
-            {"user_id": 7, "include_inactive": True}
-        ]
+        assert sessions.list_calls == [{"user_id": 7, "include_inactive": True}]
 
         payload = response.json()
         assert payload[0]["sid"] == "sid-1"

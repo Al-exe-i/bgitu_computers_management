@@ -13,7 +13,10 @@ from taskiq_app import create_broker
 from tasks import sessions
 
 
-@pytest.mark.skipif(not os.getenv("TEST_TASKIQ_REDIS_URL"), reason="Set TEST_TASKIQ_REDIS_URL to run Redis integration")
+@pytest.mark.skipif(
+    not os.getenv("TEST_TASKIQ_REDIS_URL"),
+    reason="Set TEST_TASKIQ_REDIS_URL to run Redis integration",
+)
 def test_delivery_before_worker_start_result_and_acknowledgement(monkeypatch):
     calls = []
 
@@ -21,15 +24,23 @@ def test_delivery_before_worker_start_result_and_acknowledgement(monkeypatch):
         calls.append(retention_days)
         if retention_days == 0:
             raise RuntimeError("test database failure")
-        return {"expired_deleted": 2, "revoked_deleted": 1, "retention_days": retention_days}
+        return {
+            "expired_deleted": 2,
+            "revoked_deleted": 1,
+            "retention_days": retention_days,
+        }
 
     monkeypatch.setattr(sessions, "_cleanup_user_sessions_async", cleanup)
 
     async def check():
         url = os.environ["TEST_TASKIQ_REDIS_URL"]
         queue = f"test:taskiq:{uuid4().hex}"
-        broker = create_broker(TaskiqConfig(broker_url=url, result_backend=url), queue_name=queue)
-        task = broker.task(task_name="test.cleanup")(sessions.cleanup_user_sessions.original_func)
+        broker = create_broker(
+            TaskiqConfig(broker_url=url, result_backend=url), queue_name=queue
+        )
+        task = broker.task(task_name="test.cleanup")(
+            sessions.cleanup_user_sessions.original_func
+        )
         redis = Redis.from_url(url)
         listener = None
         try:
@@ -44,7 +55,9 @@ def test_delivery_before_worker_start_result_and_acknowledgement(monkeypatch):
             assert not result.is_err
             assert result.return_value["expired_deleted"] == 2
             assert calls == [7]
-            assert (await redis.xpending(queue, broker.consumer_group_name))["pending"] == 0
+            assert (await redis.xpending(queue, broker.consumer_group_name))[
+                "pending"
+            ] == 0
             assert 0 < await redis.ttl(f"{queue}:result:{sent.task_id}") <= 86400
 
             failed = await task.kiq(0)
@@ -53,7 +66,9 @@ def test_delivery_before_worker_start_result_and_acknowledgement(monkeypatch):
             result = await failed.wait_result(timeout=5)
             assert result.is_err
             assert str(result.error) == "test database failure"
-            assert (await redis.xpending(queue, broker.consumer_group_name))["pending"] == 0
+            assert (await redis.xpending(queue, broker.consumer_group_name))[
+                "pending"
+            ] == 0
         finally:
             if listener is not None:
                 await listener.aclose()

@@ -36,7 +36,11 @@ class DummyUserService:
 
     async def get_for_authentication(self, user_id: int):
         user = self.users.get(user_id)
-        return SimpleNamespace(**user.model_dump(), access_token_version=0) if user else None
+        return (
+            SimpleNamespace(**user.model_dump(), access_token_version=0)
+            if user
+            else None
+        )
 
 
 class DummyAuditLogService:
@@ -85,7 +89,9 @@ def test_teacher_can_upload_hardware_files() -> None:
     app.dependency_overrides[get_user_service] = lambda: DummyUserService({7: teacher})
     app.dependency_overrides[get_audit_log_service] = lambda: DummyAuditLogService()
     app.dependency_overrides[get_inventory_hardware_use_cases] = lambda: use_cases
-    app.dependency_overrides[get_inventory_event_dispatcher] = lambda: DummyEventDispatcher()
+    app.dependency_overrides[get_inventory_event_dispatcher] = lambda: (
+        DummyEventDispatcher()
+    )
 
     try:
         with TestClient(app) as client:

@@ -19,7 +19,9 @@ class UserSessionService:
 
     @staticmethod
     def refresh_expires_at() -> datetime:
-        return datetime.now(UTC) + timedelta(days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS)
+        return datetime.now(UTC) + timedelta(
+            days=settings.jwt.REFRESH_TOKEN_EXPIRE_DAYS
+        )
 
     async def create_session(
         self,
@@ -48,11 +50,19 @@ class UserSessionService:
         )
         return created
 
-    async def get_active_by_refresh_token(self, refresh_token: str) -> UserSession | None:
-        return await self.repo.get_active_by_refresh_token_hash(hash_refresh_token(refresh_token))
+    async def get_active_by_refresh_token(
+        self, refresh_token: str
+    ) -> UserSession | None:
+        return await self.repo.get_active_by_refresh_token_hash(
+            hash_refresh_token(refresh_token)
+        )
 
-    async def get_active_by_used_refresh_token(self, refresh_token: str) -> UserSession | None:
-        return await self.repo.get_active_by_used_refresh_token_hash(hash_refresh_token(refresh_token))
+    async def get_active_by_used_refresh_token(
+        self, refresh_token: str
+    ) -> UserSession | None:
+        return await self.repo.get_active_by_used_refresh_token_hash(
+            hash_refresh_token(refresh_token)
+        )
 
     async def rotate_refresh_token(
         self,
@@ -79,7 +89,9 @@ class UserSessionService:
         session = await self.get_active_by_refresh_token(refresh_token)
         return session.sid if session else None
 
-    async def list_by_user(self, user_id: int, include_inactive: bool = False) -> list[UserSession]:
+    async def list_by_user(
+        self, user_id: int, include_inactive: bool = False
+    ) -> list[UserSession]:
         return await self.repo.list_by_user(user_id, include_inactive=include_inactive)
 
     async def revoke(self, sid: str) -> None:
@@ -91,7 +103,9 @@ class UserSessionService:
         if revoked:
             logger.debug("Session revoked for user: user_id={} sid={}", user_id, sid)
         else:
-            logger.warning("Session revoke failed for user: user_id={} sid={}", user_id, sid)
+            logger.warning(
+                "Session revoke failed for user: user_id={} sid={}", user_id, sid
+            )
         return revoked
 
     async def revoke_all_for_user(self, user_id: int) -> None:

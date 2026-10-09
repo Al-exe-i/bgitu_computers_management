@@ -20,7 +20,9 @@ class FakeHardwareGrid:
 
     async def create_in_audience(self, audience_id: int, item: HardwareGridItem):
         self.created.append((audience_id, item))
-        return SimpleNamespace(id=100, audience_id=audience_id, **item.model_dump(exclude={"id"}))
+        return SimpleNamespace(
+            id=100, audience_id=audience_id, **item.model_dump(exclude={"id"})
+        )
 
     async def delete(self, hardware_id: int) -> None:
         self.deleted.append(hardware_id)

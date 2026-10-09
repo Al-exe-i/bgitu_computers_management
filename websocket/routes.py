@@ -48,7 +48,9 @@ class SSEConnection:
 
 
 def _format_sse(payload: dict) -> str:
-    event_name = payload.get("type") or ("audience_updated" if "audience_updated" in payload else "message")
+    event_name = payload.get("type") or (
+        "audience_updated" if "audience_updated" in payload else "message"
+    )
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     return f"event: {event_name}\ndata: {data}\n\n"
 
@@ -140,7 +142,9 @@ async def sse_endpoint(request: Request):
 
 
 @router.get("/events/notifications", include_in_schema=False)
-async def notifications_sse_endpoint(request: Request, authorization: stream_authorization_dep):
+async def notifications_sse_endpoint(
+    request: Request, authorization: stream_authorization_dep
+):
     realtime = request.app.state.realtime
     if not realtime.config.enabled:
         raise HTTPException(
@@ -172,7 +176,10 @@ async def notifications_sse_endpoint(request: Request, authorization: stream_aut
                 try:
                     payload = await asyncio.wait_for(
                         connection.receive_json(),
-                        timeout=min(realtime.config.heartbeat_interval_seconds, authorization.check_interval),
+                        timeout=min(
+                            realtime.config.heartbeat_interval_seconds,
+                            authorization.check_interval,
+                        ),
                     )
                 except TimeoutError:
                     payload = {}
@@ -183,10 +190,14 @@ async def notifications_sse_endpoint(request: Request, authorization: stream_aut
                 # Recheck after waiting: queued notifications must not outlive authorization.
                 reason = await authorization.rejection_reason()
                 if reason:
-                    yield _format_sse({
-                        "type": "stream_unavailable" if reason == "unavailable" else "auth_required",
-                        "reason": reason,
-                    })
+                    yield _format_sse(
+                        {
+                            "type": "stream_unavailable"
+                            if reason == "unavailable"
+                            else "auth_required",
+                            "reason": reason,
+                        }
+                    )
                     break
                 await realtime.heartbeat(connection_id)
                 yield _format_sse(payload) if payload else ": ping\n\n"

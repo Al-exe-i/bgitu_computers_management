@@ -11,7 +11,9 @@ def test_sse_connection_delivers_queued_payloads() -> None:
         connection = SSEConnection()
 
         await connection.send_json({"audience_updated": 5})
-        assert await asyncio.wait_for(connection.receive_json(), timeout=1) == {"audience_updated": 5}
+        assert await asyncio.wait_for(connection.receive_json(), timeout=1) == {
+            "audience_updated": 5
+        }
 
         await connection.close()
         assert await asyncio.wait_for(connection.receive_json(), timeout=1) is None
@@ -32,12 +34,17 @@ def test_sse_connection_close_unblocks_full_queue() -> None:
 
 
 def test_sse_formats_audience_update_event() -> None:
-    assert _format_sse({"audience_updated": 5}) == 'event: audience_updated\ndata: {"audience_updated":5}\n\n'
+    assert (
+        _format_sse({"audience_updated": 5})
+        == 'event: audience_updated\ndata: {"audience_updated":5}\n\n'
+    )
 
 
 def test_sse_formats_notification_event() -> None:
     assert (
-        _format_sse({"type": "notification", "notification": {"event_type": "hardware_fault"}})
+        _format_sse(
+            {"type": "notification", "notification": {"event_type": "hardware_fault"}}
+        )
         == 'event: notification\ndata: {"type":"notification","notification":{"event_type":"hardware_fault"}}\n\n'
     )
 

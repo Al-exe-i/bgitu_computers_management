@@ -34,7 +34,9 @@ class NotificationSubscriptionService:
         self.audiences = audiences
         self.offices = offices
 
-    async def list_for_user(self, user_id: int) -> list[NotificationSubscriptionResponse]:
+    async def list_for_user(
+        self, user_id: int
+    ) -> list[NotificationSubscriptionResponse]:
         if not await self.users.exists(user_id):
             raise NotificationUserNotFoundError()
 
@@ -80,7 +82,9 @@ class NotificationSubscriptionService:
             data.scope_id,
             data.event_type.value,
         )
-        return NotificationSubscriptionResponse.model_validate(created, from_attributes=True)
+        return NotificationSubscriptionResponse.model_validate(
+            created, from_attributes=True
+        )
 
     async def delete(
         self,
@@ -110,15 +114,23 @@ class NotificationSubscriptionService:
     ) -> None:
         if data.scope_type == NotificationScopeType.user:
             if data.scope_id != user_id:
-                raise NotificationScopeInvalidError("User scope can target only the current user")
+                raise NotificationScopeInvalidError(
+                    "User scope can target only the current user"
+                )
             if data.event_type != NotificationEventType.auth_security:
-                raise NotificationScopeInvalidError("User scope supports only auth_security notifications")
+                raise NotificationScopeInvalidError(
+                    "User scope supports only auth_security notifications"
+                )
             return
 
         if data.event_type == NotificationEventType.auth_security:
-            raise NotificationScopeInvalidError("auth_security notifications require user scope")
+            raise NotificationScopeInvalidError(
+                "auth_security notifications require user scope"
+            )
 
-    async def _validate_scope_exists(self, data: NotificationSubscriptionCreate) -> None:
+    async def _validate_scope_exists(
+        self, data: NotificationSubscriptionCreate
+    ) -> None:
         if data.scope_type == NotificationScopeType.audience:
             audience = await self.audiences.get_one_short(data.scope_id)
             if audience is None:

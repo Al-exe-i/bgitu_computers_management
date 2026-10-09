@@ -40,7 +40,9 @@ class RealtimeNotificationDispatcher:
                 exclude_user_id=notification.actor_user_id,
             )
         except NotificationAudienceNotFoundError:
-            return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
+            return RealtimeNotificationDispatchResult(
+                sent=0, event_type=event_type.value
+            )
 
         try:
             audience = await self.recipients.get_audience_context(
@@ -48,7 +50,9 @@ class RealtimeNotificationDispatcher:
                 event_type=event_type,
             )
         except NotificationAudienceNotFoundError:
-            return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
+            return RealtimeNotificationDispatchResult(
+                sent=0, event_type=event_type.value
+            )
 
         payload = self.renderer.build_hardware_state_payload(
             notification,
@@ -57,7 +61,9 @@ class RealtimeNotificationDispatcher:
             audience_number=getattr(audience, "number", None),
         )
         await self._publish_to_recipients(recipient_ids, payload)
-        return RealtimeNotificationDispatchResult(sent=len(recipient_ids), event_type=event_type.value)
+        return RealtimeNotificationDispatchResult(
+            sent=len(recipient_ids), event_type=event_type.value
+        )
 
     async def send_auth_security(
         self,
@@ -70,7 +76,9 @@ class RealtimeNotificationDispatcher:
         )
         payload = self.renderer.build_auth_security_payload(notification)
         await self._publish_to_recipients(recipient_ids, payload)
-        return RealtimeNotificationDispatchResult(sent=len(recipient_ids), event_type=event_type.value)
+        return RealtimeNotificationDispatchResult(
+            sent=len(recipient_ids), event_type=event_type.value
+        )
 
     async def send_audience_changed(
         self,
@@ -83,7 +91,9 @@ class RealtimeNotificationDispatcher:
                 event_type=event_type,
             )
         except NotificationAudienceNotFoundError:
-            return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
+            return RealtimeNotificationDispatchResult(
+                sent=0, event_type=event_type.value
+            )
 
         try:
             audience = await self.recipients.get_audience_context(
@@ -91,7 +101,9 @@ class RealtimeNotificationDispatcher:
                 event_type=event_type,
             )
         except NotificationAudienceNotFoundError:
-            return RealtimeNotificationDispatchResult(sent=0, event_type=event_type.value)
+            return RealtimeNotificationDispatchResult(
+                sent=0, event_type=event_type.value
+            )
 
         payload = self.renderer.build_audience_changed_payload(
             notification,
@@ -99,14 +111,20 @@ class RealtimeNotificationDispatcher:
             audience_number=getattr(audience, "number", None),
         )
         await self._publish_to_recipients(recipient_ids, payload)
-        return RealtimeNotificationDispatchResult(sent=len(recipient_ids), event_type=event_type.value)
+        return RealtimeNotificationDispatchResult(
+            sent=len(recipient_ids), event_type=event_type.value
+        )
 
-    async def _publish_to_recipients(self, recipient_ids: list[int], payload: dict) -> None:
+    async def _publish_to_recipients(
+        self, recipient_ids: list[int], payload: dict
+    ) -> None:
         for user_id in recipient_ids:
             await self.publisher.publish_notification(user_id=user_id, payload=payload)
 
     @staticmethod
-    def _hardware_event_type(notification: HardwareStateNotification) -> NotificationEventType | None:
+    def _hardware_event_type(
+        notification: HardwareStateNotification,
+    ) -> NotificationEventType | None:
         if notification.previous_state == notification.state:
             return None
 

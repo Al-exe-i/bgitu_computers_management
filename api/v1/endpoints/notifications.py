@@ -37,7 +37,9 @@ async def create_my_notification_subscription(
     return result.subscription
 
 
-@router.delete("/subscriptions/{subscription_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/subscriptions/{subscription_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_my_notification_subscription(
     subscription_id: int,
     audit: user_audit_actor_dep,

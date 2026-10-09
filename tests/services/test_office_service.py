@@ -62,7 +62,9 @@ def test_create_duplicate_office_raises_domain_error() -> None:
     async def scenario() -> None:
         service = OfficeService(
             FakeOfficeRepo(
-                create_error=IntegrityError("insert offices", {}, Exception("duplicate")),
+                create_error=IntegrityError(
+                    "insert offices", {}, Exception("duplicate")
+                ),
             )
         )
 
@@ -82,7 +84,11 @@ def test_get_all_short_uses_cache_after_first_repo_read() -> None:
             ttl_seconds=300,
         )
         repo = FakeOfficeRepo()
-        service = OfficeService(repo, office_short_cache=cache, on_commit=partial(add_post_commit_hook, repo.db))
+        service = OfficeService(
+            repo,
+            office_short_cache=cache,
+            on_commit=partial(add_post_commit_hook, repo.db),
+        )
 
         first = await service.get_all_short()
         assert await cache.get() is None
@@ -112,7 +118,12 @@ def test_create_office_invalidates_related_caches_after_commit() -> None:
             ttl_seconds=300,
         )
         repo = FakeOfficeRepo()
-        service = OfficeService(repo, office_cache, analytics_cache, on_commit=partial(add_post_commit_hook, repo.db))
+        service = OfficeService(
+            repo,
+            office_cache,
+            analytics_cache,
+            on_commit=partial(add_post_commit_hook, repo.db),
+        )
 
         await service.create(OfficeCreate(id=1, address="Main building"))
 

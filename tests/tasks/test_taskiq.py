@@ -20,7 +20,10 @@ def test_task_binding_and_daily_schedule():
     assert broker.consumer_id == "0"
     assert broker.count == 1
     assert broker.result_backend.result_ex_time == 86400
-    assert sessions.close_task_database in broker.event_handlers[TaskiqEvents.WORKER_SHUTDOWN]
+    assert (
+        sessions.close_task_database
+        in broker.event_handlers[TaskiqEvents.WORKER_SHUTDOWN]
+    )
 
     async def check_schedule():
         source = scheduler.sources[0]
@@ -36,7 +39,9 @@ def test_task_binding_and_daily_schedule():
 
 def test_cleanup_uses_one_transaction_and_preserves_retention(monkeypatch):
     session = SimpleNamespace(
-        execute=AsyncMock(side_effect=[SimpleNamespace(rowcount=2), SimpleNamespace(rowcount=3)]),
+        execute=AsyncMock(
+            side_effect=[SimpleNamespace(rowcount=2), SimpleNamespace(rowcount=3)]
+        ),
         commit=AsyncMock(),
     )
 
@@ -48,15 +53,25 @@ def test_cleanup_uses_one_transaction_and_preserves_retention(monkeypatch):
 
     async def run_twice():
         result = await sessions.cleanup_user_sessions(7)
-        assert result == {"expired_deleted": 2, "revoked_deleted": 3, "retention_days": 7}
-        statements = [call.args[0].compile(dialect=postgresql.dialect()) for call in session.execute.call_args_list]
+        assert result == {
+            "expired_deleted": 2,
+            "revoked_deleted": 3,
+            "retention_days": 7,
+        }
+        statements = [
+            call.args[0].compile(dialect=postgresql.dialect())
+            for call in session.execute.call_args_list
+        ]
         assert "expires_at <" in str(statements[0])
         assert "revoked_at IS NOT NULL" in str(statements[1])
         now = next(iter(statements[0].params.values()))
         cutoff = next(iter(statements[1].params.values()))
         assert (now - cutoff).days == 7
         session.commit.assert_awaited_once()
-        session.execute.side_effect = [SimpleNamespace(rowcount=0), SimpleNamespace(rowcount=0)]
+        session.execute.side_effect = [
+            SimpleNamespace(rowcount=0),
+            SimpleNamespace(rowcount=0),
+        ]
         assert (await sessions.cleanup_user_sessions(7))["expired_deleted"] == 0
 
     asyncio.run(run_twice())
@@ -69,7 +84,10 @@ def test_invalid_retention_rejected_before_database_access(retention):
 
 
 def test_cleanup_failure_is_not_swallowed_or_committed(monkeypatch):
-    session = SimpleNamespace(execute=AsyncMock(side_effect=RuntimeError("database unavailable")), commit=AsyncMock())
+    session = SimpleNamespace(
+        execute=AsyncMock(side_effect=RuntimeError("database unavailable")),
+        commit=AsyncMock(),
+    )
     closed = []
 
     @asynccontextmanager

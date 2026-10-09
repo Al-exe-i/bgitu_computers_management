@@ -130,7 +130,10 @@ def test_login_rejects_invalid_password() -> None:
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("token, error", [(None, RefreshTokenMissingError), ("unknown", RefreshSessionNotFoundError)])
+@pytest.mark.parametrize(
+    "token, error",
+    [(None, RefreshTokenMissingError), ("unknown", RefreshSessionNotFoundError)],
+)
 def test_unknown_refresh_does_not_revoke_any_session(token, error):
     async def scenario():
         users = FakeUserService([])

@@ -105,7 +105,9 @@ class RealtimeNotificationEvent:
     sent_at: datetime
 
     @classmethod
-    def new(cls, *, user_id: int, payload: dict[str, Any]) -> "RealtimeNotificationEvent":
+    def new(
+        cls, *, user_id: int, payload: dict[str, Any]
+    ) -> "RealtimeNotificationEvent":
         return cls(
             event_id=str(uuid4()),
             type="notification",

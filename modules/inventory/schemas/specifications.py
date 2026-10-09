@@ -116,7 +116,10 @@ class ComputerSpecs(ComputeSpecsBase):
                 if normalized_key == edition.casefold():
                     data["operating_system"] = operating_system.value
                     current_edition = data.get("os_edition")
-                    if not isinstance(current_edition, str) or not current_edition.strip():
+                    if (
+                        not isinstance(current_edition, str)
+                        or not current_edition.strip()
+                    ):
                         data["os_edition"] = edition
                     return data
 

@@ -10,7 +10,9 @@ class HardwareFileStorage:
 
     async def save(self, file: UploadedHardwareFile, *, extension: str) -> str:
         return await self.storage.save_upload(
-            file, prefix=self.prefix, extension=extension,
+            file,
+            prefix=self.prefix,
+            extension=extension,
             max_size_bytes=MAX_HARDWARE_FILE_SIZE_BYTES,
         )
 

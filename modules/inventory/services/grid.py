@@ -11,13 +11,19 @@ class AudienceGridService:
     def __init__(self, hardware: HardwareGridPort) -> None:
         self.hardware = hardware
 
-    def validate(self, items: Sequence[HardwareGridItem], width: int, height: int) -> None:
+    def validate(
+        self, items: Sequence[HardwareGridItem], width: int, height: int
+    ) -> None:
         GridHelper.validate_grid(items, width, height)
 
-    def build_hardware_models(self, items: Sequence[HardwareGridItem]) -> list[Hardware]:
+    def build_hardware_models(
+        self, items: Sequence[HardwareGridItem]
+    ) -> list[Hardware]:
         return [Hardware(**item.model_dump(exclude={"id"})) for item in items]
 
-    async def sync(self, audience_id: int, incoming: Sequence[HardwareGridItem]) -> None:
+    async def sync(
+        self, audience_id: int, incoming: Sequence[HardwareGridItem]
+    ) -> None:
         existing_hw_list = await self.hardware.list_by_audience(audience_id)
         existing_map: dict[int, Hardware] = {hw.id: hw for hw in existing_hw_list}
         incoming_existing_ids: set[int] = set()

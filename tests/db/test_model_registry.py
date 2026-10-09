@@ -5,17 +5,28 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("first_import", [
-    "modules.identity.models.user",
-    "modules.identity.public", "modules.inventory.models.hardware", "db.session",
-    "modules.inventory.models.audience", "modules.inventory.public",
-    "modules.notifications.models.subscription", "modules.notifications.public",
-    "modules.administration.models.audit_log", "modules.administration.public",
-])
+@pytest.mark.parametrize(
+    "first_import",
+    [
+        "modules.identity.models.user",
+        "modules.identity.public",
+        "modules.inventory.models.hardware",
+        "db.session",
+        "modules.inventory.models.audience",
+        "modules.inventory.public",
+        "modules.notifications.models.subscription",
+        "modules.notifications.public",
+        "modules.administration.models.audit_log",
+        "modules.administration.public",
+    ],
+)
 def test_registry_is_complete_regardless_of_import_order(first_import):
     # A fresh interpreter exposes circular imports hidden by pytest's module cache.
     result = subprocess.run(
-        [sys.executable, "-c", f"""
+        [
+            sys.executable,
+            "-c",
+            f"""
 import {first_import}
 from db.base import Base
 from sqlalchemy.orm import configure_mappers
@@ -34,7 +45,12 @@ assert Base.metadata.tables['users'].c.role.type.enums == ['admin', 'teacher']
 assert Base.metadata.tables['hardwares'].c.type.type.enums == [
     'computer', 'tv', 'projector', 'printer', 'switch', 'router', 'server', 'other',
 ]
-"""],
-        cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True, timeout=20, check=False,
+""",
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr

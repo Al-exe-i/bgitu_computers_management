@@ -14,8 +14,11 @@ class AudienceBase(BaseModel):
     number: int = Field(gt=0, description="Номер аудитории внутри корпуса")
     floor: int
     room_type: RoomType = RoomType.educational
-    description: str | None = Field(default=None, max_length=200,
-                                    description="Название или номер аудитории (напр. '105')")
+    description: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Название или номер аудитории (напр. '105')",
+    )
     office_id: int = Field(description="ID офиса/здания/этажа")
     width: int = Field(gt=0, le=20, description="Ширина сетки")
     height: int = Field(gt=0, le=20, description="Высота сетки")
@@ -57,6 +60,7 @@ class AudienceShortResponse(AudienceBase):
     id: int
     public_id: UUID
     hardware: list[HardwareShortResponse] = Field(default_factory=list)
+
 
 class AudienceLandmarks(BaseModel):
     north: str | None = Field(default=None, max_length=128)

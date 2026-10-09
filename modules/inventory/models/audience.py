@@ -28,8 +28,16 @@ class Audience(IntIdPkMixin, Base):
     number: Mapped[int]
     floor: Mapped[int]
     room_type: Mapped[RoomType] = mapped_column(
-        SQLEnum(RoomType, native_enum=False, create_constraint=True, length=20, name="audience_room_type"),
-        nullable=False, default=RoomType.educational, server_default="educational",
+        SQLEnum(
+            RoomType,
+            native_enum=False,
+            create_constraint=True,
+            length=20,
+            name="audience_room_type",
+        ),
+        nullable=False,
+        default=RoomType.educational,
+        server_default="educational",
     )
     description: Mapped[str | None] = mapped_column(String(200))
     office_id: Mapped[int] = mapped_column(ForeignKey("offices.id", ondelete="CASCADE"))

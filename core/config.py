@@ -14,7 +14,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class LoggingConfig(BaseSettings):
     level: str = "INFO"
-    format: str = "%(asctime)s | %(levelname)-8s | %(name)-12s | %(lineno)4d | %(message)s"
+    format: str = (
+        "%(asctime)s | %(levelname)-8s | %(name)-12s | %(lineno)4d | %(message)s"
+    )
 
 
 class ApiV1Prefix(BaseModel):
@@ -134,8 +136,7 @@ class BootstrapConfig(BaseModel):
     def validate_initial_superuser_credentials(self) -> "BootstrapConfig":
         has_email = bool(self.superuser_email and self.superuser_email.strip())
         has_password = bool(
-            self.superuser_password
-            and self.superuser_password.get_secret_value()
+            self.superuser_password and self.superuser_password.get_secret_value()
         )
         if has_email != has_password:
             raise ValueError(
@@ -187,16 +188,22 @@ class Settings(BaseSettings):
             return self
 
         if self.jwt.ACCESS_SECRET_KEY.startswith("replace-with-"):
-            raise ValueError("Placeholder JWT secret is forbidden when DEBUG is disabled")
+            raise ValueError(
+                "Placeholder JWT secret is forbidden when DEBUG is disabled"
+            )
 
         if self.db.password.startswith("replace-with-"):
-            raise ValueError("Placeholder database password is forbidden when DEBUG is disabled")
+            raise ValueError(
+                "Placeholder database password is forbidden when DEBUG is disabled"
+            )
 
         if self.storage.backend == "minio" and any(
             value == "minioadmin" or value.startswith("replace-with-")
             for value in (self.storage.access_key, self.storage.secret_key)
         ):
-            raise ValueError("Default MinIO credentials are forbidden when DEBUG is disabled")
+            raise ValueError(
+                "Default MinIO credentials are forbidden when DEBUG is disabled"
+            )
 
         if (
             self.bootstrap.superuser_password is not None

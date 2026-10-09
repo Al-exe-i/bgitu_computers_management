@@ -112,7 +112,9 @@ def test_update_hardware_logs_audit_and_returns_inventory_events() -> None:
         ]
         assert audit.logs[0]["action"] == "hardware.update"
         assert audit.logs[0]["payload"]["audience_id"] == 12
-        assert result.events[0] == AudienceUpdatedEvent(audience_id=12, notify_subscribers=False)
+        assert result.events[0] == AudienceUpdatedEvent(
+            audience_id=12, notify_subscribers=False
+        )
         assert isinstance(result.events[1], HardwareStateChangedEvent)
         assert result.events[1].previous_state is True
         assert result.events[1].actor_user_id == 7
@@ -135,7 +137,9 @@ def test_update_hardware_without_state_change_returns_only_audience_event() -> N
         )
 
         assert result.hardware.description == "new"
-        assert result.events == [AudienceUpdatedEvent(audience_id=12, notify_subscribers=True)]
+        assert result.events == [
+            AudienceUpdatedEvent(audience_id=12, notify_subscribers=True)
+        ]
 
     asyncio.run(scenario())
 

@@ -48,7 +48,9 @@ class UserRepository:
         if not user_ids:
             return {}
         result = await self.db.execute(
-            select(User.id, User.email, User.name, User.surname).where(User.id.in_(user_ids))
+            select(User.id, User.email, User.name, User.surname).where(
+                User.id.in_(user_ids)
+            )
         )
         return {row.id: UserSummary(**row._mapping) for row in result}
 
@@ -69,17 +71,26 @@ class UserRepository:
             while cause is not None:
                 constraint = getattr(cause, "constraint_name", None)
                 if constraint is None:
-                    constraint = getattr(getattr(cause, "diag", None), "constraint_name", None)
+                    constraint = getattr(
+                        getattr(cause, "diag", None), "constraint_name", None
+                    )
                 if constraint == "uq_users_email_ci":
-                    raise ManagementUserError(f"User already exists: {user.email}") from exc
+                    raise ManagementUserError(
+                        f"User already exists: {user.email}"
+                    ) from exc
                 cause = cause.__cause__
             raise
 
-    async def reset_managed_password(self, email: str, password_hash: str) -> User | None:
+    async def reset_managed_password(
+        self, email: str, password_hash: str
+    ) -> User | None:
         result = await self.db.execute(
             update(User)
             .where(func.lower(User.email) == email)
-            .values(password=password_hash, access_token_version=User.access_token_version + 1)
+            .values(
+                password=password_hash,
+                access_token_version=User.access_token_version + 1,
+            )
             .returning(User)
             .execution_options(populate_existing=True)
         )

@@ -19,10 +19,14 @@ class NotificationSubscriptionDeleteResult:
 
 
 class RealtimeNotificationSubscriptionUseCases:
-    def __init__(self, *, subscription_service: NotificationSubscriptionServicePort) -> None:
+    def __init__(
+        self, *, subscription_service: NotificationSubscriptionServicePort
+    ) -> None:
         self.subscription_service = subscription_service
 
-    async def list_subscriptions(self, *, user_id: int) -> list[NotificationSubscriptionResponse]:
+    async def list_subscriptions(
+        self, *, user_id: int
+    ) -> list[NotificationSubscriptionResponse]:
         return await self.subscription_service.list_for_user(user_id)
 
     async def create_subscription(

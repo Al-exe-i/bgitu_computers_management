@@ -25,7 +25,8 @@ class OfficeService:
         self,
         repo: OfficeRepository,
         office_short_cache: RedisTypedCache[list[OfficeShort]] | None = None,
-        analytics_filter_options_cache: RedisTypedCache[HardwareAnalyticsFilterOptions] | None = None,
+        analytics_filter_options_cache: RedisTypedCache[HardwareAnalyticsFilterOptions]
+        | None = None,
         *,
         on_commit: AfterCommit | None = None,
     ):
@@ -35,7 +36,10 @@ class OfficeService:
         self.analytics_filter_options_cache = analytics_filter_options_cache
 
     async def get_all(self) -> Sequence[OfficeResponse | OfficeShort]:
-        return [OfficeResponse.model_validate(row, from_attributes=True) for row in await self.repo.get_list()]
+        return [
+            OfficeResponse.model_validate(row, from_attributes=True)
+            for row in await self.repo.get_list()
+        ]
 
     async def get_all_short(self) -> Sequence[OfficeShort]:
         if self.office_short_cache is not None:
@@ -56,11 +60,17 @@ class OfficeService:
 
     async def get(self, office_id: int) -> OfficeResponse | None:
         office = await self.repo.get_one(office_id)
-        return OfficeResponse.model_validate(office, from_attributes=True) if office else None
+        return (
+            OfficeResponse.model_validate(office, from_attributes=True)
+            if office
+            else None
+        )
 
     async def get_short(self, office_id: int) -> OfficeShort | None:
         office = await self.repo.get_one_short(office_id)
-        return OfficeShort.model_validate(office, from_attributes=True) if office else None
+        return (
+            OfficeShort.model_validate(office, from_attributes=True) if office else None
+        )
 
     async def create(self, office: OfficeCreate) -> OfficeShort:
         new_office = Office(**office.model_dump())
@@ -94,4 +104,3 @@ class OfficeService:
             self.office_short_cache,
             self.analytics_filter_options_cache,
         )
-

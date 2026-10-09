@@ -8,9 +8,7 @@ def normalize_landmarks(data: dict | None) -> dict:
 
     # убираем пустые строки, если фронт их прислал
     result = {
-        k: v.strip()
-        for k, v in result.items()
-        if isinstance(v, str) and v.strip()
+        k: v.strip() for k, v in result.items() if isinstance(v, str) and v.strip()
     }
 
     return result

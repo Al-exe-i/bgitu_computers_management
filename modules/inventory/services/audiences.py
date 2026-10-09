@@ -26,7 +26,8 @@ class AudienceService:
         repo: AudienceRepository,
         grid: AudienceGridService,
         office_short_cache: RedisTypedCache[list[OfficeShort]] | None = None,
-        analytics_filter_options_cache: RedisTypedCache[HardwareAnalyticsFilterOptions] | None = None,
+        analytics_filter_options_cache: RedisTypedCache[HardwareAnalyticsFilterOptions]
+        | None = None,
         *,
         on_commit: AfterCommit | None = None,
     ):
@@ -39,8 +40,7 @@ class AudienceService:
     async def get_list(self) -> Sequence[AudienceResponse]:
         audiences = await self.repo.get_all()
         return [
-            AudienceResponse.model_validate(a, from_attributes=True)
-            for a in audiences
+            AudienceResponse.model_validate(a, from_attributes=True) for a in audiences
         ]
 
     async def get_one(self, audience_id: int) -> AudienceResponse:
@@ -58,7 +58,7 @@ class AudienceService:
     async def create_audience(self, schema: AudienceCreate) -> AudienceShortResponse:
         self.grid.validate(schema.hardware, schema.width, schema.height)
 
-        audience_data = schema.model_dump(exclude={'hardware'})
+        audience_data = schema.model_dump(exclude={"hardware"})
 
         audience_orm = Audience(
             **audience_data,
@@ -72,14 +72,18 @@ class AudienceService:
         self._invalidate_related_caches_after_commit()
         return AudienceShortResponse.model_validate(created, from_attributes=True)
 
-    async def update_audience(self, audience_id: int, schema: AudienceUpdate) -> AudienceShortResponse:
+    async def update_audience(
+        self, audience_id: int, schema: AudienceUpdate
+    ) -> AudienceShortResponse:
         current_audience = await self.repo.get_by_id(audience_id)
         if not current_audience:
             raise AudienceNotFoundError()
 
         return await self._update_existing_audience(current_audience, schema)
 
-    async def update_audience_by_public_id(self, public_id: UUID, schema: AudienceUpdate) -> AudienceShortResponse:
+    async def update_audience_by_public_id(
+        self, public_id: UUID, schema: AudienceUpdate
+    ) -> AudienceShortResponse:
         current_audience = await self.repo.get_by_public_id(public_id)
         if not current_audience:
             raise AudienceNotFoundError()
@@ -99,9 +103,11 @@ class AudienceService:
         await self.repo.delete(audience.id)
         self._invalidate_related_caches_after_commit()
 
-    async def _update_existing_audience(self, current_audience: Audience, schema: AudienceUpdate) -> AudienceShortResponse:
+    async def _update_existing_audience(
+        self, current_audience: Audience, schema: AudienceUpdate
+    ) -> AudienceShortResponse:
         audience_id = current_audience.id
-        update_data = schema.model_dump(exclude_unset=True, exclude={'hardware'})
+        update_data = schema.model_dump(exclude_unset=True, exclude={"hardware"})
         moved = any(
             key in update_data and update_data[key] != getattr(current_audience, key)
             for key in ("office_id", "floor")

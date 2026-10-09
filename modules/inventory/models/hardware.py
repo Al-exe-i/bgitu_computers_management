@@ -25,7 +25,9 @@ class Hardware(IntIdPkMixin, Base):
 
     specs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
-    audience_id: Mapped[int] = mapped_column(ForeignKey('audiences.id', ondelete='CASCADE'))
+    audience_id: Mapped[int] = mapped_column(
+        ForeignKey("audiences.id", ondelete="CASCADE")
+    )
 
     audience: Mapped["Audience"] = relationship(back_populates="hardware")
     files: Mapped[list[HardwareFile]] = relationship(

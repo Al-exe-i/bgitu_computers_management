@@ -119,7 +119,9 @@ class IdentityUserUseCases:
 
         user = await self.user_service.get(user_id)
         if not user:
-            logger.warning("User photo read failed: target_user_id={} not found", user_id)
+            logger.warning(
+                "User photo read failed: target_user_id={} not found", user_id
+            )
             raise UserNotFoundError()
 
         return self.user_service.get_photo(user)
@@ -141,7 +143,10 @@ class IdentityUserUseCases:
             raise InvalidCurrentPasswordError()
 
         if data.current_password == data.new_password:
-            logger.warning("Password change rejected: new password equals old for user_id={}", actor.id)
+            logger.warning(
+                "Password change rejected: new password equals old for user_id={}",
+                actor.id,
+            )
             raise SamePasswordError()
 
         updated = await self.user_service.update_password(actor.id, data.new_password)
@@ -198,14 +203,16 @@ class IdentityUserUseCases:
             entity_id=user_id,
             payload={"target_user_id": user_id},
         )
-        return IdentityUserCommandResult(events=[
-            AuthSecurityNotificationEvent(
-                user_id=user_id,
-                event_name="Пароль изменён суперпользователем",
-                ip=ip,
-                user_agent=user_agent,
-            )
-        ])
+        return IdentityUserCommandResult(
+            events=[
+                AuthSecurityNotificationEvent(
+                    user_id=user_id,
+                    event_name="Пароль изменён суперпользователем",
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+            ]
+        )
 
     async def delete_user(
         self,
@@ -220,7 +227,9 @@ class IdentityUserUseCases:
             raise UserNotFoundError()
 
         if actor.id == user_id:
-            logger.warning("User deletion rejected: self-delete attempt user_id={}", user_id)
+            logger.warning(
+                "User deletion rejected: self-delete attempt user_id={}", user_id
+            )
             raise SelfDeleteForbiddenError()
 
         if user.is_superuser:
@@ -270,7 +279,11 @@ class IdentityUserUseCases:
 
         self._ensure_can_change_superuser(actor, user)
 
-        if actor.id == user_id and actor.role != UserRole.admin and not actor.is_superuser:
+        if (
+            actor.id == user_id
+            and actor.role != UserRole.admin
+            and not actor.is_superuser
+        ):
             data = UserUpdate(**data.model_dump(exclude={"role"}, exclude_unset=True))
 
         updated_user = await self.user_service.update(user_id, data)
@@ -314,12 +327,17 @@ class IdentityUserUseCases:
 
         user = await self.user_service.get(user_id)
         if not user:
-            logger.warning("User photo upload failed: target_user_id={} not found", user_id)
+            logger.warning(
+                "User photo upload failed: target_user_id={} not found", user_id
+            )
             raise UserNotFoundError()
 
         self._ensure_can_change_superuser(actor, user)
 
-        if normalize_media_type(file.content_type) not in IMAGE_EXTENSIONS_BY_MEDIA_TYPE:
+        if (
+            normalize_media_type(file.content_type)
+            not in IMAGE_EXTENSIONS_BY_MEDIA_TYPE
+        ):
             logger.warning(
                 "User photo upload rejected: invalid content type user_id={} filename={} content_type={}",
                 user_id,
@@ -330,7 +348,9 @@ class IdentityUserUseCases:
 
         result = await self.user_service.upload_photo(user_id, file)
         if result is None:
-            logger.warning("User photo upload failed: target_user_id={} not found", user_id)
+            logger.warning(
+                "User photo upload failed: target_user_id={} not found", user_id
+            )
             raise UserNotFoundError()
 
         await audit.log(
@@ -368,14 +388,18 @@ class IdentityUserUseCases:
 
         user = await self.user_service.get(user_id)
         if not user:
-            logger.warning("User photo delete failed: target_user_id={} not found", user_id)
+            logger.warning(
+                "User photo delete failed: target_user_id={} not found", user_id
+            )
             raise UserNotFoundError()
 
         self._ensure_can_change_superuser(actor, user)
 
         result = await self.user_service.delete_photo(user_id)
         if result is None:
-            logger.warning("User photo delete failed: target_user_id={} not found", user_id)
+            logger.warning(
+                "User photo delete failed: target_user_id={} not found", user_id
+            )
             raise UserNotFoundError()
 
         await audit.log(
@@ -398,10 +422,16 @@ class IdentityUserUseCases:
 
     @staticmethod
     def _can_manage_user(actor: IdentityActor, target_user_id: int) -> bool:
-        return actor.id == target_user_id or actor.role == UserRole.admin or actor.is_superuser
+        return (
+            actor.id == target_user_id
+            or actor.role == UserRole.admin
+            or actor.is_superuser
+        )
 
     @staticmethod
-    def _ensure_can_change_superuser(actor: IdentityActor, target_user: UserOut) -> None:
+    def _ensure_can_change_superuser(
+        actor: IdentityActor, target_user: UserOut
+    ) -> None:
         if target_user.is_superuser and actor.id != target_user.id:
             logger.warning(
                 "User operation rejected by superuser protection: actor_id={} target_user_id={}",

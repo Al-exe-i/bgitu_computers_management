@@ -30,7 +30,9 @@ def enforce_trusted_origin(request: Request) -> None:
         referer = request.headers.get("referer")
         if referer is None:
             # Bearer/CLI clients do not need CSRF protection, unlike cookie-authenticated requests.
-            if request.cookies.get("access_token") or request.cookies.get("refresh_token"):
+            if request.cookies.get("access_token") or request.cookies.get(
+                "refresh_token"
+            ):
                 raise HTTP403("Missing request origin")
             return
         candidate = _normalized_origin(referer)

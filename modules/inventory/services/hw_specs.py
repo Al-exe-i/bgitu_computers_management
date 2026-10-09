@@ -17,6 +17,7 @@ SPEC_MODEL_BY_TYPE = {
     HardwareType.other: EmptySpecs,
 }
 
+
 def validate_specs(hw_type: HardwareType, specs: dict | None) -> dict:
     model = SPEC_MODEL_BY_TYPE[hw_type]
     parsed = model.model_validate(specs or {})

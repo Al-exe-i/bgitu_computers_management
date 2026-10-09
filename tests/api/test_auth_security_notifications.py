@@ -82,7 +82,9 @@ def test_login_endpoint_calls_auth_security_enqueue(monkeypatch) -> None:
     app.dependency_overrides[get_user_service] = lambda: DummyUserService(user)
     app.dependency_overrides[get_user_session_service] = lambda: sessions
     app.dependency_overrides[get_audit_ctx] = lambda: audit
-    app.dependency_overrides[get_identity_event_dispatcher] = lambda: DummyEventDispatcher()
+    app.dependency_overrides[get_identity_event_dispatcher] = lambda: (
+        DummyEventDispatcher()
+    )
 
     try:
         with TestClient(app) as client:

@@ -11,4 +11,6 @@ def get_user_session_service(db: session_dep):
     return UserSessionService(UserSessionRepository(db))
 
 
-user_session_service_dep = Annotated[UserSessionService, Depends(get_user_session_service)]
+user_session_service_dep = Annotated[
+    UserSessionService, Depends(get_user_session_service)
+]

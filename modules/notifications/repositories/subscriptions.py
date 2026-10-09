@@ -10,7 +10,9 @@ class NotificationSubscriptionRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, subscription: NotificationSubscription) -> NotificationSubscription:
+    async def create(
+        self, subscription: NotificationSubscription
+    ) -> NotificationSubscription:
         self.db.add(subscription)
         await self.db.flush()
         await self.db.refresh(subscription)
@@ -20,7 +22,10 @@ class NotificationSubscriptionRepository:
         stmt = (
             select(NotificationSubscription)
             .where(NotificationSubscription.user_id == user_id)
-            .order_by(NotificationSubscription.created_at.desc(), NotificationSubscription.id.desc())
+            .order_by(
+                NotificationSubscription.created_at.desc(),
+                NotificationSubscription.id.desc(),
+            )
         )
         result = await self.db.execute(stmt)
         return result.scalars().all()

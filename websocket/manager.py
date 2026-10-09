@@ -51,7 +51,10 @@ class LocalConnectionManager:
                 if not user_connections:
                     self._user_to_connections.pop(state.user_id, None)
 
-        if state.client_id is not None and self._client_to_connection.get(state.client_id) == connection_id:
+        if (
+            state.client_id is not None
+            and self._client_to_connection.get(state.client_id) == connection_id
+        ):
             self._client_to_connection.pop(state.client_id, None)
 
         return state
@@ -85,7 +88,9 @@ class LocalConnectionManager:
                 else None
             )
             self._connections[connection_id] = state
-            self._audience_to_connections.setdefault(audience_id, set()).add(connection_id)
+            self._audience_to_connections.setdefault(audience_id, set()).add(
+                connection_id
+            )
             if user_id is not None:
                 self._user_to_connections.setdefault(user_id, set()).add(connection_id)
             if client_id is not None:
@@ -110,7 +115,9 @@ class LocalConnectionManager:
         async with self._lock:
             return list(self._connections.values())
 
-    async def send_json(self, connection_id: str, payload: dict) -> LocalConnectionState | None:
+    async def send_json(
+        self, connection_id: str, payload: dict
+    ) -> LocalConnectionState | None:
         async with self._lock:
             state = self._connections.get(connection_id)
 
@@ -128,7 +135,9 @@ class LocalConnectionManager:
             )
             return await self.remove(connection_id)
 
-    async def broadcast_audience(self, audience_id: int, payload: dict) -> list[LocalConnectionState]:
+    async def broadcast_audience(
+        self, audience_id: int, payload: dict
+    ) -> list[LocalConnectionState]:
         async with self._lock:
             targets = set(self._audience_to_connections.get(None, set()))
             targets.update(self._audience_to_connections.get(audience_id, set()))
@@ -141,7 +150,9 @@ class LocalConnectionManager:
 
         return dropped
 
-    async def broadcast_user(self, user_id: int, payload: dict) -> list[LocalConnectionState]:
+    async def broadcast_user(
+        self, user_id: int, payload: dict
+    ) -> list[LocalConnectionState]:
         async with self._lock:
             targets = set(self._user_to_connections.get(user_id, set()))
 

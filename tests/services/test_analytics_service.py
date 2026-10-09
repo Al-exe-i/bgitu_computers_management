@@ -47,7 +47,9 @@ def test_filter_options_uses_cache_after_first_repo_read() -> None:
         )
         repo = FakeAnalyticsRepo()
         session = SimpleNamespace(info={})
-        service = HardwareAnalyticsService(repo, cache, on_commit=partial(add_post_commit_hook, session))
+        service = HardwareAnalyticsService(
+            repo, cache, on_commit=partial(add_post_commit_hook, session)
+        )
 
         first = await service.get_filter_options()
         assert await cache.get() is None

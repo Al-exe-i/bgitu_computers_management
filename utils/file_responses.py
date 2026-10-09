@@ -21,7 +21,7 @@ def secure_file_headers(
         encoded = quote(basename, safe="")
         disposition = "attachment" if as_attachment else "inline"
         headers["Content-Disposition"] = (
-            f'{disposition}; filename="{fallback}"; filename*=UTF-8\'\'{encoded}'
+            f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{encoded}"
         )
 
     return headers

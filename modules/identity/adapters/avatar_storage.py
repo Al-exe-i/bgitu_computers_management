@@ -81,7 +81,9 @@ class AvatarStorage:
         try:
             return self.storage.delete(self._key_for_filename(filename))
         except Exception as exc:  # noqa: BLE001 - deleting an old avatar is best effort
-            logger.error("Failed to remove avatar file filename={} error={}", filename, exc)
+            logger.error(
+                "Failed to remove avatar file filename={} error={}", filename, exc
+            )
             return False
 
     def _key_for_filename(self, filename: str) -> str:

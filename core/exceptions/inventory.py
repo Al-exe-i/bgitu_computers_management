@@ -21,7 +21,9 @@ class AudienceGridValidationError(InventoryError):
 
 class AudienceHardwareNotFoundError(AudienceGridValidationError):
     def __init__(self, *, hardware_id: int, audience_id: int) -> None:
-        super().__init__(f"Hardware id={hardware_id} not found in audience {audience_id}")
+        super().__init__(
+            f"Hardware id={hardware_id} not found in audience {audience_id}"
+        )
 
 
 class HardwareNotFoundError(InventoryError):

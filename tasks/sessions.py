@@ -42,7 +42,11 @@ async def open_task_session() -> AsyncIterator[AsyncSession]:
 
 
 async def _cleanup_user_sessions_async(retention_days: int) -> dict:
-    if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days < 0:
+    if (
+        isinstance(retention_days, bool)
+        or not isinstance(retention_days, int)
+        or retention_days < 0
+    ):
         raise ValueError("retention_days must be a non-negative integer")
     now = datetime.now(UTC)
     cutoff = now - timedelta(days=retention_days)

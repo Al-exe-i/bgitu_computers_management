@@ -59,7 +59,9 @@ def test_get_one_missing_audience_raises_application_error() -> None:
 
 def test_update_missing_audience_raises_application_error() -> None:
     async def scenario() -> None:
-        service = AudienceService(FakeAudienceRepo(SimpleNamespace(id=13)), FakeAudienceGrid())
+        service = AudienceService(
+            FakeAudienceRepo(SimpleNamespace(id=13)), FakeAudienceGrid()
+        )
 
         with pytest.raises(AudienceNotFoundError):
             await service.update_audience(12, AudienceUpdate(description="212"))
@@ -70,7 +72,11 @@ def test_update_missing_audience_raises_application_error() -> None:
 def test_create_duplicate_audience_raises_domain_error() -> None:
     async def scenario() -> None:
         service = AudienceService(
-            FakeAudienceRepo(create_error=IntegrityError("insert audiences", {}, Exception("duplicate"))),
+            FakeAudienceRepo(
+                create_error=IntegrityError(
+                    "insert audiences", {}, Exception("duplicate")
+                )
+            ),
             FakeAudienceGrid(),
         )
 
@@ -95,7 +101,9 @@ def test_update_duplicate_audience_number_raises_domain_error() -> None:
         service = AudienceService(
             FakeAudienceRepo(
                 SimpleNamespace(id=12, width=10, height=10),
-                flush_error=IntegrityError("update audiences", {}, Exception("duplicate")),
+                flush_error=IntegrityError(
+                    "update audiences", {}, Exception("duplicate")
+                ),
             ),
             FakeAudienceGrid(),
         )

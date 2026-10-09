@@ -20,7 +20,9 @@ class AuditActor:
         payload: dict | None = None,
         user_id: int | None = None,
     ) -> None:
-        actor_id = self.user.id if user_id is None and self.user is not None else user_id
+        actor_id = (
+            self.user.id if user_id is None and self.user is not None else user_id
+        )
         return await self.service.log(
             user_id=actor_id,
             action=action,

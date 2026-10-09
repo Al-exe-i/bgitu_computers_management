@@ -121,7 +121,9 @@ def test_user_service_uses_redis_cache_after_first_db_read() -> None:
         cache = UserCache(FakeRedis(), ttl_seconds=600)
         repo = FakeRepo(make_user())
         session = FakeSession()
-        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session))
+        service = UserService(
+            repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session)
+        )
 
         first = await service.get(7)
         assert await cache.get(7) is None
@@ -171,7 +173,9 @@ def test_user_service_invalidates_cache_only_after_commit(commit) -> None:
         repo = UserRepository(session)
         user = make_user()
         repo.get = AsyncMock(return_value=user)
-        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session))
+        service = UserService(
+            repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session)
+        )
         await cache.set(user)
         await service.update(user.id, UserUpdate(name="Changed"))
         assert (await cache.get(user.id)).name == "Alex"
@@ -202,7 +206,11 @@ def test_authentication_ignores_stale_cached_privileges_even_when_redis_writes_f
         assert (await cache.get(user.id)).role == UserRole.admin
 
         repo = SimpleNamespace(get=AsyncMock(return_value=user))
-        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, FakeSession()))
+        service = UserService(
+            repo,
+            user_cache=cache,
+            on_commit=partial(add_post_commit_hook, FakeSession()),
+        )
         token = issue_access_token(user.id, token_version=2)
         authenticated = await _validate_token_and_get_user(token, service)
         with pytest.raises(HTTP403):
@@ -227,7 +235,9 @@ def test_cache_miss_does_not_publish_rolled_back_data():
         session = FakeSession()
         repo = UserRepository(session)
         repo.get = AsyncMock(return_value=make_user())
-        service = UserService(repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session))
+        service = UserService(
+            repo, user_cache=cache, on_commit=partial(add_post_commit_hook, session)
+        )
         await service.update(7, UserUpdate(name="Not committed"))
         await service.get(7)
         clear_post_commit_hooks(session)
@@ -237,8 +247,12 @@ def test_cache_miss_does_not_publish_rolled_back_data():
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("new_role, expected_calls", [(UserRole.admin, 1), (UserRole.teacher, 0)])
-def test_role_change_revokes_access_tokens_but_unchanged_role_does_not(new_role, expected_calls):
+@pytest.mark.parametrize(
+    "new_role, expected_calls", [(UserRole.admin, 1), (UserRole.teacher, 0)]
+)
+def test_role_change_revokes_access_tokens_but_unchanged_role_does_not(
+    new_role, expected_calls
+):
     async def scenario():
         repo = UserRepository(FakeSession())
         repo.bump_access_token_version = AsyncMock(return_value=3)

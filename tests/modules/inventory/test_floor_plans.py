@@ -129,23 +129,39 @@ def test_foreign_room_is_rejected(floor_plan):
 
 def test_landmarks_are_saved_preserved_for_old_clients_and_cleared(floor_plan):
     service, repo, _ = floor_plan
-    result = asyncio.run(service.update(1, 2, FloorPlanUpdate(
-        revision=0, width=20, height=12, rooms=[], landmarks={"north": "  Лестница  "}
-    )))
+    result = asyncio.run(
+        service.update(
+            1,
+            2,
+            FloorPlanUpdate(
+                revision=0,
+                width=20,
+                height=12,
+                rooms=[],
+                landmarks={"north": "  Лестница  "},
+            ),
+        )
+    )
     assert result.landmarks.north == "Лестница"
     assert repo.get.return_value.landmarks["north"] == "Лестница"
-    result = asyncio.run(service.update(1, 2, FloorPlanUpdate(
-        revision=1, width=20, height=12, rooms=[]
-    )))
+    result = asyncio.run(
+        service.update(1, 2, FloorPlanUpdate(revision=1, width=20, height=12, rooms=[]))
+    )
     assert result.landmarks.north == "Лестница"
-    result = asyncio.run(service.update(1, 2, FloorPlanUpdate(
-        revision=2, width=20, height=12, rooms=[], landmarks={}
-    )))
+    result = asyncio.run(
+        service.update(
+            1,
+            2,
+            FloorPlanUpdate(revision=2, width=20, height=12, rooms=[], landmarks={}),
+        )
+    )
     assert result.landmarks.north == ""
     assert result.revision == 3
 
 
-@pytest.mark.parametrize("landmarks", [{"north": "x" * 129}, {"unknown": "text"}, {"east": None}, None])
+@pytest.mark.parametrize(
+    "landmarks", [{"north": "x" * 129}, {"unknown": "text"}, {"east": None}, None]
+)
 def test_invalid_landmarks_are_rejected(landmarks):
     with pytest.raises(ValidationError):
         FloorPlanUpdate(revision=0, width=20, height=12, rooms=[], landmarks=landmarks)

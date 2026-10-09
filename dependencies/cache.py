@@ -35,7 +35,9 @@ office_short_list_cache_dep = Annotated[
 ]
 
 
-def get_analytics_filter_options_cache() -> RedisTypedCache[HardwareAnalyticsFilterOptions]:
+def get_analytics_filter_options_cache() -> RedisTypedCache[
+    HardwareAnalyticsFilterOptions
+]:
     return RedisTypedCache(
         get_cache_redis(),
         key="analytics:hardware:filter_options:v1",

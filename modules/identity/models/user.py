@@ -30,6 +30,4 @@ class User(IntIdPkMixin, Base):
         server_default=UserRole.teacher.name,
     )
 
-    __table_args__ = (
-        Index("uq_users_email_ci", func.lower(email), unique=True),
-    )
+    __table_args__ = (Index("uq_users_email_ci", func.lower(email), unique=True),)

@@ -132,7 +132,9 @@ class HardwareAnalyticsRepository:
     async def filter_options(self) -> dict[str, Any]:
         offices_stmt = select(Office.id, Office.address).order_by(Office.id)
         floors_stmt = select(Audience.floor).distinct().order_by(Audience.floor)
-        audiences_stmt = select(Audience.id, Audience.number, Audience.office_id).order_by(
+        audiences_stmt = select(
+            Audience.id, Audience.number, Audience.office_id
+        ).order_by(
             Audience.office_id,
             Audience.floor,
             Audience.number,
@@ -153,8 +155,5 @@ class HardwareAnalyticsRepository:
                 {"value": True, "label": "Исправен"},
                 {"value": False, "label": "Неисправен"},
             ],
-            "types": [
-                {"value": t.value, "label": t.value}
-                for t in HardwareType
-            ],
+            "types": [{"value": t.value, "label": t.value} for t in HardwareType],
         }

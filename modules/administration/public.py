@@ -1,4 +1,5 @@
 """Business-facing, request-scoped audit contract."""
+
 from typing import Protocol
 
 

@@ -10,7 +10,11 @@ REFRESH_COOKIE_PATH = f"{settings.api.prefix}{settings.api.v1.prefix}"
 
 
 def build_token_response(*, access_token: str, refresh_token: str) -> JSONResponse:
-    token_data = {"access_token": access_token, "token_type": "bearer", "status": "success"}
+    token_data = {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "status": "success",
+    }
     response = JSONResponse(content=token_data)
 
     cookie_params = {

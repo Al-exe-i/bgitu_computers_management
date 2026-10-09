@@ -13,4 +13,5 @@ def get_audit_log_service(db: session_dep):
     repo = AuditLogRepository(db)
     return AuditLogService(repo, UserSummaryReader(UserRepository(db)))
 
+
 audit_log_service_dep = Annotated[AuditLogService, Depends(get_audit_log_service)]

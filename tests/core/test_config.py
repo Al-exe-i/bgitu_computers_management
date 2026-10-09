@@ -34,7 +34,10 @@ def make_settings(**overrides) -> Settings:
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("jwt", JWTConfig(ACCESS_SECRET_KEY="replace-with-at-least-32-random-characters")),
+        (
+            "jwt",
+            JWTConfig(ACCESS_SECRET_KEY="replace-with-at-least-32-random-characters"),
+        ),
         (
             "db",
             DatabaseConfig(

@@ -47,7 +47,10 @@ class AuthService:
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> TokenIssueResult:
-        if len(email) > MAX_LOGIN_EMAIL_LENGTH or len(password) > MAX_LOGIN_PASSWORD_LENGTH:
+        if (
+            len(email) > MAX_LOGIN_EMAIL_LENGTH
+            or len(password) > MAX_LOGIN_PASSWORD_LENGTH
+        ):
             verify_password("invalid-login-input", _DUMMY_PASSWORD_HASH)
             logger.warning(
                 "Login rejected due to oversized credentials ip={} user_agent={}",
@@ -108,9 +111,15 @@ class AuthService:
 
         session = await self.session_service.get_active_by_refresh_token(refresh_token)
         if not session:
-            reused_session = await self.session_service.get_active_by_used_refresh_token(refresh_token)
+            reused_session = (
+                await self.session_service.get_active_by_used_refresh_token(
+                    refresh_token
+                )
+            )
             if reused_session is not None:
-                await self._reject_refresh_reuse(reused_session.user_id, reused_session.sid)
+                await self._reject_refresh_reuse(
+                    reused_session.user_id, reused_session.sid
+                )
             logger.warning(
                 "Refresh rejected: session not found ip={} user_agent={}",
                 ip,
@@ -152,7 +161,9 @@ class AuthService:
     async def _reject_refresh_reuse(self, user_id: int, sid: str) -> None:
         await self.session_service.revoke(sid)
         await self.user_service.bump_access_token_version(user_id)
-        logger.warning("Refresh token reuse detected for user_id={} sid={}", user_id, sid)
+        logger.warning(
+            "Refresh token reuse detected for user_id={} sid={}", user_id, sid
+        )
         raise RefreshTokenReuseDetectedError(user_id=user_id, sid=sid)
 
     async def logout(
@@ -181,7 +192,9 @@ class AuthService:
 
         await self.session_service.revoke(session.sid)
         await self.user_service.bump_access_token_version(session.user_id)
-        logger.info("Logout succeeded for user_id={} sid={}", session.user_id, session.sid)
+        logger.info(
+            "Logout succeeded for user_id={} sid={}", session.user_id, session.sid
+        )
         return LogoutResult(user_id=session.user_id, sid=session.sid)
 
     async def logout_all(self, *, user_id: int) -> None:
@@ -207,8 +220,10 @@ class AuthService:
             UserSessionOut.model_validate(
                 {
                     **session.__dict__,
-                    "is_active": (session.revoked_at is None) and (session.expires_at > now),
-                    "is_current": current_sid is not None and session.sid == current_sid,
+                    "is_active": (session.revoked_at is None)
+                    and (session.expires_at > now),
+                    "is_current": current_sid is not None
+                    and session.sid == current_sid,
                 }
             )
             for session in rows

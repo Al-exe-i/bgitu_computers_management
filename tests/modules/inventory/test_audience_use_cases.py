@@ -77,7 +77,9 @@ def test_delete_audience_logs_and_returns_event() -> None:
         audit = FakeAudit()
         use_cases = InventoryAudienceUseCases(service)
 
-        result = await use_cases.delete_audience(audience_public_id=service.public_id, audit=audit)
+        result = await use_cases.delete_audience(
+            audience_public_id=service.public_id, audit=audit
+        )
 
         assert service.deleted == [12]
         assert result.events == [AudienceUpdatedEvent(audience_id=12)]

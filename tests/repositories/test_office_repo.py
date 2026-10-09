@@ -34,7 +34,9 @@ def fake_session() -> FakeSession:
     )
 
 
-def test_get_list_short_maps_audience_and_faulty_counts(fake_session: FakeSession) -> None:
+def test_get_list_short_maps_audience_and_faulty_counts(
+    fake_session: FakeSession,
+) -> None:
     result = asyncio.run(OfficeRepository(fake_session).get_list_short())
 
     assert result == [

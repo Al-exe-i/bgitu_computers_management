@@ -66,7 +66,9 @@ class RealtimeNotificationRecipientService:
         audience_id: int,
         event_type: NotificationEventType,
     ) -> list[tuple[str, int]]:
-        audience = await self.get_audience_context(audience_id=audience_id, event_type=event_type)
+        audience = await self.get_audience_context(
+            audience_id=audience_id, event_type=event_type
+        )
 
         return [
             (NotificationScopeType.audience.value, audience_id),

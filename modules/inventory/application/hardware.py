@@ -65,8 +65,7 @@ class InventoryHardwareUseCases:
             (
                 file
                 for file in files
-                if file.size is not None
-                and file.size > MAX_HARDWARE_FILE_SIZE_BYTES
+                if file.size is not None and file.size > MAX_HARDWARE_FILE_SIZE_BYTES
             ),
             None,
         )
@@ -116,7 +115,9 @@ class InventoryHardwareUseCases:
                 actor.id,
                 hardware_id,
             )
-            raise HardwarePermissionDeniedError("Teacher can't mark hardware as good state")
+            raise HardwarePermissionDeniedError(
+                "Teacher can't mark hardware as good state"
+            )
 
         if actor.role == UserRole.teacher:
             # Преподаватель может менять только состояние и оставлять комментарий
@@ -171,7 +172,11 @@ class InventoryHardwareUseCases:
         audit: AuditLogger,
     ) -> DeleteHardwareFileResult:
         result = await self._hardware_file_service().delete_file(file_id)
-        logger.info("Hardware file deleted: file_id={} audience_id={}", file_id, result.audience_id)
+        logger.info(
+            "Hardware file deleted: file_id={} audience_id={}",
+            file_id,
+            result.audience_id,
+        )
 
         await audit.log(
             action="hardware.file_delete",

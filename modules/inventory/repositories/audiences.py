@@ -11,7 +11,6 @@ from modules.inventory.models.hardware import Hardware
 
 
 class AudienceRepository:
-
     def __init__(self, db: AsyncSession):
         self.session = db
 
@@ -19,9 +18,7 @@ class AudienceRepository:
         """Получить список всех аудиторий"""
         stmt = (
             select(Audience)
-            .options(
-                selectinload(Audience.hardware).selectinload(Hardware.files)
-            )
+            .options(selectinload(Audience.hardware).selectinload(Hardware.files))
             .order_by(Audience.office_id, Audience.floor, Audience.number)
         )
         result = await self.session.execute(stmt)
@@ -73,7 +70,10 @@ class AudienceRepository:
         await self.session.execute(
             update(FloorPlan)
             .where(FloorPlan.positions.op("?")(key))
-            .values(positions=FloorPlan.positions.op("-")(key), revision=FloorPlan.revision + 1)
+            .values(
+                positions=FloorPlan.positions.op("-")(key),
+                revision=FloorPlan.revision + 1,
+            )
         )
 
     async def update(self, audience_id: int, data: dict) -> Audience | None:
@@ -105,12 +105,18 @@ class AudienceRepository:
         return result.scalars().first()
 
     async def list_short(self) -> Sequence[Audience]:
-        stmt = select(Audience).order_by(Audience.office_id, Audience.floor, Audience.number)
+        stmt = select(Audience).order_by(
+            Audience.office_id, Audience.floor, Audience.number
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
     async def delete(self, audience_id: int) -> None:
-        stmt = delete(Audience).where(Audience.id == audience_id).returning(Audience.public_id)
+        stmt = (
+            delete(Audience)
+            .where(Audience.id == audience_id)
+            .returning(Audience.public_id)
+        )
         public_id = (await self.session.execute(stmt)).scalar_one_or_none()
         if public_id is not None:
             await self.remove_floor_placement(public_id)

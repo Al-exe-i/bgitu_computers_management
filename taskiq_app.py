@@ -6,7 +6,9 @@ from taskiq_redis import RedisAsyncResultBackend, RedisStreamBroker
 from core.config import TaskiqConfig, settings
 
 
-def create_broker(config: TaskiqConfig, *, queue_name: str = "bgitu:tasks") -> RedisStreamBroker:
+def create_broker(
+    config: TaskiqConfig, *, queue_name: str = "bgitu:tasks"
+) -> RedisStreamBroker:
     return RedisStreamBroker(
         url=config.broker_url,
         queue_name=queue_name,

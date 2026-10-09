@@ -2,7 +2,14 @@ from collections.abc import Iterable
 
 from pydantic import BaseModel
 
-SENSITIVE_KEYS = {"password", "token", "access_token", "refresh_token", "secret", "api_key"}
+SENSITIVE_KEYS = {
+    "password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "secret",
+    "api_key",
+}
 
 
 def clean_sensitive(obj):

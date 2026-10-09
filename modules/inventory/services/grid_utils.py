@@ -10,16 +10,20 @@ class GridHelper:
     @staticmethod
     def rectangles_intersect(a: HardwareGridItem, b: HardwareGridItem) -> bool:
         return not (
-                a.x + a.width <= b.x or
-                b.x + b.width <= a.x or
-                a.y + a.height <= b.y or
-                b.y + b.height <= a.y
+            a.x + a.width <= b.x
+            or b.x + b.width <= a.x
+            or a.y + a.height <= b.y
+            or b.y + b.height <= a.y
         )
 
     @staticmethod
-    def validate_item_bounds(item: HardwareGridItem, grid_width: int, grid_height: int) -> None:
+    def validate_item_bounds(
+        item: HardwareGridItem, grid_width: int, grid_height: int
+    ) -> None:
         if item.x < 0 or item.y < 0:
-            raise AudienceGridValidationError("Hardware coordinates must be non-negative")
+            raise AudienceGridValidationError(
+                "Hardware coordinates must be non-negative"
+            )
 
         if item.x + item.width > grid_width:
             raise AudienceGridValidationError(
@@ -34,7 +38,9 @@ class GridHelper:
             )
 
     @staticmethod
-    def validate_grid(items: Sequence[HardwareGridItem], grid_width: int, grid_height: int) -> None:
+    def validate_grid(
+        items: Sequence[HardwareGridItem], grid_width: int, grid_height: int
+    ) -> None:
         seen_ids: set[int] = set()
 
         for item in items:
@@ -42,7 +48,9 @@ class GridHelper:
 
             if item.id is not None:
                 if item.id in seen_ids:
-                    raise AudienceGridValidationError(f"Duplicate hardware id={item.id} in payload")
+                    raise AudienceGridValidationError(
+                        f"Duplicate hardware id={item.id} in payload"
+                    )
                 seen_ids.add(item.id)
 
         for i in range(len(items)):

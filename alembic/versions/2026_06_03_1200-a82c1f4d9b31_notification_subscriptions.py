@@ -26,8 +26,15 @@ def upgrade() -> None:
         sa.Column("scope_type", sa.String(length=32), nullable=False),
         sa.Column("scope_id", sa.Integer(), nullable=False),
         sa.Column("event_type", sa.String(length=64), nullable=False),
-        sa.Column("enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.Column("id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

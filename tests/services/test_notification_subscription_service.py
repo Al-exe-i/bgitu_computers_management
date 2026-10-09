@@ -25,7 +25,9 @@ class FakeNotificationSubscriptionRepo:
     async def list_by_user(self, user_id: int):
         return [row for row in self.rows.values() if row.user_id == user_id]
 
-    async def get_by_user_scope_and_event(self, *, user_id: int, scope_type: str, scope_id: int, event_type: str):
+    async def get_by_user_scope_and_event(
+        self, *, user_id: int, scope_type: str, scope_id: int, event_type: str
+    ):
         for row in self.rows.values():
             if (
                 row.user_id == user_id
@@ -81,7 +83,9 @@ class FakeOfficeRepo:
         return None
 
 
-def make_service(*, users: dict[int, SimpleNamespace], audience_ids: set[int], office_ids: set[int]):
+def make_service(
+    *, users: dict[int, SimpleNamespace], audience_ids: set[int], office_ids: set[int]
+):
     return NotificationSubscriptionService(
         FakeNotificationSubscriptionRepo(),
         FakeUserDirectory(users),
@@ -172,7 +176,9 @@ def test_create_subscription_rejects_duplicates() -> None:
 
         await service.create(user_id=7, data=data)
 
-        with pytest.raises(NotificationSubscriptionAlreadyExistsError, match="already exists"):
+        with pytest.raises(
+            NotificationSubscriptionAlreadyExistsError, match="already exists"
+        ):
             await service.create(user_id=7, data=data)
 
     asyncio.run(scenario())

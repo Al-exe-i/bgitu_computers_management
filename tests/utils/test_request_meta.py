@@ -27,7 +27,9 @@ def make_request(
     return Request(scope)
 
 
-def test_get_request_meta_ignores_forwarded_headers_from_untrusted_client(monkeypatch) -> None:
+def test_get_request_meta_ignores_forwarded_headers_from_untrusted_client(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(settings, "trusted_proxy_ips", [])
     request = make_request(
         headers=[
@@ -48,7 +50,9 @@ def test_get_request_meta_ignores_forwarded_headers_from_untrusted_client(monkey
     }
 
 
-def test_get_request_meta_trusts_x_forwarded_for_from_trusted_proxy(monkeypatch) -> None:
+def test_get_request_meta_trusts_x_forwarded_for_from_trusted_proxy(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(settings, "trusted_proxy_ips", ["10.0.0.0/8"])
     request = make_request(
         headers=[
@@ -76,7 +80,9 @@ def test_get_request_meta_ignores_spoofed_leftmost_forwarded_ip(monkeypatch) -> 
     assert get_request_meta(request)["ip"] == "203.0.113.10"
 
 
-def test_get_request_meta_falls_back_to_x_real_ip_for_trusted_proxy(monkeypatch) -> None:
+def test_get_request_meta_falls_back_to_x_real_ip_for_trusted_proxy(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(settings, "trusted_proxy_ips", ["10.0.0.2"])
     proxy_request = make_request(
         headers=[(b"x-real-ip", b"198.51.100.5")],

@@ -53,7 +53,9 @@ class HardwareVideoStream:
 
 
 class HardwareFileStreamingService:
-    def __init__(self, files_repo: HardwareFilesRepository, storage: ObjectStorage) -> None:
+    def __init__(
+        self, files_repo: HardwareFilesRepository, storage: ObjectStorage
+    ) -> None:
         self.files_repo = files_repo
         self.storage = storage
 
@@ -157,7 +159,11 @@ class HardwareFileStreamingService:
 
         try:
             start = int(parts[0]) if parts[0] else 0
-            end = int(parts[1]) if parts[1] else min(start + DEFAULT_RANGE_CHUNK_SIZE - 1, file_size - 1)
+            end = (
+                int(parts[1])
+                if parts[1]
+                else min(start + DEFAULT_RANGE_CHUNK_SIZE - 1, file_size - 1)
+            )
         except ValueError:
             raise HardwareFileBadRangeError()
 

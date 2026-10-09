@@ -15,7 +15,12 @@ async def get_analytics_service(
     filter_options_cache: analytics_filter_options_cache_dep,
 ) -> HardwareAnalyticsService:
     repo = HardwareAnalyticsRepository(db)
-    service = HardwareAnalyticsService(repo, filter_options_cache, on_commit=partial(add_post_commit_hook, db))
+    service = HardwareAnalyticsService(
+        repo, filter_options_cache, on_commit=partial(add_post_commit_hook, db)
+    )
     return service
 
-analytics_service_dep = Annotated[HardwareAnalyticsService, Depends(get_analytics_service)]
+
+analytics_service_dep = Annotated[
+    HardwareAnalyticsService, Depends(get_analytics_service)
+]

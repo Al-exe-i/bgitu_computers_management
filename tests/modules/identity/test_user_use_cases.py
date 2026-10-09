@@ -125,42 +125,65 @@ def audit() -> FakeAudit:
 
 
 @pytest.mark.parametrize("role", [UserRole.admin, UserRole.teacher])
-def test_su_password_reset_revokes_target_sessions_and_audits_without_secrets(audit, role):
+def test_su_password_reset_revokes_target_sessions_and_audits_without_secrets(
+    audit, role
+):
     async def scenario():
         service = FakeUserService({7: make_user(user_id=7, role=role)})
         auth = FakeAuthService()
         result = await IdentityUserUseCases(service, auth).reset_user_password(
-            user_id=7, data=ResetUserPasswordSchema(new_password="newpass"),
+            user_id=7,
+            data=ResetUserPasswordSchema(new_password="newpass"),
             actor=Actor(id=1, role=UserRole.admin, is_superuser=True),
-            audit=audit, ip="127.0.0.1", user_agent="pytest",
+            audit=audit,
+            ip="127.0.0.1",
+            user_agent="pytest",
         )
         assert service.updated == [(7, {"password": "newpass"})]
         assert auth.logged_out_user_ids == [7]
-        assert audit.logs == [{"action": "user.password_reset", "entity_type": "user",
-                               "entity_id": 7, "payload": {"target_user_id": 7}}]
+        assert audit.logs == [
+            {
+                "action": "user.password_reset",
+                "entity_type": "user",
+                "entity_id": 7,
+                "payload": {"target_user_id": 7},
+            }
+        ]
         assert len(result.events) == 1
         assert result.events[0].user_id == 7
         assert "newpass" not in repr(result)
+
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("actor_id,role,is_su,target_su", [
-    (1, UserRole.teacher, False, False), (1, UserRole.admin, False, False),
-    (7, UserRole.admin, True, True), (1, UserRole.admin, True, True),
-])
-def test_password_reset_rejects_forbidden_actors_and_protected_targets(audit, actor_id, role, is_su, target_su):
+@pytest.mark.parametrize(
+    "actor_id,role,is_su,target_su",
+    [
+        (1, UserRole.teacher, False, False),
+        (1, UserRole.admin, False, False),
+        (7, UserRole.admin, True, True),
+        (1, UserRole.admin, True, True),
+    ],
+)
+def test_password_reset_rejects_forbidden_actors_and_protected_targets(
+    audit, actor_id, role, is_su, target_su
+):
     async def scenario():
         service = FakeUserService({7: make_user(user_id=7, is_superuser=target_su)})
         auth = FakeAuthService()
         with pytest.raises(UserPermissionDeniedError):
             await IdentityUserUseCases(service, auth).reset_user_password(
-                user_id=7, data=ResetUserPasswordSchema(new_password="newpass"),
+                user_id=7,
+                data=ResetUserPasswordSchema(new_password="newpass"),
                 actor=Actor(id=actor_id, role=role, is_superuser=is_su),
-                audit=audit, ip=None, user_agent=None,
+                audit=audit,
+                ip=None,
+                user_agent=None,
             )
         assert service.updated == []
         assert auth.logged_out_user_ids == []
         assert audit.logs == []
+
     asyncio.run(scenario())
 
 
@@ -169,15 +192,21 @@ def test_password_reset_missing_user_has_no_side_effects(audit):
         service, auth = FakeUserService({}), FakeAuthService()
         with pytest.raises(UserNotFoundError):
             await IdentityUserUseCases(service, auth).reset_user_password(
-                user_id=7, data=ResetUserPasswordSchema(new_password="newpass"),
+                user_id=7,
+                data=ResetUserPasswordSchema(new_password="newpass"),
                 actor=Actor(id=1, role=UserRole.admin, is_superuser=True),
-                audit=audit, ip=None, user_agent=None,
+                audit=audit,
+                ip=None,
+                user_agent=None,
             )
         assert not service.updated and not auth.logged_out_user_ids and not audit.logs
+
     asyncio.run(scenario())
 
 
-def test_regular_user_update_self_strips_role_and_logs_changed_fields(audit: FakeAudit) -> None:
+def test_regular_user_update_self_strips_role_and_logs_changed_fields(
+    audit: FakeAudit,
+) -> None:
     async def scenario() -> None:
         actor = Actor(id=7, role=UserRole.teacher)
         service = FakeUserService({7: make_user(user_id=7)})
@@ -237,7 +266,9 @@ def test_admin_cannot_update_another_superuser(audit: FakeAudit) -> None:
     asyncio.run(scenario())
 
 
-def test_change_password_writes_audit_and_returns_security_event(audit: FakeAudit) -> None:
+def test_change_password_writes_audit_and_returns_security_event(
+    audit: FakeAudit,
+) -> None:
     async def scenario() -> None:
         actor = Actor(id=7, role=UserRole.teacher)
         service = FakeUserService({7: make_user(user_id=7)})
@@ -245,7 +276,9 @@ def test_change_password_writes_audit_and_returns_security_event(audit: FakeAudi
         use_cases = IdentityUserUseCases(service, auth_service)
 
         result = await use_cases.change_password(
-            data=ChangePasswordSchema(current_password="oldpass", new_password="newpass"),
+            data=ChangePasswordSchema(
+                current_password="oldpass", new_password="newpass"
+            ),
             actor=actor,
             audit=audit,
             ip="127.0.0.1",
